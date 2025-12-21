@@ -152,13 +152,23 @@
 
 	<!-- Footer - responsive layout -->
 	<footer class="border-t border-border p-4">
-		<div
-			class="mx-auto flex max-w-6xl flex-col items-end space-y-2 text-sm text-muted-foreground md:flex-row md:justify-end md:space-y-0 md:space-x-6"
-		>
-			<a href="#" class="font-medium transition-colors hover:text-foreground">Donate</a>
-			<a href="#" class="font-medium transition-colors hover:text-foreground">CLI</a>
-			<a href="#" class="font-medium transition-colors hover:text-foreground">DMCA</a>
-			<a href="#" class="font-medium transition-colors hover:text-foreground">Source</a>
+		<div class="mx-auto w-full max-w-6xl">
+			<nav
+				class="flex flex-row flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground md:gap-6"
+			>
+				<a href="#" class="font-medium whitespace-nowrap transition-colors hover:text-foreground"
+					>Donate</a
+				>
+				<a href="#" class="font-medium whitespace-nowrap transition-colors hover:text-foreground"
+					>CLI</a
+				>
+				<a href="#" class="font-medium whitespace-nowrap transition-colors hover:text-foreground"
+					>DMCA</a
+				>
+				<a href="#" class="font-medium whitespace-nowrap transition-colors hover:text-foreground"
+					>Source</a
+				>
+			</nav>
 		</div>
 	</footer>
 </div>
