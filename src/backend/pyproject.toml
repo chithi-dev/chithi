@@ -5,13 +5,13 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "alembic>=1.17.2",
     "fastapi>=0.127.0",
     "pydantic-settings>=2.12.0",
     "python-multipart>=0.0.21",
+    "sqlalchemy[postgresql-asyncpg]>=2.0.45",
     "sqlmodel>=0.0.27",
 ]
 
 [dependency-groups]
-dev = [
-    "fastapi-cli>=0.0.16",
-]
+dev = ["fastapi-cli>=0.0.16"]
