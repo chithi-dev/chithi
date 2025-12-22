@@ -1,6 +1,9 @@
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Column
 from sqlalchemy import text
 from uuid import UUID
+from datetime import datetime
+from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy import Integer, String, Date
 
 
 class Config(SQLModel, table=True):
@@ -24,3 +27,10 @@ class Config(SQLModel, table=True):
 
     # Markdown fields
     site_description: str = "Welcome to Chithi"
+
+    # Customizable fields
+    download_configs: list[int] = Field(default=[], sa_column=Column(ARRAY(Integer)))
+    time_configs: list[datetime] = Field(default=[], sa_column=Column(ARRAY(Date)))
+
+    allowed_file_types: list[str] = Field(default=[], sa_column=Column(ARRAY(String)))
+    banned_file_types: list[str] = Field(default=[], sa_column=Column(ARRAY(String)))

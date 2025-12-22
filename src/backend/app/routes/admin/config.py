@@ -22,6 +22,7 @@ async def change_config(
 
     update_dict = config_in.model_dump(exclude_unset=True)
     config.sqlmodel_update(update_dict)
+    session.add(config)
     await session.commit()
-
+    await session.refresh(config)
     return config
