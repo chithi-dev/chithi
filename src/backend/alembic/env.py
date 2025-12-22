@@ -1,7 +1,10 @@
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
+# from sqlalchemy import engine_from_config
+import asyncio
+
 from sqlalchemy import pool
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from alembic import context
 
@@ -34,6 +37,15 @@ def get_url():
     return str(settings.SQLALCHEMY_DATABASE_URI)
 
 
+def do_run_migrations(connection):
+    """This internal helper actually runs the migrations sync-style
+    inside the async wrapper."""
+    context.configure(connection=connection, target_metadata=target_metadata)
+
+    with context.begin_transaction():
+        context.run_migrations()
+
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -59,7 +71,7 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-def run_migrations_online() -> None:
+async def run_migrations_online() -> None:
     """Run migrations in 'online' mode.
 
     In this scenario we need to create an Engine
@@ -68,20 +80,19 @@ def run_migrations_online() -> None:
     """
     configuration = config.get_section(config.config_ini_section)
     configuration["sqlalchemy.url"] = get_url()  # type: ignore
-    connectable = engine_from_config(
-        configuration,  # type: ignore
-        prefix="sqlalchemy.",
+    connectable = create_async_engine(
+        get_url(),
         poolclass=pool.NullPool,
     )
 
-    with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+    async with connectable.connect() as connection:
+        # We use run_sync to bridge the async connection to the sync Alembic context
+        await connection.run_sync(do_run_migrations)
 
-        with context.begin_transaction():
-            context.run_migrations()
+    await connectable.dispose()
 
 
 if context.is_offline_mode():
     run_migrations_offline()
 else:
-    run_migrations_online()
+    asyncio.run(run_migrations_online())

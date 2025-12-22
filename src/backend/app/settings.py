@@ -1,4 +1,6 @@
-from pydantic import Field, PostgresDsn, computed_field
+import secrets
+
+from pydantic import PostgresDsn, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -13,11 +15,11 @@ class Settings(BaseSettings):
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: int = 5432
     POSTGRES_USER: str = "postgres"
-    POSTGRES_PASSWORD: str = ""
-    POSTGRES_DB: str = ""
+    POSTGRES_PASSWORD: str = "supersecretpassword"
+    POSTGRES_DB: str = "chithi"
 
     # --- SQLite Fields ---
-    USE_SQLITE: bool = True
+    USE_SQLITE: bool = False
     SQLITE_DB: str = "sql_app.db"
 
     @computed_field  # type: ignore[prop-decorator]
@@ -35,6 +37,15 @@ class Settings(BaseSettings):
             port=self.POSTGRES_PORT,
             path=self.POSTGRES_DB,
         )
+
+    # API Config
+    API_STR: str = "/api/v1"
+
+    # JWT
+    SECRET_KEY: str = secrets.token_urlsafe(32)
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = (
+        60 * 24 * 8  # 60 minutes * 24 hours * 8 days = 8 days
+    )
 
 
 settings = Settings()  # type: ignore

@@ -29,19 +29,29 @@ async def add_user_async(username: str, email: str | None, password_hash: str):
 
 @cli.command()
 def add_user(
-    email: str | None,
-    username: str = typer.Option(None, help="Username for the new user"),
+    email: str = typer.Option(None, help="Email for the new user"),
+    username: str = typer.Option(None, help="Email for the new user"),
 ):
+    if not username:
+        username = typer.prompt("Username")
+
     password = getpass("Password: ")
     confirm_password = getpass("Confirm Password: ")
     if password != confirm_password:
         typer.echo("Passwords do not match!")
         raise typer.Exit(code=1)
 
-    if not email:
-        email = typer.prompt("Email")
-
     hashed_password = get_password_hash(password)
     asyncio.run(
         add_user_async(username=username, email=email, password_hash=hashed_password)
     )
+
+
+@cli.command()
+def hello(name: str):
+    """Simple command to say hello."""
+    typer.echo(f"Hello {name}!")
+
+
+def main():
+    cli()
