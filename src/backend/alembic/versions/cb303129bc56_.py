@@ -11,7 +11,7 @@ from typing import Sequence
 from alembic import op
 import sqlalchemy as sa
 import sqlmodel.sql.sqltypes
-
+from app.models import Config
 
 # revision identifiers, used by Alembic.
 revision: str = "cb303129bc56"
@@ -55,6 +55,11 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     # ### end Alembic commands ###
+
+    # Create Empty table
+    config_instance = Config()
+    data = config_instance.model_dump(exclude={"id"})
+    op.bulk_insert(sa.table("config", *[sa.column(k) for k in data.keys()]), [data])
 
     # Custom triggers to enforce singleton pattern on Config table
     op.execute("""

@@ -16,5 +16,4 @@ class User(SQLModel, table=True):
 
     username: str = Field(index=True, unique=True)
     email: str | None = Field(default=None, index=True, unique=True)
-
     password_hash: str = Field()
