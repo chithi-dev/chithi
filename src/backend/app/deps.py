@@ -14,10 +14,6 @@ from app import security
 reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_STR}/login")
 
 
-SessionDep = Annotated[AsyncSession, Depends(get_session)]
-TokenDep = Annotated[str, Depends(reusable_oauth2)]
-
-
 async def get_current_user(session: SessionDep, token: TokenDep) -> User:
     try:
         payload = jwt.decode(
@@ -35,3 +31,10 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> User:
     # if not user.is_active:
     #     raise HTTPException(status_code=400, detail="Inactive user")
     return user
+
+
+SessionDep = Annotated[AsyncSession, Depends(get_session)]
+TokenDep = Annotated[str, Depends(reusable_oauth2)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
+
+__all__ = ["SessionDep", "CurrentUser", "TokenDep"]

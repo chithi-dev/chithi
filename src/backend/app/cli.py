@@ -47,11 +47,5 @@ def add_user(
     )
 
 
-@cli.command()
-def hello(name: str):
-    """Simple command to say hello."""
-    typer.echo(f"Hello {name}!")
-
-
 def main():
     cli()

@@ -5,6 +5,7 @@ from uuid import UUID
 
 class Config(SQLModel, table=True):
     id: UUID = Field(
+        default=None,
         primary_key=True,
         sa_column_kwargs={
             "server_default": text(
