@@ -1,5 +1,5 @@
 [project]
-name = "backend"
+name = "chithi_backend"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -10,6 +10,7 @@ dependencies = [
     "granian>=2.6.0",
     "pwdlib[argon2]>=0.3.0",
     "pydantic-settings>=2.12.0",
+    "pyjwt>=2.10.1",
     "python-multipart>=0.0.21",
     "sqlalchemy[postgresql-asyncpg]>=2.0.45",
     "sqlmodel>=0.0.27",
@@ -18,3 +19,13 @@ dependencies = [
 
 [dependency-groups]
 dev = ["fastapi-cli>=0.0.16"]
+
+[tool.setuptools]
+packages = ["app"]
+
+[tool.uv]
+default-groups = ["dev"]
+package = true
+
+[project.scripts]
+backend = "app.cli:main"
