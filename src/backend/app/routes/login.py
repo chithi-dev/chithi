@@ -18,14 +18,14 @@ router = APIRouter()
 async def login_access_token(
     session: SessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ) -> Token:
-    # 1. Look up user
+    # Look up user
     statement = select(User).where(
         or_(User.username == form_data.username, User.email == form_data.username)
     )
     result = await session.exec(statement)
     user = result.first()
 
-    # 2. Validate user and password
+    # Validate user and password
     print(user)
     if not user or not security.verify_password(form_data.password, user.password_hash):
         raise HTTPException(
@@ -33,13 +33,13 @@ async def login_access_token(
             detail="Incorrect email or password",
         )
 
-    # 3. Check status
+    # Check status
     # if not user.is_active:
     #     raise HTTPException(
     #         status_code=status.HTTP_400_BAD_REQUEST, detail="Inactive user"
     #     )
 
-    # 4. Generate Token
+    # Generate Token
     access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
     token_string = security.create_access_token(
