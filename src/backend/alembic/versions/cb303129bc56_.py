@@ -33,7 +33,7 @@ def upgrade() -> None:
             "site_description", sqlmodel.sql.sqltypes.AutoString(), nullable=False
         ),
         sa.Column("download_configs", postgresql.ARRAY(sa.Integer()), nullable=True),
-        sa.Column("time_configs", postgresql.ARRAY(sa.DateTime()), nullable=True),
+        sa.Column("time_configs", postgresql.ARRAY(sa.Integer()), nullable=True),
         sa.Column("allowed_file_types", postgresql.ARRAY(sa.String()), nullable=True),
         sa.Column("banned_file_types", postgresql.ARRAY(sa.String()), nullable=True),
         sa.PrimaryKeyConstraint("id"),

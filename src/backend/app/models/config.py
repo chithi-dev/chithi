@@ -39,9 +39,9 @@ class Config(SQLModel, table=True):
         default=[10],
         sa_column=Column(ARRAY(Integer)),
     )
-    time_configs: list[datetime] = Field(
+    time_configs: list[int] = Field(
         default=[int(timedelta(days=7).total_seconds())],
-        sa_column=Column(ARRAY(DateTime)),
+        sa_column=Column(ARRAY(Integer)),
     )
 
     allowed_file_types: list[str] = Field(default=[], sa_column=Column(ARRAY(String)))
