@@ -1,4 +1,4 @@
-import { LOGIN_URL } from '$lib/consts/backend';
+import { LOGIN_URL, USER_URL } from '$lib/consts/backend';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 export function useAuth() {
@@ -10,7 +10,7 @@ export function useAuth() {
 			const token = localStorage.getItem('auth_token');
 			if (!token) return null;
 
-			const res = await fetch(LOGIN_URL, {
+			const res = await fetch(USER_URL, {
 				headers: { Authorization: `Bearer ${token}` }
 			});
 
@@ -24,10 +24,29 @@ export function useAuth() {
 		retry: false
 	}));
 
-	const login = (token: string) => {
+	const login = async (username: string, password: string) => {
+		// Build form data
+		const body = new URLSearchParams();
+		body.append('username', username);
+		body.append('password', password);
+
+		const res = await fetch(LOGIN_URL, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/x-www-form-urlencoded'
+			},
+			body
+		});
+
+		if (!res.ok) {
+			throw new Error('Invalid username or password');
+		}
+
+		const data = await res.json();
+		const token = data.access_token; // or 'token' depending on your backend
 		localStorage.setItem('auth_token', token);
-		// Refresh the specific key
-		queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+
+		return token;
 	};
 
 	const logout = () => {
@@ -35,10 +54,14 @@ export function useAuth() {
 		queryClient.setQueryData(['auth-user'], null);
 		queryClient.clear();
 	};
+	const isAuthenticated = () => {
+		return !!localStorage.getItem('auth_token');
+	};
 
 	return {
 		user: query,
 		login,
-		logout
+		logout,
+		isAuthenticated
 	};
 }
