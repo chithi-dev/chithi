@@ -24,7 +24,7 @@ class Config(SQLModel, table=True):
     max_file_size_limit: int = ByteSize(mb=100).total_bytes()  # 100mb
 
     # Default constraints
-    default_expiery: int = int(timedelta(days=7).total_seconds())
+    default_expiry: int = int(timedelta(days=7).total_seconds())
     default_number_of_downloads: int = 5
 
     # Markdown fields
