@@ -23,34 +23,19 @@
 	import { fade, slide } from 'svelte/transition';
 	import { marked } from 'marked';
 	import { useConfigQuery } from '$lib/queries/config';
+	import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '$lib/functions/bytes';
+	import { formatSeconds, secondsToNumber, T_UNITS, type TimeUnit } from '$lib/functions/times';
+	import { sanitizeExt } from '$lib/functions/sanitize';
+
+
 
 	// --- TYPES & CONSTANTS ---
-	const B_VALS = {
-		Bytes: 1,
-		KB: 1024,
-		MB: 1024 ** 2,
-		GB: 1024 ** 3,
-		TB: 1024 ** 4
-	} as const;
-	type ByteUnit = keyof typeof B_VALS;
-
-	const T_VALS = {
-		Seconds: 1,
-		Minutes: 60,
-		Hours: 3600,
-		Days: 86400,
-		Weeks: 604800,
-		Months: 2592000
-	} as const;
-	type TimeUnit = keyof typeof T_VALS;
-	const T_UNITS = Object.keys(T_VALS) as TimeUnit[];
 
 	// --- QUERY HOOK ---
 	const { config: configQuery, update_config } = useConfigQuery();
 
 	// --- DERIVED STATE (Runes) ---
 	let configData = $derived(configQuery.data);
-
 	let previewHtml = $derived(
 		configData?.site_description ? marked.parse(configData.site_description) : ''
 	);
@@ -69,30 +54,6 @@
 	});
 
 	// --- HELPERS ---
-	function formatBytes(bytes: number): { val: number; unit: ByteUnit } {
-		if (!bytes || bytes === 0) return { val: 0, unit: 'MB' };
-		const units: ByteUnit[] = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(1024));
-		return {
-			val: parseFloat((bytes / Math.pow(1024, i)).toFixed(2)),
-			unit: units[i]
-		};
-	}
-
-	function formatSeconds(seconds: number): { val: number; unit: TimeUnit } {
-		if (!seconds || seconds === 0) return { val: 0, unit: 'Seconds' };
-		for (const unit of [...T_UNITS].reverse()) {
-			if (seconds >= T_VALS[unit]) {
-				return { val: parseFloat((seconds / T_VALS[unit]).toFixed(2)), unit };
-			}
-		}
-		return { val: seconds, unit: 'Seconds' };
-	}
-
-	function sanitizeExt(ext: string) {
-		return ext.replace(/^\./, '').trim().toLowerCase();
-	}
-
 	function startEdit(type: 'storage' | 'file') {
 		if (!configData) return;
 		const bytes =
@@ -135,7 +96,6 @@
 				</div>
 			{/if}
 		</header>
-
 		{#if configQuery.isLoading}
 			<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 				{#each Array(6) as _}
@@ -194,7 +154,7 @@
 									size="sm"
 									class="h-7 w-full bg-white text-[10px] font-bold text-black hover:bg-zinc-200"
 									onclick={() => {
-										save({ total_storage_limit: Math.floor(editVal * B_VALS[editUnit]) });
+										save({ total_storage_limit: bytesToNumber(editVal, editUnit) });
 										editing = null;
 									}}>SAVE</Button
 								>
@@ -253,7 +213,7 @@
 									size="sm"
 									class="h-7 w-full bg-white text-[10px] font-bold text-black hover:bg-zinc-200"
 									onclick={() => {
-										save({ max_file_size_limit: Math.floor(editVal * B_VALS[editUnit]) });
+										save({ max_file_size_limit: bytesToNumber(editVal, editUnit) });
 										editing = null;
 									}}>SAVE</Button
 								>
@@ -312,7 +272,7 @@
 									size="sm"
 									class="h-7 bg-zinc-800 hover:bg-zinc-700"
 									onclick={() => {
-										const secs = tempInput.time * T_VALS[tempInput.timeUnit];
+										const secs = secondsToNumber(tempInput.time, tempInput.timeUnit);
 										const newTimeConfigs = [...configData.time_configs, secs].sort((a, b) => a - b);
 										save({ time_configs: newTimeConfigs });
 									}}><Plus class="size-3" /></Button
@@ -533,7 +493,6 @@
 								{/if}
 							</div>
 						</div>
-
 						<div class="space-y-3 md:border-l md:border-zinc-900 md:pl-8">
 							<div class="flex items-center justify-between border-b border-zinc-900 pb-2">
 								<div class="flex items-center gap-2">
