@@ -28,4 +28,4 @@ default-groups = ["dev"]
 package = true
 
 [project.scripts]
-backend = "app.cli:main"
+backend = "app.__main__:main"
