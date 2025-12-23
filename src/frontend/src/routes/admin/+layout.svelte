@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { useAuth } from '$lib/queries/auth';
 
 	const { user } = useAuth();
@@ -6,7 +7,9 @@
 	let { children } = $props();
 
 	$effect(() => {
-		console.log(user.data);
+		if (user.data === null) {
+			goto('/login');
+		}
 	});
 </script>
 

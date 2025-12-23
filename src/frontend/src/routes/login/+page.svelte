@@ -3,7 +3,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Card from '$lib/components/ui/card';
-	import { ShieldCheck, ArrowRight, Mail, Lock, Loader2, ChevronLeft } from 'lucide-svelte';
+	import { ShieldCheck, ArrowRight, Mail, Lock, LoaderCircle, ChevronLeft } from 'lucide-svelte';
 
 	let isLoading = false;
 
@@ -19,23 +19,28 @@
 >
 	<div class="absolute inset-0 z-0">
 		<div
-			class="absolute top-[-10%] left-[-10%] size-[500px] rounded-full bg-primary/5 blur-[120px]"
-		/>
+			class="absolute top-[-10%] left-[-10%] size-125 rounded-full bg-primary/5 blur-[120px]"
+		></div>
+
 		<div
-			class="absolute right-[-10%] bottom-[-10%] size-[500px] rounded-full bg-primary/5 blur-[120px]"
-		/>
+			class="absolute right-[-10%] bottom-[-10%] size-125 rounded-full bg-primary/5 blur-[120px]"
+		></div>
+
+		<div
+			class="absolute top-1/2 left-1/2 size-96 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-[100px]"
+		></div>
 	</div>
 
 	<a
 		href="/"
-		class="transition-hover absolute top-8 left-8 flex items-center text-sm font-medium text-muted-foreground hover:text-primary"
+		class="transition-hover absolute top-8 left-8 z-20 flex items-center text-sm font-medium text-muted-foreground hover:text-primary"
 	>
 		<ChevronLeft class="mr-1 size-4" />
 		Back to site
 	</a>
 
 	<Card.Root
-		class="relative z-10 w-full max-w-[450px] border-zinc-200/50 shadow-2xl dark:border-zinc-800/50"
+		class="relative z-10 w-full max-w-112.5 border-zinc-200/50 shadow-2xl dark:border-zinc-800/50"
 	>
 		<Card.Header class="space-y-3 pb-8 text-center">
 			<div
@@ -52,7 +57,13 @@
 		</Card.Header>
 
 		<Card.Content>
-			<form on:submit|preventDefault={handleSubmit} class="grid gap-6">
+			<form
+				onsubmit={async (e) => {
+					e.preventDefault();
+					await handleSubmit();
+				}}
+				class="grid gap-6"
+			>
 				<div class="grid gap-4">
 					<div class="grid gap-2">
 						<Label for="email" class="ml-1 text-sm font-semibold">Work Email</Label>
@@ -65,7 +76,7 @@
 							<Input
 								id="email"
 								type="email"
-								placeholder="name@company.com"
+								placeholder="name@example.com"
 								class="h-11 bg-muted/30 pl-10 focus-visible:ring-1"
 								required
 							/>
@@ -104,7 +115,7 @@
 					disabled={isLoading}
 				>
 					{#if isLoading}
-						<Loader2 class="mr-2 size-4 animate-spin" />
+						<LoaderCircle class="mr-2 size-4 animate-spin" />
 						Authenticating...
 					{:else}
 						Sign In
