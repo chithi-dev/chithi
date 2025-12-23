@@ -7,7 +7,7 @@ from app.models.config import Config
 router = APIRouter()
 
 
-@router.get("")
+@router.get("/config")
 async def get_config(session: SessionDep):
     config_object = select(Config)
     result = await session.exec(config_object)

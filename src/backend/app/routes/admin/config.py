@@ -8,7 +8,7 @@ from http import HTTPStatus
 router = APIRouter()
 
 
-@router.patch("", response_model=Config)
+@router.patch("/config", response_model=Config)
 async def change_config(
     _: CurrentUser,  # Only check for login here
     session: SessionDep,

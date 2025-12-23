@@ -1,4 +1,4 @@
-import { CONFIG_URL } from '$lib/consts/backend';
+import { ADMIN_CONFIG_URL, CONFIG_URL } from '$lib/consts/backend';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 type ConfigIn = {
@@ -39,6 +39,7 @@ export const useConfigQuery = () => {
 
 			return res.json();
 		},
+		
 		staleTime: 10,
 		retry: true
 	}));
@@ -47,15 +48,15 @@ export const useConfigQuery = () => {
 		const token = localStorage.getItem('auth_token');
 		if (!token) return null;
 
-		const res = await fetch(CONFIG_URL, {
-			method: 'POST',
+		const res = await fetch(ADMIN_CONFIG_URL, {
+			method: 'PATCH',
 			headers: {
 				'Content-Type': 'application/json',
 				Authorization: `Bearer ${token}`
 			},
 			body: JSON.stringify(data)
 		});
-		if (res.ok) queryClient.invalidateQueries({ queryKey: ['config'] });
+		if (res.ok) await queryClient.invalidateQueries({ queryKey: ['config'] });
 	};
 
 	return {

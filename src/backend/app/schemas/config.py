@@ -1,22 +1,22 @@
-from pydantic import BaseModel
+from sqlmodel import SQLModel
 
 
-class ConfigIn(BaseModel):
+class ConfigIn(SQLModel):
     # Storage constraints
-    total_storage_limit_gb: int | None
-    max_file_size_mb: int | None
+    total_storage_limit: int | None = None
+    max_file_size_limit: int | None = None
 
     # Default constraints
-    default_expiry: int | None
-    default_number_of_downloads: int | None
+    default_expiry: int | None = None
+    default_number_of_downloads: int | None = None
 
     # Markdown
-    site_description: str | None
+    site_description: str | None = None
 
     # Customizable fields
-    download_configs: list[int] | None
-    time_configs: list[str] | None
+    download_configs: list[int] | None = None
+    time_configs: list[int] | None = None
 
     # File type restrictions
-    allowed_file_types: list[str] | None
-    banned_file_types: list[str] | None
+    allowed_file_types: list[str] | None = None
+    banned_file_types: list[str] | None = None

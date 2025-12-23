@@ -6,18 +6,18 @@ import jwt
 from jwt import InvalidTokenError
 from pydantic import ValidationError
 from app.models import User
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.schemas.token import TokenPayload
 from app.settings import settings
 from app import security
 
-reusable_oauth2 = OAuth2PasswordBearer(tokenUrl=f"{settings.API_STR}/login")
+bearer_scheme = HTTPBearer(auto_error=True)
 
 
 async def get_current_user(session: SessionDep, token: TokenDep) -> User:
     try:
         payload = jwt.decode(
-            token, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
+            token.credentials, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
         )
         token_data = TokenPayload(**payload)
     except (InvalidTokenError, ValidationError):
@@ -34,7 +34,10 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> User:
 
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
-TokenDep = Annotated[str, Depends(reusable_oauth2)]
+TokenDep = Annotated[
+    HTTPAuthorizationCredentials,
+    Depends(bearer_scheme),
+]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 __all__ = ["SessionDep", "CurrentUser", "TokenDep"]

@@ -92,31 +92,49 @@ def _register_module(
     file_path: Path, router: APIRouter, base_path: Path, prefix: str
 ) -> None:
     try:
-        rel_path = file_path.relative_to(base_path)
-        module_name = "app." + ".".join(rel_path.with_suffix("").parts)
+        # 1. Improved Module Discovery
+        # Get the relative path from the project root (not just app_dir)
+        # Assuming your project root is the parent of 'app'
+        parts = file_path.with_suffix("").parts
+
+        # Find where 'app' starts to build a correct absolute import
+        if "app" in parts:
+            app_index = parts.index("app")
+            module_name = ".".join(parts[app_index:])
+        else:
+            # Fallback for localized structures
+            rel_path = file_path.relative_to(base_path)
+            module_name = ".".join(rel_path.with_suffix("").parts)
+
         module = importlib.import_module(module_name)
 
         mod_router = getattr(module, "router", None)
         if not isinstance(mod_router, APIRouter):
+            logger.debug(f"No APIRouter found in {module_name}")
             return
 
         if file_path.name == "__init__.py":
+            # Direct injection for __init__ routes
             for r in mod_router.routes:
                 if isinstance(r, APIRoute):
                     for m in r.methods:
                         if _is_route_unique(m, r.path):
                             router.routes.append(r)
         else:
+            # Standard inclusion
             norm_prefix = _normalize_prefix(prefix)
+            # Ensure we don't double-slash or miss a slash
             router.include_router(mod_router, prefix=norm_prefix)
-            # Track for uniqueness log
+
+            # Log for uniqueness tracking
             for r in mod_router.routes:
                 if isinstance(r, APIRoute):
                     full_p = f"{norm_prefix}{r.path}".replace("//", "/")
                     for m in r.methods:
                         _is_route_unique(m, full_p)
+
     except Exception as e:
-        logger.error(f"Error registering {file_path}: {e}")
+        logger.error(f"Error registering {file_path}: {e}", exc_info=True)
 
 
 def _log_registered_routes(router: APIRouter) -> None:

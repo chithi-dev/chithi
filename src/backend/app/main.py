@@ -3,12 +3,12 @@ from app.router import register_routes
 import logging
 from fastapi.middleware.cors import CORSMiddleware
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+#     datefmt="%Y-%m-%d %H:%M:%S",
+# )
+logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 app = FastAPI()
 app.add_middleware(
@@ -18,4 +18,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(register_routes("routes"))
+from app.routes.admin.config import router as admin_config_router
+
+app.include_router(admin_config_router, prefix="/admin")
+
+from app.routes.config import router as config_router
+
+app.include_router(config_router)
+
+from app.routes.login import router as login_router
+
+app.include_router(login_router)
+
+from app.routes.user import router as user_router
+
+app.include_router(user_router)

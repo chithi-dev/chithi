@@ -14,7 +14,7 @@ export function useAuth() {
 				headers: { Authorization: `Bearer ${token}` }
 			});
 
-			if (res.status === 401) {
+			if (!res.ok || res.status === 401) {
 				localStorage.removeItem('auth_token');
 				return null;
 			}
