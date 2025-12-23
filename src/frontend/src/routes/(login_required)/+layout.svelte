@@ -8,7 +8,7 @@
 	let { children } = $props();
 
 	$effect(() => {
-		if (!isAuthenticated) {
+		if (!isAuthenticated()) {
 			goto(`/login?next=${page.url.pathname}`);
 		}
 	});

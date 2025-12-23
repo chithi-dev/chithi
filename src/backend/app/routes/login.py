@@ -14,7 +14,7 @@ from app.models import User
 router = APIRouter()
 
 
-@router.post("")
+@router.post("/login")
 async def login_access_token(
     session: SessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ) -> Token:

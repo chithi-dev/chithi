@@ -4,6 +4,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Label } from '$lib/components/ui/label';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 	import * as Select from '$lib/components/ui/select';
 	import {
 		HardDrive,
@@ -13,13 +14,16 @@
 		Pencil,
 		X,
 		Settings2,
-		LoaderCircle
+		LoaderCircle,
+		Clock,
+		Plus
 	} from 'lucide-svelte';
 	import { fade, slide } from 'svelte/transition';
 	import { marked } from 'marked';
 	import { useConfigQuery } from '$lib/queries/config';
 
 	// --- TYPES & CONSTANTS ---
+	// Using 1024 for binary conversion (KiB, MiB, GiB)
 	const B_VALS = {
 		Bytes: 1,
 		KB: 1024,
@@ -41,25 +45,29 @@
 	const T_UNITS = Object.keys(T_VALS) as TimeUnit[];
 
 	// --- QUERY HOOK ---
-	// Note: TanStack Query v5 returns reactive properties directly in Svelte 5.
 	const { config: configQuery, update_config } = useConfigQuery();
 
 	// --- DERIVED STATE (Runes) ---
 	let configData = $derived(configQuery.data);
-	let selectedExpiry = $derived(String(configData?.default_expiry ?? ''));
-	let selectedDownloads = $derived(String(configData?.default_number_of_downloads ?? ''));
+	$effect(() => {
+		console.log('Config data updated:', configData);
+	});
+	let selectedExpiry = $derived(configData?.default_expiry ?? '');
+	let selectedDownloads = $derived(
+		configData?.default_number_of_downloads ? String(configData.default_number_of_downloads) : ''
+	);
 
-	// Explicitly handle the promise/string return of marked
 	let previewHtml = $derived(
 		configData?.site_description ? marked.parse(configData.site_description) : ''
 	);
 
 	// --- UI STATE (Runes) ---
-	let editing = $state<'storage' | 'file' | 'steps' | 'desc' | null>(null);
+	let editing = $state<'storage' | 'file' | 'steps' | 'desc' | 'time' | null>(null);
 	let editVal = $state(0);
 	let editUnit = $state<ByteUnit>('GB');
 	let tempInput = $state({
 		dl: 0,
+		time: 0,
 		timeUnit: 'Hours' as TimeUnit
 	});
 
@@ -77,17 +85,19 @@
 	function formatSeconds(seconds: number): { val: number; unit: TimeUnit } {
 		if (!seconds || seconds === 0) return { val: 0, unit: 'Seconds' };
 		for (const unit of [...T_UNITS].reverse()) {
-			if (seconds % T_VALS[unit] === 0) return { val: seconds / T_VALS[unit], unit };
+			if (seconds >= T_VALS[unit]) {
+				return { val: parseFloat((seconds / T_VALS[unit]).toFixed(2)), unit };
+			}
 		}
 		return { val: seconds, unit: 'Seconds' };
 	}
 
 	function startEdit(type: 'storage' | 'file') {
 		if (!configData) return;
+		// Read raw bytes from config
 		const bytes =
-			type === 'storage'
-				? configData.total_storage_limit_gb * B_VALS.GB
-				: configData.max_file_size_mb * B_VALS.MB;
+			type === 'storage' ? configData.total_storage_limit : configData.max_file_size_limit;
+
 		const f = formatBytes(bytes);
 		editVal = f.val;
 		editUnit = f.unit;
@@ -95,8 +105,42 @@
 	}
 
 	async function save(payload: any) {
-		await update_config(payload);
-		editing = null;
+		try {
+			console.log('Saving payload:', payload);
+			const result = await update_config(payload);
+			console.log('Save result:', result);
+			
+			// Manually update local state to reflect changes immediately
+			if (configData && result) {
+				// Update the specific field that was changed
+				if (payload.total_storage_limit !== undefined) {
+					configData.total_storage_limit = payload.total_storage_limit;
+				}
+				if (payload.max_file_size_limit !== undefined) {
+					configData.max_file_size_limit = payload.max_file_size_limit;
+				}
+				if (payload.default_expiry !== undefined) {
+					configData.default_expiry = payload.default_expiry;
+				}
+				if (payload.default_number_of_downloads !== undefined) {
+					configData.default_number_of_downloads = payload.default_number_of_downloads;
+				}
+				if (payload.site_description !== undefined) {
+					configData.site_description = payload.site_description;
+				}
+				if (payload.download_configs !== undefined) {
+					configData.download_configs = payload.download_configs;
+				}
+				if (payload.time_configs !== undefined) {
+					configData.time_configs = payload.time_configs;
+				}
+			}
+			
+			editing = null;
+		} catch (error) {
+			console.error('Save failed:', error);
+			// Optionally show an error message to the user
+		}
 	}
 </script>
 
@@ -122,10 +166,16 @@
 		</header>
 
 		{#if configQuery.isLoading}
-			<div
-				class="flex h-64 items-center justify-center font-mono text-xs tracking-widest text-zinc-600"
-			>
-				LOADING_SYSTEM_CONFIG...
+			<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+				{#each Array(6) as _}
+					<div class="space-y-4 rounded-xl border border-zinc-900 bg-zinc-950/50 p-6">
+						<div class="flex justify-between">
+							<Skeleton class="h-4 w-24 bg-zinc-900" />
+							<Skeleton class="h-8 w-8 bg-zinc-900" />
+						</div>
+						<Skeleton class="h-12 w-32 bg-zinc-900" />
+					</div>
+				{/each}
 			</div>
 		{:else if configData}
 			<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -150,29 +200,39 @@
 						{#if editing === 'storage'}
 							<div in:fade class="space-y-2">
 								<div class="flex gap-1">
-									<Input type="number" bind:value={editVal} class="h-8 border-zinc-800 bg-black" />
-									<Select.Root type="single" bind:value={editUnit as string}>
+									<Input 
+										type="number" 
+										bind:value={editVal} 
+										class="h-8 border-zinc-800 bg-black"
+										min="0"
+										step="0.01"
+									/>
+									<Select.Root type="single" bind:value={editUnit}>
 										<Select.Trigger
-											class="h-8 w-22 border-zinc-800 bg-zinc-900 text-[10px] font-bold uppercase"
+											class="h-8 w-22 border-zinc-800 bg-zinc-900 text-[10px] uppercase"
 											>{editUnit}</Select.Trigger
 										>
-										<Select.Content class="border-zinc-800 bg-zinc-900 text-white">
+										<Select.Content class="border-zinc-800 bg-zinc-900">
 											{#each Object.keys(B_VALS) as u}
-												<Select.Item value={u} label={u} class="text-xs">{u}</Select.Item>
+												<Select.Item value={u} label={u}>{u}</Select.Item>
 											{/each}
 										</Select.Content>
 									</Select.Root>
 								</div>
 								<Button
 									size="sm"
-									class="h-7 w-full bg-white text-[10px] font-bold text-black"
-									onclick={() =>
-										save({ total_storage_limit_gb: (editVal * B_VALS[editUnit]) / B_VALS.GB })}
-									>SAVE</Button
+									class="h-7 w-full bg-white text-[10px] font-bold text-black hover:bg-zinc-200"
+									onclick={() => {
+										const bytes = Math.floor(editVal * B_VALS[editUnit]);
+										console.log('Saving storage limit:', bytes, 'bytes');
+										save({ total_storage_limit: bytes });
+									}}
 								>
+									SAVE
+								</Button>
 							</div>
 						{:else}
-							{@const f = formatBytes(configData.total_storage_limit_gb * B_VALS.GB)}
+							{@const f = formatBytes(configData.total_storage_limit)}
 							<div class="flex items-baseline gap-2">
 								<span class="text-5xl font-black text-white">{f.val}</span>
 								<span class="text-xs font-bold text-emerald-500 uppercase">{f.unit}</span>
@@ -202,29 +262,39 @@
 						{#if editing === 'file'}
 							<div in:fade class="space-y-2">
 								<div class="flex gap-1">
-									<Input type="number" bind:value={editVal} class="h-8 border-zinc-800 bg-black" />
-									<Select.Root type="single" bind:value={editUnit as string}>
+									<Input 
+										type="number" 
+										bind:value={editVal} 
+										class="h-8 border-zinc-800 bg-black"
+										min="0"
+										step="0.01"
+									/>
+									<Select.Root type="single" bind:value={editUnit}>
 										<Select.Trigger
-											class="h-8 w-22 border-zinc-800 bg-zinc-900 text-[10px] font-bold uppercase"
+											class="h-8 w-22 border-zinc-800 bg-zinc-900 text-[10px] uppercase"
 											>{editUnit}</Select.Trigger
 										>
-										<Select.Content class="border-zinc-800 bg-zinc-900 text-white">
+										<Select.Content class="border-zinc-800 bg-zinc-900">
 											{#each Object.keys(B_VALS) as u}
-												<Select.Item value={u} label={u} class="text-xs">{u}</Select.Item>
+												<Select.Item value={u} label={u}>{u}</Select.Item>
 											{/each}
 										</Select.Content>
 									</Select.Root>
 								</div>
 								<Button
 									size="sm"
-									class="h-7 w-full bg-white text-[10px] font-bold text-black"
-									onclick={() =>
-										save({ max_file_size_mb: (editVal * B_VALS[editUnit]) / B_VALS.MB })}
-									>SAVE</Button
+									class="h-7 w-full bg-white text-[10px] font-bold text-black hover:bg-zinc-200"
+									onclick={() => {
+										const bytes = Math.floor(editVal * B_VALS[editUnit]);
+										console.log('Saving file size limit:', bytes, 'bytes');
+										save({ max_file_size_limit: bytes });
+									}}
 								>
+									SAVE
+								</Button>
 							</div>
 						{:else}
-							{@const f = formatBytes(configData.max_file_size_mb * B_VALS.MB)}
+							{@const f = formatBytes(configData.max_file_size_limit)}
 							<div class="flex items-baseline gap-2">
 								<span class="text-5xl font-black text-white">{f.val}</span>
 								<span class="text-xs font-bold text-blue-500 uppercase">{f.unit}</span>
@@ -236,56 +306,69 @@
 				<Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none">
 					<Card.Header class="flex flex-row items-center justify-between pb-4">
 						<div class="flex items-center gap-2">
-							<Download class="size-4 text-violet-500" />
+							<Clock class="size-4 text-amber-500" />
 							<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
-								>Download Presets</Card.Title
+								>Expiry Options</Card.Title
 							>
 						</div>
 						<Button
 							variant="outline"
 							size="icon"
-							class="size-8 border-zinc-800 bg-zinc-900"
-							onclick={() => (editing = editing === 'steps' ? null : 'steps')}
+							class="size-8 border-zinc-800 bg-zinc-900 hover:bg-amber-500"
+							onclick={() => {
+								editing = editing === 'time' ? null : 'time';
+								// Reset temp input when starting edit
+								if (editing === 'time') {
+									tempInput.time = 1;
+									tempInput.timeUnit = 'Hours';
+								}
+							}}
 						>
 							<Pencil class="size-3.5" />
 						</Button>
 					</Card.Header>
 					<Card.Content class="flex min-h-24 flex-col justify-center space-y-3">
-						{#if editing === 'steps'}
-							<div in:slide class="mb-2 flex gap-1">
+						{#if editing === 'time'}
+							<div in:slide class="flex gap-1">
 								<Input
 									type="number"
-									bind:value={tempInput.dl}
+									bind:value={tempInput.time}
 									class="h-7 border-zinc-800 bg-black text-xs"
+									min="1"
 								/>
+								<Select.Root type="single" bind:value={tempInput.timeUnit}>
+									<Select.Trigger class="h-7 w-20 border-zinc-800 bg-zinc-900 text-[9px] uppercase"
+										>{tempInput.timeUnit}</Select.Trigger
+									>
+									<Select.Content class="border-zinc-800 bg-zinc-900">
+										{#each T_UNITS as u}<Select.Item value={u} label={u}>{u}</Select.Item>{/each}
+									</Select.Content>
+								</Select.Root>
 								<Button
 									size="sm"
-									class="h-7 bg-zinc-800 text-[9px] font-bold"
+									class="h-7 bg-zinc-800 hover:bg-zinc-700"
 									onclick={() => {
-										if (tempInput.dl && configData)
-											save({
-												download_configs: [...configData.download_configs, tempInput.dl].sort(
-													(a, b) => a - b
-												)
-											});
-										tempInput.dl = 0;
-									}}>ADD</Button
+										if (tempInput.time <= 0) return;
+										const secs = tempInput.time * T_VALS[tempInput.timeUnit];
+										const newTimeConfigs = [...configData.time_configs, secs].sort((a, b) => a - b);
+										console.log('Adding time config:', secs, 'seconds');
+										save({ time_configs: newTimeConfigs });
+										tempInput.time = 1;
+									}}><Plus class="size-3" /></Button
 								>
 							</div>
 						{/if}
 						<div class="flex flex-wrap gap-1">
-							{#each configData.download_configs as dl}
-								<Badge class="border-zinc-800 bg-zinc-900 text-[10px] text-violet-400">
-									{dl}x
-									{#if editing === 'steps'}
+							{#each configData.time_configs as t, i}
+								{@const f = formatSeconds(t)}
+								<Badge class="border-zinc-800 bg-zinc-900 text-[10px] text-amber-400">
+									{f.val} {f.unit.charAt(0)}
+									{#if editing === 'time'}
 										<button
 											onclick={() => {
-												if (configData)
-													save({
-														download_configs: configData.download_configs.filter(
-															(v: number) => v !== dl
-														)
-													});
+												const newTimeConfigs = configData.time_configs.filter((_, index) => index !== i);
+												console.log('Removing time config:', t, 'seconds');
+												save({ time_configs: newTimeConfigs });
 											}}
 											class="ml-1 hover:text-white"
 										>
@@ -306,22 +389,24 @@
 					</Card.Header>
 					<Card.Content class="grid min-h-24 grid-cols-2 gap-8">
 						<div class="flex flex-col justify-center">
-							<Label class="mb-2 text-[9px] font-bold tracking-widest text-zinc-600 uppercase"
-								>Default Expiry</Label
+							<Label class="mb-2 text-[9px] font-bold text-zinc-600 uppercase">Default Expiry</Label
 							>
 							<Select.Root
 								type="single"
-								value={selectedExpiry}
-								onValueChange={(v) => save({ default_expiry: Number(v) })}
+								value={String(configData.default_expiry)}
+								onValueChange={(v) => {
+									console.log('Setting default expiry to:', v);
+									save({ default_expiry: Number(v) });
+								}}
 							>
 								<Select.Trigger class="h-10 border-zinc-800 bg-black font-mono text-xl text-white">
 									{formatSeconds(configData.default_expiry).val}
 									{formatSeconds(configData.default_expiry).unit}
 								</Select.Trigger>
-								<Select.Content class="border-zinc-800 bg-zinc-900 text-white">
-									{#each configData.time_configs as time}
-										{@const f = formatSeconds(Number(time))}
-										<Select.Item value={String(time)} label="{f.val} {f.unit}" class="text-xs"
+								<Select.Content class="border-zinc-800 bg-zinc-900">
+									{#each configData.time_configs as t}
+										{@const f = formatSeconds(t)}
+										<Select.Item value={String(t)} label="{f.val} {f.unit}"
 											>{f.val} {f.unit}</Select.Item
 										>
 									{/each}
@@ -329,24 +414,95 @@
 							</Select.Root>
 						</div>
 						<div class="flex flex-col justify-center border-l border-zinc-900 pl-8">
-							<Label class="mb-2 text-[9px] font-bold tracking-widest text-zinc-600 uppercase"
+							<Label class="mb-2 text-[9px] font-bold text-zinc-600 uppercase"
 								>Default Downloads</Label
 							>
 							<Select.Root
 								type="single"
-								value={selectedDownloads}
-								onValueChange={(v) => save({ default_number_of_downloads: Number(v) })}
+								value={String(configData.default_number_of_downloads)}
+								onValueChange={(v) => {
+									console.log('Setting default downloads to:', v);
+									save({ default_number_of_downloads: Number(v) });
+								}}
 							>
 								<Select.Trigger class="h-10 border-zinc-800 bg-black font-mono text-xl text-white"
 									>{configData.default_number_of_downloads}x</Select.Trigger
 								>
-								<Select.Content class="border-zinc-800 bg-zinc-900 text-white">
+								<Select.Content class="border-zinc-800 bg-zinc-900">
 									{#each configData.download_configs as dl}
-										<Select.Item value={String(dl)} label="{dl}x" class="text-xs">{dl}x</Select.Item
-										>
+										<Select.Item value={String(dl)} label="{dl}x">{dl}x</Select.Item>
 									{/each}
 								</Select.Content>
 							</Select.Root>
+						</div>
+					</Card.Content>
+				</Card.Root>
+
+				<Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none">
+					<Card.Header class="flex flex-row items-center justify-between pb-4">
+						<div class="flex items-center gap-2">
+							<Download class="size-4 text-violet-500" />
+							<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+								>Download Presets</Card.Title
+							>
+						</div>
+						<Button
+							variant="outline"
+							size="icon"
+							class="size-8 border-zinc-800 bg-zinc-900 hover:bg-violet-500"
+							onclick={() => {
+								editing = editing === 'steps' ? null : 'steps';
+								// Reset temp input when starting edit
+								if (editing === 'steps') {
+									tempInput.dl = 1;
+								}
+							}}
+						>
+							<Pencil class="size-3.5" />
+						</Button>
+					</Card.Header>
+					<Card.Content class="flex min-h-24 flex-col justify-center space-y-3">
+						{#if editing === 'steps'}
+							<div in:slide class="flex gap-1">
+								<Input
+									type="number"
+									bind:value={tempInput.dl}
+									class="h-7 border-zinc-800 bg-black text-xs"
+									min="1"
+								/>
+								<Button
+									size="sm"
+									class="h-7 bg-zinc-800 hover:bg-zinc-700"
+									onclick={() => {
+										if (tempInput.dl <= 0) return;
+										const newDownloadConfigs = [...configData.download_configs, tempInput.dl].sort(
+											(a, b) => a - b
+										);
+										console.log('Adding download config:', tempInput.dl);
+										save({ download_configs: newDownloadConfigs });
+										tempInput.dl = 1;
+									}}>ADD</Button
+								>
+							</div>
+						{/if}
+						<div class="flex flex-wrap gap-1">
+							{#each configData.download_configs as dl, i}
+								<Badge class="border-zinc-800 bg-zinc-900 text-[10px] text-violet-400">
+									{dl}x
+									{#if editing === 'steps'}
+										<button
+											onclick={() => {
+												const newDownloadConfigs = configData.download_configs.filter((_, index) => index !== i);
+												console.log('Removing download config:', dl);
+												save({ download_configs: newDownloadConfigs });
+											}}
+											class="ml-1 hover:text-white"
+										>
+											<X class="size-2.5" />
+										</button>
+									{/if}
+								</Badge>
+							{/each}
 						</div>
 					</Card.Content>
 				</Card.Root>
@@ -367,19 +523,20 @@
 									variant="outline"
 									size="sm"
 									onclick={() => {
-										if (configData) save({ site_description: configData.site_description });
+										console.log('Saving site description');
+										save({ site_description: configData.site_description });
 									}}
-									class="h-7 border-emerald-900 text-[10px] text-emerald-500">SAVE</Button
+									class="h-7 border-emerald-900 text-[10px] text-emerald-500 uppercase hover:bg-emerald-900/20"
+									>Save Changes</Button
 								>
 							{/if}
 							<Button
 								variant="outline"
 								size="sm"
 								onclick={() => (editing = editing === 'desc' ? null : 'desc')}
-								class="h-7 text-[10px]"
+								class="h-7 text-[10px] uppercase hover:bg-zinc-800"
 							>
-								<Pencil class="mr-1.5 size-3" />
-								{editing === 'desc' ? 'HIDE' : 'EDIT'}
+								{editing === 'desc' ? 'Close Preview' : 'Edit Markdown'}
 							</Button>
 						</div>
 					</Card.Header>
@@ -389,6 +546,7 @@
 								<textarea
 									bind:value={configData.site_description}
 									class="min-h-75 resize-none bg-black p-6 font-mono text-sm text-zinc-400 outline-none"
+									rows="10"
 								></textarea>
 								<div class="prose prose-invert prose-sm max-w-none p-6">{@html previewHtml}</div>
 							</div>

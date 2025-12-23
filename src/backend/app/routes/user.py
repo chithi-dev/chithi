@@ -8,7 +8,7 @@ from http import HTTPStatus
 router = APIRouter()
 
 
-@router.patch("", response_model=UserOut)
+@router.get("/user", response_model=UserOut)
 async def get_current_user(
     user: CurrentUser,
     session: SessionDep,
