@@ -1,450 +1,661 @@
 <script lang="ts">
-    import * as Card from '$lib/components/ui/card';
-    import { Button } from '$lib/components/ui/button';
-    import { Input } from '$lib/components/ui/input';
-    import { Badge } from '$lib/components/ui/badge';
-    import { Label } from '$lib/components/ui/label';
-    import { Skeleton } from '$lib/components/ui/skeleton';
-    import * as Select from '$lib/components/ui/select';
-    import {
-        HardDrive,
-        FileCode,
-        Download,
-        Globe,
-        Pencil,
-        X,
-        Settings2,
-        LoaderCircle,
-        Clock,
-        Plus,
-        FileCheck,
-        FileWarning
-    } from 'lucide-svelte';
-    import { fade, slide } from 'svelte/transition';
-    import { marked } from 'marked';
-    import { useConfigQuery } from '$lib/queries/config';
+	import * as Card from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Badge } from '$lib/components/ui/badge';
+	import { Label } from '$lib/components/ui/label';
+	import { Skeleton } from '$lib/components/ui/skeleton';
+	import * as Select from '$lib/components/ui/select';
+	import {
+		HardDrive,
+		FileCode,
+		Download,
+		Globe,
+		Pencil,
+		X,
+		Settings2,
+		LoaderCircle,
+		Clock,
+		Plus,
+		FileCheck,
+		FileWarning
+	} from 'lucide-svelte';
+	import { fade, slide } from 'svelte/transition';
+	import { marked } from 'marked';
+	import { useConfigQuery } from '$lib/queries/config';
 
-    // --- TYPES & CONSTANTS ---
-    const B_VALS = {
-        Bytes: 1,
-        KB: 1024,
-        MB: 1024 ** 2,
-        GB: 1024 ** 3,
-        TB: 1024 ** 4
-    } as const;
-    type ByteUnit = keyof typeof B_VALS;
+	// --- TYPES & CONSTANTS ---
+	const B_VALS = {
+		Bytes: 1,
+		KB: 1024,
+		MB: 1024 ** 2,
+		GB: 1024 ** 3,
+		TB: 1024 ** 4
+	} as const;
+	type ByteUnit = keyof typeof B_VALS;
 
-    const T_VALS = {
-        Seconds: 1,
-        Minutes: 60,
-        Hours: 3600,
-        Days: 86400,
-        Weeks: 604800,
-        Months: 2592000
-    } as const;
-    type TimeUnit = keyof typeof T_VALS;
-    const T_UNITS = Object.keys(T_VALS) as TimeUnit[];
+	const T_VALS = {
+		Seconds: 1,
+		Minutes: 60,
+		Hours: 3600,
+		Days: 86400,
+		Weeks: 604800,
+		Months: 2592000
+	} as const;
+	type TimeUnit = keyof typeof T_VALS;
+	const T_UNITS = Object.keys(T_VALS) as TimeUnit[];
 
-    // --- QUERY HOOK ---
-    const { config: configQuery, update_config } = useConfigQuery();
+	// --- QUERY HOOK ---
+	const { config: configQuery, update_config } = useConfigQuery();
 
-    // --- DERIVED STATE (Runes) ---
-    let configData = $derived(configQuery.data);
-    
-    let previewHtml = $derived(
-        configData?.site_description ? marked.parse(configData.site_description) : ''
-    );
+	// --- DERIVED STATE (Runes) ---
+	let configData = $derived(configQuery.data);
 
-    // --- UI STATE (Runes) ---
-    let editing = $state<'storage' | 'file' | 'steps' | 'desc' | 'time' | 'allowed' | 'banned' | null>(null);
-    let editVal = $state(0);
-    let editUnit = $state<ByteUnit>('GB');
-    let tempInput = $state({
-        dl: 0,
-        time: 0,
-        timeUnit: 'Hours' as TimeUnit,
-        str: '' // Shared for file type strings
-    });
+	let previewHtml = $derived(
+		configData?.site_description ? marked.parse(configData.site_description) : ''
+	);
 
-    // --- HELPERS ---
-    function formatBytes(bytes: number): { val: number; unit: ByteUnit } {
-        if (!bytes || bytes === 0) return { val: 0, unit: 'MB' };
-        const units: ByteUnit[] = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(1024));
-        return {
-            val: parseFloat((bytes / Math.pow(1024, i)).toFixed(2)),
-            unit: units[i]
-        };
-    }
+	// --- UI STATE (Runes) ---
+	let editing = $state<
+		'storage' | 'file' | 'steps' | 'desc' | 'time' | 'allowed' | 'banned' | null
+	>(null);
+	let editVal = $state(0);
+	let editUnit = $state<ByteUnit>('GB');
+	let tempInput = $state({
+		dl: 0,
+		time: 0,
+		timeUnit: 'Hours' as TimeUnit,
+		str: ''
+	});
 
-    function formatSeconds(seconds: number): { val: number; unit: TimeUnit } {
-        if (!seconds || seconds === 0) return { val: 0, unit: 'Seconds' };
-        for (const unit of [...T_UNITS].reverse()) {
-            if (seconds >= T_VALS[unit]) {
-                return { val: parseFloat((seconds / T_VALS[unit]).toFixed(2)), unit };
-            }
-        }
-        return { val: seconds, unit: 'Seconds' };
-    }
+	// --- HELPERS ---
+	function formatBytes(bytes: number): { val: number; unit: ByteUnit } {
+		if (!bytes || bytes === 0) return { val: 0, unit: 'MB' };
+		const units: ByteUnit[] = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+		const i = Math.floor(Math.log(bytes) / Math.log(1024));
+		return {
+			val: parseFloat((bytes / Math.pow(1024, i)).toFixed(2)),
+			unit: units[i]
+		};
+	}
 
-    function sanitizeExt(ext: string) {
-        return ext.replace(/^\./, '').trim().toLowerCase();
-    }
+	function formatSeconds(seconds: number): { val: number; unit: TimeUnit } {
+		if (!seconds || seconds === 0) return { val: 0, unit: 'Seconds' };
+		for (const unit of [...T_UNITS].reverse()) {
+			if (seconds >= T_VALS[unit]) {
+				return { val: parseFloat((seconds / T_VALS[unit]).toFixed(2)), unit };
+			}
+		}
+		return { val: seconds, unit: 'Seconds' };
+	}
 
-    function startEdit(type: 'storage' | 'file') {
-        if (!configData) return;
-        const bytes = type === 'storage' ? configData.total_storage_limit : configData.max_file_size_limit;
-        const f = formatBytes(bytes);
-        editVal = f.val;
-        editUnit = f.unit;
-        editing = type;
-    }
+	function sanitizeExt(ext: string) {
+		return ext.replace(/^\./, '').trim().toLowerCase();
+	}
 
-    async function save(payload: any) {
-        try {
-            const result = await update_config(payload);
-            if (configData && result) {
-                // Reactive local sync
-                Object.assign(configData, payload);
-            }
-            // We don't nullify 'editing' here to allow rapid adding for lists
-        } catch (error) {
-            console.error('Save failed:', error);
-        }
-    }
+	function startEdit(type: 'storage' | 'file') {
+		if (!configData) return;
+		const bytes =
+			type === 'storage' ? configData.total_storage_limit : configData.max_file_size_limit;
+		const f = formatBytes(bytes);
+		editVal = f.val;
+		editUnit = f.unit;
+		editing = type;
+	}
+
+	async function save(payload: any) {
+		try {
+			const result = await update_config(payload);
+			if (configData && result) {
+				Object.assign(configData, payload);
+			}
+		} catch (error) {
+			console.error('Save failed:', error);
+		}
+	}
 </script>
 
 <div class="min-h-screen bg-[#050505] p-8 text-zinc-300">
-    <div class="mx-auto max-w-6xl space-y-6">
-        <header class="flex items-center justify-between border-b border-zinc-900 pb-8">
-            <div class="flex items-center gap-4">
-                <div class="rounded-xl border border-zinc-800 bg-zinc-900 p-3">
-                    <Settings2 class="size-6 text-white" />
-                </div>
-                <h1 class="text-3xl font-black tracking-tight text-white uppercase italic">
-                    Chithi <span class="font-light text-zinc-600 not-italic">Engine</span>
-                </h1>
-            </div>
-            {#if configQuery.isFetching}
-                <div in:fade class="flex items-center gap-2 text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
-                    <LoaderCircle class="size-3 animate-spin" /> Syncing
-                </div>
-            {/if}
-        </header>
+	<div class="mx-auto max-w-6xl space-y-6">
+		<header class="flex items-center justify-between border-b border-zinc-900 pb-8">
+			<div class="flex items-center gap-4">
+				<div class="rounded-xl border border-zinc-800 bg-zinc-900 p-3">
+					<Settings2 class="size-6 text-white" />
+				</div>
+				<h1 class="text-3xl font-black tracking-tight text-white uppercase italic">
+					Chithi <span class="font-light text-zinc-600 not-italic">Engine</span>
+				</h1>
+			</div>
+			{#if configQuery.isFetching}
+				<div
+					in:fade
+					class="flex items-center gap-2 text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+				>
+					<LoaderCircle class="size-3 animate-spin" /> Syncing
+				</div>
+			{/if}
+		</header>
 
-        {#if configQuery.isLoading}
-            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {#each Array(6) as _}
-                    <div class="space-y-4 rounded-xl border border-zinc-900 bg-zinc-950/50 p-6">
-                        <div class="flex justify-between">
-                            <Skeleton class="h-4 w-24 bg-zinc-900" />
-                            <Skeleton class="h-8 w-8 bg-zinc-900" />
-                        </div>
-                        <Skeleton class="h-12 w-32 bg-zinc-900" />
-                    </div>
-                {/each}
-            </div>
-        {:else if configData}
-            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none">
-                    <Card.Header class="flex flex-row items-center justify-between pb-4">
-                        <div class="flex items-center gap-2">
-                            <HardDrive class="size-4 text-emerald-500" />
-                            <Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">Storage Pool</Card.Title>
-                        </div>
-                        <Button variant="outline" size="icon" class="size-8 border-zinc-800 bg-zinc-900 hover:bg-emerald-500" onclick={() => startEdit('storage')}>
-                            <Pencil class="size-3.5" />
-                        </Button>
-                    </Card.Header>
-                    <Card.Content class="flex min-h-24 flex-col justify-center">
-                        {#if editing === 'storage'}
-                            <div in:fade class="space-y-2">
-                                <div class="flex gap-1">
-                                    <Input type="number" bind:value={editVal} class="h-8 border-zinc-800 bg-black" min="0" step="0.01" />
-                                    <Select.Root type="single" bind:value={editUnit}>
-                                        <Select.Trigger class="h-8 w-22 border-zinc-800 bg-zinc-900 text-[10px] uppercase">{editUnit}</Select.Trigger>
-                                        <Select.Content class="border-zinc-800 bg-zinc-900">
-                                            {#each Object.keys(B_VALS) as u}<Select.Item value={u} label={u}>{u}</Select.Item>{/each}
-                                        </Select.Content>
-                                    </Select.Root>
-                                </div>
-                                <Button size="sm" class="h-7 w-full bg-white text-[10px] font-bold text-black hover:bg-zinc-200" onclick={() => {
-                                    save({ total_storage_limit: Math.floor(editVal * B_VALS[editUnit]) });
-                                    editing = null;
-                                }}>SAVE</Button>
-                            </div>
-                        {:else}
-                            {@const f = formatBytes(configData.total_storage_limit)}
-                            <div class="flex items-baseline gap-2">
-                                <span class="text-5xl font-black text-white">{f.val}</span>
-                                <span class="text-xs font-bold text-emerald-500 uppercase">{f.unit}</span>
-                            </div>
-                        {/if}
-                    </Card.Content>
-                </Card.Root>
+		{#if configQuery.isLoading}
+			<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+				{#each Array(6) as _}
+					<div class="space-y-4 rounded-xl border border-zinc-900 bg-zinc-950/50 p-6">
+						<div class="flex justify-between">
+							<Skeleton class="h-4 w-24 bg-zinc-900" />
+							<Skeleton class="h-8 w-8 bg-zinc-900" />
+						</div>
+						<Skeleton class="h-12 w-32 bg-zinc-900" />
+					</div>
+				{/each}
+			</div>
+		{:else if configData}
+			<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+				<Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none">
+					<Card.Header class="flex flex-row items-center justify-between pb-4">
+						<div class="flex items-center gap-2">
+							<HardDrive class="size-4 text-emerald-500" />
+							<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+								>Storage Pool</Card.Title
+							>
+						</div>
+						<Button
+							variant="outline"
+							size="icon"
+							class="size-8 border-zinc-800 bg-zinc-900 hover:bg-emerald-500"
+							onclick={() => startEdit('storage')}
+						>
+							<Pencil class="size-3.5" />
+						</Button>
+					</Card.Header>
+					<Card.Content class="flex min-h-24 flex-col justify-center">
+						{#if editing === 'storage'}
+							<div in:fade class="space-y-2">
+								<div class="flex gap-1">
+									<Input
+										type="number"
+										bind:value={editVal}
+										class="h-8 border-zinc-800 bg-black"
+										min="0"
+										step="0.01"
+									/>
+									<Select.Root type="single" bind:value={editUnit}>
+										<Select.Trigger
+											class="h-8 w-22 border-zinc-800 bg-zinc-900 text-[10px] uppercase"
+											>{editUnit}</Select.Trigger
+										>
+										<Select.Content class="border-zinc-800 bg-zinc-900">
+											{#each Object.keys(B_VALS) as u}<Select.Item value={u} label={u}
+													>{u}</Select.Item
+												>{/each}
+										</Select.Content>
+									</Select.Root>
+								</div>
+								<Button
+									size="sm"
+									class="h-7 w-full bg-white text-[10px] font-bold text-black hover:bg-zinc-200"
+									onclick={() => {
+										save({ total_storage_limit: Math.floor(editVal * B_VALS[editUnit]) });
+										editing = null;
+									}}>SAVE</Button
+								>
+							</div>
+						{:else}
+							{@const f = formatBytes(configData.total_storage_limit)}
+							<div class="flex items-baseline gap-2">
+								<span class="text-5xl font-black text-white">{f.val}</span>
+								<span class="text-xs font-bold text-emerald-500 uppercase">{f.unit}</span>
+							</div>
+						{/if}
+					</Card.Content>
+				</Card.Root>
 
-                <Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none">
-                    <Card.Header class="flex flex-row items-center justify-between pb-4">
-                        <div class="flex items-center gap-2">
-                            <FileCode class="size-4 text-blue-500" />
-                            <Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">File Ceiling</Card.Title>
-                        </div>
-                        <Button variant="outline" size="icon" class="size-8 border-zinc-800 bg-zinc-900 hover:bg-blue-500" onclick={() => startEdit('file')}>
-                            <Pencil class="size-3.5" />
-                        </Button>
-                    </Card.Header>
-                    <Card.Content class="flex min-h-24 flex-col justify-center">
-                        {#if editing === 'file'}
-                            <div in:fade class="space-y-2">
-                                <div class="flex gap-1">
-                                    <Input type="number" bind:value={editVal} class="h-8 border-zinc-800 bg-black" min="0" step="0.01" />
-                                    <Select.Root type="single" bind:value={editUnit}>
-                                        <Select.Trigger class="h-8 w-22 border-zinc-800 bg-zinc-900 text-[10px] uppercase">{editUnit}</Select.Trigger>
-                                        <Select.Content class="border-zinc-800 bg-zinc-900">
-                                            {#each Object.keys(B_VALS) as u}<Select.Item value={u} label={u}>{u}</Select.Item>{/each}
-                                        </Select.Content>
-                                    </Select.Root>
-                                </div>
-                                <Button size="sm" class="h-7 w-full bg-white text-[10px] font-bold text-black hover:bg-zinc-200" onclick={() => {
-                                    save({ max_file_size_limit: Math.floor(editVal * B_VALS[editUnit]) });
-                                    editing = null;
-                                }}>SAVE</Button>
-                            </div>
-                        {:else}
-                            {@const f = formatBytes(configData.max_file_size_limit)}
-                            <div class="flex items-baseline gap-2">
-                                <span class="text-5xl font-black text-white">{f.val}</span>
-                                <span class="text-xs font-bold text-blue-500 uppercase">{f.unit}</span>
-                            </div>
-                        {/if}
-                    </Card.Content>
-                </Card.Root>
+				<Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none">
+					<Card.Header class="flex flex-row items-center justify-between pb-4">
+						<div class="flex items-center gap-2">
+							<FileCode class="size-4 text-blue-500" />
+							<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+								>File Ceiling</Card.Title
+							>
+						</div>
+						<Button
+							variant="outline"
+							size="icon"
+							class="size-8 border-zinc-800 bg-zinc-900 hover:bg-blue-500"
+							onclick={() => startEdit('file')}
+						>
+							<Pencil class="size-3.5" />
+						</Button>
+					</Card.Header>
+					<Card.Content class="flex min-h-24 flex-col justify-center">
+						{#if editing === 'file'}
+							<div in:fade class="space-y-2">
+								<div class="flex gap-1">
+									<Input
+										type="number"
+										bind:value={editVal}
+										class="h-8 border-zinc-800 bg-black"
+										min="0"
+										step="0.01"
+									/>
+									<Select.Root type="single" bind:value={editUnit}>
+										<Select.Trigger
+											class="h-8 w-22 border-zinc-800 bg-zinc-900 text-[10px] uppercase"
+											>{editUnit}</Select.Trigger
+										>
+										<Select.Content class="border-zinc-800 bg-zinc-900">
+											{#each Object.keys(B_VALS) as u}<Select.Item value={u} label={u}
+													>{u}</Select.Item
+												>{/each}
+										</Select.Content>
+									</Select.Root>
+								</div>
+								<Button
+									size="sm"
+									class="h-7 w-full bg-white text-[10px] font-bold text-black hover:bg-zinc-200"
+									onclick={() => {
+										save({ max_file_size_limit: Math.floor(editVal * B_VALS[editUnit]) });
+										editing = null;
+									}}>SAVE</Button
+								>
+							</div>
+						{:else}
+							{@const f = formatBytes(configData.max_file_size_limit)}
+							<div class="flex items-baseline gap-2">
+								<span class="text-5xl font-black text-white">{f.val}</span>
+								<span class="text-xs font-bold text-blue-500 uppercase">{f.unit}</span>
+							</div>
+						{/if}
+					</Card.Content>
+				</Card.Root>
 
-                <Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none">
-                    <Card.Header class="flex flex-row items-center justify-between pb-4">
-                        <div class="flex items-center gap-2">
-                            <Clock class="size-4 text-amber-500" />
-                            <Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">Expiry Options</Card.Title>
-                        </div>
-                        <Button variant="outline" size="icon" class="size-8 border-zinc-800 bg-zinc-900 hover:bg-amber-500" onclick={() => {
-                            editing = editing === 'time' ? null : 'time';
-                            if (editing === 'time') { tempInput.time = 1; tempInput.timeUnit = 'Hours'; }
-                        }}>
-                            <Pencil class="size-3.5" />
-                        </Button>
-                    </Card.Header>
-                    <Card.Content class="flex min-h-24 flex-col justify-center space-y-3">
-                        {#if editing === 'time'}
-                            <div in:slide class="flex gap-1">
-                                <Input type="number" bind:value={tempInput.time} class="h-7 border-zinc-800 bg-black text-xs" min="1" />
-                                <Select.Root type="single" bind:value={tempInput.timeUnit}>
-                                    <Select.Trigger class="h-7 w-20 border-zinc-800 bg-zinc-900 text-[9px] uppercase">{tempInput.timeUnit}</Select.Trigger>
-                                    <Select.Content class="border-zinc-800 bg-zinc-900">
-                                        {#each T_UNITS as u}<Select.Item value={u} label={u}>{u}</Select.Item>{/each}
-                                    </Select.Content>
-                                </Select.Root>
-                                <Button size="sm" class="h-7 bg-zinc-800 hover:bg-zinc-700" onclick={() => {
-                                    const secs = tempInput.time * T_VALS[tempInput.timeUnit];
-                                    const newTimeConfigs = [...configData.time_configs, secs].sort((a, b) => a - b);
-                                    save({ time_configs: newTimeConfigs });
-                                }}><Plus class="size-3" /></Button>
-                            </div>
-                        {/if}
-                        <div class="flex flex-wrap gap-1">
-                            {#each configData.time_configs as t, i}
-                                {@const f = formatSeconds(t)}
-                                <Badge class="border-zinc-800 bg-zinc-900 text-[10px] text-amber-400">
-                                    {f.val}{f.unit.charAt(0)}
-                                    {#if editing === 'time'}
-                                        <button onclick={() => save({ time_configs: configData.time_configs.filter((_, idx) => idx !== i) })} class="ml-1 hover:text-white">
-                                            <X class="size-2.5" />
-                                        </button>
-                                    {/if}
-                                </Badge>
-                            {/each}
-                        </div>
-                    </Card.Content>
-                </Card.Root>
+				<Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none">
+					<Card.Header class="flex flex-row items-center justify-between pb-4">
+						<div class="flex items-center gap-2">
+							<Clock class="size-4 text-amber-500" />
+							<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+								>Expiry Options</Card.Title
+							>
+						</div>
+						<Button
+							variant="outline"
+							size="icon"
+							class="size-8 border-zinc-800 bg-zinc-900 hover:bg-amber-500"
+							onclick={() => {
+								editing = editing === 'time' ? null : 'time';
+								if (editing === 'time') {
+									tempInput.time = 1;
+									tempInput.timeUnit = 'Hours';
+								}
+							}}
+						>
+							<Pencil class="size-3.5" />
+						</Button>
+					</Card.Header>
+					<Card.Content class="flex min-h-24 flex-col justify-center space-y-3">
+						{#if editing === 'time'}
+							<div in:slide class="flex gap-1">
+								<Input
+									type="number"
+									bind:value={tempInput.time}
+									class="h-7 border-zinc-800 bg-black text-xs"
+									min="1"
+								/>
+								<Select.Root type="single" bind:value={tempInput.timeUnit}>
+									<Select.Trigger class="h-7 w-20 border-zinc-800 bg-zinc-900 text-[9px] uppercase"
+										>{tempInput.timeUnit}</Select.Trigger
+									>
+									<Select.Content class="border-zinc-800 bg-zinc-900">
+										{#each T_UNITS as u}<Select.Item value={u} label={u}>{u}</Select.Item>{/each}
+									</Select.Content>
+								</Select.Root>
+								<Button
+									size="sm"
+									class="h-7 bg-zinc-800 hover:bg-zinc-700"
+									onclick={() => {
+										const secs = tempInput.time * T_VALS[tempInput.timeUnit];
+										const newTimeConfigs = [...configData.time_configs, secs].sort((a, b) => a - b);
+										save({ time_configs: newTimeConfigs });
+									}}><Plus class="size-3" /></Button
+								>
+							</div>
+						{/if}
+						<div class="flex flex-wrap gap-1">
+							{#each configData.time_configs as t, i}
+								{@const f = formatSeconds(t)}
+								<Badge class="border-zinc-800 bg-zinc-900 text-[10px] text-amber-400">
+									{f.val}{f.unit.charAt(0)}
+									{#if editing === 'time'}
+										<button
+											onclick={() =>
+												save({
+													time_configs: configData.time_configs.filter(
+														(_: number, idx: number) => idx !== i
+													)
+												})}
+											class="ml-1 hover:text-white"
+										>
+											<X class="size-2.5" />
+										</button>
+									{/if}
+								</Badge>
+							{/each}
+						</div>
+					</Card.Content>
+				</Card.Root>
 
-                <Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none lg:col-span-2">
-                    <Card.Header class="pb-2">
-                        <Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">Retention Defaults</Card.Title>
-                    </Card.Header>
-                    <Card.Content class="grid min-h-24 grid-cols-2 gap-8">
-                        <div class="flex flex-col justify-center">
-                            <Label class="mb-2 text-[9px] font-bold text-zinc-600 uppercase">Default Expiry</Label>
-                            <Select.Root type="single" value={String(configData.default_expiry)} onValueChange={(v) => save({ default_expiry: Number(v) })}>
-                                <Select.Trigger class="h-10 border-zinc-800 bg-black font-mono text-xl text-white">
-                                    {formatSeconds(configData.default_expiry).val} {formatSeconds(configData.default_expiry).unit}
-                                </Select.Trigger>
-                                <Select.Content class="border-zinc-800 bg-zinc-900">
-                                    {#each configData.time_configs as t}
-                                        {@const f = formatSeconds(t)}
-                                        <Select.Item value={String(t)} label="{f.val} {f.unit}">{f.val} {f.unit}</Select.Item>
-                                    {/each}
-                                </Select.Content>
-                            </Select.Root>
-                        </div>
-                        <div class="flex flex-col justify-center border-l border-zinc-900 pl-8">
-                            <Label class="mb-2 text-[9px] font-bold text-zinc-600 uppercase">Default Downloads</Label>
-                            <Select.Root type="single" value={String(configData.default_number_of_downloads)} onValueChange={(v) => save({ default_number_of_downloads: Number(v) })}>
-                                <Select.Trigger class="h-10 border-zinc-800 bg-black font-mono text-xl text-white">{configData.default_number_of_downloads}x</Select.Trigger>
-                                <Select.Content class="border-zinc-800 bg-zinc-900">
-                                    {#each configData.download_configs as dl}
-                                        <Select.Item value={String(dl)} label="{dl}x">{dl}x</Select.Item>
-                                    {/each}
-                                </Select.Content>
-                            </Select.Root>
-                        </div>
-                    </Card.Content>
-                </Card.Root>
+				<Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none lg:col-span-2">
+					<Card.Header class="pb-2">
+						<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+							>Retention Defaults</Card.Title
+						>
+					</Card.Header>
+					<Card.Content class="grid min-h-24 grid-cols-2 gap-8">
+						<div class="flex flex-col justify-center">
+							<Label class="mb-2 text-[9px] font-bold text-zinc-600 uppercase">Default Expiry</Label
+							>
+							<Select.Root
+								type="single"
+								value={String(configData.default_expiry)}
+								onValueChange={(v) => save({ default_expiry: Number(v) })}
+							>
+								<Select.Trigger class="h-10 border-zinc-800 bg-black font-mono text-xl text-white">
+									{formatSeconds(configData.default_expiry).val}
+									{formatSeconds(configData.default_expiry).unit}
+								</Select.Trigger>
+								<Select.Content class="border-zinc-800 bg-zinc-900">
+									{#each configData.time_configs as t}
+										{@const f = formatSeconds(t)}
+										<Select.Item value={String(t)} label="{f.val} {f.unit}"
+											>{f.val} {f.unit}</Select.Item
+										>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</div>
+						<div class="flex flex-col justify-center border-l border-zinc-900 pl-8">
+							<Label class="mb-2 text-[9px] font-bold text-zinc-600 uppercase"
+								>Default Downloads</Label
+							>
+							<Select.Root
+								type="single"
+								value={String(configData.default_number_of_downloads)}
+								onValueChange={(v) => save({ default_number_of_downloads: Number(v) })}
+							>
+								<Select.Trigger class="h-10 border-zinc-800 bg-black font-mono text-xl text-white"
+									>{configData.default_number_of_downloads}x</Select.Trigger
+								>
+								<Select.Content class="border-zinc-800 bg-zinc-900">
+									{#each configData.download_configs as dl}
+										<Select.Item value={String(dl)} label="{dl}x">{dl}x</Select.Item>
+									{/each}
+								</Select.Content>
+							</Select.Root>
+						</div>
+					</Card.Content>
+				</Card.Root>
 
-                <Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none">
-                    <Card.Header class="flex flex-row items-center justify-between pb-4">
-                        <div class="flex items-center gap-2">
-                            <Download class="size-4 text-violet-500" />
-                            <Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">Download Presets</Card.Title>
-                        </div>
-                        <Button variant="outline" size="icon" class="size-8 border-zinc-800 bg-zinc-900 hover:bg-violet-500" onclick={() => {
-                            editing = editing === 'steps' ? null : 'steps';
-                            if (editing === 'steps') tempInput.dl = 1;
-                        }}>
-                            <Pencil class="size-3.5" />
-                        </Button>
-                    </Card.Header>
-                    <Card.Content class="flex min-h-24 flex-col justify-center space-y-3">
-                        {#if editing === 'steps'}
-                            <div in:slide class="flex gap-1">
-                                <Input type="number" bind:value={tempInput.dl} class="h-7 border-zinc-800 bg-black text-xs" min="1" />
-                                <Button size="sm" class="h-7 bg-zinc-800 hover:bg-zinc-700" onclick={() => {
-                                    const newList = [...configData.download_configs, tempInput.dl].sort((a, b) => a - b);
-                                    save({ download_configs: newList });
-                                }}>ADD</Button>
-                            </div>
-                        {/if}
-                        <div class="flex flex-wrap gap-1">
-                            {#each configData.download_configs as dl, i}
-                                <Badge class="border-zinc-800 bg-zinc-900 text-[10px] text-violet-400">
-                                    {dl}x
-                                    {#if editing === 'steps'}
-                                        <button onclick={() => save({ download_configs: configData.download_configs.filter((_, idx) => idx !== i) })} class="ml-1 hover:text-white">
-                                            <X class="size-2.5" />
-                                        </button>
-                                    {/if}
-                                </Badge>
-                            {/each}
-                        </div>
-                    </Card.Content>
-                </Card.Root>
+				<Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none">
+					<Card.Header class="flex flex-row items-center justify-between pb-4">
+						<div class="flex items-center gap-2">
+							<Download class="size-4 text-violet-500" />
+							<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+								>Download Presets</Card.Title
+							>
+						</div>
+						<Button
+							variant="outline"
+							size="icon"
+							class="size-8 border-zinc-800 bg-zinc-900 hover:bg-violet-500"
+							onclick={() => {
+								editing = editing === 'steps' ? null : 'steps';
+								if (editing === 'steps') tempInput.dl = 1;
+							}}
+						>
+							<Pencil class="size-3.5" />
+						</Button>
+					</Card.Header>
+					<Card.Content class="flex min-h-24 flex-col justify-center space-y-3">
+						{#if editing === 'steps'}
+							<div in:slide class="flex gap-1">
+								<Input
+									type="number"
+									bind:value={tempInput.dl}
+									class="h-7 border-zinc-800 bg-black text-xs"
+									min="1"
+								/>
+								<Button
+									size="sm"
+									class="h-7 bg-zinc-800 hover:bg-zinc-700"
+									onclick={() => {
+										const newList = [...configData.download_configs, tempInput.dl].sort(
+											(a, b) => a - b
+										);
+										save({ download_configs: newList });
+									}}>ADD</Button
+								>
+							</div>
+						{/if}
+						<div class="flex flex-wrap gap-1">
+							{#each configData.download_configs as dl, i}
+								<Badge class="border-zinc-800 bg-zinc-900 text-[10px] text-violet-400">
+									{dl}x
+									{#if editing === 'steps'}
+										<button
+											onclick={() =>
+												save({
+													download_configs: configData.download_configs.filter(
+														(_: number, idx: number) => idx !== i
+													)
+												})}
+											class="ml-1 hover:text-white"
+										>
+											<X class="size-2.5" />
+										</button>
+									{/if}
+								</Badge>
+							{/each}
+						</div>
+					</Card.Content>
+				</Card.Root>
 
-                <Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none lg:col-span-3">
-                    <Card.Header class="pb-2">
-                        <Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">File Type Restrictions</Card.Title>
-                    </Card.Header>
-                    <Card.Content class="grid gap-8 md:grid-cols-2">
-                        <div class="space-y-3">
-                            <div class="flex items-center justify-between border-b border-zinc-900 pb-2">
-                                <div class="flex items-center gap-2">
-                                    <FileCheck class="size-4 text-emerald-500" />
-                                    <Label class="text-[9px] font-bold text-zinc-600 uppercase">Allowed Extensions</Label>
-                                </div>
-                                <Button variant="ghost" size="sm" class="h-6 w-6 p-0 text-zinc-500 hover:text-emerald-500" onclick={() => { editing = editing === 'allowed' ? null : 'allowed'; tempInput.str = ''; }}>
-                                    {#if editing === 'allowed'}<X class="size-3.5" />{:else}<Plus class="size-3.5" />{/if}
-                                </Button>
-                            </div>
-                            {#if editing === 'allowed'}
-                                <div in:slide class="flex gap-1">
-                                    <Input placeholder="e.g. pdf, png" bind:value={tempInput.str} class="h-7 border-zinc-800 bg-black text-xs" onkeydown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            const ext = sanitizeExt(tempInput.str);
-                                            if (ext) save({ allowed_file_types: [...new Set([...(configData.allowed_file_types || []), ext])] });
-                                            tempInput.str = '';
-                                        }
-                                    }} />
-                                </div>
-                            {/if}
-                            <div class="flex flex-wrap gap-1.5">
-                                {#if !configData.allowed_file_types?.length}
-                                    <span class="text-xs italic text-zinc-700">All files allowed</span>
-                                {:else}
-                                    {#each configData.allowed_file_types as type}
-                                        <Badge variant="outline" class="flex gap-1 border-zinc-800 bg-emerald-950/10 text-[10px] text-emerald-500">
-                                            {type}
-                                            {#if editing === 'allowed'}
-                                                <button onclick={() => save({ allowed_file_types: configData.allowed_file_types.filter(t => t !== type) })}><X class="size-2.5" /></button>
-                                            {/if}
-                                        </Badge>
-                                    {/each}
-                                {/if}
-                            </div>
-                        </div>
+				<Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none lg:col-span-3">
+					<Card.Header class="pb-2">
+						<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+							>File Type Restrictions</Card.Title
+						>
+					</Card.Header>
+					<Card.Content class="grid gap-8 md:grid-cols-2">
+						<div class="space-y-3">
+							<div class="flex items-center justify-between border-b border-zinc-900 pb-2">
+								<div class="flex items-center gap-2">
+									<FileCheck class="size-4 text-emerald-500" />
+									<Label class="text-[9px] font-bold text-zinc-600 uppercase"
+										>Allowed Extensions</Label
+									>
+								</div>
+								<Button
+									variant="ghost"
+									size="sm"
+									class="h-6 w-6 p-0 text-zinc-500 hover:text-emerald-500"
+									onclick={() => {
+										editing = editing === 'allowed' ? null : 'allowed';
+										tempInput.str = '';
+									}}
+								>
+									{#if editing === 'allowed'}<X class="size-3.5" />{:else}<Plus
+											class="size-3.5"
+										/>{/if}
+								</Button>
+							</div>
+							{#if editing === 'allowed'}
+								<div in:slide class="flex gap-1">
+									<Input
+										placeholder="e.g. pdf, png"
+										bind:value={tempInput.str}
+										class="h-7 border-zinc-800 bg-black text-xs"
+										onkeydown={(e: KeyboardEvent) => {
+											if (e.key === 'Enter') {
+												const ext = sanitizeExt(tempInput.str);
+												if (ext)
+													save({
+														allowed_file_types: [
+															...new Set([...(configData.allowed_file_types || []), ext])
+														]
+													});
+												tempInput.str = '';
+											}
+										}}
+									/>
+								</div>
+							{/if}
+							<div class="flex flex-wrap gap-1.5">
+								{#if !configData.allowed_file_types?.length}
+									<span class="text-xs text-zinc-700 italic">All files allowed</span>
+								{:else}
+									{#each configData.allowed_file_types as type}
+										<Badge
+											variant="outline"
+											class="flex gap-1 border-zinc-800 bg-emerald-950/10 text-[10px] text-emerald-500"
+										>
+											{type}
+											{#if editing === 'allowed'}
+												<button
+													onclick={() =>
+														save({
+															allowed_file_types: configData.allowed_file_types.filter(
+																(t: string) => t !== type
+															)
+														})}><X class="size-2.5" /></button
+												>
+											{/if}
+										</Badge>
+									{/each}
+								{/if}
+							</div>
+						</div>
 
-                        <div class="space-y-3 md:border-l md:border-zinc-900 md:pl-8">
-                            <div class="flex items-center justify-between border-b border-zinc-900 pb-2">
-                                <div class="flex items-center gap-2">
-                                    <FileWarning class="size-4 text-red-500" />
-                                    <Label class="text-[9px] font-bold text-zinc-600 uppercase">Banned Extensions</Label>
-                                </div>
-                                <Button variant="ghost" size="sm" class="h-6 w-6 p-0 text-zinc-500 hover:text-red-500" onclick={() => { editing = editing === 'banned' ? null : 'banned'; tempInput.str = ''; }}>
-                                    {#if editing === 'banned'}<X class="size-3.5" />{:else}<Plus class="size-3.5" />{/if}
-                                </Button>
-                            </div>
-                            {#if editing === 'banned'}
-                                <div in:slide class="flex gap-1">
-                                    <Input placeholder="e.g. exe, bat" bind:value={tempInput.str} class="h-7 border-zinc-800 bg-black text-xs" onkeydown={(e) => {
-                                        if (e.key === 'Enter') {
-                                            const ext = sanitizeExt(tempInput.str);
-                                            if (ext) save({ banned_file_types: [...new Set([...(configData.banned_file_types || []), ext])] });
-                                            tempInput.str = '';
-                                        }
-                                    }} />
-                                </div>
-                            {/if}
-                            <div class="flex flex-wrap gap-1.5">
-                                {#if !configData.banned_file_types?.length}
-                                    <span class="text-xs italic text-zinc-700">No types banned</span>
-                                {:else}
-                                    {#each configData.banned_file_types as type}
-                                        <Badge variant="outline" class="flex gap-1 border-zinc-800 bg-red-950/10 text-[10px] text-red-500">
-                                            {type}
-                                            {#if editing === 'banned'}
-                                                <button onclick={() => save({ banned_file_types: configData.banned_file_types.filter(t => t !== type) })}><X class="size-2.5" /></button>
-                                            {/if}
-                                        </Badge>
-                                    {/each}
-                                {/if}
-                            </div>
-                        </div>
-                    </Card.Content>
-                </Card.Root>
+						<div class="space-y-3 md:border-l md:border-zinc-900 md:pl-8">
+							<div class="flex items-center justify-between border-b border-zinc-900 pb-2">
+								<div class="flex items-center gap-2">
+									<FileWarning class="size-4 text-red-500" />
+									<Label class="text-[9px] font-bold text-zinc-600 uppercase"
+										>Banned Extensions</Label
+									>
+								</div>
+								<Button
+									variant="ghost"
+									size="sm"
+									class="h-6 w-6 p-0 text-zinc-500 hover:text-red-500"
+									onclick={() => {
+										editing = editing === 'banned' ? null : 'banned';
+										tempInput.str = '';
+									}}
+								>
+									{#if editing === 'banned'}<X class="size-3.5" />{:else}<Plus
+											class="size-3.5"
+										/>{/if}
+								</Button>
+							</div>
+							{#if editing === 'banned'}
+								<div in:slide class="flex gap-1">
+									<Input
+										placeholder="e.g. exe, bat"
+										bind:value={tempInput.str}
+										class="h-7 border-zinc-800 bg-black text-xs"
+										onkeydown={(e: KeyboardEvent) => {
+											if (e.key === 'Enter') {
+												const ext = sanitizeExt(tempInput.str);
+												if (ext)
+													save({
+														banned_file_types: [
+															...new Set([...(configData.banned_file_types || []), ext])
+														]
+													});
+												tempInput.str = '';
+											}
+										}}
+									/>
+								</div>
+							{/if}
+							<div class="flex flex-wrap gap-1.5">
+								{#if !configData.banned_file_types?.length}
+									<span class="text-xs text-zinc-700 italic">No types banned</span>
+								{:else}
+									{#each configData.banned_file_types as type}
+										<Badge
+											variant="outline"
+											class="flex gap-1 border-zinc-800 bg-red-950/10 text-[10px] text-red-500"
+										>
+											{type}
+											{#if editing === 'banned'}
+												<button
+													onclick={() =>
+														save({
+															banned_file_types: configData.banned_file_types.filter(
+																(t: string) => t !== type
+															)
+														})}><X class="size-2.5" /></button
+												>
+											{/if}
+										</Badge>
+									{/each}
+								{/if}
+							</div>
+						</div>
+					</Card.Content>
+				</Card.Root>
 
-                <Card.Root class="overflow-hidden border-zinc-900 bg-zinc-950 shadow-none lg:col-span-3">
-                    <Card.Header class="flex flex-row items-center justify-between border-b border-zinc-900 bg-zinc-900/10 px-6 pb-4">
-                        <div class="flex items-center gap-2">
-                            <Globe class="size-4 text-sky-500" />
-                            <Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">Site Description</Card.Title>
-                        </div>
-                        <div class="flex gap-2">
-                            {#if editing === 'desc'}
-                                <Button variant="outline" size="sm" onclick={() => { save({ site_description: configData.site_description }); editing = null; }} class="h-7 border-emerald-900 text-[10px] text-emerald-500 uppercase hover:bg-emerald-900/20">Save Changes</Button>
-                            {/if}
-                            <Button variant="outline" size="sm" onclick={() => (editing = editing === 'desc' ? null : 'desc')} class="h-7 text-[10px] uppercase hover:bg-zinc-800">
-                                {editing === 'desc' ? 'Close Preview' : 'Edit Markdown'}
-                            </Button>
-                        </div>
-                    </Card.Header>
-                    <Card.Content class="p-0">
-                        {#if editing === 'desc'}
-                            <div in:slide class="grid divide-x divide-zinc-900 md:grid-cols-2">
-                                <textarea bind:value={configData.site_description} class="min-h-75 resize-none bg-black p-6 font-mono text-sm text-zinc-400 outline-none" rows="10"></textarea>
-                                <div class="prose prose-invert prose-sm max-w-none p-6">{@html previewHtml}</div>
-                            </div>
-                        {:else}
-                            <div in:fade class="prose prose-invert prose-sm max-w-none p-8">{@html previewHtml}</div>
-                        {/if}
-                    </Card.Content>
-                </Card.Root>
-            </div>
-        {/if}
-    </div>
+				<Card.Root class="overflow-hidden border-zinc-900 bg-zinc-950 shadow-none lg:col-span-3">
+					<Card.Header
+						class="flex flex-row items-center justify-between border-b border-zinc-900 bg-zinc-900/10 px-6 pb-4"
+					>
+						<div class="flex items-center gap-2">
+							<Globe class="size-4 text-sky-500" />
+							<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+								>Site Description</Card.Title
+							>
+						</div>
+						<div class="flex gap-2">
+							{#if editing === 'desc'}
+								<Button
+									variant="outline"
+									size="sm"
+									onclick={() => {
+										save({ site_description: configData.site_description });
+										editing = null;
+									}}
+									class="h-7 border-emerald-900 text-[10px] text-emerald-500 uppercase hover:bg-emerald-900/20"
+									>Save Changes</Button
+								>
+							{/if}
+							<Button
+								variant="outline"
+								size="sm"
+								onclick={() => (editing = editing === 'desc' ? null : 'desc')}
+								class="h-7 text-[10px] uppercase hover:bg-zinc-800"
+							>
+								{editing === 'desc' ? 'Close Preview' : 'Edit Markdown'}
+							</Button>
+						</div>
+					</Card.Header>
+					<Card.Content class="p-0">
+						{#if editing === 'desc'}
+							<div in:slide class="grid divide-x divide-zinc-900 md:grid-cols-2">
+								<textarea
+									bind:value={configData.site_description}
+									class="min-h-75 resize-none bg-black p-6 font-mono text-sm text-zinc-400 outline-none"
+									rows="10"
+								></textarea>
+								<div class="prose prose-invert prose-sm max-w-none p-6">{@html previewHtml}</div>
+							</div>
+						{:else}
+							<div in:fade class="prose prose-invert prose-sm max-w-none p-8">
+								{@html previewHtml}
+							</div>
+						{/if}
+					</Card.Content>
+				</Card.Root>
+			</div>
+		{/if}
+	</div>
 </div>
