@@ -434,12 +434,12 @@
 							<div class="grid grid-cols-1 md:grid-cols-2">
 								<textarea
 									bind:value={config.site_description}
-									class="min-h-[200px] w-full border-r border-zinc-800 bg-black p-4 font-mono text-sm text-zinc-200 focus:ring-1 focus:ring-sky-500/30 focus:outline-none"
+									class="min-h-50 w-full border-r border-zinc-800 bg-black p-4 font-mono text-sm text-zinc-200 focus:ring-1 focus:ring-sky-500/30 focus:outline-none"
 									placeholder="# Hello World..."
 								></textarea>
 
 								<div
-									class="prose prose-invert prose-sm prose-headings:text-sky-400 prose-strong:text-white min-h-[200px] max-w-none overflow-auto bg-zinc-950 p-4"
+									class="prose prose-invert prose-sm prose-headings:text-sky-400 prose-strong:text-white min-h-50 max-w-none overflow-auto bg-zinc-950 p-4"
 								>
 									{@html previewHtml}
 								</div>
