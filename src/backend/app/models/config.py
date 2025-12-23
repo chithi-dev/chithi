@@ -7,17 +7,7 @@ from datetime import timedelta
 from app.converter.bytes import ByteSize
 
 
-class Config(SQLModel, table=True):
-    id: UUID = Field(
-        default=None,
-        primary_key=True,
-        sa_column_kwargs={
-            "server_default": text(
-                "uuidv7()",
-            )
-        },
-    )
-
+class ConfigIn(SQLModel):
     # Max limits
     total_storage_limit: int = Field(
         default=ByteSize(gb=10).total_bytes(), sa_column=Column(BigInteger)
@@ -45,3 +35,15 @@ class Config(SQLModel, table=True):
 
     allowed_file_types: list[str] = Field(default=[], sa_column=Column(ARRAY(String)))
     banned_file_types: list[str] = Field(default=[], sa_column=Column(ARRAY(String)))
+
+
+class Config(ConfigIn, table=True):
+    id: UUID = Field(
+        default=None,
+        primary_key=True,
+        sa_column_kwargs={
+            "server_default": text(
+                "uuidv7()",
+            )
+        },
+    )
