@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 from app.deps import SessionDep, CurrentUser
 from sqlmodel import select
 from app.models import User
-from app.schemas.user import UserOut
+from app.models.user import UserOut
 from http import HTTPStatus
 
 router = APIRouter()

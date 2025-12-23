@@ -21,7 +21,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # 1. Create Config Table (with nullable storage limits and DateTime array)
+    # 1. Create Config Table
     op.create_table(
         "config",
         sa.Column("id", sa.Uuid(), server_default=sa.text("uuidv7()"), nullable=False),
@@ -61,14 +61,12 @@ def upgrade() -> None:
         CREATE OR REPLACE FUNCTION sync_config_defaults()
         RETURNS trigger AS $$
         BEGIN
-            -- Ensure default_number_of_downloads is in download_configs
             IF NEW.download_configs IS NULL THEN
                 NEW.download_configs := ARRAY[NEW.default_number_of_downloads];
             ELSIF NOT (NEW.default_number_of_downloads = ANY(NEW.download_configs)) THEN
                 NEW.download_configs := array_append(NEW.download_configs, NEW.default_number_of_downloads);
             END IF;
 
-            -- Ensure default_expiry is in time_configs
             IF NEW.time_configs IS NULL THEN
                 NEW.time_configs := ARRAY[NEW.default_expiry];
             ELSIF NOT (NEW.default_expiry = ANY(NEW.time_configs)) THEN
@@ -103,7 +101,21 @@ def upgrade() -> None:
         $$ LANGUAGE plpgsql;
     """)
 
-    # 6. Apply Triggers
+    # 6. Trigger Function: Validate File Type Exclusivity
+    # Uses the Postgres overlap operator (&&) to check for common elements
+    op.execute("""
+        CREATE OR REPLACE FUNCTION validate_file_types()
+        RETURNS trigger AS $$
+        BEGIN
+            IF NEW.allowed_file_types && NEW.banned_file_types THEN
+                RAISE EXCEPTION 'Conflict: allowed_file_types and banned_file_types cannot share common extensions';
+            END IF;
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+    """)
+
+    # 7. Apply Triggers
     op.execute(
         "CREATE TRIGGER sync_defaults_trigger BEFORE INSERT OR UPDATE ON config FOR EACH ROW EXECUTE FUNCTION sync_config_defaults();"
     )
@@ -113,17 +125,22 @@ def upgrade() -> None:
     op.execute(
         "CREATE TRIGGER prevent_deletion_trigger BEFORE DELETE ON config FOR EACH ROW EXECUTE FUNCTION prevent_config_deletion();"
     )
+    op.execute(
+        "CREATE TRIGGER validate_file_types_trigger BEFORE INSERT OR UPDATE ON config FOR EACH ROW EXECUTE FUNCTION validate_file_types();"
+    )
 
-    # 7. Seed Initial Data
+    # 8. Seed Initial Data
     config_instance = Config()
     data = config_instance.model_dump(exclude={"id"})
     op.bulk_insert(sa.table("config", *[sa.column(k) for k in data.keys()]), [data])
 
 
 def downgrade() -> None:
+    op.execute("DROP TRIGGER IF EXISTS validate_file_types_trigger ON config;")
     op.execute("DROP TRIGGER IF EXISTS prevent_deletion_trigger ON config;")
     op.execute("DROP TRIGGER IF EXISTS singleton_trigger ON config;")
     op.execute("DROP TRIGGER IF EXISTS sync_defaults_trigger ON config;")
+    op.execute("DROP FUNCTION IF EXISTS validate_file_types();")
     op.execute("DROP FUNCTION IF EXISTS prevent_config_deletion();")
     op.execute("DROP FUNCTION IF EXISTS enforce_singleton();")
     op.execute("DROP FUNCTION IF EXISTS sync_config_defaults();")

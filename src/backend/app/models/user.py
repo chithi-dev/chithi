@@ -3,7 +3,12 @@ from sqlmodel import Field, SQLModel
 from sqlalchemy import text
 
 
-class User(SQLModel, table=True):
+class UserOut(SQLModel):
+    username: str = Field(index=True, unique=True)
+    email: str | None = Field(default=None, index=True, unique=True)
+
+
+class User(UserOut, table=True):
     id: UUID = Field(
         default=None,
         primary_key=True,
@@ -14,6 +19,4 @@ class User(SQLModel, table=True):
         },
     )
 
-    username: str = Field(index=True, unique=True)
-    email: str | None = Field(default=None, index=True, unique=True)
     password_hash: str = Field()
