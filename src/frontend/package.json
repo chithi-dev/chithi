@@ -19,6 +19,7 @@
 	"devDependencies": {
 		"@eslint/compat": "^1.4.0",
 		"@eslint/js": "^9.39.1",
+		"@internationalized/date": "^3.10.1",
 		"@lucide/svelte": "^0.562.0",
 		"@sveltejs/adapter-auto": "^7.0.0",
 		"@sveltejs/kit": "^2.49.1",
@@ -30,6 +31,7 @@
 		"@tanstack/svelte-query-devtools": "^6.0.2",
 		"@types/node": "^24",
 		"@vitest/browser-playwright": "^4.0.15",
+		"bits-ui": "^2.14.4",
 		"clsx": "^2.1.1",
 		"eslint": "^9.39.1",
 		"eslint-config-prettier": "^10.1.8",
