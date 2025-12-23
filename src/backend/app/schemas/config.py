@@ -7,7 +7,7 @@ class ConfigIn(BaseModel):
     max_file_size_mb: int | None
 
     # Default constraints
-    default_expiry_days: int | None
+    default_expiry: int | None
     default_number_of_downloads: int | None
 
     # Markdown
