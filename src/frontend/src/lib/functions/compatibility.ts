@@ -19,7 +19,21 @@ export async function is_minimal_crypto_supported() {
 		await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
 
 		// Check HKDF-SHA-512
-		await crypto.subtle.generateKey({ name: 'HKDF', hash: 'SHA-512' }, true, ['deriveKey']);
+		const ikm = crypto.getRandomValues(new Uint8Array(32)); // Input key material = ikm
+		const baseKey = await crypto.subtle.importKey('raw', ikm, 'HKDF', false, [
+			'deriveKey',
+			'deriveBits'
+		]);
+		await crypto.subtle.deriveBits(
+			{
+				name: 'HKDF',
+				hash: 'SHA-512',
+				salt: crypto.getRandomValues(new Uint8Array(16)),
+				info: new Uint8Array([1, 2, 3])
+			},
+			baseKey,
+			256
+		);
 
 		// Check PBKDF2-HMAC-SHA-256
 		const keyMaterial = await crypto.subtle.importKey(
@@ -43,6 +57,7 @@ export async function is_minimal_crypto_supported() {
 		// All checks passed
 		return true;
 	} catch (e) {
+		console.log(e);
 		// Any failure → not supported
 		return false;
 	}

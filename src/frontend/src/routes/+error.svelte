@@ -50,6 +50,8 @@
 							Page Not Found
 						{:else if error?.code === 'WEBCRYPTO_UNAVAILABLE'}
 							Security Check Failed
+						{:else if error?.code === 'BROWSER_NOT_UPDATED'}
+							Browser Not Supported
 						{:else}
 							Something went wrong
 						{/if}
@@ -57,6 +59,8 @@
 					<Card.Description class="text-sm text-slate-500 dark:text-zinc-400">
 						{#if error?.code === 'WEBCRYPTO_UNAVAILABLE'}
 							Your environment is not secure enough.
+						{:else if error?.code === 'BROWSER_NOT_UPDATED'}
+							Your browser is missing required security features.
 						{:else if error?.message}
 							{error.message}
 						{:else}
@@ -76,6 +80,31 @@
 							>HTTPS</strong
 						>.
 					</p>
+				{:else if error?.code === 'BROWSER_NOT_UPDATED'}
+					<p>
+						This application requires modern cryptographic features (AES-GCM, HKDF, PBKDF2) that your browser does not fully support.
+					</p>
+					<div class="mt-4 rounded-lg bg-slate-100 p-3 text-left text-xs dark:bg-zinc-800/50">
+						<p class="mb-2 font-semibold text-slate-900 dark:text-white">Minimum Recommended Versions:</p>
+						<ul class="space-y-1">
+							<li class="flex items-center justify-between">
+								<span>Google Chrome</span>
+								<span class="font-mono">80+</span>
+							</li>
+							<li class="flex items-center justify-between">
+								<span>Mozilla Firefox</span>
+								<span class="font-mono">75+</span>
+							</li>
+							<li class="flex items-center justify-between">
+								<span>Apple Safari</span>
+								<span class="font-mono">14+</span>
+							</li>
+							<li class="flex items-center justify-between">
+								<span>Microsoft Edge</span>
+								<span class="font-mono">80+</span>
+							</li>
+						</ul>
+					</div>
 				{:else}
 					<p>We encountered an error while processing your request. Please try again later.</p>
 				{/if}
