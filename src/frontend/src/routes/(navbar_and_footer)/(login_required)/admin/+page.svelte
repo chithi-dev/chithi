@@ -450,7 +450,9 @@
 					</Card.Content>
 				</Card.Root>
 
-				<Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none lg:col-span-3">
+				<Card.Root
+					class="rounded-xl border border-zinc-200 bg-white/60 shadow-none lg:col-span-3 dark:border-zinc-900 dark:bg-zinc-950/50"
+				>
 					<Card.Header class="pb-2">
 						<Card.Title
 							class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400"
