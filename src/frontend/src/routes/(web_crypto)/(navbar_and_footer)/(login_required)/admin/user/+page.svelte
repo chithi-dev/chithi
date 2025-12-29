@@ -22,7 +22,6 @@
 
 	let hashedAvatar = $state<null | string>(null);
 
-	// Initialize form with user data when available
 	$effect(() => {
 		if (user.data) {
 			username = user.data.username;
@@ -30,7 +29,6 @@
 		}
 	});
 
-	// Generate Libravatar hash
 	$effect(() => {
 		(async () => {
 			hashedAvatar = await make_libravatar_url(email ?? '');
@@ -82,7 +80,9 @@
 				</Card.Header>
 				<Card.Content class="flex min-h-24 flex-col items-center justify-center py-6">
 					<Avatar.Root class="h-32 w-32 shadow-xl">
-						<Avatar.Image src={hashedAvatar} alt="@{username}" />
+						{#key hashedAvatar && username}
+							<Avatar.Image src={hashedAvatar} alt="@{username}" />
+						{/key}
 						<Avatar.Fallback class="text-4xl">{initials}</Avatar.Fallback>
 					</Avatar.Root>
 					<p class="mt-6 text-center text-xs text-muted-foreground">
