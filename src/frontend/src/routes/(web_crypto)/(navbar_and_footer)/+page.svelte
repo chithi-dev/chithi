@@ -58,9 +58,40 @@
 </script>
 
 <!-- Main Content -->
-<main class="flex flex-1 items-center justify-center p-4">
+<main class="relative flex flex-1 items-center justify-center overflow-hidden p-4">
+	<div class="absolute inset-0 z-0 overflow-hidden bg-slate-50 dark:bg-zinc-950">
+		<!-- Rotating Beam -->
+		<div
+			class="absolute top-1/2 left-1/2 h-[150%] w-[150%] -translate-x-1/2 -translate-y-1/2 animate-[spin_30s_linear_infinite] opacity-30"
+		>
+			<div
+				class="absolute inset-0 bg-[conic-gradient(from_0deg,transparent_0deg,var(--primary)_60deg,transparent_120deg)] opacity-10 blur-3xl"
+			></div>
+		</div>
+
+		<!-- Blobs -->
+		<div
+			class="animate-blob absolute -top-[20%] -left-[20%] h-160 w-160 rounded-full bg-purple-300/40 mix-blend-multiply blur-[100px] filter dark:bg-purple-900/40 dark:mix-blend-hard-light"
+		></div>
+		<div
+			class="animate-blob animation-delay-2000 absolute top-[10%] -right-[20%] h-140 w-140 rounded-full bg-yellow-300/40 mix-blend-multiply blur-[100px] filter dark:bg-indigo-900/40 dark:mix-blend-hard-light"
+		></div>
+		<div
+			class="animate-blob animation-delay-4000 absolute -bottom-[20%] left-[20%] h-180 w-180 rounded-full bg-pink-300/40 mix-blend-multiply blur-[100px] filter dark:bg-blue-900/40 dark:mix-blend-hard-light"
+		></div>
+
+		<!-- Grid -->
+		<div
+			class="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-size-[24px_24px]"
+		></div>
+
+		<!-- Vignette -->
+		<div
+			class="absolute inset-0 bg-[radial-gradient(circle_at_center,transparent_30%,var(--color-slate-50)_100%)] opacity-60 dark:bg-[radial-gradient(circle_at_center,transparent_30%,var(--color-zinc-950)_100%)]"
+		></div>
+	</div>
 	<Card
-		class="mx-auto w-full max-w-6xl border-border bg-card shadow-[0_0_15px_-12px_var(--primary)] transition-all duration-200 {isDragging
+		class="relative z-10 mx-auto w-full max-w-6xl border-border bg-card shadow-[0_0_15px_-12px_var(--primary)] transition-all duration-200 {isDragging
 			? 'shadow-[0_0_40px_-10px_var(--primary)]'
 			: ''}"
 	>
@@ -281,5 +312,29 @@
 		to {
 			stroke-dashoffset: 20;
 		}
+	}
+
+	@keyframes blob {
+		0% {
+			transform: translate(0px, 0px) scale(1);
+		}
+		33% {
+			transform: translate(30px, -50px) scale(1.1);
+		}
+		66% {
+			transform: translate(-20px, 20px) scale(0.9);
+		}
+		100% {
+			transform: translate(0px, 0px) scale(1);
+		}
+	}
+	.animate-blob {
+		animation: blob 7s infinite;
+	}
+	.animation-delay-2000 {
+		animation-delay: 2s;
+	}
+	.animation-delay-4000 {
+		animation-delay: 4s;
 	}
 </style>
