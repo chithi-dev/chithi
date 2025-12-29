@@ -3,11 +3,10 @@
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import { Bird, Plus, X, FileIcon } from 'lucide-svelte';
 
-	// Svelte 5 runes state
 	let isDragging = $state(false);
 	let files: File[] = $state([]);
 	let isUploading = $state(false);
-	let totalSize = $state('0 Bytes'); // Initialize with default value
+	let totalSize = $state('0 Bytes');
 
 	// Add effect to recalculate total size when files change
 	$effect(() => {
@@ -15,7 +14,6 @@
 		totalSize = formatFileSize(total);
 	});
 
-	// TypeScript-typed event handlers
 	const handleDragOver = (e: DragEvent) => {
 		e.preventDefault();
 		if (!isDragging) isDragging = true;
@@ -111,7 +109,6 @@
 								multiple
 								onchange={handleFileSelect}
 							/>
-							<!-- Added ml-4 for proper spacing -->
 							<div class="ml-auto text-sm text-muted-foreground">Total size: {totalSize}</div>
 						</div>
 
