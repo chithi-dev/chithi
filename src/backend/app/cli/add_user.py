@@ -35,11 +35,15 @@ def add_user(
     if not username:
         username = typer.prompt("Username")
 
-    password = getpass("Password: ")
-    confirm_password = getpass("Confirm Password: ")
-    if password != confirm_password:
-        typer.echo("Passwords do not match!")
-        raise typer.Exit(code=1)
+    while True:
+        password = getpass("Password: ")
+        confirm_password = getpass("Confirm Password: ")
+
+        if password == confirm_password:
+            break
+        else:
+            typer.echo("Passwords do not match!")
+            typer.echo("Please type again")
 
     hashed_password = get_password_hash(password)
     asyncio.run(
