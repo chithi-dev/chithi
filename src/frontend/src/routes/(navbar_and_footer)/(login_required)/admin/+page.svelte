@@ -290,7 +290,9 @@
 						<div class="flex flex-wrap gap-1">
 							{#each configData.time_configs as t, i}
 								{@const f = formatSeconds(t)}
-								<Badge class="text-[10px] text-amber-500">
+								<Badge
+									class="border-amber-200 bg-amber-50 text-[10px] text-amber-700 dark:border-amber-700 dark:bg-amber-900/10 dark:text-amber-300"
+								>
 									{f.val}{f.unit.charAt(0)}
 									{#if editing === 'time'}
 										<button
@@ -414,7 +416,9 @@
 						{/if}
 						<div class="flex flex-wrap gap-1">
 							{#each configData.download_configs as dl, i}
-								<Badge class="text-[10px] text-violet-500">
+								<Badge
+									class="border-violet-200 bg-violet-50 text-[10px] text-violet-700 dark:border-violet-700 dark:bg-violet-900/10 dark:text-violet-300"
+								>
 									{dl}x
 									{#if editing === 'steps'}
 										<button
@@ -492,7 +496,7 @@
 									{#each configData.allowed_file_types as type}
 										<Badge
 											variant="outline"
-											class="flex gap-1 border-zinc-800 bg-emerald-950/10 text-[10px] text-emerald-500"
+											class="flex gap-1 border-emerald-200 bg-emerald-50 text-[10px] text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/10 dark:text-emerald-300"
 										>
 											{type}
 											{#if editing === 'allowed'}
@@ -560,7 +564,7 @@
 									{#each configData.banned_file_types as type}
 										<Badge
 											variant="outline"
-											class="flex gap-1 border-zinc-800 bg-red-950/10 text-[10px] text-red-500"
+											class="flex gap-1 border-red-200 bg-red-50 text-[10px] text-red-700 dark:border-red-700 dark:bg-red-900/10 dark:text-red-300"
 										>
 											{type}
 											{#if editing === 'banned'}
