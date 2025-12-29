@@ -22,8 +22,9 @@
 	} from 'lucide-svelte';
 	import { fade, slide } from 'svelte/transition';
 	import { marked } from 'marked';
-	import { onMount } from 'svelte';
+
 	import { Sun, Moon } from 'lucide-svelte';
+
 	import { useConfigQuery } from '$lib/queries/config';
 	import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '$lib/functions/bytes';
 	import { formatSeconds, secondsToNumber, T_UNITS, type TimeUnit } from '$lib/functions/times';
@@ -74,38 +75,28 @@
 			console.error('Save failed:', error);
 		}
 	}
-
-	// Theme (persisted)
-	let theme = $state<'dark' | 'light'>('dark');
-	onMount(() => {
-		const t = (localStorage.getItem('theme') as 'dark' | 'light') || undefined;
-		if (t) theme = t;
-	});
-	function toggleTheme() {
-		theme = theme === 'dark' ? 'light' : 'dark';
-		localStorage.setItem('theme', theme);
-	}
 </script>
 
-<div data-theme={theme} class="min-h-screen p-8">
+<div class="bg-white p-8 text-zinc-900 dark:bg-[#050505] dark:text-zinc-300">
 	<div class="mx-auto max-w-6xl space-y-6">
-		<header class="flex items-center justify-between border-b border-zinc-900 pb-8">
-			<div class="flex items-center gap-4">
-				<div class="rounded-xl border border-zinc-800 bg-zinc-900 p-3">
-					<Settings2 class="size-6 text-white" />
+		<header class="flex items-center justify-between border-b border-border p-4">
+			<div class="flex items-center">
+				<div class="rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
+					<Settings2 class="size-6" />
 				</div>
-				<h1 class="text-3xl font-black tracking-tight text-white uppercase italic">
-					Chithi <span class="font-light text-zinc-600 not-italic">Engine</span>
-				</h1>
+				<h1 class="ml-3 text-2xl font-bold md:text-xl">Chithi Engine</h1>
 			</div>
-			{#if configQuery.isFetching}
-				<div
-					in:fade
-					class="flex items-center gap-2 text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
-				>
-					<LoaderCircle class="size-3 animate-spin" /> Syncing
-				</div>
-			{/if}
+
+			<div class="flex items-center gap-3">
+				{#if configQuery.isFetching}
+					<div
+						in:fade
+						class="flex items-center gap-2 text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+					>
+						<LoaderCircle class="size-3 animate-spin" /> Syncing
+					</div>
+				{/if}
+			</div>
 		</header>
 		{#if configQuery.isLoading}
 			<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -121,10 +112,12 @@
 			</div>
 		{:else if configData}
 			<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-				<Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none">
+				<Card.Root
+					class="rounded-xl border border-zinc-200 bg-white/60 shadow-none dark:border-zinc-900 dark:bg-zinc-950/50"
+				>
 					<Card.Header class="flex flex-row items-center justify-between pb-4">
 						<div class="flex items-center gap-2">
-							<HardDrive class="size-4 text-emerald-500" />
+							<HardDrive class="size-4 text-violet-500" />
 							<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
 								>Storage Pool</Card.Title
 							>
@@ -132,7 +125,7 @@
 						<Button
 							variant="outline"
 							size="icon"
-							class="size-8 border-zinc-800 bg-zinc-900 hover:bg-emerald-500"
+							class="size-8 border border-zinc-200 dark:border-zinc-800"
 							onclick={() => startEdit('storage')}
 						>
 							<Pencil class="size-3.5" />
@@ -145,7 +138,7 @@
 									<Input
 										type="number"
 										bind:value={editVal}
-										class="h-8 border-zinc-800 bg-black"
+										class="h-8 border border-zinc-200 bg-white text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
 										min="0"
 										step="0.01"
 									/>
@@ -173,17 +166,19 @@
 						{:else}
 							{@const f = formatBytes(configData.total_storage_limit)}
 							<div class="flex items-baseline gap-2">
-								<span class="text-5xl font-black text-white">{f.val}</span>
-								<span class="text-xs font-bold text-emerald-500 uppercase">{f.unit}</span>
+								<span class="text-5xl font-black">{f.val}</span>
+								<span class="text-xs font-bold text-violet-500 uppercase">{f.unit}</span>
 							</div>
 						{/if}
 					</Card.Content>
 				</Card.Root>
 
-				<Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none">
+				<Card.Root
+					class="rounded-xl border border-zinc-200 bg-white/60 shadow-none dark:border-zinc-900 dark:bg-zinc-950/50"
+				>
 					<Card.Header class="flex flex-row items-center justify-between pb-4">
 						<div class="flex items-center gap-2">
-							<FileCode class="size-4 text-blue-500" />
+							<FileCode class="size-4 text-indigo-500" />
 							<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
 								>File Ceiling</Card.Title
 							>
@@ -191,7 +186,7 @@
 						<Button
 							variant="outline"
 							size="icon"
-							class="size-8 border-zinc-800 bg-zinc-900 hover:bg-blue-500"
+							class="size-8 border border-zinc-200 dark:border-zinc-800"
 							onclick={() => startEdit('file')}
 						>
 							<Pencil class="size-3.5" />
@@ -204,7 +199,7 @@
 									<Input
 										type="number"
 										bind:value={editVal}
-										class="h-8 border-zinc-800 bg-black"
+										class="h-8 border border-zinc-200 bg-white text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
 										min="0"
 										step="0.01"
 									/>
@@ -232,14 +227,16 @@
 						{:else}
 							{@const f = formatBytes(configData.max_file_size_limit)}
 							<div class="flex items-baseline gap-2">
-								<span class="text-5xl font-black text-white">{f.val}</span>
-								<span class="text-xs font-bold text-blue-500 uppercase">{f.unit}</span>
+								<span class="text-5xl font-black">{f.val}</span>
+								<span class="accent-blue text-xs font-bold uppercase">{f.unit}</span>
 							</div>
 						{/if}
 					</Card.Content>
 				</Card.Root>
 
-				<Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none">
+				<Card.Root
+					class="rounded-xl border border-zinc-200 bg-white/60 shadow-none dark:border-zinc-900 dark:bg-zinc-950/50"
+				>
 					<Card.Header class="flex flex-row items-center justify-between pb-4">
 						<div class="flex items-center gap-2">
 							<Clock class="size-4 text-amber-500" />
@@ -250,7 +247,7 @@
 						<Button
 							variant="outline"
 							size="icon"
-							class="size-8 border-zinc-800 bg-zinc-900 hover:bg-amber-500"
+							class="card-btn size-8 border"
 							onclick={() => {
 								editing = editing === 'time' ? null : 'time';
 								if (editing === 'time') {
@@ -268,7 +265,7 @@
 								<Input
 									type="number"
 									bind:value={tempInput.time}
-									class="h-7 border-zinc-800 bg-black text-xs"
+									class="h-7 border border-zinc-200 bg-white text-xs text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
 									min="1"
 								/>
 								<Select.Root type="single" bind:value={tempInput.timeUnit}>
@@ -293,7 +290,7 @@
 						<div class="flex flex-wrap gap-1">
 							{#each configData.time_configs as t, i}
 								{@const f = formatSeconds(t)}
-								<Badge class="border-zinc-800 bg-zinc-900 text-[10px] text-amber-400">
+								<Badge class="text-[10px] text-amber-500">
 									{f.val}{f.unit.charAt(0)}
 									{#if editing === 'time'}
 										<button
@@ -314,7 +311,9 @@
 					</Card.Content>
 				</Card.Root>
 
-				<Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none lg:col-span-2">
+				<Card.Root
+					class="rounded-xl border border-zinc-200 bg-white/60 shadow-none lg:col-span-2 dark:border-zinc-900 dark:bg-zinc-950/50"
+				>
 					<Card.Header class="pb-2">
 						<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
 							>Retention Defaults</Card.Title
@@ -329,11 +328,15 @@
 								value={String(configData.default_expiry)}
 								onValueChange={(v) => save({ default_expiry: Number(v) })}
 							>
-								<Select.Trigger class="h-10 border-zinc-800 bg-black font-mono text-xl text-white">
+								<Select.Trigger
+									class="h-10 border border-zinc-200 bg-white font-mono text-xl text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
+								>
 									{formatSeconds(configData.default_expiry).val}
 									{formatSeconds(configData.default_expiry).unit}
 								</Select.Trigger>
-								<Select.Content class="border-zinc-800 bg-zinc-900">
+								<Select.Content
+									class="border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900"
+								>
 									{#each configData.time_configs as t}
 										{@const f = formatSeconds(t)}
 										<Select.Item value={String(t)} label="{f.val} {f.unit}"
@@ -352,7 +355,8 @@
 								value={String(configData.default_number_of_downloads)}
 								onValueChange={(v) => save({ default_number_of_downloads: Number(v) })}
 							>
-								<Select.Trigger class="h-10 border-zinc-800 bg-black font-mono text-xl text-white"
+								<Select.Trigger
+									class="h-10 border border-zinc-200 bg-white font-mono text-xl text-zinc-900 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
 									>{configData.default_number_of_downloads}x</Select.Trigger
 								>
 								<Select.Content class="border-zinc-800 bg-zinc-900">
@@ -365,7 +369,9 @@
 					</Card.Content>
 				</Card.Root>
 
-				<Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none">
+				<Card.Root
+					class="rounded-xl border border-zinc-200 bg-white/60 shadow-none dark:border-zinc-900 dark:bg-zinc-950/50"
+				>
 					<Card.Header class="flex flex-row items-center justify-between pb-4">
 						<div class="flex items-center gap-2">
 							<Download class="size-4 text-violet-500" />
@@ -408,7 +414,7 @@
 						{/if}
 						<div class="flex flex-wrap gap-1">
 							{#each configData.download_configs as dl, i}
-								<Badge class="border-zinc-800 bg-zinc-900 text-[10px] text-violet-400">
+								<Badge class="text-[10px] text-violet-500">
 									{dl}x
 									{#if editing === 'steps'}
 										<button
@@ -439,7 +445,7 @@
 						<div class="space-y-3">
 							<div class="flex items-center justify-between border-b border-zinc-900 pb-2">
 								<div class="flex items-center gap-2">
-									<FileCheck class="size-4 text-emerald-500" />
+									<FileCheck class="size-4 text-violet-500" />
 									<Label class="text-[9px] font-bold text-zinc-600 uppercase"
 										>Allowed Extensions</Label
 									>
@@ -575,13 +581,13 @@
 					</Card.Content>
 				</Card.Root>
 
-				<Card.Root class="overflow-hidden border-zinc-900 bg-zinc-950 shadow-none lg:col-span-3">
+				<Card.Root class="card-root overflow-hidden shadow-none lg:col-span-3">
 					<Card.Header
-						class="flex flex-row items-center justify-between border-b border-zinc-900 bg-zinc-900/10 px-6 pb-4"
+						class="card-header flex flex-row items-center justify-between border-b px-6 pb-4"
 					>
 						<div class="flex items-center gap-2">
-							<Globe class="size-4 text-sky-500" />
-							<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+							<Globe class="accent-blue size-4" />
+							<Card.Title class="muted text-[10px] font-bold tracking-widest uppercase"
 								>Site Description</Card.Title
 							>
 						</div>
@@ -594,7 +600,7 @@
 										save({ site_description: configData.site_description });
 										editing = null;
 									}}
-									class="h-7 border-emerald-900 text-[10px] text-emerald-500 uppercase hover:bg-emerald-900/20"
+									class="h-7 border-violet-500 text-[10px] text-violet-500 uppercase hover:bg-violet-500/10"
 									>Save Changes</Button
 								>
 							{/if}
@@ -613,13 +619,15 @@
 							<div in:slide class="grid divide-x divide-zinc-900 md:grid-cols-2">
 								<textarea
 									bind:value={configData.site_description}
-									class="min-h-75 resize-none bg-black p-6 font-mono text-sm text-zinc-400 outline-none"
+									class="min-h-75 resize-none bg-white p-6 font-mono text-sm text-zinc-900 outline-none dark:bg-black dark:text-zinc-400"
 									rows="10"
 								></textarea>
-								<div class="prose prose-invert prose-sm max-w-none p-6">{@html previewHtml}</div>
+								<div class="prose prose-sm dark:prose-invert max-w-none p-6">
+									{@html previewHtml}
+								</div>
 							</div>
 						{:else}
-							<div in:fade class="prose prose-invert prose-sm max-w-none p-8">
+							<div in:fade class="prose prose-sm dark:prose-invert max-w-none p-8">
 								{@html previewHtml}
 							</div>
 						{/if}
