@@ -1,9 +1,8 @@
 <script lang="ts">
-	import './layout.css';
 	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button';
 	import * as Card from '$lib/components/ui/card';
-	import { RefreshCw, Home, ShieldAlert } from 'lucide-svelte';
+	import { RefreshCw, ShieldAlert } from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
 
 	let error = $derived(page.error);
@@ -12,6 +11,8 @@
 	function reload() {
 		location.reload();
 	}
+
+
 </script>
 
 <div

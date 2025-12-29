@@ -1,15 +1,21 @@
 import { error } from '@sveltejs/kit';
-import { is_web_crypto_available } from '$lib/functions/compatibility';
+import { is_web_crypto_available, is_minimal_crypto_supported } from '$lib/functions/compatibility';
 import type { LayoutLoad } from '../$types';
-import { browser } from '$app/environment';
 
-export const load: LayoutLoad = (event) => {
-	if (browser) {
-		if (!is_web_crypto_available()) {
-			error(500, {
-				message: 'WebCrypto API is not available',
-				code: 'WEBCRYPTO_UNAVAILABLE'
-			});
-		}
+export const ssr = false;
+
+export const load: LayoutLoad = async () => {
+	if (!is_web_crypto_available()) {
+		error(500, {
+			message: 'WebCrypto API is not available',
+			code: 'WEBCRYPTO_UNAVAILABLE'
+		});
+	}
+
+	if (!is_minimal_crypto_supported()) {
+		error(500, {
+			message: 'Browser does not support modern WebCrypto methods',
+			code: 'BROWSER_NOT_UPDATED'
+		});
 	}
 };
