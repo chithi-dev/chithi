@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import { LOGIN_URL, USER_URL } from '$lib/consts/backend';
+import { LOGIN_URL, USER_URL, ADMIN_USER_UPDATE_URL } from '$lib/consts/backend';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 export function useAuth() {
@@ -60,6 +60,30 @@ export function useAuth() {
 		queryClient.setQueryData(['auth-user'], null);
 		queryClient.clear();
 	};
+
+	const updateUser = async (data: { username?: string; email?: string | null }) => {
+		if (!browser) return;
+		const token = localStorage.getItem('auth_token');
+		if (!token) throw new Error('Not authenticated');
+
+		const res = await fetch(ADMIN_USER_UPDATE_URL, {
+			method: 'PATCH',
+			headers: {
+				'Content-Type': 'application/json',
+				Authorization: `Bearer ${token}`
+			},
+			body: JSON.stringify(data)
+		});
+
+		if (!res.ok) {
+			const err = await res.json();
+			throw new Error(err.detail || 'Failed to update user');
+		}
+
+		queryClient.invalidateQueries({ queryKey: ['auth-user'] });
+		return res.json();
+	};
+
 	const isAuthenticated = () => {
 		if (!browser) return false;
 		return !!localStorage.getItem('auth_token');
@@ -69,6 +93,7 @@ export function useAuth() {
 		user: query,
 		login,
 		logout,
+		updateUser,
 		isAuthenticated
 	};
 }
