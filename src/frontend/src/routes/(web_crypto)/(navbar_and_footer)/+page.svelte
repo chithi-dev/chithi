@@ -61,7 +61,11 @@
 
 <!-- Main Content -->
 <main class="flex flex-1 items-center justify-center p-4">
-	<Card class="mx-auto w-full max-w-6xl border-border bg-card">
+	<Card
+		class="mx-auto w-full max-w-6xl border-border bg-card transition-all duration-200 {isDragging
+			? 'shadow-[0_0_50px_-10px_var(--primary)]'
+			: ''}"
+	>
 		<CardContent class="p-6">
 			{#if isUploading}
 				<!-- Upload Interface -->
@@ -163,38 +167,41 @@
 				<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
 					<!-- Left Column: Drop Area -->
 					<div
-						class="group relative flex h-120 flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-card p-12 transition-colors duration-200 hover:border-primary focus:border-primary focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background focus:outline-none"
+						class="group relative flex h-120 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-card p-12 transition-all duration-200 hover:border-primary focus:border-primary focus:outline-none"
+						class:border-transparent={isDragging}
 						ondragover={handleDragOver}
 						ondragenter={handleDragOver}
 						ondragleave={handleDragLeave}
 						ondrop={handleDrop}
+						onclick={() => fileInputInitial?.click()}
+						onkeydown={(e) => {
+							if (e.key === 'Enter' || e.key === ' ') {
+								e.preventDefault();
+								fileInputInitial?.click();
+							}
+						}}
 						tabindex="0"
 						role="button"
 						aria-label="File drop area - click or drop files to upload"
 					>
-						<!-- Flowing border animation container -->
-						<div
-							class="pointer-events-none absolute inset-0 overflow-hidden rounded-xl transition-opacity duration-200"
-							class:opacity-100={isDragging}
-							class:opacity-0={!isDragging}
-						>
-							<!-- Top border flow -->
-							<div
-								class="animate-flow-x absolute top-0 right-0 left-0 h-0.5 bg-linear-to-r from-transparent via-primary to-transparent"
-							></div>
-							<!-- Right border flow -->
-							<div
-								class="animate-flow-y absolute top-0 right-0 bottom-0 w-0.5 bg-linear-to-b from-transparent via-primary to-transparent"
-							></div>
-							<!-- Bottom border flow -->
-							<div
-								class="animate-flow-x-reverse absolute right-0 bottom-0 left-0 h-0.5 bg-linear-to-l from-transparent via-primary to-transparent"
-							></div>
-							<!-- Left border flow -->
-							<div
-								class="animate-flow-y-reverse absolute top-0 bottom-0 left-0 w-0.5 bg-linear-to-t from-transparent via-primary to-transparent"
-							></div>
-						</div>
+						{#if isDragging}
+							<svg
+								class="pointer-events-none absolute inset-0 h-full w-full overflow-visible rounded-lg"
+							>
+								<rect
+									x="1"
+									y="1"
+									width="calc(100% - 2px)"
+									height="calc(100% - 2px)"
+									rx="9"
+									fill="none"
+									stroke="var(--primary)"
+									stroke-width="2"
+									stroke-dasharray="12 12"
+									class="animate-dash"
+								/>
+							</svg>
+						{/if}
 
 						<!-- Content with reduced opacity during drag -->
 						<div
@@ -228,18 +235,21 @@
 							class="relative z-10 px-8 py-6 text-lg transition-opacity duration-200 md:px-6 md:py-4 md:text-base {isDragging
 								? 'opacity-40'
 								: 'opacity-100'}"
-							onclick={() => fileInputInitial?.click()}
+							onclick={(e) => {
+								e.stopPropagation();
+								fileInputInitial?.click();
+							}}
 						>
 							Select files to upload
-							<input
-								bind:this={fileInputInitial}
-								type="file"
-								id="file-input-initial"
-								class="hidden"
-								multiple
-								onchange={handleFileSelect}
-							/>
 						</Button>
+						<input
+							bind:this={fileInputInitial}
+							type="file"
+							id="file-input-initial"
+							class="hidden"
+							multiple
+							onchange={handleFileSelect}
+						/>
 					</div>
 
 					<!-- Right Column: Info -->
@@ -257,56 +267,13 @@
 </main>
 
 <style>
-	/* Flowing border animations */
-	@keyframes flow-x {
-		0% {
-			transform: translateX(-100%);
-		}
-		100% {
-			transform: translateX(100%);
+	@keyframes dash {
+		to {
+			stroke-dashoffset: -24;
 		}
 	}
 
-	@keyframes flow-y {
-		0% {
-			transform: translateY(-100%);
-		}
-		100% {
-			transform: translateY(100%);
-		}
-	}
-
-	@keyframes flow-x-reverse {
-		0% {
-			transform: translateX(100%);
-		}
-		100% {
-			transform: translateX(-100%);
-		}
-	}
-
-	@keyframes flow-y-reverse {
-		0% {
-			transform: translateY(100%);
-		}
-		100% {
-			transform: translateY(-100%);
-		}
-	}
-
-	.animate-flow-x {
-		animation: flow-x 2s linear infinite;
-	}
-
-	.animate-flow-y {
-		animation: flow-y 2s linear infinite;
-	}
-
-	.animate-flow-x-reverse {
-		animation: flow-x-reverse 2s linear infinite;
-	}
-
-	.animate-flow-y-reverse {
-		animation: flow-y-reverse 2s linear infinite;
+	.animate-dash {
+		animation: dash 0.5s linear infinite;
 	}
 </style>
