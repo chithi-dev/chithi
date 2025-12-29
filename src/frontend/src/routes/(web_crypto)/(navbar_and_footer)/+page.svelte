@@ -60,12 +60,19 @@
 <!-- Main Content -->
 <main class="relative flex flex-1 items-center justify-center overflow-hidden p-4">
 	<div class="absolute inset-0 z-0 overflow-hidden bg-slate-50 dark:bg-zinc-950">
-		<!-- Rotating Beam -->
+		<!-- Rotating Beams -->
 		<div
-			class="absolute top-1/2 left-1/2 h-[150%] w-[150%] -translate-x-1/2 -translate-y-1/2 animate-[spin_30s_linear_infinite] opacity-30"
+			class="absolute top-1/2 left-1/2 h-[150%] w-[150%] -translate-x-1/2 -translate-y-1/2 animate-[spin_40s_linear_infinite] opacity-20"
 		>
 			<div
 				class="absolute inset-0 bg-[conic-gradient(from_0deg,transparent_0deg,var(--primary)_60deg,transparent_120deg)] opacity-10 blur-3xl"
+			></div>
+		</div>
+		<div
+			class="absolute top-1/2 left-1/2 h-[150%] w-[150%] -translate-x-1/2 -translate-y-1/2 animate-[spin_50s_linear_infinite_reverse] opacity-20"
+		>
+			<div
+				class="absolute inset-0 bg-[conic-gradient(from_180deg,transparent_0deg,var(--primary)_60deg,transparent_120deg)] opacity-10 blur-3xl"
 			></div>
 		</div>
 
@@ -80,10 +87,26 @@
 			class="animate-blob animation-delay-4000 absolute -bottom-[20%] left-[20%] h-180 w-180 rounded-full bg-pink-300/40 mix-blend-multiply blur-[100px] filter dark:bg-blue-900/40 dark:mix-blend-hard-light"
 		></div>
 
-		<!-- Grid -->
+		<!-- Grid with Pulse -->
 		<div
-			class="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-size-[24px_24px]"
+			class="animate-pulse-slow absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-size-[24px_24px]"
 		></div>
+
+		<!-- Floating Particles -->
+		<div class="absolute inset-0 overflow-hidden">
+			<div
+				class="animate-float absolute top-[20%] left-[10%] h-2 w-2 rounded-full bg-primary/20 blur-[1px]"
+			></div>
+			<div
+				class="animate-float animation-delay-2000 absolute top-[60%] right-[15%] h-3 w-3 rounded-full bg-primary/20 blur-[1px]"
+			></div>
+			<div
+				class="animate-float animation-delay-4000 absolute bottom-[10%] left-[30%] h-2 w-2 rounded-full bg-primary/20 blur-[1px]"
+			></div>
+			<div
+				class="animate-float animation-delay-5000 absolute top-[30%] right-[40%] h-1.5 w-1.5 rounded-full bg-primary/30 blur-[1px]"
+			></div>
+		</div>
 
 		<!-- Vignette -->
 		<div
@@ -336,5 +359,37 @@
 	}
 	.animation-delay-4000 {
 		animation-delay: 4s;
+	}
+	.animation-delay-5000 {
+		animation-delay: 5s;
+	}
+
+	@keyframes pulse-slow {
+		0%,
+		100% {
+			opacity: 1;
+		}
+		50% {
+			opacity: 0.8;
+		}
+	}
+	@keyframes float {
+		0% {
+			transform: translateY(0px) translateX(0px);
+			opacity: 0;
+		}
+		50% {
+			opacity: 1;
+		}
+		100% {
+			transform: translateY(-100px) translateX(20px);
+			opacity: 0;
+		}
+	}
+	.animate-pulse-slow {
+		animation: pulse-slow 8s ease-in-out infinite;
+	}
+	.animate-float {
+		animation: float 10s linear infinite;
 	}
 </style>
