@@ -162,7 +162,7 @@
 				<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
 					<!-- Left Column: Drop Area -->
 					<div
-						class="group relative flex h-[480px] flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-card p-12 transition-colors duration-200 hover:border-primary focus:border-primary focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background focus:outline-none"
+						class="group relative flex h-120 flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-card p-12 transition-colors duration-200 hover:border-primary focus:border-primary focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background focus:outline-none"
 						ondragover={handleDragOver}
 						ondragenter={handleDragOver}
 						ondragleave={handleDragLeave}
@@ -179,19 +179,19 @@
 						>
 							<!-- Top border flow -->
 							<div
-								class="animate-flow-x absolute top-0 right-0 left-0 h-0.5 bg-gradient-to-r from-transparent via-primary to-transparent"
+								class="animate-flow-x absolute top-0 right-0 left-0 h-0.5 bg-linear-to-r from-transparent via-primary to-transparent"
 							></div>
 							<!-- Right border flow -->
 							<div
-								class="animate-flow-y absolute top-0 right-0 bottom-0 w-0.5 bg-gradient-to-b from-transparent via-primary to-transparent"
+								class="animate-flow-y absolute top-0 right-0 bottom-0 w-0.5 bg-linear-to-b from-transparent via-primary to-transparent"
 							></div>
 							<!-- Bottom border flow -->
 							<div
-								class="animate-flow-x-reverse absolute right-0 bottom-0 left-0 h-0.5 bg-gradient-to-l from-transparent via-primary to-transparent"
+								class="animate-flow-x-reverse absolute right-0 bottom-0 left-0 h-0.5 bg-linear-to-l from-transparent via-primary to-transparent"
 							></div>
 							<!-- Left border flow -->
 							<div
-								class="animate-flow-y-reverse absolute top-0 bottom-0 left-0 w-0.5 bg-gradient-to-t from-transparent via-primary to-transparent"
+								class="animate-flow-y-reverse absolute top-0 bottom-0 left-0 w-0.5 bg-linear-to-t from-transparent via-primary to-transparent"
 							></div>
 						</div>
 
