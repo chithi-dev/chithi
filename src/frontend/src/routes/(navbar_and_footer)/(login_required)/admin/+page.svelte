@@ -18,19 +18,15 @@
 		Clock,
 		Plus,
 		FileCheck,
-		FileWarning
+		FileExclamationPoint
 	} from 'lucide-svelte';
 	import { fade, slide } from 'svelte/transition';
 	import { marked } from 'marked';
-
-	import { Sun, Moon } from 'lucide-svelte';
 
 	import { useConfigQuery } from '$lib/queries/config';
 	import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '$lib/functions/bytes';
 	import { formatSeconds, secondsToNumber, T_UNITS, type TimeUnit } from '$lib/functions/times';
 	import { sanitizeExt } from '$lib/functions/sanitize';
-
-	// Query hook and helpers
 
 	// Query hook
 	const { config: configQuery, update_config } = useConfigQuery();
@@ -84,7 +80,7 @@
 				<div class="rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
 					<Settings2 class="size-6" />
 				</div>
-				<h1 class="ml-3 text-2xl font-bold md:text-xl">Chithi Engine</h1>
+				<h1 class="ml-3 text-2xl font-bold md:text-xl">Chithi Admin Panel</h1>
 			</div>
 
 			<div class="flex items-center gap-3">
@@ -537,7 +533,7 @@
 								class="flex items-center justify-between border-b border-zinc-200 pb-2 dark:border-zinc-800"
 							>
 								<div class="flex items-center gap-2">
-									<FileWarning class="size-4 text-red-500" />
+									<FileExclamationPoint class="size-4 text-red-500" />
 									<Label class="text-[9px] font-bold text-zinc-600 uppercase dark:text-zinc-400"
 										>Banned Extensions</Label
 									>
