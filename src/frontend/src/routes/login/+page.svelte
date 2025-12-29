@@ -26,7 +26,6 @@
 	let password = $state('');
 
 	const { login } = useAuth();
-	// Logic for the eye icon
 	const isPasswordEmpty = $derived(password.length === 0);
 
 	// Next url

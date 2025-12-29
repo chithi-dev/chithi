@@ -22,25 +22,25 @@
 	} from 'lucide-svelte';
 	import { fade, slide } from 'svelte/transition';
 	import { marked } from 'marked';
+	import { onMount } from 'svelte';
+	import { Sun, Moon } from 'lucide-svelte';
 	import { useConfigQuery } from '$lib/queries/config';
 	import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '$lib/functions/bytes';
 	import { formatSeconds, secondsToNumber, T_UNITS, type TimeUnit } from '$lib/functions/times';
 	import { sanitizeExt } from '$lib/functions/sanitize';
 
+	// Query hook and helpers
 
-
-	// --- TYPES & CONSTANTS ---
-
-	// --- QUERY HOOK ---
+	// Query hook
 	const { config: configQuery, update_config } = useConfigQuery();
 
-	// --- DERIVED STATE (Runes) ---
+	// Derived state
 	let configData = $derived(configQuery.data);
 	let previewHtml = $derived(
 		configData?.site_description ? marked.parse(configData.site_description) : ''
 	);
 
-	// --- UI STATE (Runes) ---
+	// UI state
 	let editing = $state<
 		'storage' | 'file' | 'steps' | 'desc' | 'time' | 'allowed' | 'banned' | null
 	>(null);
@@ -53,7 +53,7 @@
 		str: ''
 	});
 
-	// --- HELPERS ---
+	// Helpers
 	function startEdit(type: 'storage' | 'file') {
 		if (!configData) return;
 		const bytes =
@@ -74,9 +74,20 @@
 			console.error('Save failed:', error);
 		}
 	}
+
+	// Theme (persisted)
+	let theme = $state<'dark' | 'light'>('dark');
+	onMount(() => {
+		const t = (localStorage.getItem('theme') as 'dark' | 'light') || undefined;
+		if (t) theme = t;
+	});
+	function toggleTheme() {
+		theme = theme === 'dark' ? 'light' : 'dark';
+		localStorage.setItem('theme', theme);
+	}
 </script>
 
-<div class="min-h-screen bg-[#050505] p-8 text-zinc-300">
+<div data-theme={theme} class="min-h-screen p-8">
 	<div class="mx-auto max-w-6xl space-y-6">
 		<header class="flex items-center justify-between border-b border-zinc-900 pb-8">
 			<div class="flex items-center gap-4">
