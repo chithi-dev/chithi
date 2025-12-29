@@ -3,8 +3,9 @@
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import * as Select from '$lib/components/ui/select';
+	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { useConfigQuery } from '$lib/queries/config';
-	import { Bird, Plus, X, FileIcon, Eye, EyeOff } from 'lucide-svelte';
+	import { Plus, X, FileIcon, Eye, EyeOff } from 'lucide-svelte';
 	import { marked } from '$lib/functions/marked';
 	import { formatFileSize } from '$lib/functions/bytes';
 
@@ -30,17 +31,96 @@
 
 	const handleDragOver = (e: DragEvent) => {
 		e.preventDefault();
+		if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
 		if (!isDragging) isDragging = true;
 	};
 
-	const handleDragLeave = () => {
+	const handleDragLeave = (e: DragEvent) => {
+		const currentTarget = e.currentTarget as Node;
+		const relatedTarget = e.relatedTarget as Node;
+		if (currentTarget && relatedTarget && currentTarget.contains(relatedTarget)) {
+			return;
+		}
 		isDragging = false;
 	};
 
-	const handleDrop = (e: DragEvent) => {
+	const traverseFileTree = async (item: any, path = ''): Promise<File[]> => {
+		try {
+			if (item.isFile) {
+				return new Promise((resolve) => {
+					item.file(
+						(file: File) => {
+							if (path) {
+								// Use a custom property to avoid read-only issues with webkitRelativePath
+								// eslint-disable-next-line @typescript-eslint/no-explicit-any
+								(file as any).relativePath = path + file.name;
+							}
+							resolve([file]);
+						},
+						(err: any) => {
+							console.error('Error reading file:', err);
+							resolve([]);
+						}
+					);
+				});
+			} else if (item.isDirectory) {
+				const dirReader = item.createReader();
+				const entries: any[] = [];
+
+				const readEntries = async () => {
+					try {
+						const result = await new Promise<any[]>((resolve, reject) => {
+							dirReader.readEntries(resolve, reject);
+						});
+
+						if (result.length > 0) {
+							entries.push(...result);
+							await readEntries();
+						}
+					} catch (err) {
+						console.error('Error reading directory:', err);
+					}
+				};
+
+				await readEntries();
+
+				const fileArrays = await Promise.all(
+					entries.map((entry) => traverseFileTree(entry, path + item.name + '/'))
+				);
+				return fileArrays.flat();
+			}
+		} catch (err) {
+			console.error('Error traversing item:', err);
+		}
+		return [];
+	};
+
+	const handleDrop = async (e: DragEvent) => {
 		e.preventDefault();
+		e.stopPropagation();
 		isDragging = false;
-		if (e.dataTransfer?.files) {
+
+		const items = e.dataTransfer?.items;
+		if (items) {
+			const promises: Promise<File[]>[] = [];
+			for (let i = 0; i < items.length; i++) {
+				const item = items[i];
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
+				if (entry) {
+					promises.push(traverseFileTree(entry));
+				} else if (item.kind === 'file') {
+					const file = item.getAsFile();
+					if (file) promises.push(Promise.resolve([file]));
+				}
+			}
+			const fileArrays = await Promise.all(promises);
+			const newFiles = fileArrays.flat();
+			if (newFiles.length > 0) {
+				files = [...files, ...newFiles];
+				isUploading = true;
+			}
+		} else if (e.dataTransfer?.files) {
 			files = [...files, ...Array.from(e.dataTransfer.files)];
 			isUploading = true;
 		}
@@ -153,6 +233,10 @@
 		class="relative z-10 mx-auto w-full max-w-6xl border-border bg-card shadow-[0_0_15px_-12px_var(--primary)] transition-all duration-200 {isDragging
 			? 'shadow-[0_0_40px_-10px_var(--primary)]'
 			: ''}"
+		ondragover={handleDragOver}
+		ondragenter={handleDragOver}
+		ondragleave={handleDragLeave}
+		ondrop={handleDrop}
 	>
 		<CardContent class="p-6">
 			{#if isUploading}
@@ -161,34 +245,49 @@
 					<!-- Left Column: File List and Controls -->
 					<div class="flex flex-col">
 						<!-- File List -->
-						<div class="mb-4 rounded-lg border border-border bg-card p-4">
-							{#each files as file}
-								<div
-									class="flex items-center justify-between border-b border-border pb-2 last:border-b-0"
-								>
-									<div class="flex items-center">
-										<div class="mr-2 rounded bg-primary/10 p-1">
-											<FileIcon class="h-4 w-4 text-primary" />
-										</div>
-										<div>
-											<div class="font-medium">{file.name}</div>
-											<div class="text-sm text-muted-foreground">{formatFileSize(file.size)}</div>
-										</div>
-									</div>
-									<button
-										onclick={() => removeFile(file)}
-										class="text-muted-foreground hover:text-foreground"
+						<ScrollArea class="mb-4 h-72 w-full rounded-lg border border-border bg-card">
+							<div class="p-4">
+								{#each files as file}
+									<div
+										class="flex items-center justify-between border-b border-border py-2 first:pt-0"
 									>
-										<X class="h-4 w-4" />
-									</button>
-								</div>
-							{/each}
-						</div>
+										<div class="flex items-center gap-3">
+											<div
+												class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10"
+											>
+												<FileIcon class="h-4 w-4 text-primary" />
+											</div>
+											<div class="flex flex-col gap-0.5">
+												<div class="text-sm leading-none font-medium">{file.name}</div>
+												<div class="text-xs text-muted-foreground">
+													{#if (file as any).relativePath}
+														<span class="block max-w-50 truncate text-xs opacity-70"
+															>{(file as any).relativePath}</span
+														>
+													{:else if file.webkitRelativePath && file.webkitRelativePath !== file.name}
+														<span class="block max-w-50 truncate text-xs opacity-70"
+															>{file.webkitRelativePath}</span
+														>
+													{/if}
+													{formatFileSize(file.size)}
+												</div>
+											</div>
+										</div>
+										<button
+											onclick={() => removeFile(file)}
+											class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+										>
+											<X class="h-4 w-4" />
+										</button>
+									</div>
+								{/each}
+							</div>
+						</ScrollArea>
 
 						<!-- Controls -->
 						<div class="mb-4 flex items-center">
 							<button
-								class="flex items-center text-sm text-primary hover:underline"
+								class="flex cursor-pointer items-center text-sm text-primary hover:underline"
 								onclick={() => fileInput?.click()}
 							>
 								<Plus class="mr-1 h-4 w-4" />
@@ -256,7 +355,7 @@
 										<button
 											type="button"
 											onclick={() => (showPassword = !showPassword)}
-											class="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+											class="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
 										>
 											{#if showPassword}
 												<EyeOff class="h-4 w-4" />
@@ -269,7 +368,7 @@
 							</div>
 						</div>
 
-						<Button class="w-full">Upload</Button>
+						<Button class="w-full cursor-pointer">Upload</Button>
 					</div>
 
 					<!-- Right Column: Info -->
@@ -300,10 +399,6 @@
 					<!-- Left Column: Drop Area -->
 					<div
 						class="relative flex h-full cursor-pointer flex-col items-center justify-center rounded-lg bg-card transition-all duration-200 focus:outline-none"
-						ondragover={handleDragOver}
-						ondragenter={handleDragOver}
-						ondragleave={handleDragLeave}
-						ondrop={handleDrop}
 						onclick={() => fileInputInitial?.click()}
 						onkeydown={(e) => {
 							if (e.key === 'Enter' || e.key === ' ') {
@@ -350,7 +445,7 @@
 							<Button
 								variant="default"
 								size="lg"
-								class="px-8 py-6 text-lg transition-opacity duration-200 md:px-6 md:py-4 md:text-base {isDragging
+								class="cursor-pointer px-8 py-6 text-lg transition-opacity duration-200 md:px-6 md:py-4 md:text-base {isDragging
 									? 'opacity-40'
 									: 'opacity-100'}"
 								onclick={(e) => {
