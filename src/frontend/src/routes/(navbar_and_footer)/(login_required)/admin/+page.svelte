@@ -656,15 +656,15 @@
 									class="min-h-75 resize-none bg-white p-6 font-mono text-sm text-zinc-900 outline-none dark:bg-black dark:text-zinc-400"
 									rows="10"
 								></textarea>
-								<div class="max-w-none p-6">
-									{@html previewHtml}
+								<div class="max-w-none overflow-y-auto p-6">
+									<div class="prose prose-zinc dark:prose-invert max-w-none">
+										{@html previewHtml}
+									</div>
 								</div>
 							</div>
 						{:else}
 							<div in:fade class="max-w-none p-8">
-								<div class="max-w-none">
-									{@html previewHtml}
-								</div>
+								<div class="prose prose-zinc dark:prose-invert max-w-none">{@html previewHtml}</div>
 							</div>
 						{/if}
 					</Card.Content>
