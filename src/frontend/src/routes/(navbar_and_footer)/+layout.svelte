@@ -5,8 +5,11 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Dropdown from '$lib/components/ui/dropdown-menu';
 	import { useAuth } from '$lib/queries/auth';
+	import { mode } from 'mode-watcher';
+	import { Label } from '$lib/components/ui/label/index.js';
+	import { Switch } from '$lib/components/ui/switch/index.js';
 
-	const { isAuthenticated, user } = useAuth();
+	const { isAuthenticated } = useAuth();
 
 	let { children } = $props();
 </script>
@@ -30,6 +33,21 @@
 					</Dropdown.Trigger>
 
 					<Dropdown.Content align="end" sideOffset={4} class="w-48">
+						<Dropdown.Item>
+							<div class="flex w-full items-center justify-between gap-2">
+								<div class="flex items-center gap-2">
+									<Label for="theme-switch">Theme</Label>
+								</div>
+								<Switch
+									id="theme-switch"
+									checked={mode.current === 'dark'}
+									onclick={() => toggleMode()}
+								/>
+							</div>
+						</Dropdown.Item>
+
+						<Dropdown.Separator />
+
 						<Dropdown.Item class="flex items-center gap-2">
 							<a href="/admin" class="flex w-full items-center gap-2">
 								<Settings class="h-4 w-4" />
@@ -46,24 +64,23 @@
 				</Dropdown.Root>
 			{:else}
 				<Button variant="outline" size="sm" href="/login">Login</Button>
+				<Button
+					variant="outline"
+					size="icon"
+					onclick={(e) => {
+						e.preventDefault();
+						toggleMode();
+					}}
+				>
+					<SunIcon
+						class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
+					/>
+					<MoonIcon
+						class="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0"
+					/>
+					<span class="sr-only">Toggle theme</span>
+				</Button>
 			{/if}
-
-			<Button
-				variant="outline"
-				size="icon"
-				onclick={(e) => {
-					e.preventDefault();
-					toggleMode();
-				}}
-			>
-				<SunIcon
-					class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
-				/>
-				<MoonIcon
-					class="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0"
-				/>
-				<span class="sr-only">Toggle theme</span>
-			</Button>
 		</div>
 	</header>
 
