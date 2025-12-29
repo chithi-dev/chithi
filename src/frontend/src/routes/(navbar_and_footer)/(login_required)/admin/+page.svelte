@@ -269,7 +269,8 @@
 									min="1"
 								/>
 								<Select.Root type="single" bind:value={tempInput.timeUnit}>
-									<Select.Trigger class="h-7 w-20 border-zinc-800 bg-zinc-900 text-[9px] uppercase"
+									<Select.Trigger
+										class="h-7 w-20 border border-zinc-200 bg-white text-[9px] uppercase dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
 										>{tempInput.timeUnit}</Select.Trigger
 									>
 									<Select.Content class="border-zinc-800 bg-zinc-900">
