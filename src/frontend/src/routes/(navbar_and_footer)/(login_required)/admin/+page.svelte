@@ -91,7 +91,7 @@
 				{#if configQuery.isFetching}
 					<div
 						in:fade
-						class="flex items-center gap-2 text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+						class="flex items-center gap-2 text-[10px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400"
 					>
 						<LoaderCircle class="size-3 animate-spin" /> Syncing
 					</div>
@@ -101,12 +101,14 @@
 		{#if configQuery.isLoading}
 			<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
 				{#each Array(6) as _}
-					<div class="space-y-4 rounded-xl border border-zinc-900 bg-zinc-950/50 p-6">
+					<div
+						class="space-y-4 rounded-xl border border-zinc-200 bg-white/60 p-6 dark:border-zinc-900 dark:bg-zinc-950/50"
+					>
 						<div class="flex justify-between">
-							<Skeleton class="h-4 w-24 bg-zinc-900" />
-							<Skeleton class="h-8 w-8 bg-zinc-900" />
+							<Skeleton class="h-4 w-24 bg-zinc-200 dark:bg-zinc-800" />
+							<Skeleton class="h-8 w-8 bg-zinc-200 dark:bg-zinc-800" />
 						</div>
-						<Skeleton class="h-12 w-32 bg-zinc-900" />
+						<Skeleton class="h-12 w-32 bg-zinc-200 dark:bg-zinc-800" />
 					</div>
 				{/each}
 			</div>
@@ -118,7 +120,8 @@
 					<Card.Header class="flex flex-row items-center justify-between pb-4">
 						<div class="flex items-center gap-2">
 							<HardDrive class="size-4 text-violet-500" />
-							<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+							<Card.Title
+								class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400"
 								>Storage Pool</Card.Title
 							>
 						</div>
@@ -179,7 +182,8 @@
 					<Card.Header class="flex flex-row items-center justify-between pb-4">
 						<div class="flex items-center gap-2">
 							<FileCode class="size-4 text-indigo-500" />
-							<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+							<Card.Title
+								class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400"
 								>File Ceiling</Card.Title
 							>
 						</div>
@@ -240,7 +244,8 @@
 					<Card.Header class="flex flex-row items-center justify-between pb-4">
 						<div class="flex items-center gap-2">
 							<Clock class="size-4 text-amber-500" />
-							<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+							<Card.Title
+								class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400"
 								>Expiry Options</Card.Title
 							>
 						</div>
@@ -270,7 +275,7 @@
 								/>
 								<Select.Root type="single" bind:value={tempInput.timeUnit}>
 									<Select.Trigger
-										class="h-7 w-20 border border-zinc-200 bg-white text-[9px] uppercase dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
+										class="h-7 w-20 border border-zinc-200 bg-white text-[9px] text-zinc-900 uppercase dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300"
 										>{tempInput.timeUnit}</Select.Trigger
 									>
 									<Select.Content class="border-zinc-800 bg-zinc-900">
@@ -279,7 +284,7 @@
 								</Select.Root>
 								<Button
 									size="sm"
-									class="h-7 bg-zinc-800 hover:bg-zinc-700"
+									class="h-7 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
 									onclick={() => {
 										const secs = secondsToNumber(tempInput.time, tempInput.timeUnit);
 										const newTimeConfigs = [...configData.time_configs, secs].sort((a, b) => a - b);
@@ -318,13 +323,15 @@
 					class="rounded-xl border border-zinc-200 bg-white/60 shadow-none lg:col-span-2 dark:border-zinc-900 dark:bg-zinc-950/50"
 				>
 					<Card.Header class="pb-2">
-						<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+						<Card.Title
+							class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400"
 							>Retention Defaults</Card.Title
 						>
 					</Card.Header>
 					<Card.Content class="grid min-h-24 grid-cols-2 gap-8">
 						<div class="flex flex-col justify-center">
-							<Label class="mb-2 text-[9px] font-bold text-zinc-600 uppercase">Default Expiry</Label
+							<Label class="mb-2 text-[9px] font-bold text-zinc-600 uppercase dark:text-zinc-400"
+								>Default Expiry</Label
 							>
 							<Select.Root
 								type="single"
@@ -349,8 +356,10 @@
 								</Select.Content>
 							</Select.Root>
 						</div>
-						<div class="flex flex-col justify-center border-l border-zinc-900 pl-8">
-							<Label class="mb-2 text-[9px] font-bold text-zinc-600 uppercase"
+						<div
+							class="flex flex-col justify-center border-l border-zinc-200 pl-8 dark:border-zinc-800"
+						>
+							<Label class="mb-2 text-[9px] font-bold text-zinc-600 uppercase dark:text-zinc-400"
 								>Default Downloads</Label
 							>
 							<Select.Root
@@ -378,14 +387,15 @@
 					<Card.Header class="flex flex-row items-center justify-between pb-4">
 						<div class="flex items-center gap-2">
 							<Download class="size-4 text-violet-500" />
-							<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+							<Card.Title
+								class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400"
 								>Download Presets</Card.Title
 							>
 						</div>
 						<Button
 							variant="outline"
 							size="icon"
-							class="size-8 border-zinc-800 bg-zinc-900 hover:bg-violet-500"
+							class="size-8 border border-zinc-200 hover:bg-violet-500 hover:text-white dark:border-zinc-800"
 							onclick={() => {
 								editing = editing === 'steps' ? null : 'steps';
 								if (editing === 'steps') tempInput.dl = 1;
@@ -405,7 +415,7 @@
 								/>
 								<Button
 									size="sm"
-									class="h-7 bg-zinc-800 hover:bg-zinc-700"
+									class="h-7 bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
 									onclick={() => {
 										const newList = [...configData.download_configs, tempInput.dl].sort(
 											(a, b) => a - b
@@ -442,16 +452,19 @@
 
 				<Card.Root class="border-zinc-900 bg-zinc-950/50 shadow-none lg:col-span-3">
 					<Card.Header class="pb-2">
-						<Card.Title class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase"
+						<Card.Title
+							class="text-[10px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400"
 							>File Type Restrictions</Card.Title
 						>
 					</Card.Header>
 					<Card.Content class="grid gap-8 md:grid-cols-2">
 						<div class="space-y-3">
-							<div class="flex items-center justify-between border-b border-zinc-900 pb-2">
+							<div
+								class="flex items-center justify-between border-b border-zinc-200 pb-2 dark:border-zinc-800"
+							>
 								<div class="flex items-center gap-2">
 									<FileCheck class="size-4 text-violet-500" />
-									<Label class="text-[9px] font-bold text-zinc-600 uppercase"
+									<Label class="text-[9px] font-bold text-zinc-600 uppercase dark:text-zinc-400"
 										>Allowed Extensions</Label
 									>
 								</div>
@@ -474,7 +487,7 @@
 									<Input
 										placeholder="e.g. pdf, png"
 										bind:value={tempInput.str}
-										class="h-7 border-zinc-800 bg-black text-xs"
+										class="h-7 border border-zinc-200 bg-white text-xs text-zinc-900 dark:border-zinc-800 dark:bg-black dark:text-zinc-300"
 										onkeydown={(e: KeyboardEvent) => {
 											if (e.key === 'Enter') {
 												const ext = sanitizeExt(tempInput.str);
@@ -492,7 +505,9 @@
 							{/if}
 							<div class="flex flex-wrap gap-1.5">
 								{#if !configData.allowed_file_types?.length}
-									<span class="text-xs text-zinc-700 italic">All files allowed</span>
+									<span class="text-xs text-zinc-700 italic dark:text-zinc-400"
+										>All files allowed</span
+									>
 								{:else}
 									{#each configData.allowed_file_types as type}
 										<Badge
@@ -515,11 +530,13 @@
 								{/if}
 							</div>
 						</div>
-						<div class="space-y-3 md:border-l md:border-zinc-900 md:pl-8">
-							<div class="flex items-center justify-between border-b border-zinc-900 pb-2">
+						<div class="space-y-3 md:border-l md:border-zinc-200 md:pl-8 dark:md:border-zinc-800">
+							<div
+								class="flex items-center justify-between border-b border-zinc-200 pb-2 dark:border-zinc-800"
+							>
 								<div class="flex items-center gap-2">
 									<FileWarning class="size-4 text-red-500" />
-									<Label class="text-[9px] font-bold text-zinc-600 uppercase"
+									<Label class="text-[9px] font-bold text-zinc-600 uppercase dark:text-zinc-400"
 										>Banned Extensions</Label
 									>
 								</div>
@@ -542,7 +559,7 @@
 									<Input
 										placeholder="e.g. exe, bat"
 										bind:value={tempInput.str}
-										class="h-7 border-zinc-800 bg-black text-xs"
+										class="h-7 border border-zinc-200 bg-white text-xs text-zinc-900 dark:border-zinc-800 dark:bg-black dark:text-zinc-300"
 										onkeydown={(e: KeyboardEvent) => {
 											if (e.key === 'Enter') {
 												const ext = sanitizeExt(tempInput.str);
@@ -560,7 +577,9 @@
 							{/if}
 							<div class="flex flex-wrap gap-1.5">
 								{#if !configData.banned_file_types?.length}
-									<span class="text-xs text-zinc-700 italic">No types banned</span>
+									<span class="text-xs text-zinc-700 italic dark:text-zinc-400"
+										>No types banned</span
+									>
 								{:else}
 									{#each configData.banned_file_types as type}
 										<Badge
@@ -592,7 +611,8 @@
 					>
 						<div class="flex items-center gap-2">
 							<Globe class="accent-blue size-4" />
-							<Card.Title class="muted text-[10px] font-bold tracking-widest uppercase"
+							<Card.Title
+								class="muted text-[10px] font-bold tracking-widest text-zinc-500 uppercase dark:text-zinc-400"
 								>Site Description</Card.Title
 							>
 						</div>
@@ -613,7 +633,7 @@
 								variant="outline"
 								size="sm"
 								onclick={() => (editing = editing === 'desc' ? null : 'desc')}
-								class="h-7 text-[10px] uppercase hover:bg-zinc-800"
+								class="h-7 text-[10px] uppercase hover:bg-zinc-100 dark:hover:bg-zinc-800"
 							>
 								{editing === 'desc' ? 'Close Preview' : 'Edit Markdown'}
 							</Button>
@@ -621,7 +641,10 @@
 					</Card.Header>
 					<Card.Content class="p-0">
 						{#if editing === 'desc'}
-							<div in:slide class="grid divide-x divide-zinc-900 md:grid-cols-2">
+							<div
+								in:slide
+								class="grid divide-x divide-zinc-200 md:grid-cols-2 dark:divide-zinc-800"
+							>
 								<textarea
 									bind:value={configData.site_description}
 									class="min-h-75 resize-none bg-white p-6 font-mono text-sm text-zinc-900 outline-none dark:bg-black dark:text-zinc-400"
