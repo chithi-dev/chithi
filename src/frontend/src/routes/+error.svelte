@@ -11,8 +11,6 @@
 	function reload() {
 		location.reload();
 	}
-
-
 </script>
 
 <div
@@ -82,10 +80,13 @@
 					</p>
 				{:else if error?.code === 'BROWSER_NOT_UPDATED'}
 					<p>
-						This application requires modern cryptographic features (AES-GCM, HKDF, PBKDF2) that your browser does not fully support.
+						This application requires modern cryptographic features (AES-GCM, HKDF, PBKDF2) that
+						your browser does not fully support.
 					</p>
 					<div class="mt-4 rounded-lg bg-slate-100 p-3 text-left text-xs dark:bg-zinc-800/50">
-						<p class="mb-2 font-semibold text-slate-900 dark:text-white">Minimum Recommended Versions:</p>
+						<p class="mb-2 font-semibold text-slate-900 dark:text-white">
+							Minimum Recommended Versions:
+						</p>
 						<ul class="space-y-1">
 							<li class="flex items-center justify-between">
 								<span>Google Chrome</span>
