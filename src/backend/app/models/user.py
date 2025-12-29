@@ -3,7 +3,7 @@ from sqlmodel import Field, SQLModel
 from sqlalchemy import text
 
 
-class UserIn(SQLModel):
+class UserUpdate(SQLModel):
     username: str | None = None
     email: str | None = None
 

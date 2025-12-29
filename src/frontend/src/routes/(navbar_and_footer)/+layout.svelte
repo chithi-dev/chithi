@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { SunIcon, Send, MoonIcon, Settings, LogOut } from 'lucide-svelte';
+	import { SunIcon, Send, MoonIcon, Settings, LogOut, User } from 'lucide-svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { toggleMode } from 'mode-watcher';
 	import * as Avatar from '$lib/components/ui/avatar';
@@ -9,25 +9,19 @@
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { md5 } from 'hash-wasm';
+	import { kebab_to_initials } from '$lib/functions/string-conversion';
+	import { make_libravatar_url } from '$lib/functions/libravatar';
 
 	const { isAuthenticated, user: userData } = useAuth();
 
 	let { children } = $props();
 
-	let initials = $derived(
-		userData.data?.username
-			.split('-')
-			.map((w: String) => w[0])
-			.join('')
-			.slice(0, 2)
-			.toUpperCase()
-	);
+	let initials = $derived(kebab_to_initials(userData.data?.username ?? ''));
 
 	let hashedAvatar = $state<null | string>(null);
 	$effect(() => {
 		(async () => {
-			const hash = await md5(userData.data?.email ?? '');
-			hashedAvatar = `https://seccdn.libravatar.org/avatar/${hash}?s=512`;
+			hashedAvatar = await make_libravatar_url(userData.data?.email ?? '');
 		})();
 	});
 </script>
@@ -67,9 +61,16 @@
 						<Dropdown.Separator />
 
 						<Dropdown.Item class="flex items-center gap-2">
-							<a href="/admin" class="flex w-full items-center gap-2">
+							<a href="/admin/config" class="flex w-full items-center gap-2">
 								<Settings class="h-4 w-4" />
-								Admin
+								Config
+							</a>
+						</Dropdown.Item>
+
+						<Dropdown.Item class="flex items-center gap-2">
+							<a href="/admin/user" class="flex w-full items-center gap-2">
+								<User class="h-4 w-4" />
+								Users
 							</a>
 						</Dropdown.Item>
 						<Dropdown.Item class="mt-1 flex items-center gap-2" variant="destructive">
