@@ -8,7 +8,6 @@
 	import { mode } from 'mode-watcher';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
-	import { md5 } from 'hash-wasm';
 	import { kebab_to_initials } from '$lib/functions/string-conversion';
 	import { make_libravatar_url } from '$lib/functions/libravatar';
 
