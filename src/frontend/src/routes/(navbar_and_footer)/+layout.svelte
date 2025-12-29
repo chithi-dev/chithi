@@ -8,10 +8,28 @@
 	import { mode } from 'mode-watcher';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
+	import { md5 } from 'hash-wasm';
 
-	const { isAuthenticated } = useAuth();
+	const { isAuthenticated, user: userData } = useAuth();
 
 	let { children } = $props();
+
+	let initials = $derived(
+		userData.data?.username
+			.split('-')
+			.map((w: String) => w[0])
+			.join('')
+			.slice(0, 2)
+			.toUpperCase()
+	);
+
+	let hashedAvatar = $state<null | string>(null);
+	$effect(() => {
+		(async () => {
+			const hash = await md5(userData.data?.email ?? '');
+			hashedAvatar = `https://seccdn.libravatar.org/avatar/${hash}?s=512`;
+		})();
+	});
 </script>
 
 <div class="flex min-h-screen min-w-screen flex-col bg-background text-foreground">
@@ -27,8 +45,8 @@
 				<Dropdown.Root>
 					<Dropdown.Trigger>
 						<Avatar.Root>
-							<Avatar.Image src="https://github.com/shadcn.png" alt="@shadcn" />
-							<Avatar.Fallback>CN</Avatar.Fallback>
+							<Avatar.Image src={hashedAvatar} alt={userData?.username ?? 'username'} />
+							<Avatar.Fallback>{initials}</Avatar.Fallback>
 						</Avatar.Root>
 					</Dropdown.Trigger>
 

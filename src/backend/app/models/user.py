@@ -3,6 +3,11 @@ from sqlmodel import Field, SQLModel
 from sqlalchemy import text
 
 
+class UserIn(SQLModel):
+    username: str | None = None
+    email: str | None = None
+
+
 class UserOut(SQLModel):
     username: str = Field(index=True, unique=True)
     email: str | None = Field(default=None, index=True, unique=True)
