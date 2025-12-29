@@ -55,8 +55,6 @@
 			isUploading = false;
 		}
 	};
-
-	// Helper function to format file sizes
 </script>
 
 <!-- Main Content -->
@@ -167,7 +165,7 @@
 				<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
 					<!-- Left Column: Drop Area -->
 					<div
-						class=" relative grid h-full min-h-120 cursor-pointer grid-cols-1 grid-rows-1 place-items-center rounded-lg bg-card transition-all duration-200 focus:outline-none"
+						class="relative flex h-full cursor-pointer flex-col items-center justify-center rounded-lg bg-card transition-all duration-200 focus:outline-none"
 						ondragover={handleDragOver}
 						ondragenter={handleDragOver}
 						ondragleave={handleDragLeave}
@@ -183,44 +181,13 @@
 						role="button"
 						aria-label="File drop area - click or drop files to upload"
 					>
-						<!-- Layer 1: Borders -->
-						<div
-							class="pointer-events-none relative col-start-1 row-start-1 h-full w-full rounded-lg"
-						>
-							<!-- Static Border (hidden on hover and drag) -->
+						<!-- Main content container -->
+						<div class="relative z-10 flex flex-col items-center justify-center p-12">
+							<!-- Plus icon in circle -->
 							<div
-								class="absolute inset-0 rounded-lg border-2 border-dashed border-border transition-opacity duration-200"
-								class:opacity-0={isDragging}
-							></div>
-
-							<!-- Animated Border (visible on hover and drag) -->
-							<svg
-								class="absolute inset-0 z-[100] h-full w-full opacity-0 transition-opacity duration-200"
-								class:opacity-100={isDragging}
-							>
-								<rect
-									x="1"
-									y="1"
-									width="calc(100% - 2px)"
-									height="calc(100% - 2px)"
-									rx="9"
-									fill="none"
-									stroke="var(--primary)"
-									stroke-width="2"
-									stroke-dasharray="12 12"
-									class="animate-dash"
-								/>
-							</svg>
-						</div>
-
-						<!-- Layer 2: Content -->
-						<div
-							class="relative z-10 col-start-1 row-start-1 flex flex-col items-center justify-center p-12"
-						>
-							<div
-								class="mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary transition-opacity duration-200"
-								class:opacity-40={isDragging}
-								class:opacity-100={!isDragging}
+								class="mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary transition-opacity duration-200 {isDragging
+									? 'opacity-40'
+									: 'opacity-100'}"
 							>
 								<Plus
 									class="h-8 w-8 text-primary transition-opacity duration-200 {isDragging
@@ -228,20 +195,24 @@
 										: 'opacity-100'}"
 								/>
 							</div>
+
+							<!-- Text content -->
 							<h2
-								class="mb-2 text-xl font-medium transition-opacity duration-200"
-								class:opacity-40={isDragging}
-								class:opacity-100={!isDragging}
+								class="mb-2 text-xl font-medium transition-opacity duration-200 {isDragging
+									? 'opacity-40'
+									: 'opacity-100'}"
 							>
 								Drag and drop files
 							</h2>
 							<p
-								class="mb-8 text-center text-muted-foreground transition-opacity duration-200 md:mb-4 md:text-sm"
-								class:opacity-40={isDragging}
-								class:opacity-100={!isDragging}
+								class="mb-8 text-center text-muted-foreground transition-opacity duration-200 md:mb-4 md:text-sm {isDragging
+									? 'opacity-40'
+									: 'opacity-100'}"
 							>
 								or click to send up to 2.5GB of files with end-to-end encryption
 							</p>
+
+							<!-- Button -->
 							<Button
 								variant="default"
 								size="lg"
@@ -255,6 +226,8 @@
 							>
 								Select files to upload
 							</Button>
+
+							<!-- Hidden file input -->
 							<input
 								bind:this={fileInputInitial}
 								type="file"
@@ -264,6 +237,23 @@
 								onchange={handleFileSelect}
 							/>
 						</div>
+
+						<!-- Border elements -->
+						<svg class="pointer-events-none absolute inset-0 h-full w-full rounded-lg">
+							<rect
+								width="100%"
+								height="100%"
+								rx="8"
+								ry="8"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="2"
+								class="text-border transition-all duration-200 {isDragging
+									? 'dash-animation text-primary'
+									: ''}"
+								stroke-dasharray="10"
+							/>
+						</svg>
 					</div>
 
 					<!-- Right Column: Info -->
@@ -281,13 +271,15 @@
 </main>
 
 <style>
-	@keyframes dash {
-		to {
-			stroke-dashoffset: -24;
-		}
+	/* Alternative border animation using SVG */
+	.dash-animation {
+		stroke-dasharray: 10;
+		animation: dash 1s linear infinite;
 	}
 
-	.animate-dash {
-		animation: dash 0.5s linear infinite;
+	@keyframes dash {
+		to {
+			stroke-dashoffset: 20;
+		}
 	}
 </style>
