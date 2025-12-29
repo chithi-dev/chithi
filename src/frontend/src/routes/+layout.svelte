@@ -22,5 +22,6 @@
 <ModeWatcher />
 <QueryClientProvider client={queryClient}>
 	<SvelteQueryDevtools />
+	
 	{@render children()}
 </QueryClientProvider>
