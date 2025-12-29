@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent } from '$lib/components/ui/card';
+	import { Input } from '$lib/components/ui/input';
+	import * as Select from '$lib/components/ui/select';
 	import { useConfigQuery } from '$lib/queries/config';
-	import { Bird, Plus, X, FileIcon } from 'lucide-svelte';
+	import { Bird, Plus, X, FileIcon, Eye, EyeOff } from 'lucide-svelte';
 	import { marked } from '$lib/functions/marked';
 	import { formatFileSize } from '$lib/functions/bytes';
 
@@ -14,6 +16,11 @@
 	let totalSize = $state('0 Bytes');
 	let fileInputInitial = $state<HTMLInputElement>();
 	let fileInput = $state<HTMLInputElement>();
+	let downloadLimit = $state('1 download');
+	let timeLimit = $state('1 day');
+	let isPasswordProtected = $state(false);
+	let password = $state('');
+	let showPassword = $state(false);
 
 	// Add effect to recalculate total size when files change
 	$effect(() => {
@@ -92,7 +99,7 @@
 			class="animate-pulse-slow absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-size-[24px_24px]"
 		></div>
 
-		<!-- Floating Particles -->
+		<!-- Floating Particles & Stars -->
 		<div class="absolute inset-0 overflow-hidden">
 			<div
 				class="animate-float absolute top-[20%] left-[10%] h-2 w-2 rounded-full bg-primary/20 blur-[1px]"
@@ -106,6 +113,35 @@
 			<div
 				class="animate-float animation-delay-5000 absolute top-[30%] right-[40%] h-1.5 w-1.5 rounded-full bg-primary/30 blur-[1px]"
 			></div>
+
+			<!-- Twinkling Stars -->
+			<div
+				class="animate-twinkle absolute top-[15%] left-[25%] h-1 w-1 rounded-full bg-yellow-200/60 blur-[0.5px]"
+			></div>
+			<div
+				class="animate-twinkle animation-delay-2000 absolute top-[35%] right-[25%] h-1.5 w-1.5 rounded-full bg-blue-200/60 blur-[0.5px]"
+			></div>
+			<div
+				class="animate-twinkle animation-delay-4000 absolute bottom-[25%] left-[45%] h-1 w-1 rounded-full bg-purple-200/60 blur-[0.5px]"
+			></div>
+			<div
+				class="animate-twinkle animation-delay-5000 absolute top-[10%] right-[10%] h-0.5 w-0.5 rounded-full bg-white/60 blur-[0.5px]"
+			></div>
+		</div>
+
+		<!-- Noise Overlay -->
+		<div class="pointer-events-none absolute inset-0 opacity-[0.15] mix-blend-overlay">
+			<svg class="h-full w-full">
+				<filter id="noise">
+					<feTurbulence
+						type="fractalNoise"
+						baseFrequency="0.8"
+						numOctaves="3"
+						stitchTiles="stitch"
+					/>
+				</filter>
+				<rect width="100%" height="100%" filter="url(#noise)" />
+			</svg>
 		</div>
 
 		<!-- Vignette -->
@@ -173,21 +209,63 @@
 						<div class="mb-4 space-y-2">
 							<div class="flex items-center">
 								<span class="text-sm">Expires after</span>
-								<select class="ml-2 rounded border border-border bg-background px-2 py-1 text-sm">
-									<option>1 download</option>
-									<option>5 downloads</option>
-									<option>10 downloads</option>
-								</select>
+								<Select.Root type="single" bind:value={downloadLimit}>
+									<Select.Trigger class="ml-2 w-35">
+										{downloadLimit}
+									</Select.Trigger>
+									<Select.Content>
+										<Select.Item value="1 download">1 download</Select.Item>
+										<Select.Item value="5 downloads">5 downloads</Select.Item>
+										<Select.Item value="10 downloads">10 downloads</Select.Item>
+									</Select.Content>
+								</Select.Root>
 								<span class="mx-2 text-sm">or</span>
-								<select class="rounded border border-border bg-background px-2 py-1 text-sm">
-									<option>1 day</option>
-									<option>7 days</option>
-									<option>30 days</option>
-								</select>
+								<Select.Root type="single" bind:value={timeLimit}>
+									<Select.Trigger class="w-35">
+										{timeLimit}
+									</Select.Trigger>
+									<Select.Content>
+										<Select.Item value="1 day">1 day</Select.Item>
+										<Select.Item value="7 days">7 days</Select.Item>
+										<Select.Item value="30 days">30 days</Select.Item>
+									</Select.Content>
+								</Select.Root>
 							</div>
-							<div class="flex items-center">
-								<input type="checkbox" id="password" class="mr-2" />
-								<label for="password" class="text-sm">Protect with password</label>
+							<div class="flex h-9 items-center gap-2">
+								<div class="flex items-center">
+									<input
+										type="checkbox"
+										id="password"
+										bind:checked={isPasswordProtected}
+										class="mr-2 h-4 w-4 rounded border-primary text-primary focus:ring-primary"
+									/>
+									<label
+										for="password"
+										class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+										>Protect with password</label
+									>
+								</div>
+								{#if isPasswordProtected}
+									<div class="relative max-w-xs flex-1">
+										<Input
+											type={showPassword ? 'text' : 'password'}
+											placeholder="Password"
+											bind:value={password}
+											class="h-9 pr-10"
+										/>
+										<button
+											type="button"
+											onclick={() => (showPassword = !showPassword)}
+											class="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+										>
+											{#if showPassword}
+												<EyeOff class="h-4 w-4" />
+											{:else}
+												<Eye class="h-4 w-4" />
+											{/if}
+										</button>
+									</div>
+								{/if}
 							</div>
 						</div>
 
@@ -197,20 +275,22 @@
 					<!-- Right Column: Info -->
 					<div class="flex flex-col justify-center p-4 lg:p-8">
 						<h2 class="mb-4 text-2xl font-bold md:mb-2 md:text-xl lg:mb-6 lg:text-3xl">
-							Simple, private file sharing
+							End-to-End Encryption
 						</h2>
 						<p
 							class="mb-6 text-muted-foreground md:mb-4 md:text-sm lg:mb-8 lg:text-lg lg:leading-relaxed"
 						>
-							Send lets you share files with end-to-end encryption and a link that automatically
-							expires. So you can keep what you share private and make sure your stuff doesn't stay
-							online forever.
+							Your files are encrypted in your browser before they are ever uploaded. This means
+							only you and the people you share the link with can access them. We cannot see your
+							files.
 						</p>
 						<div class="rounded-xl border border-border bg-muted/50 p-4 md:p-3 lg:p-5">
-							<div class="flex items-center">
-								<Bird class="mr-3 h-6 w-6 text-primary md:h-5 md:w-5" />
-								<span class="text-base font-medium md:text-sm">Sponsored by Thunderbird</span>
-							</div>
+							<h3 class="mb-2 font-semibold">How it works</h3>
+							<p class="text-sm text-muted-foreground">
+								A unique key is generated for each upload. This key is used to encrypt your files
+								and is included in the share link after the '#' symbol. The server never receives
+								this key.
+							</p>
 						</div>
 					</div>
 				</div>
@@ -391,5 +471,20 @@
 	}
 	.animate-float {
 		animation: float 10s linear infinite;
+	}
+	.animate-twinkle {
+		animation: twinkle 4s ease-in-out infinite;
+	}
+
+	@keyframes twinkle {
+		0%,
+		100% {
+			opacity: 0.2;
+			transform: scale(0.8);
+		}
+		50% {
+			opacity: 1;
+			transform: scale(1.2);
+		}
 	}
 </style>
