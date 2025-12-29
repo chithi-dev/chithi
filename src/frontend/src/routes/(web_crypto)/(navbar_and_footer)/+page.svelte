@@ -5,7 +5,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { useConfigQuery } from '$lib/queries/config';
-	import { Plus, X, FileIcon, Eye, EyeOff } from 'lucide-svelte';
+	import { Plus, X, FileIcon, Eye, EyeOff, Trash2 } from 'lucide-svelte';
 	import { marked } from '$lib/functions/marked';
 	import { formatFileSize } from '$lib/functions/bytes';
 
@@ -142,6 +142,11 @@
 			isUploading = false;
 		}
 	};
+
+	const clearAllFiles = () => {
+		files = [];
+		isUploading = false;
+	};
 </script>
 
 <!-- Main Content -->
@@ -245,6 +250,17 @@
 					<!-- Left Column: File List and Controls -->
 					<div class="flex flex-col">
 						<!-- File List -->
+						<div class="mb-2 flex justify-end">
+							<Button
+								variant="ghost"
+								size="icon"
+								onclick={clearAllFiles}
+								class="h-6 w-6 text-muted-foreground hover:text-foreground"
+								title="Clear all"
+							>
+								<Trash2 class="h-4 w-4" />
+							</Button>
+						</div>
 						<ScrollArea class="mb-4 h-72 w-full rounded-lg border border-border bg-card">
 							<div class="p-4">
 								{#each files as file}
