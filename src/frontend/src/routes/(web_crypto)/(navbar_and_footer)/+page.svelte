@@ -315,7 +315,7 @@
 								bind:this={fileInput}
 								type="file"
 								id="file-input"
-								class="hidden"
+								class="sr-only"
 								multiple
 								onchange={handleFileSelect}
 							/>
@@ -466,10 +466,6 @@
 								class="cursor-pointer px-8 py-6 text-lg transition-opacity duration-200 md:px-6 md:py-4 md:text-base {isDragging
 									? 'opacity-40'
 									: 'opacity-100'}"
-								onclick={(e) => {
-									e.stopPropagation();
-									fileInputInitial?.click();
-								}}
 							>
 								Select files to upload
 							</Button>
@@ -479,7 +475,7 @@
 								bind:this={fileInputInitial}
 								type="file"
 								id="file-input-initial"
-								class="hidden"
+								class="sr-only"
 								multiple
 								onchange={handleFileSelect}
 							/>
