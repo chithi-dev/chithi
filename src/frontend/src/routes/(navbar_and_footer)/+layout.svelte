@@ -1,7 +1,12 @@
 <script lang="ts">
-	import { SunIcon, Send, MoonIcon } from 'lucide-svelte';
+	import { SunIcon, Send, MoonIcon, Settings, LogOut } from 'lucide-svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { toggleMode } from 'mode-watcher';
+	import * as Avatar from '$lib/components/ui/avatar';
+	import * as Dropdown from '$lib/components/ui/dropdown-menu';
+	import { useAuth } from '$lib/queries/auth';
+
+	const { isAuthenticated, user } = useAuth();
 
 	let { children } = $props();
 </script>
@@ -14,22 +19,52 @@
 			<h1 class="ml-2 text-2xl font-bold md:text-xl">Send</h1>
 		</div>
 
-		<Button
-			variant="outline"
-			size="icon"
-			onclick={(e) => {
-				e.preventDefault();
-				toggleMode();
-			}}
-		>
-			<SunIcon
-				class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
-			/>
-			<MoonIcon
-				class="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0"
-			/>
-			<span class="sr-only">Toggle theme</span>
-		</Button>
+		<div class="flex items-center gap-2">
+			{#if isAuthenticated()}
+				<Dropdown.Root>
+					<Dropdown.Trigger>
+						<Avatar.Root>
+							<Avatar.Image src="https://github.com/shadcn.png" alt="@shadcn" />
+							<Avatar.Fallback>CN</Avatar.Fallback>
+						</Avatar.Root>
+					</Dropdown.Trigger>
+
+					<Dropdown.Content align="end" sideOffset={4} class="w-48">
+						<Dropdown.Item class="flex items-center gap-2">
+							<a href="/admin" class="flex w-full items-center gap-2">
+								<Settings class="h-4 w-4" />
+								Admin
+							</a>
+						</Dropdown.Item>
+						<Dropdown.Item class="mt-1 flex items-center gap-2" variant="destructive">
+							<a href="/logout" class="flex w-full items-center gap-2">
+								<LogOut class="h-4 w-4" />
+								Logout
+							</a>
+						</Dropdown.Item>
+					</Dropdown.Content>
+				</Dropdown.Root>
+			{:else}
+				<Button variant="outline" size="sm" href="/login">Login</Button>
+			{/if}
+
+			<Button
+				variant="outline"
+				size="icon"
+				onclick={(e) => {
+					e.preventDefault();
+					toggleMode();
+				}}
+			>
+				<SunIcon
+					class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
+				/>
+				<MoonIcon
+					class="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0"
+				/>
+				<span class="sr-only">Toggle theme</span>
+			</Button>
+		</div>
 	</header>
 
 	<!-- Main Content -->
@@ -41,17 +76,20 @@
 			<nav
 				class="flex flex-row flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground md:gap-6"
 			>
-				<a href="#" class="font-medium whitespace-nowrap transition-colors hover:text-foreground"
-					>Donate</a
+				<a
+					href="/donate"
+					class="font-medium whitespace-nowrap transition-colors hover:text-foreground">Donate</a
 				>
-				<a href="#" class="font-medium whitespace-nowrap transition-colors hover:text-foreground"
+				<a href="/cli" class="font-medium whitespace-nowrap transition-colors hover:text-foreground"
 					>CLI</a
 				>
-				<a href="#" class="font-medium whitespace-nowrap transition-colors hover:text-foreground"
-					>DMCA</a
+				<a
+					href="/dmca"
+					class="font-medium whitespace-nowrap transition-colors hover:text-foreground">DMCA</a
 				>
-				<a href="#" class="font-medium whitespace-nowrap transition-colors hover:text-foreground"
-					>Source</a
+				<a
+					href="/source"
+					class="font-medium whitespace-nowrap transition-colors hover:text-foreground">Source</a
 				>
 			</nav>
 		</div>

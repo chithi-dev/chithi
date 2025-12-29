@@ -1,3 +1,4 @@
+import { browser } from '$app/environment';
 import { LOGIN_URL, USER_URL } from '$lib/consts/backend';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
@@ -7,6 +8,7 @@ export function useAuth() {
 	const query = createQuery(() => ({
 		queryKey: ['auth-user'],
 		queryFn: async () => {
+			if (!browser) return null;
 			const token = localStorage.getItem('auth_token');
 			if (!token) return null;
 
@@ -43,18 +45,23 @@ export function useAuth() {
 		}
 
 		const data = await res.json();
-		const token = data.access_token; // or 'token' depending on your backend
-		localStorage.setItem('auth_token', token);
+		const token = data.access_token;
+		if (browser && token) {
+			localStorage.setItem('auth_token', token);
+		}
 
 		return token;
 	};
 
 	const logout = () => {
-		localStorage.removeItem('auth_token');
+		if (browser) {
+			localStorage.removeItem('auth_token');
+		}
 		queryClient.setQueryData(['auth-user'], null);
 		queryClient.clear();
 	};
 	const isAuthenticated = () => {
+		if (!browser) return false;
 		return !!localStorage.getItem('auth_token');
 	};
 

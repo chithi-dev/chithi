@@ -51,6 +51,31 @@
 		str: ''
 	});
 
+	// Preset limits
+	const LIMITS = Object.freeze({
+		download_preset: 5,
+		time_preset: 5,
+		site_description: {
+			words: 150,
+			paragraph: 3,
+			chars: 1000
+		}
+	});
+
+	// Site description metrics (derived)
+	let descWordCount = $derived(
+		descDraft ? descDraft.trim().split(/\s+/).filter(Boolean).length : 0
+	);
+	let descCharCount = $derived(descDraft ? String(descDraft).length : 0);
+	let descParagraphCount = $derived(
+		descDraft ? descDraft.split(/\n{2,}/).filter((p) => p.trim().length).length : 0
+	);
+	let descExceeds = $derived(
+		descWordCount > LIMITS.site_description.words ||
+			descCharCount > LIMITS.site_description.chars ||
+			descParagraphCount > LIMITS.site_description.paragraph
+	);
+
 	// Helpers
 	function startEdit(type: 'storage' | 'file') {
 		if (!configData) return;
@@ -64,10 +89,7 @@
 
 	async function save(payload: any) {
 		try {
-			const result = await update_config(payload);
-			if (configData && result) {
-				Object.assign(configData, payload);
-			}
+			await update_config(payload);
 		} catch (error) {
 			console.error('Save failed:', error);
 		}
@@ -261,7 +283,19 @@
 							<Pencil class="size-3.5" />
 						</Button>
 					</Card.Header>
-					<Card.Content class="flex min-h-24 flex-col justify-center space-y-3">
+					{#if (configData?.time_configs?.length ?? 0) > LIMITS.time_preset || (editing === 'time' && (configData?.time_configs?.length ?? 0) + 1 > LIMITS.time_preset)}
+						<div in:fade class="p-4 text-xs text-red-700 italic dark:text-red-300">
+							User experience may be hindered if you add more than {LIMITS.time_preset} time presets.
+						</div>
+					{/if}
+					<Card.Content
+						class={'flex min-h-24 flex-col justify-center space-y-3' +
+							((configData?.time_configs?.length ?? 0) > LIMITS.time_preset ||
+							(editing === 'time' &&
+								(configData?.time_configs?.length ?? 0) + 1 > LIMITS.time_preset)
+								? ' border border-red-200 bg-red-50 dark:border-red-700 dark:bg-red-900/10'
+								: '')}
+					>
 						{#if editing === 'time'}
 							<div in:slide class="flex gap-1">
 								<Input
@@ -401,7 +435,19 @@
 							<Pencil class="size-3.5" />
 						</Button>
 					</Card.Header>
-					<Card.Content class="flex min-h-24 flex-col justify-center space-y-3">
+					{#if (configData?.download_configs?.length ?? 0) > LIMITS.download_preset || (editing === 'steps' && (configData?.download_configs?.length ?? 0) + 1 > LIMITS.download_preset)}
+						<div in:fade class="p-4 text-xs text-red-700 italic dark:text-red-300">
+							User experience may be hindered if you add more than {LIMITS.download_preset} extensions.
+						</div>
+					{/if}
+					<Card.Content
+						class={'flex min-h-24 flex-col justify-center space-y-3' +
+							((configData?.download_configs?.length ?? 0) > LIMITS.download_preset ||
+							(editing === 'steps' &&
+								(configData?.download_configs?.length ?? 0) + 1 > LIMITS.download_preset)
+								? ' border border-red-200 bg-red-50 dark:border-red-700 dark:bg-red-900/10'
+								: '')}
+					>
 						{#if editing === 'steps'}
 							<div in:slide class="flex gap-1">
 								<Input
@@ -623,6 +669,7 @@
 									onclick={() => {
 										save({ site_description: descDraft });
 										editing = null;
+										editing = null;
 									}}
 									class="h-7 border-violet-500 text-[10px] text-violet-500 uppercase hover:bg-violet-500/10"
 									>Save Changes</Button
@@ -656,6 +703,13 @@
 									class="min-h-75 resize-none bg-white p-6 font-mono text-sm text-zinc-900 outline-none dark:bg-black dark:text-zinc-400"
 									rows="10"
 								></textarea>
+								{#if descExceeds}
+									<div class="p-4 text-xs text-red-700 italic dark:text-red-300">
+										Limit exceeded: {descWordCount}/{LIMITS.site_description.words} words, {descCharCount}/{LIMITS
+											.site_description.chars} chars, {descParagraphCount}/{LIMITS.site_description
+											.paragraph} paragraphs.
+									</div>
+								{/if}
 								<div class="max-w-none overflow-y-auto p-6">
 									<div class="prose prose-zinc dark:prose-invert max-w-none">
 										{@html previewHtml}
