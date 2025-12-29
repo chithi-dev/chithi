@@ -62,8 +62,8 @@
 <!-- Main Content -->
 <main class="flex flex-1 items-center justify-center p-4">
 	<Card
-		class="mx-auto w-full max-w-6xl border-border bg-card transition-all duration-200 {isDragging
-			? 'shadow-[0_0_50px_-10px_var(--primary)]'
+		class="mx-auto w-full max-w-6xl border-border bg-card shadow-[0_0_15px_-12px_var(--primary)] transition-all duration-200 {isDragging
+			? 'shadow-[0_0_40px_-10px_var(--primary)]'
 			: ''}"
 	>
 		<CardContent class="p-6">
@@ -167,8 +167,7 @@
 				<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
 					<!-- Left Column: Drop Area -->
 					<div
-						class="group relative flex h-120 cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-border bg-card p-12 transition-all duration-200 hover:border-primary focus:border-primary focus:outline-none"
-						class:border-transparent={isDragging}
+						class=" relative grid h-full min-h-120 cursor-pointer grid-cols-1 grid-rows-1 place-items-center rounded-lg bg-card transition-all duration-200 focus:outline-none"
 						ondragover={handleDragOver}
 						ondragenter={handleDragOver}
 						ondragleave={handleDragLeave}
@@ -184,9 +183,20 @@
 						role="button"
 						aria-label="File drop area - click or drop files to upload"
 					>
-						{#if isDragging}
+						<!-- Layer 1: Borders -->
+						<div
+							class="pointer-events-none relative col-start-1 row-start-1 h-full w-full rounded-lg"
+						>
+							<!-- Static Border (hidden on hover and drag) -->
+							<div
+								class="absolute inset-0 rounded-lg border-2 border-dashed border-border transition-opacity duration-200"
+								class:opacity-0={isDragging}
+							></div>
+
+							<!-- Animated Border (visible on hover and drag) -->
 							<svg
-								class="pointer-events-none absolute inset-0 h-full w-full overflow-visible rounded-lg"
+								class="absolute inset-0 z-[100] h-full w-full opacity-0 transition-opacity duration-200"
+								class:opacity-100={isDragging}
 							>
 								<rect
 									x="1"
@@ -201,55 +211,59 @@
 									class="animate-dash"
 								/>
 							</svg>
-						{/if}
+						</div>
 
-						<!-- Content with reduced opacity during drag -->
+						<!-- Layer 2: Content -->
 						<div
-							class="relative z-10 mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary transition-opacity duration-200"
-							class:opacity-40={isDragging}
-							class:opacity-100={!isDragging}
+							class="relative z-10 col-start-1 row-start-1 flex flex-col items-center justify-center p-12"
 						>
-							<Plus
-								class="h-8 w-8 text-primary transition-opacity duration-200 {isDragging
+							<div
+								class="mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary transition-opacity duration-200"
+								class:opacity-40={isDragging}
+								class:opacity-100={!isDragging}
+							>
+								<Plus
+									class="h-8 w-8 text-primary transition-opacity duration-200 {isDragging
+										? 'opacity-40'
+										: 'opacity-100'}"
+								/>
+							</div>
+							<h2
+								class="mb-2 text-xl font-medium transition-opacity duration-200"
+								class:opacity-40={isDragging}
+								class:opacity-100={!isDragging}
+							>
+								Drag and drop files
+							</h2>
+							<p
+								class="mb-8 text-center text-muted-foreground transition-opacity duration-200 md:mb-4 md:text-sm"
+								class:opacity-40={isDragging}
+								class:opacity-100={!isDragging}
+							>
+								or click to send up to 2.5GB of files with end-to-end encryption
+							</p>
+							<Button
+								variant="default"
+								size="lg"
+								class="px-8 py-6 text-lg transition-opacity duration-200 md:px-6 md:py-4 md:text-base {isDragging
 									? 'opacity-40'
 									: 'opacity-100'}"
+								onclick={(e) => {
+									e.stopPropagation();
+									fileInputInitial?.click();
+								}}
+							>
+								Select files to upload
+							</Button>
+							<input
+								bind:this={fileInputInitial}
+								type="file"
+								id="file-input-initial"
+								class="hidden"
+								multiple
+								onchange={handleFileSelect}
 							/>
 						</div>
-						<h2
-							class="relative z-10 mb-2 text-xl font-medium transition-opacity duration-200"
-							class:opacity-40={isDragging}
-							class:opacity-100={!isDragging}
-						>
-							Drag and drop files
-						</h2>
-						<p
-							class="relative z-10 mb-8 text-center text-muted-foreground transition-opacity duration-200 md:mb-4 md:text-sm"
-							class:opacity-40={isDragging}
-							class:opacity-100={!isDragging}
-						>
-							or click to send up to 2.5GB of files with end-to-end encryption
-						</p>
-						<Button
-							variant="default"
-							size="lg"
-							class="relative z-10 px-8 py-6 text-lg transition-opacity duration-200 md:px-6 md:py-4 md:text-base {isDragging
-								? 'opacity-40'
-								: 'opacity-100'}"
-							onclick={(e) => {
-								e.stopPropagation();
-								fileInputInitial?.click();
-							}}
-						>
-							Select files to upload
-						</Button>
-						<input
-							bind:this={fileInputInitial}
-							type="file"
-							id="file-input-initial"
-							class="hidden"
-							multiple
-							onchange={handleFileSelect}
-						/>
 					</div>
 
 					<!-- Right Column: Info -->
