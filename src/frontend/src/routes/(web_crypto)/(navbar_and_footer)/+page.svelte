@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
+	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Card, CardContent } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import * as Select from '$lib/components/ui/select';
@@ -8,6 +8,7 @@
 	import { Plus, X, FileIcon, Eye, EyeOff, Trash2 } from 'lucide-svelte';
 	import { marked } from '$lib/functions/marked';
 	import { formatFileSize } from '$lib/functions/bytes';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
 	const { config: configData } = useConfigQuery();
 
@@ -251,15 +252,16 @@
 					<div class="flex flex-col">
 						<!-- File List -->
 						<div class="mb-2 flex justify-end">
-							<Button
-								variant="ghost"
-								size="icon"
-								onclick={clearAllFiles}
-								class="h-6 w-6 text-muted-foreground hover:text-foreground"
-								title="Clear all"
-							>
-								<Trash2 class="h-4 w-4" />
-							</Button>
+							<Tooltip.Provider>
+								<Tooltip.Root>
+									<Tooltip.Trigger class={buttonVariants({ variant: 'ghost' })}>
+										<Trash2 class="h-4 w-4" />
+									</Tooltip.Trigger>
+									<Tooltip.Content>
+										<p>Clear all files</p>
+									</Tooltip.Content>
+								</Tooltip.Root>
+							</Tooltip.Provider>
 						</div>
 						<ScrollArea class="mb-4 h-72 w-full rounded-lg border border-border bg-card">
 							<div class="p-4">
