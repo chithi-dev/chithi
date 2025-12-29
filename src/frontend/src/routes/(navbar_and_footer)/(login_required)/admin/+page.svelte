@@ -33,8 +33,9 @@
 
 	// Derived state
 	let configData = $derived(configQuery.data);
+	let descDraft = $state('');
 	let previewHtml = $derived(
-		configData?.site_description ? marked.parse(configData.site_description) : ''
+		descDraft ? String(marked.parse(descDraft)) : marked.parse(configData?.site_description ?? '')
 	);
 
 	// UI state
@@ -620,7 +621,7 @@
 									variant="outline"
 									size="sm"
 									onclick={() => {
-										save({ site_description: configData.site_description });
+										save({ site_description: descDraft });
 										editing = null;
 									}}
 									class="h-7 border-violet-500 text-[10px] text-violet-500 uppercase hover:bg-violet-500/10"
@@ -630,7 +631,14 @@
 							<Button
 								variant="outline"
 								size="sm"
-								onclick={() => (editing = editing === 'desc' ? null : 'desc')}
+								onclick={() => {
+									if (editing === 'desc') {
+										editing = null;
+									} else {
+										editing = 'desc';
+										descDraft = configData?.site_description ?? '';
+									}
+								}}
 								class="h-7 text-[10px] uppercase hover:bg-zinc-100 dark:hover:bg-zinc-800"
 							>
 								{editing === 'desc' ? 'Close Preview' : 'Edit Markdown'}
@@ -644,17 +652,19 @@
 								class="grid divide-x divide-zinc-200 md:grid-cols-2 dark:divide-zinc-800"
 							>
 								<textarea
-									bind:value={configData.site_description}
+									bind:value={descDraft}
 									class="min-h-75 resize-none bg-white p-6 font-mono text-sm text-zinc-900 outline-none dark:bg-black dark:text-zinc-400"
 									rows="10"
 								></textarea>
-								<div class="prose prose-sm dark:prose-invert max-w-none p-6">
+								<div class="max-w-none p-6">
 									{@html previewHtml}
 								</div>
 							</div>
 						{:else}
-							<div in:fade class="prose prose-sm dark:prose-invert max-w-none p-8">
-								{@html previewHtml}
+							<div in:fade class="max-w-none p-8">
+								<div class="max-w-none">
+									{@html previewHtml}
+								</div>
 							</div>
 						{/if}
 					</Card.Content>
