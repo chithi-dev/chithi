@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { SunIcon, Send, MoonIcon } from 'lucide-svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
+	import { toggleMode } from 'mode-watcher';
 
 	let { children } = $props();
 </script>
@@ -13,7 +14,14 @@
 			<h1 class="ml-2 text-2xl font-bold md:text-xl">Send</h1>
 		</div>
 
-		<Button variant="outline" size="icon">
+		<Button
+			variant="outline"
+			size="icon"
+			onclick={(e) => {
+				e.preventDefault();
+				toggleMode();
+			}}
+		>
 			<SunIcon
 				class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
 			/>

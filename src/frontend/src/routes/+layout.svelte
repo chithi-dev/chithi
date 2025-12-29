@@ -17,11 +17,13 @@
 	});
 </script>
 
-<svelte:head><link rel="icon" href={favicon} /></svelte:head>
+<svelte:head>
+	<link rel="icon" href={favicon} />
+	<title>Chithi</title>
+</svelte:head>
 
 <ModeWatcher />
 <QueryClientProvider client={queryClient}>
 	<SvelteQueryDevtools />
-	
 	{@render children()}
 </QueryClientProvider>
