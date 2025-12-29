@@ -1,12 +1,19 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Card, CardContent } from '$lib/components/ui/card';
+	import { useConfigQuery } from '$lib/queries/config';
 	import { Bird, Plus, X, FileIcon } from 'lucide-svelte';
+	import { marked } from '$lib/functions/marked';
+	import { formatFileSize } from '$lib/functions/bytes';
+
+	const { config: configData } = useConfigQuery();
 
 	let isDragging = $state(false);
 	let files: File[] = $state([]);
 	let isUploading = $state(false);
 	let totalSize = $state('0 Bytes');
+	let fileInputInitial = $state<HTMLInputElement>();
+	let fileInput = $state<HTMLInputElement>();
 
 	// Add effect to recalculate total size when files change
 	$effect(() => {
@@ -50,13 +57,6 @@
 	};
 
 	// Helper function to format file sizes
-	const formatFileSize = (bytes: number): string => {
-		if (bytes === 0) return '0 Bytes';
-		const k = 1024;
-		const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-		const i = Math.floor(Math.log(bytes) / Math.log(k));
-		return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-	};
 </script>
 
 <!-- Main Content -->
@@ -97,12 +97,13 @@
 						<div class="mb-4 flex items-center">
 							<button
 								class="flex items-center text-sm text-primary hover:underline"
-								onclick={() => document.getElementById('file-input')?.click()}
+								onclick={() => fileInput?.click()}
 							>
 								<Plus class="mr-1 h-4 w-4" />
 								Select files to upload
 							</button>
 							<input
+								bind:this={fileInput}
 								type="file"
 								id="file-input"
 								class="hidden"
@@ -227,10 +228,11 @@
 							class="relative z-10 px-8 py-6 text-lg transition-opacity duration-200 md:px-6 md:py-4 md:text-base {isDragging
 								? 'opacity-40'
 								: 'opacity-100'}"
-							onclick={() => document.getElementById('file-input-initial')?.click()}
+							onclick={() => fileInputInitial?.click()}
 						>
 							Select files to upload
 							<input
+								bind:this={fileInputInitial}
 								type="file"
 								id="file-input-initial"
 								class="hidden"
@@ -242,17 +244,10 @@
 
 					<!-- Right Column: Info -->
 					<div class="flex flex-col justify-between p-2 lg:p-8">
-						<div>
-							<h2 class="mb-4 text-2xl font-bold md:mb-2 md:text-xl lg:mb-6 lg:text-3xl">
-								Simple, private file sharing
-							</h2>
-							<p
-								class="mb-6 text-muted-foreground md:mb-4 md:text-sm lg:mb-8 lg:text-lg lg:leading-relaxed"
-							>
-								Send lets you share files with end-to-end encryption and a link that automatically
-								expires. So you can keep what you share private and make sure your stuff doesn't
-								stay online forever.
-							</p>
+						<div
+							class="mb-6 text-muted-foreground md:mb-4 md:text-sm lg:mb-8 lg:text-lg lg:leading-relaxed"
+						>
+							{@html marked.parse(configData.data?.site_description ?? '')}
 						</div>
 					</div>
 				</div>
