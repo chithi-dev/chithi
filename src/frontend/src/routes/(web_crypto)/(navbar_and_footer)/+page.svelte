@@ -8,7 +8,12 @@
 	import { Plus, X, FileIcon, Eye, EyeOff, Trash2 } from 'lucide-svelte';
 	import { marked } from '$lib/functions/marked';
 	import { formatFileSize } from '$lib/functions/bytes';
+	import { createTar } from '$lib/functions/tar';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import { v7 as uuidv7 } from 'uuid';
+	import { BACKEND_API } from '$lib/consts/backend';
+	import { gzipBlob } from '$lib/functions/compression';
+
 	const { config: configData } = useConfigQuery();
 
 	let isDragging = $state(false);
@@ -159,6 +164,52 @@
 	const clearAllFiles = () => {
 		files = new Array<(typeof files)[0]>();
 		isUploading = false;
+	};
+
+	const handleUpload = async () => {
+		if (files.length === 0) return;
+		isUploading = true;
+		try {
+			const tar = await createTar(files);
+
+			// Prefer gzipped archive when available
+			let blobToUpload: Blob = tar;
+			try {
+				const gz = await gzipBlob(tar);
+				blobToUpload = gz;
+			} catch (gzErr: any) {
+				console.warn('Gzip not available; uploading uncompressed tar', gzErr);
+			}
+
+			// Use a v7 UUID as the filename (no extension)
+			const filename = uuidv7();
+			const form = new FormData();
+			form.append('file', blobToUpload, filename);
+			// include some metadata if set
+			form.append('download_limit', downloadLimit);
+			form.append('time_limit', timeLimit);
+			if (isPasswordProtected && password) form.append('password', password);
+
+			const res = await fetch(`${BACKEND_API}/upload`, {
+				method: 'POST',
+				body: form
+			});
+
+			if (!res.ok) {
+				const text = await res.text();
+				throw new Error(`Upload failed: ${res.status} ${res.statusText} ${text}`);
+			}
+
+			// Success — show simple confirmation and clear files
+			const data = await res.json().catch(() => null);
+			alert('Upload successful' + (data ? `: ${JSON.stringify(data)}` : '.'));
+			clearAllFiles();
+		} catch (err: any) {
+			console.error('Upload failed', err);
+			alert('Upload failed: ' + (err?.message ?? err));
+		} finally {
+			isUploading = false;
+		}
 	};
 </script>
 
@@ -400,7 +451,11 @@
 							</div>
 						</div>
 
-						<Button class="w-full cursor-pointer">Upload</Button>
+						<Button
+							class="w-full cursor-pointer"
+							onclick={handleUpload}
+							disabled={files.length === 0}>Upload</Button
+						>
 					</div>
 
 					<!-- Right Column: Info -->
