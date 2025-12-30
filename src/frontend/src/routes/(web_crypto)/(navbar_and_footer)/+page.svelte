@@ -9,7 +9,6 @@
 	import { marked } from '$lib/functions/marked';
 	import { formatFileSize } from '$lib/functions/bytes';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
-	import xss from 'xss';
 	const { config: configData } = useConfigQuery();
 
 	let isDragging = $state(false);
@@ -23,14 +22,7 @@
 	let isPasswordProtected = $state(false);
 	let password = $state('');
 	let showPassword = $state(false);
-	let renderedDetails = $state<null | string>(null);
-
-	$effect(() => {
-		(async () => {
-			const markdown = await marked.parse(configData.data?.site_description ?? '');
-			renderedDetails = xss(markdown);
-		})();
-	});
+	let renderedDetails = $derived(marked.parse(configData.data?.site_description ?? ''));
 
 	$effect(() => {
 		const total = files.reduce((sum, file) => sum + file.size, 0);

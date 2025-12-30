@@ -27,7 +27,6 @@
 	import { formatSeconds, secondsToNumber, T_UNITS, type TimeUnit } from '$lib/functions/times';
 	import { sanitizeExt } from '$lib/functions/sanitize';
 	import { marked } from '$lib/functions/marked';
-	import xss from 'xss';
 
 	// Query hook
 	const { config: configQuery, update_config } = useConfigQuery();
@@ -35,15 +34,9 @@
 	// Derived state
 	let configData = $derived(configQuery.data);
 	let descDraft = $state('');
-	let previewHtml = $state<null | string>(null);
-	$effect(() => {
-		(async () => {
-			const markdown = descDraft
-				? String(marked.parse(descDraft))
-				: marked.parse(configData?.site_description ?? '');
-			previewHtml = xss(await markdown);
-		})();
-	});
+	let previewHtml = $derived(
+		descDraft ? String(marked.parse(descDraft)) : marked.parse(configData?.site_description ?? '')
+	);
 
 	// UI state
 	let editing = $state<
