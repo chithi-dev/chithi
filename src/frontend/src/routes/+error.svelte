@@ -79,7 +79,9 @@
 		class="group flex flex-col items-center transition-transform duration-200 hover:-translate-y-0.5"
 		title="{name} {version}+"
 	>
-		<div class="h-8 w-8 [&>svg]:h-full [&>svg]:w-full">
+		<div
+			class="h-8 w-8 grayscale transition-all duration-300 group-hover:scale-110 group-hover:grayscale-0 [&>svg]:h-full [&>svg]:w-full"
+		>
 			{#await Logo() then { default: Comp }}
 				<Comp />
 			{/await}
