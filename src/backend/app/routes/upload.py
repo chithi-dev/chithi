@@ -1,0 +1,22 @@
+from fastapi import APIRouter, HTTPException
+from app.deps import SessionDep, CurrentUser
+from sqlmodel import select
+from app.models import User
+from app.models.user import UserOut
+from http import HTTPStatus
+
+router = APIRouter()
+
+
+@router.get("/upload", response_model=UserOut)
+async def get_current_user(
+    user: CurrentUser,
+    session: SessionDep,
+):
+    user_object = select(User).where(User.id == user.id)
+    result = await session.exec(user_object)
+    item = result.first()
+    if not item:
+        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
+
+    return item

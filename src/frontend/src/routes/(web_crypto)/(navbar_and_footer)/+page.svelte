@@ -8,6 +8,7 @@
 	import { Plus, X, FileIcon, Eye, EyeOff, Trash2 } from 'lucide-svelte';
 	import { marked } from '$lib/functions/marked';
 	import { formatFileSize } from '$lib/functions/bytes';
+	import { formatSeconds } from '$lib/functions/times';
 	import { createTar } from '$lib/functions/tar';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { v7 as uuidv7 } from 'uuid';
@@ -25,8 +26,10 @@
 	let totalSize = $state('0 Bytes');
 	let fileInputInitial = $state<HTMLInputElement>();
 	let fileInput = $state<HTMLInputElement>();
-	let downloadLimit = $state('1 download');
-	let timeLimit = $state('1 day');
+	let downloadLimit = $state('1');
+	let defaultDownloadLimitSet = false;
+	let timeLimit = $state('86400');
+	let defaultTimeLimitSet = false;
 	let isPasswordProtected = $state(false);
 	let password = $state('');
 	let showPassword = $state(false);
@@ -37,6 +40,20 @@
 	$effect(() => {
 		const total = files.reduce((sum, file) => sum + file.size, 0);
 		totalSize = formatFileSize(total);
+	});
+
+	$effect(() => {
+		if (configData.data?.default_number_of_downloads && !defaultDownloadLimitSet) {
+			downloadLimit = configData.data.default_number_of_downloads.toString();
+			defaultDownloadLimitSet = true;
+		}
+	});
+
+	$effect(() => {
+		if (configData.data?.default_expiry && !defaultTimeLimitSet) {
+			timeLimit = configData.data.default_expiry.toString();
+			defaultTimeLimitSet = true;
+		}
 	});
 
 	const handleDragOver = (e: DragEvent) => {
@@ -263,7 +280,9 @@
 </script>
 
 {#snippet fileItem(file: File)}
-	<div class="flex items-center justify-between border-b border-border py-2 first:pt-0">
+	<div
+		class="flex items-center justify-between border-b border-border py-2 first:pt-0 last:border-0"
+	>
 		<div class="flex items-center gap-3">
 			<div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
 				<FileIcon class="h-4 w-4 text-primary" />
@@ -418,7 +437,7 @@
 				<!-- Upload Interface -->
 				<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
 					<!-- Left Column: File List and Controls -->
-					<div class="flex flex-col">
+					<div class="flex flex-col pb-2">
 						<!-- File List -->
 						<div class="mb-2 flex justify-end">
 							<Tooltip.Provider>
@@ -437,7 +456,7 @@
 								</Tooltip.Root>
 							</Tooltip.Provider>
 						</div>
-						<ScrollArea class="mb-4 h-72 w-full rounded-lg border border-border bg-card">
+						<ScrollArea class="mb-4 max-h-72 w-full rounded-lg border border-border bg-card">
 							<div class="p-4">
 								{#each files as file}
 									{@render fileItem(file)}
@@ -472,22 +491,39 @@
 								<Select.Root type="single" bind:value={downloadLimit}>
 									<Select.Trigger class="ml-2 w-35">
 										{downloadLimit}
+										{downloadLimit === '1' ? 'download' : 'downloads'}
 									</Select.Trigger>
 									<Select.Content>
-										<Select.Item value="1 download">1 download</Select.Item>
-										<Select.Item value="5 downloads">5 downloads</Select.Item>
-										<Select.Item value="10 downloads">10 downloads</Select.Item>
+										{#if configData.data?.download_configs}
+											{#each configData.data.download_configs as limit}
+												<Select.Item value={limit.toString()}
+													>{limit} {limit === 1 ? 'download' : 'downloads'}</Select.Item
+												>
+											{/each}
+										{:else}
+											<Select.Item value="1">1 download</Select.Item>
+										{/if}
 									</Select.Content>
 								</Select.Root>
 								<span class="mx-2 text-sm">or</span>
 								<Select.Root type="single" bind:value={timeLimit}>
 									<Select.Trigger class="w-35">
-										{timeLimit}
+										{@const { val, unit } = formatSeconds(parseInt(timeLimit))}
+										{val}
+										{val === 1 ? unit.slice(0, -1) : unit}
 									</Select.Trigger>
 									<Select.Content>
-										<Select.Item value="1 day">1 day</Select.Item>
-										<Select.Item value="7 days">7 days</Select.Item>
-										<Select.Item value="30 days">30 days</Select.Item>
+										{#if configData.data?.time_configs}
+											{#each configData.data.time_configs as time}
+												{@const { val, unit } = formatSeconds(time)}
+												<Select.Item value={time.toString()}>
+													{val}
+													{val === 1 ? unit.slice(0, -1) : unit}
+												</Select.Item>
+											{/each}
+										{:else}
+											<Select.Item value="86400">1 Day</Select.Item>
+										{/if}
 									</Select.Content>
 								</Select.Root>
 							</div>
