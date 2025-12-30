@@ -24,7 +24,6 @@
 	let password = $state('');
 	let showPassword = $state(false);
 
-	// Add effect to recalculate total size when files change
 	$effect(() => {
 		const total = files.reduce((sum, file) => sum + file.size, 0);
 		totalSize = formatFileSize(total);
@@ -52,13 +51,11 @@
 					item.file(
 						(file: File) => {
 							if (path) {
-								// Use a custom property to avoid read-only issues with webkitRelativePath
-								// eslint-disable-next-line @typescript-eslint/no-explicit-any
 								(file as any).relativePath = path + file.name;
 							}
 							resolve([file]);
 						},
-						(err: any) => {
+						(err: Error) => {
 							console.error('Error reading file:', err);
 							resolve([]);
 						}
@@ -94,6 +91,23 @@
 			console.error('Error traversing item:', err);
 		}
 		return [];
+	};
+
+	const addFiles = (newFiles: File[]) => {
+		const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
+		const newFilesSize = newFiles.reduce((sum, file) => sum + file.size, 0);
+
+		if (configData.data?.max_file_size_limit) {
+			if (currentTotalSize + newFilesSize > configData.data.max_file_size_limit) {
+				alert(`Total file size cannot exceed ${formatFileSize(configData.data.max_file_size_limit)}`);
+				return;
+			}
+		}
+
+		files = [...files, ...newFiles];
+		if (files.length > 0) {
+			isUploading = true;
+		}
 	};
 
 	const handleDrop = async (e: DragEvent) => {
@@ -133,7 +147,6 @@
 			files = [...files, ...Array.from(target.files)];
 			isUploading = true;
 		}
-		// Reset input to allow selecting same file again
 		target.value = '';
 	};
 
@@ -145,7 +158,7 @@
 	};
 
 	const clearAllFiles = () => {
-		files = [];
+		files = new Array<(typeof files)[0]>();
 		isUploading = false;
 	};
 </script>
@@ -171,47 +184,47 @@
 
 		<!-- Blobs -->
 		<div
-			class="animate-blob absolute -top-[20%] -left-[20%] h-160 w-160 rounded-full bg-purple-300/40 mix-blend-multiply blur-[100px] filter dark:bg-purple-900/40 dark:mix-blend-hard-light"
+			class="absolute -top-[20%] -left-[20%] h-160 w-160 animate-blob rounded-full bg-purple-300/40 mix-blend-multiply blur-[100px] filter dark:bg-purple-900/40 dark:mix-blend-hard-light"
 		></div>
 		<div
-			class="animate-blob animation-delay-2000 absolute top-[10%] -right-[20%] h-140 w-140 rounded-full bg-yellow-300/40 mix-blend-multiply blur-[100px] filter dark:bg-indigo-900/40 dark:mix-blend-hard-light"
+			class="absolute top-[10%] -right-[20%] h-140 w-140 animate-blob rounded-full bg-yellow-300/40 mix-blend-multiply blur-[100px] filter [animation-delay:2s] dark:bg-indigo-900/40 dark:mix-blend-hard-light"
 		></div>
 		<div
-			class="animate-blob animation-delay-4000 absolute -bottom-[20%] left-[20%] h-180 w-180 rounded-full bg-pink-300/40 mix-blend-multiply blur-[100px] filter dark:bg-blue-900/40 dark:mix-blend-hard-light"
+			class="absolute -bottom-[20%] left-[20%] h-180 w-180 animate-blob rounded-full bg-pink-300/40 mix-blend-multiply blur-[100px] filter [animation-delay:4s] dark:bg-blue-900/40 dark:mix-blend-hard-light"
 		></div>
 
 		<!-- Grid with Pulse -->
 		<div
-			class="animate-pulse-slow absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-size-[24px_24px]"
+			class="absolute inset-0 animate-pulse-slow bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-size-[24px_24px]"
 		></div>
 
 		<!-- Floating Particles & Stars -->
 		<div class="absolute inset-0 overflow-hidden">
 			<div
-				class="animate-float absolute top-[20%] left-[10%] h-2 w-2 rounded-full bg-primary/20 blur-[1px]"
+				class="absolute top-[20%] left-[10%] h-2 w-2 animate-float rounded-full bg-primary/20 blur-[1px]"
 			></div>
 			<div
-				class="animate-float animation-delay-2000 absolute top-[60%] right-[15%] h-3 w-3 rounded-full bg-primary/20 blur-[1px]"
+				class="absolute top-[60%] right-[15%] h-3 w-3 animate-float rounded-full bg-primary/20 blur-[1px] [animation-delay:2s]"
 			></div>
 			<div
-				class="animate-float animation-delay-4000 absolute bottom-[10%] left-[30%] h-2 w-2 rounded-full bg-primary/20 blur-[1px]"
+				class="absolute bottom-[10%] left-[30%] h-2 w-2 animate-float rounded-full bg-primary/20 blur-[1px] [animation-delay:4s]"
 			></div>
 			<div
-				class="animate-float animation-delay-5000 absolute top-[30%] right-[40%] h-1.5 w-1.5 rounded-full bg-primary/30 blur-[1px]"
+				class="absolute top-[30%] right-[40%] h-1.5 w-1.5 animate-float rounded-full bg-primary/30 blur-[1px] [animation-delay:5s]"
 			></div>
 
 			<!-- Twinkling Stars -->
 			<div
-				class="animate-twinkle absolute top-[15%] left-[25%] h-1 w-1 rounded-full bg-yellow-200/60 blur-[0.5px]"
+				class="absolute top-[15%] left-[25%] h-1 w-1 animate-twinkle rounded-full bg-yellow-200/60 blur-[0.5px]"
 			></div>
 			<div
-				class="animate-twinkle animation-delay-2000 absolute top-[35%] right-[25%] h-1.5 w-1.5 rounded-full bg-blue-200/60 blur-[0.5px]"
+				class="absolute top-[35%] right-[25%] h-1.5 w-1.5 animate-twinkle rounded-full bg-blue-200/60 blur-[0.5px] [animation-delay:2s]"
 			></div>
 			<div
-				class="animate-twinkle animation-delay-4000 absolute bottom-[25%] left-[45%] h-1 w-1 rounded-full bg-purple-200/60 blur-[0.5px]"
+				class="absolute bottom-[25%] left-[45%] h-1 w-1 animate-twinkle rounded-full bg-purple-200/60 blur-[0.5px] [animation-delay:4s]"
 			></div>
 			<div
-				class="animate-twinkle animation-delay-5000 absolute top-[10%] right-[10%] h-0.5 w-0.5 rounded-full bg-white/60 blur-[0.5px]"
+				class="absolute top-[10%] right-[10%] h-0.5 w-0.5 animate-twinkle rounded-full bg-white/60 blur-[0.5px] [animation-delay:5s]"
 			></div>
 		</div>
 
@@ -254,7 +267,12 @@
 						<div class="mb-2 flex justify-end">
 							<Tooltip.Provider>
 								<Tooltip.Root>
-									<Tooltip.Trigger class={buttonVariants({ variant: 'ghost' })}>
+									<Tooltip.Trigger
+										class={buttonVariants({ variant: 'ghost' })}
+										onclick={() => {
+											clearAllFiles();
+										}}
+									>
 										<Trash2 class="h-4 w-4" />
 									</Tooltip.Trigger>
 									<Tooltip.Content>
@@ -281,10 +299,6 @@
 													{#if (file as any).relativePath}
 														<span class="block max-w-50 truncate text-xs opacity-70"
 															>{(file as any).relativePath}</span
-														>
-													{:else if file.webkitRelativePath && file.webkitRelativePath !== file.name}
-														<span class="block max-w-50 truncate text-xs opacity-70"
-															>{file.webkitRelativePath}</span
 														>
 													{/if}
 													{formatFileSize(file.size)}
@@ -315,7 +329,7 @@
 								bind:this={fileInput}
 								type="file"
 								id="file-input"
-								class="sr-only"
+								class="hidden"
 								multiple
 								onchange={handleFileSelect}
 							/>
@@ -466,6 +480,10 @@
 								class="cursor-pointer px-8 py-6 text-lg transition-opacity duration-200 md:px-6 md:py-4 md:text-base {isDragging
 									? 'opacity-40'
 									: 'opacity-100'}"
+								onclick={(e) => {
+									e.stopPropagation();
+									fileInputInitial?.click();
+								}}
 							>
 								Select files to upload
 							</Button>
@@ -475,7 +493,7 @@
 								bind:this={fileInputInitial}
 								type="file"
 								id="file-input-initial"
-								class="sr-only"
+								class="hidden"
 								multiple
 								onchange={handleFileSelect}
 							/>
@@ -492,7 +510,7 @@
 								stroke="currentColor"
 								stroke-width="2"
 								class="text-border transition-all duration-200 {isDragging
-									? 'dash-animation text-primary'
+									? 'animate-dash text-primary'
 									: ''}"
 								stroke-dasharray="10"
 							/>
@@ -512,88 +530,3 @@
 		</CardContent>
 	</Card>
 </main>
-
-<style>
-	/* Alternative border animation using SVG */
-	.dash-animation {
-		stroke-dasharray: 10;
-		animation: dash 1s linear infinite;
-	}
-
-	@keyframes dash {
-		to {
-			stroke-dashoffset: 20;
-		}
-	}
-
-	@keyframes blob {
-		0% {
-			transform: translate(0px, 0px) scale(1);
-		}
-		33% {
-			transform: translate(30px, -50px) scale(1.1);
-		}
-		66% {
-			transform: translate(-20px, 20px) scale(0.9);
-		}
-		100% {
-			transform: translate(0px, 0px) scale(1);
-		}
-	}
-	.animate-blob {
-		animation: blob 7s infinite;
-	}
-	.animation-delay-2000 {
-		animation-delay: 2s;
-	}
-	.animation-delay-4000 {
-		animation-delay: 4s;
-	}
-	.animation-delay-5000 {
-		animation-delay: 5s;
-	}
-
-	@keyframes pulse-slow {
-		0%,
-		100% {
-			opacity: 1;
-		}
-		50% {
-			opacity: 0.8;
-		}
-	}
-	@keyframes float {
-		0% {
-			transform: translateY(0px) translateX(0px);
-			opacity: 0;
-		}
-		50% {
-			opacity: 1;
-		}
-		100% {
-			transform: translateY(-100px) translateX(20px);
-			opacity: 0;
-		}
-	}
-	.animate-pulse-slow {
-		animation: pulse-slow 8s ease-in-out infinite;
-	}
-	.animate-float {
-		animation: float 10s linear infinite;
-	}
-	.animate-twinkle {
-		animation: twinkle 4s ease-in-out infinite;
-	}
-
-	@keyframes twinkle {
-		0%,
-		100% {
-			opacity: 0.2;
-			transform: scale(0.8);
-		}
-		50% {
-			opacity: 1;
-			transform: scale(1.2);
-		}
-	}
-</style>
