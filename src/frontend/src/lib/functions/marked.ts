@@ -31,15 +31,19 @@ export function xssPlugin(options?: IFilterXSSOptions) {
 		},
 
 		renderer: {
-			// Sanitize any raw HTML output from the renderer; accept `this` and any args to match marked types
-			html(this: any, ...args: any[]) {
-				return filter.process(String(args[0] ?? ''));
+			// Sanitize any raw HTML output from the renderer; accept either a raw string or a token object
+			html(this: any, htmlOrToken?: any) {
+				const raw =
+					typeof htmlOrToken === 'string'
+						? htmlOrToken
+						: String(htmlOrToken?.raw ?? htmlOrToken?.text ?? '');
+				return filter.process(String(raw ?? ''));
 			}
 		}
 	};
 }
 
 // Register plugin with conservative defaults that strip <script> bodies
-marked.use(xssPlugin({ stripIgnoreTag: true, stripIgnoreTagBody: [] }));
+marked.use(xssPlugin({ stripIgnoreTag: true, stripIgnoreTagBody: ['<script>'] }));
 
 export { marked };
