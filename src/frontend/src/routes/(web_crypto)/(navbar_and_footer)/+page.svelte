@@ -15,6 +15,7 @@
 	import { gzipBlob } from '$lib/functions/compression';
 	import { encryptBlobWithHKDF } from '$lib/functions/encryption';
 	import { Progress } from '$lib/components/ui/progress';
+	import { Skeleton } from '$lib/components/ui/skeleton';
 
 	const { config: configData } = useConfigQuery();
 
@@ -269,7 +270,7 @@
 			</div>
 			<div class="flex flex-col gap-0.5">
 				<div class="text-sm leading-none font-medium">{file.name}</div>
-				<div class="text-xs text-muted-foreground">
+				<div class="text-xs text-foreground">
 					{#if (file as any).relativePath}
 						<span class="block max-w-50 truncate text-xs opacity-70"
 							>{(file as any).relativePath}</span
@@ -384,7 +385,36 @@
 		ondrop={handleDrop}
 	>
 		<CardContent class="p-6">
-			{#if isUploading}
+			{#if configData.isLoading}
+				<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+					<div
+						class="flex h-full w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-12"
+					>
+						<Skeleton class="mb-6 h-16 w-16 rounded-full" />
+						<Skeleton class="mb-2 h-8 w-48" />
+						<Skeleton class="mb-8 h-4 w-64" />
+						<Skeleton class="h-14 w-56 rounded-md" />
+					</div>
+					<div class="flex flex-col space-y-4 p-2 lg:p-8">
+						<Skeleton class="h-8 w-3/4" />
+						<Skeleton class="h-4 w-full" />
+						<Skeleton class="h-4 w-full" />
+						<Skeleton class="h-4 w-2/3" />
+						<Skeleton class="h-4 w-full" />
+						<Skeleton class="h-4 w-full" />
+						<Skeleton class="h-4 w-5/6" />
+						<Skeleton class="h-4 w-full" />
+						<Skeleton class="h-4 w-full" />
+						<Skeleton class="h-4 w-4/5" />
+						<Skeleton class="h-4 w-full" />
+						<Skeleton class="h-4 w-full" />
+						<Skeleton class="h-4 w-3/4" />
+						<Skeleton class="h-4 w-full" />
+						<Skeleton class="h-4 w-full" />
+						<Skeleton class="h-4 w-5/6" />
+					</div>
+				</div>
+			{:else if isUploading}
 				<!-- Upload Interface -->
 				<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
 					<!-- Left Column: File List and Controls -->
@@ -628,7 +658,7 @@
 					<!-- Right Column: Info -->
 					<div class="flex flex-col justify-between p-2 lg:p-8">
 						<div
-							class="mb-6 text-muted-foreground md:mb-4 md:text-sm lg:mb-8 lg:text-lg lg:leading-relaxed"
+							class="prose mb-6 max-w-none prose-zinc md:mb-4 md:text-sm lg:mb-8 lg:text-lg lg:leading-relaxed dark:prose-invert"
 						>
 							{@html renderedDetails}
 						</div>

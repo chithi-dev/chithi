@@ -1,5 +1,7 @@
 @import 'tailwindcss';
 
+@plugin '@tailwindcss/typography';
+
 @import 'tw-animate-css';
 
 /* Load local fonts (Geist for sans, JetBrains Mono for monospace) */
