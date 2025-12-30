@@ -4,7 +4,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { RefreshCw, ShieldAlert } from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
-	import { onMount } from 'svelte';
+	import { onMount, type Component } from 'svelte';
 
 	let error = $derived(page.error);
 	let status = $derived(page.status);
@@ -12,29 +12,34 @@
 	type BrowserInfo = { name: string; version: string; major?: number };
 	let browser = $state<BrowserInfo>({ name: 'Unknown', version: '' });
 
-	const browser_mapping = [
+	const browser_mapping: Array<{
+		browser_name: string;
+		browser_url: string;
+		browser_min_version: number;
+		browser_logo: () => Promise<{ default: Component }>;
+	}> = [
 		{
 			browser_name: 'Google Chrome',
 			browser_url: 'https://www.google.com/chrome/',
-			browser_min_version: '80',
+			browser_min_version: 80,
 			browser_logo: () => import('$lib/logos/chrome.svelte')
 		},
 		{
 			browser_name: 'Mozilla Firefox',
 			browser_url: 'https://www.mozilla.org/firefox/new/',
-			browser_min_version: '75',
+			browser_min_version: 75,
 			browser_logo: () => import('$lib/logos/firefox.svelte')
 		},
 		{
 			browser_name: 'Apple Safari',
 			browser_url: 'https://support.apple.com/downloads/safari',
-			browser_min_version: '14',
+			browser_min_version: 14,
 			browser_logo: () => import('$lib/logos/safari.svelte')
 		},
 		{
 			browser_name: 'Microsoft Edge',
 			browser_url: 'https://www.microsoft.com/edge',
-			browser_min_version: '80',
+			browser_min_version: 80,
 			browser_logo: () => import('$lib/logos/edge.svelte')
 		}
 	];
@@ -61,7 +66,12 @@
 	}
 </script>
 
-{#snippet browserLink(name: string, url: string, version: string, Logo: any)}
+{#snippet browserLink(
+	name: string,
+	url: string,
+	version: number,
+	Logo: () => Promise<{ default: Component }>
+)}
 	<a
 		href={url}
 		target="_blank"
