@@ -1,19 +1,27 @@
 [project]
 name = "chithi_backend"
 version = "0.1.0"
-description = "Add your description here"
+description = "The next generation end to end file sharing server"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "alembic>=1.17.2",
+    # Fastapi
     "fastapi>=0.127.0",
-    "granian>=2.6.0",
-    "pwdlib[argon2]>=0.3.0",
-    "pydantic-settings>=2.12.0",
-    "pyjwt>=2.10.1",
     "python-multipart>=0.0.21",
+    # ASGI server
+    "granian>=2.6.0",
+    # Password Hashinh
+    "pwdlib[argon2]>=0.3.0",
+    # Pydantic based settings manager
+    "pydantic-settings>=2.12.0",
+    # JWT
+    "pyjwt>=2.10.1",
+    # Database and ORM
     "sqlalchemy[postgresql-asyncpg]>=2.0.45",
     "sqlmodel>=0.0.27",
+    # Migration Engine
+    "alembic>=1.17.2",
+    # Cli
     "typer>=0.20.1",
 ]
 

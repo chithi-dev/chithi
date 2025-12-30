@@ -15,7 +15,7 @@ type ConfigIn = {
 
 	// Customizable fields
 	download_configs?: number[];
-	time_configs?: string[];
+	time_configs?: number[];
 
 	// File type restrictions
 	allowed_file_types?: string[];
@@ -39,7 +39,7 @@ export const useConfigQuery = () => {
 
 			return res.json();
 		},
-		
+
 		staleTime: 10,
 		retry: true
 	}));
