@@ -27,17 +27,14 @@ export function useAuth() {
 	}));
 
 	const login = async (username: string, password: string) => {
-		// Build form data
-		const body = new URLSearchParams();
-		body.append('username', username);
-		body.append('password', password);
+		// Build form data using FormData (let the browser set Content-Type)
+		const form = new FormData();
+		form.append('username', username);
+		form.append('password', password);
 
 		const res = await fetch(LOGIN_URL, {
 			method: 'POST',
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded'
-			},
-			body
+			body: form
 		});
 
 		if (!res.ok) {

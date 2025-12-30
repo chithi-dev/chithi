@@ -13,6 +13,8 @@
 	import { v7 as uuidv7 } from 'uuid';
 	import { BACKEND_API } from '$lib/consts/backend';
 	import { gzipBlob } from '$lib/functions/compression';
+	import { encryptBlobWithHKDF } from '$lib/functions/encryption';
+	import { Progress } from '$lib/components/ui/progress';
 
 	const { config: configData } = useConfigQuery();
 
@@ -27,6 +29,8 @@
 	let isPasswordProtected = $state(false);
 	let password = $state('');
 	let showPassword = $state(false);
+	let uploadProgress = $state(0);
+	let uploadingInProgress = $state(false);
 	let renderedDetails = $derived(marked.parse(configData.data?.site_description ?? ''));
 
 	$effect(() => {
@@ -181,28 +185,72 @@
 				console.warn('Gzip not available; uploading uncompressed tar', gzErr);
 			}
 
+			// Encrypt the (gzipped) blob using AES-256-GCM + HKDF-SHA-256
+			const encRes = await encryptBlobWithHKDF(
+				blobToUpload,
+				isPasswordProtected ? password : undefined
+			);
+
 			// Use a v7 UUID as the filename (no extension)
 			const filename = uuidv7();
 			const form = new FormData();
-			form.append('file', blobToUpload, filename);
-			// include some metadata if set
+			form.append('file', encRes.ciphertext, filename);
+			// include encryption metadata so server can store it alongside the blob
+			form.append('meta', JSON.stringify(encRes.meta));
+			// include some other metadata if set
 			form.append('download_limit', downloadLimit);
 			form.append('time_limit', timeLimit);
-			if (isPasswordProtected && password) form.append('password', password);
 
-			const res = await fetch(`${BACKEND_API}/upload`, {
-				method: 'POST',
-				body: form
+			// Upload using XHR so we can track progress
+			uploadProgress = 0;
+			uploadingInProgress = true;
+			const resText = await new Promise<string>((resolve, reject) => {
+				const xhr = new XMLHttpRequest();
+				xhr.open('POST', `${BACKEND_API}/upload`);
+				xhr.upload.onprogress = (e) => {
+					if (e.lengthComputable) {
+						uploadProgress = Math.round((e.loaded / e.total) * 100);
+					} else {
+						// Unknown total — nudge the progress bar slowly
+						uploadProgress = Math.min(99, uploadProgress + 1);
+					}
+				};
+				xhr.onload = () => {
+					if (xhr.status >= 200 && xhr.status < 300) {
+						resolve(xhr.responseText);
+					} else {
+						reject(
+							new Error(`Upload failed: ${xhr.status} ${xhr.statusText} ${xhr.responseText || ''}`)
+						);
+					}
+				};
+				xhr.onerror = () => reject(new Error('Network error during upload'));
+				xhr.send(form);
 			});
 
-			if (!res.ok) {
-				const text = await res.text();
-				throw new Error(`Upload failed: ${res.status} ${res.statusText} ${text}`);
-			}
+			uploadProgress = 100;
+			uploadingInProgress = false;
 
-			// Success — show simple confirmation and clear files
-			const data = await res.json().catch(() => null);
-			alert('Upload successful' + (data ? `: ${JSON.stringify(data)}` : '.'));
+			// Success — show simple confirmation, display the key fragment (keep secret client-side), and clear files
+			const data = (() => {
+				try {
+					return JSON.parse(resText);
+				} catch (e) {
+					return null;
+				}
+			})();
+			const serverPath =
+				data && (data.id || data.path || data.key) ? data.id || data.path || data.key : null;
+			let message = 'Upload successful.';
+			if (serverPath) {
+				message = `Upload successful: ${serverPath}#${encRes.keySecret}`;
+			} else if (data) {
+				message =
+					'Upload successful: ' + JSON.stringify(data) + ` (key fragment: ${encRes.keySecret})`;
+			} else {
+				message = `Upload successful. Key fragment: ${encRes.keySecret}`;
+			}
+			alert(message);
 			clearAllFiles();
 		} catch (err: any) {
 			console.error('Upload failed', err);
@@ -454,11 +502,15 @@
 						<Button
 							class="w-full cursor-pointer"
 							onclick={handleUpload}
-							disabled={files.length === 0}>Upload</Button
+							disabled={files.length === 0 || uploadingInProgress}>Upload</Button
 						>
+						{#if uploadingInProgress}
+							<div class="mt-3">
+								<Progress value={uploadProgress} />
+							</div>
+						{/if}
 					</div>
 
-					<!-- Right Column: Info -->
 					<div class="flex flex-col justify-center p-4 lg:p-8">
 						<h2 class="mb-4 text-2xl font-bold md:mb-2 md:text-xl lg:mb-6 lg:text-3xl">
 							End-to-End Encryption
