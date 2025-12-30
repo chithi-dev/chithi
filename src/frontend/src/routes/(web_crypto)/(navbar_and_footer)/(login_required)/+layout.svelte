@@ -3,7 +3,7 @@
 	import { useAuth } from '$lib/queries/auth';
 	import { page } from '$app/state';
 
-	const { isAuthenticated, user } = useAuth();
+	const { isAuthenticated, user: userData } = useAuth();
 
 	let { children } = $props();
 
@@ -14,9 +14,9 @@
 	});
 </script>
 
-{#if user.isLoading}
+{#if userData.isLoading}
 	Loading...
-{:else if user.data === null}
+{:else if [null, undefined].includes(userData.data)}
 	Login Required
 {:else}
 	{@render children()}

@@ -4,14 +4,79 @@
 	import * as Card from '$lib/components/ui/card';
 	import { RefreshCw, ShieldAlert } from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
+	import { onMount } from 'svelte';
 
 	let error = $derived(page.error);
 	let status = $derived(page.status);
+
+	type BrowserInfo = { name: string; version: string; major?: number };
+	let browser = $state<BrowserInfo>({ name: 'Unknown', version: '' });
+
+	const browser_mapping = [
+		{
+			browser_name: 'Google Chrome',
+			browser_url: 'https://www.google.com/chrome/',
+			browser_min_version: '80',
+			browser_logo: () => import('$lib/logos/chrome.svelte')
+		},
+		{
+			browser_name: 'Mozilla Firefox',
+			browser_url: 'https://www.mozilla.org/firefox/new/',
+			browser_min_version: '75',
+			browser_logo: () => import('$lib/logos/firefox.svelte')
+		},
+		{
+			browser_name: 'Apple Safari',
+			browser_url: 'https://support.apple.com/downloads/safari',
+			browser_min_version: '14',
+			browser_logo: () => import('$lib/logos/safari.svelte')
+		},
+		{
+			browser_name: 'Microsoft Edge',
+			browser_url: 'https://www.microsoft.com/edge',
+			browser_min_version: '80',
+			browser_logo: () => import('$lib/logos/edge.svelte')
+		}
+	];
+
+	onMount(() => {
+		if (typeof navigator === 'undefined') return;
+		const ua = navigator.userAgent;
+		let m: RegExpMatchArray | null;
+		if ((m = ua.match(/Edg\/([\d.]+)/i))) {
+			browser = { name: 'Microsoft Edge', version: m[1], major: parseInt(m[1].split('.')[0]) };
+		} else if ((m = ua.match(/Chrome\/([\d.]+)/i))) {
+			browser = { name: 'Google Chrome', version: m[1], major: parseInt(m[1].split('.')[0]) };
+		} else if ((m = ua.match(/Firefox\/([\d.]+)/i))) {
+			browser = { name: 'Mozilla Firefox', version: m[1], major: parseInt(m[1].split('.')[0]) };
+		} else if ((m = ua.match(/Version\/([\d.]+).*Safari/i))) {
+			browser = { name: 'Apple Safari', version: m[1], major: parseInt(m[1].split('.')[0]) };
+		} else {
+			browser = { name: navigator.appName || 'Unknown', version: navigator.appVersion || '' };
+		}
+	});
 
 	function reload() {
 		location.reload();
 	}
 </script>
+
+{#snippet browserLink(name: string, url: string, version: string, Logo: any)}
+	<a
+		href={url}
+		target="_blank"
+		rel="noopener noreferrer"
+		class="group flex flex-col items-center transition-transform duration-200 hover:-translate-y-0.5"
+		title="{name} {version}+"
+	>
+		<div class="h-8 w-8 [&>svg]:h-full [&>svg]:w-full">
+			{#await Logo() then { default: Comp }}
+				<Comp />
+			{/await}
+		</div>
+		<span class="mt-1 font-mono text-[10px] opacity-60 group-hover:opacity-100">{version}+</span>
+	</a>
+{/snippet}
 
 <div
 	class="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-zinc-950"
@@ -87,25 +152,27 @@
 						<p class="mb-2 font-semibold text-slate-900 dark:text-white">
 							Minimum Recommended Versions:
 						</p>
-						<ul class="space-y-1">
-							<li class="flex items-center justify-between">
-								<span>Google Chrome</span>
-								<span class="font-mono">80+</span>
-							</li>
-							<li class="flex items-center justify-between">
-								<span>Mozilla Firefox</span>
-								<span class="font-mono">75+</span>
-							</li>
-							<li class="flex items-center justify-between">
-								<span>Apple Safari</span>
-								<span class="font-mono">14+</span>
-							</li>
-							<li class="flex items-center justify-between">
-								<span>Microsoft Edge</span>
-								<span class="font-mono">80+</span>
-							</li>
-						</ul>
+
+						<div class="flex justify-center gap-6 pt-2">
+							{#each browser_mapping as item}
+								{@render browserLink(
+									item.browser_name,
+									item.browser_url,
+									item.browser_min_version,
+									item.browser_logo
+								)}
+							{/each}
+						</div>
 					</div>
+
+					{#if browser.version}
+						<div
+							class="mt-3 flex items-center justify-between text-xs text-slate-600 dark:text-zinc-400"
+						>
+							<span class="font-semibold">Detected browser</span>
+							<span class="font-mono">{browser.name} {browser.version}</span>
+						</div>
+					{/if}
 				{:else}
 					<p>We encountered an error while processing your request. Please try again later.</p>
 				{/if}

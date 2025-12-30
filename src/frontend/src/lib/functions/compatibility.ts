@@ -35,7 +35,7 @@ export async function is_minimal_crypto_supported() {
 			256
 		);
 
-		// Check PBKDF2-HMAC-SHA-256
+		// Check PBKDF2-HMAC-SHA-512
 		const keyMaterial = await crypto.subtle.importKey(
 			'raw',
 			new Uint8Array([0x00]),
@@ -46,7 +46,7 @@ export async function is_minimal_crypto_supported() {
 		await crypto.subtle.deriveBits(
 			{
 				name: 'PBKDF2',
-				hash: 'SHA-256',
+				hash: 'SHA-512',
 				salt: new Uint8Array([0x00]),
 				iterations: 1
 			},

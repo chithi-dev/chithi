@@ -12,7 +12,7 @@ export const load = async () => {
 	}
 
 	const minimalCryptoSupport = await is_minimal_crypto_supported();
-	if (!minimalCryptoSupport) {
+	if (true) {
 		error(500, {
 			message: 'Browser does not support modern WebCrypto methods',
 			code: 'BROWSER_NOT_UPDATED'
