@@ -9,7 +9,7 @@
 	import { marked } from '$lib/functions/marked';
 	import { formatFileSize } from '$lib/functions/bytes';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
-
+	import xss from 'xss';
 	const { config: configData } = useConfigQuery();
 
 	let isDragging = $state(false);
@@ -23,6 +23,14 @@
 	let isPasswordProtected = $state(false);
 	let password = $state('');
 	let showPassword = $state(false);
+	let renderedDetails = $state<null | string>(null);
+
+	$effect(() => {
+		(async () => {
+			const markdown = await marked.parse(configData.data?.site_description ?? '');
+			renderedDetails = xss(markdown);
+		})();
+	});
 
 	$effect(() => {
 		const total = files.reduce((sum, file) => sum + file.size, 0);
@@ -99,7 +107,9 @@
 
 		if (configData.data?.max_file_size_limit) {
 			if (currentTotalSize + newFilesSize > configData.data.max_file_size_limit) {
-				alert(`Total file size cannot exceed ${formatFileSize(configData.data.max_file_size_limit)}`);
+				alert(
+					`Total file size cannot exceed ${formatFileSize(configData.data.max_file_size_limit)}`
+				);
 				return;
 			}
 		}
@@ -132,20 +142,17 @@
 			const fileArrays = await Promise.all(promises);
 			const newFiles = fileArrays.flat();
 			if (newFiles.length > 0) {
-				files = [...files, ...newFiles];
-				isUploading = true;
+				addFiles(newFiles);
 			}
 		} else if (e.dataTransfer?.files) {
-			files = [...files, ...Array.from(e.dataTransfer.files)];
-			isUploading = true;
+			addFiles(Array.from(e.dataTransfer.files));
 		}
 	};
 
 	const handleFileSelect = (e: Event) => {
 		const target = e.target as HTMLInputElement;
 		if (target.files) {
-			files = [...files, ...Array.from(target.files)];
-			isUploading = true;
+			addFiles(Array.from(target.files));
 		}
 		target.value = '';
 	};
@@ -162,6 +169,34 @@
 		isUploading = false;
 	};
 </script>
+
+{#snippet fileItem(file: File)}
+	<div class="flex items-center justify-between border-b border-border py-2 first:pt-0">
+		<div class="flex items-center gap-3">
+			<div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
+				<FileIcon class="h-4 w-4 text-primary" />
+			</div>
+			<div class="flex flex-col gap-0.5">
+				<div class="text-sm leading-none font-medium">{file.name}</div>
+				<div class="text-xs text-muted-foreground">
+					{#if (file as any).relativePath}
+						<span class="block max-w-50 truncate text-xs opacity-70"
+							>{(file as any).relativePath}</span
+						>
+					{/if}
+					{formatFileSize(file.size)}
+				</div>
+			</div>
+		</div>
+		<Button
+			variant="ghost"
+			onclick={() => removeFile(file)}
+			class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+		>
+			<X class="h-4 w-4" />
+		</Button>
+	</div>
+{/snippet}
 
 <!-- Main Content -->
 <main class="relative flex flex-1 items-center justify-center overflow-hidden p-4">
@@ -268,7 +303,7 @@
 							<Tooltip.Provider>
 								<Tooltip.Root>
 									<Tooltip.Trigger
-										class={buttonVariants({ variant: 'ghost' })}
+										class={`${buttonVariants({ variant: 'ghost' })} cursor-pointer`}
 										onclick={() => {
 											clearAllFiles();
 										}}
@@ -284,34 +319,7 @@
 						<ScrollArea class="mb-4 h-72 w-full rounded-lg border border-border bg-card">
 							<div class="p-4">
 								{#each files as file}
-									<div
-										class="flex items-center justify-between border-b border-border py-2 first:pt-0"
-									>
-										<div class="flex items-center gap-3">
-											<div
-												class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10"
-											>
-												<FileIcon class="h-4 w-4 text-primary" />
-											</div>
-											<div class="flex flex-col gap-0.5">
-												<div class="text-sm leading-none font-medium">{file.name}</div>
-												<div class="text-xs text-muted-foreground">
-													{#if (file as any).relativePath}
-														<span class="block max-w-50 truncate text-xs opacity-70"
-															>{(file as any).relativePath}</span
-														>
-													{/if}
-													{formatFileSize(file.size)}
-												</div>
-											</div>
-										</div>
-										<button
-											onclick={() => removeFile(file)}
-											class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-										>
-											<X class="h-4 w-4" />
-										</button>
-									</div>
+									{@render fileItem(file)}
 								{/each}
 							</div>
 						</ScrollArea>
@@ -470,7 +478,8 @@
 									? 'opacity-40'
 									: 'opacity-100'}"
 							>
-								or click to send up to 2.5GB of files with end-to-end encryption
+								or click to send up to {formatFileSize(configData.data?.max_file_size_limit ?? 0)} of
+								files with end-to-end encryption
 							</p>
 
 							<!-- Button -->
@@ -522,7 +531,7 @@
 						<div
 							class="mb-6 text-muted-foreground md:mb-4 md:text-sm lg:mb-8 lg:text-lg lg:leading-relaxed"
 						>
-							{@html marked.parse(configData.data?.site_description ?? '')}
+							{@html renderedDetails}
 						</div>
 					</div>
 				</div>
