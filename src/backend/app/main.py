@@ -37,3 +37,7 @@ app.include_router(login_router)
 from app.routes.user import router as user_router
 
 app.include_router(user_router)
+
+from app.routes.upload import router as upload_router
+
+app.include_router(upload_router)

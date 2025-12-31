@@ -1,7 +1,8 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Column, DateTime, func, text
+from pydantic import model_validator
+from sqlalchemy import text
 from sqlmodel import Field, SQLModel
 
 
@@ -18,10 +19,10 @@ class File(SQLModel, table=True):
 
     # Tracking downloads
     download_count: int = 0
-    created_at: datetime = Field(
-        sa_column=Column(
-            DateTime(timezone=True),
-            server_default=func.now(),
-            nullable=False,
-        )
-    )
+    created_at: datetime = Field()
+
+    @model_validator(mode="after")
+    def validate_expire(self) -> "File":
+        if self.expires_at < self.created_at:
+            raise ValueError("Expiration time cannot be earlier than creation time")
+        return self
