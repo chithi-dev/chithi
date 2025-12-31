@@ -28,22 +28,33 @@ services:
       - postgres
   rustfs:
     image: rustfs/rustfs:latest
+    security_opt:
+      - "no-new-privileges:true"
     container_name: rustfs
     restart: unless-stopped
     ports:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - ${PWD}/data:/data
+      - ./data:/data
     environment:
-      RUSTFS_ACCESS_KEY: rustfsadmin
-      RUSTFS_SECRET_KEY: rustfsadmin
+      RUSTFS_ADDRESS: "0.0.0.0:9000"
+      RUSTFS_CONSOLE_ADDRESS: "0.0.0.0:9001"
+      RUSTFS_VOLUMES: "/data/rustfs{0..3}"
+      RUSTFS_ACCESS_KEY: "rustfsadmin"
+      RUSTFS_SECRET_KEY: "rustfsadmin"
       RUSTFS_CONSOLE_ENABLE: "true"
-    command:
-      - --address
-      - :9000
-      - --console-enable
-      - /data
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "sh", "-c",
+          "curl -f http://localhost:9000/health && curl -f http://localhost:9001/rustfs/console/health"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 volumes:
   postgres_data:

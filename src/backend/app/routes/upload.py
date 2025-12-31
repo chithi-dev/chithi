@@ -1,24 +1,21 @@
+from typing import Annotated
 from http import HTTPStatus
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, Form
 from sqlmodel import select
 
-from app.deps import CurrentUser, SessionDep
+from app.deps import S3Dep
 from app.models import User
 from app.models.user import UserOut
 
 router = APIRouter()
 
 
-@router.get("/upload", response_model=UserOut)
+@router.get("/upload")
 async def get_current_user(
-    user: CurrentUser,
-    session: SessionDep,
+    file: UploadFile,
+    expire_after_n_download: Annotated[int, Form()],
+    expire_after: Annotated[int, Form()],
+    s3: S3Dep,
 ):
-    user_object = select(User).where(User.id == user.id)
-    result = await session.exec(user_object)
-    item = result.first()
-    if not item:
-        raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="User not found")
-
-    return item
+    pass
