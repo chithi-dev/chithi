@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import Self
 from uuid import UUID
 
 from pydantic import model_validator
@@ -8,6 +9,18 @@ from sqlalchemy.orm import Mapper
 from sqlmodel import Column, Field, SQLModel
 
 from app.converter.bytes import ByteSize
+
+
+class ConfigUpdate(SQLModel):
+    total_storage_limit: int | None = None
+    max_file_size_limit: int | None = None
+    default_expiry: int | None = None
+    default_number_of_downloads: int | None = None
+    site_description: str | None = None
+    download_configs: list[int] | None = None
+    time_configs: list[int] | None = None
+    allowed_file_types: list[str] | None = None
+    banned_file_types: list[str] | None = None
 
 
 class ConfigIn(SQLModel):
@@ -40,12 +53,15 @@ class ConfigIn(SQLModel):
     banned_file_types: list[str] = Field(default=[], sa_column=Column(ARRAY(String)))
 
     @model_validator(mode="after")
-    def sync_defaults(self) -> ConfigIn:
+    def validate_number_of_downloads(self) -> Self:
         if self.default_number_of_downloads not in self.download_configs:
             raise ValueError(
                 "Conflict: default_number_of_downloads must be one of the values in download_configs"
             )
+        return self
 
+    @model_validator(mode="after")
+    def validate_expiry_time(self) -> Self:
         if self.default_expiry not in self.time_configs:
             raise ValueError(
                 "Conflict: default_expiry must be one of the values in time_configs"
@@ -53,7 +69,7 @@ class ConfigIn(SQLModel):
         return self
 
     @model_validator(mode="after")
-    def validate_file_types_consistency(self) -> "ConfigIn":
+    def validate_file_types_consistency(self) -> Self:
         if set(self.allowed_file_types) & set(self.banned_file_types):
             raise ValueError(
                 "Conflict: allowed_file_types and banned_file_types cannot share common extensions"
