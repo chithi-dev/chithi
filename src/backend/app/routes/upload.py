@@ -68,7 +68,7 @@ async def upload_file(
         )
         raise
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     file_obj = File(
         filename=str(filename),
         expires_at=now + timedelta(seconds=expire_after),

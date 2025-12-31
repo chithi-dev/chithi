@@ -5,7 +5,18 @@
 	import * as Select from '$lib/components/ui/select';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { useConfigQuery } from '$lib/queries/config';
-	import { Plus, X, FileIcon, Eye, EyeOff, Trash2 } from 'lucide-svelte';
+	import {
+		Plus,
+		X,
+		FileIcon,
+		Eye,
+		EyeOff,
+		Trash2,
+		Check,
+		Copy,
+		Lock,
+		CloudUpload
+	} from 'lucide-svelte';
 	import { marked } from '$lib/functions/marked';
 	import { formatFileSize } from '$lib/functions/bytes';
 	import { formatSeconds } from '$lib/functions/times';
@@ -17,6 +28,7 @@
 	import { encryptBlobWithHKDF } from '$lib/functions/encryption';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Skeleton } from '$lib/components/ui/skeleton';
+	import QRCode from '$lib/components/QRCode.svelte';
 
 	const { config: configData } = useConfigQuery();
 
@@ -35,6 +47,9 @@
 	let showPassword = $state(false);
 	let uploadProgress = $state(0);
 	let uploadingInProgress = $state(false);
+	let isUploadComplete = $state(false);
+	let finalLink = $state('');
+	let isCopied = $state(false);
 	let renderedDetails = $derived(marked.parse(configData.data?.site_description ?? ''));
 
 	$effect(() => {
@@ -136,6 +151,7 @@
 		files = [...files, ...newFiles];
 		if (files.length > 0) {
 			isUploading = true;
+			isUploadComplete = false;
 		}
 	};
 
@@ -186,12 +202,21 @@
 	const clearAllFiles = () => {
 		files = new Array<(typeof files)[0]>();
 		isUploading = false;
+		isUploadComplete = false;
+		finalLink = '';
+	};
+
+	const copyLink = () => {
+		navigator.clipboard.writeText(finalLink);
+		isCopied = true;
+		setTimeout(() => (isCopied = false), 2000);
 	};
 
 	const handleUpload = async () => {
 		if (files.length === 0) return;
-		isUploading = true;
+		// isUploading is already true
 		try {
+			uploadingInProgress = true;
 			const tar = await createTar(files);
 
 			// Prefer gzipped archive when available
@@ -214,14 +239,14 @@
 			const form = new FormData();
 			form.append('file', encRes.ciphertext, filename);
 			// include encryption metadata so server can store it alongside the blob
-			form.append('meta', JSON.stringify(encRes.meta));
+			// form.append('meta', JSON.stringify(encRes.meta));
 			// include some other metadata if set
-			form.append('download_limit', downloadLimit);
-			form.append('time_limit', timeLimit);
+			form.append('expire_after_n_download', downloadLimit);
+			form.append('expire_after', timeLimit);
 
 			// Upload using XHR so we can track progress
 			uploadProgress = 0;
-			uploadingInProgress = true;
+
 			const resText = await new Promise<string>((resolve, reject) => {
 				const xhr = new XMLHttpRequest();
 				xhr.open('POST', `${BACKEND_API}/upload`);
@@ -247,7 +272,6 @@
 			});
 
 			uploadProgress = 100;
-			uploadingInProgress = false;
 
 			// Success — show simple confirmation, display the key fragment (keep secret client-side), and clear files
 			const data = (() => {
@@ -259,22 +283,21 @@
 			})();
 			const serverPath =
 				data && (data.id || data.path || data.key) ? data.id || data.path || data.key : null;
-			let message = 'Upload successful.';
+
 			if (serverPath) {
-				message = `Upload successful: ${serverPath}#${encRes.keySecret}`;
-			} else if (data) {
-				message =
-					'Upload successful: ' + JSON.stringify(data) + ` (key fragment: ${encRes.keySecret})`;
+				finalLink = `${window.location.origin}/download/${serverPath}#${encRes.keySecret}`;
+				isUploadComplete = true;
 			} else {
-				message = `Upload successful. Key fragment: ${encRes.keySecret}`;
+				throw new Error('Invalid server response');
 			}
-			alert(message);
-			clearAllFiles();
 		} catch (err: any) {
 			console.error('Upload failed', err);
 			alert('Upload failed: ' + (err?.message ?? err));
+			uploadingInProgress = false;
+			clearAllFiles();
+			uploadProgress = 0;
 		} finally {
-			isUploading = false;
+			uploadingInProgress = false;
 		}
 	};
 </script>
@@ -433,171 +456,232 @@
 						<Skeleton class="h-4 w-5/6" />
 					</div>
 				</div>
-			{:else if isUploading}
-				<!-- Upload Interface -->
-				<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
-					<!-- Left Column: File List and Controls -->
-					<div class="flex flex-col pb-2">
-						<!-- File List -->
-						<div class="mb-2 flex justify-end">
-							<Tooltip.Provider>
-								<Tooltip.Root>
-									<Tooltip.Trigger
-										class={`${buttonVariants({ variant: 'ghost' })} cursor-pointer`}
-										onclick={() => {
-											clearAllFiles();
-										}}
-									>
-										<Trash2 class="h-4 w-4" />
-									</Tooltip.Trigger>
-									<Tooltip.Content>
-										<p>Clear all files</p>
-									</Tooltip.Content>
-								</Tooltip.Root>
-							</Tooltip.Provider>
-						</div>
-						<ScrollArea class="mb-4 max-h-72 w-full rounded-lg border border-border bg-card">
-							<div class="p-4">
-								{#each files as file}
-									{@render fileItem(file)}
-								{/each}
-							</div>
-						</ScrollArea>
+			{:else if isUploadComplete}
+				<!-- Final Success Screen -->
+				<div class="flex flex-col items-center justify-center py-12 text-center">
+					<div class="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10">
+						<Lock class="h-10 w-10 text-green-500" />
+					</div>
+					<h2 class="mb-2 text-3xl font-bold tracking-tight">
+						Your file is encrypted and ready to send
+					</h2>
+					<p class="mb-8 text-muted-foreground">Copy the link to share your file:</p>
 
-						<!-- Controls -->
-						<div class="mb-4 flex items-center">
-							<button
-								class="flex cursor-pointer items-center text-sm text-primary hover:underline"
-								onclick={() => fileInput?.click()}
-							>
-								<Plus class="mr-1 h-4 w-4" />
-								Select files to upload
-							</button>
-							<input
-								bind:this={fileInput}
-								type="file"
-								id="file-input"
-								class="hidden"
-								multiple
-								onchange={handleFileSelect}
-							/>
-							<div class="ml-auto text-sm text-muted-foreground">Total size: {totalSize}</div>
-						</div>
-
-						<!-- Expiry and Password Options -->
-						<div class="mb-4 space-y-2">
-							<div class="flex items-center">
-								<span class="text-sm">Expires after</span>
-								<Select.Root type="single" bind:value={downloadLimit}>
-									<Select.Trigger class="ml-2 w-35">
-										{downloadLimit}
-										{downloadLimit === '1' ? 'download' : 'downloads'}
-									</Select.Trigger>
-									<Select.Content>
-										{#if configData.data?.download_configs}
-											{#each configData.data.download_configs as limit}
-												<Select.Item value={limit.toString()}
-													>{limit} {limit === 1 ? 'download' : 'downloads'}</Select.Item
-												>
-											{/each}
-										{:else}
-											<Select.Item value="1">1 download</Select.Item>
-										{/if}
-									</Select.Content>
-								</Select.Root>
-								<span class="mx-2 text-sm">or</span>
-								<Select.Root type="single" bind:value={timeLimit}>
-									<Select.Trigger class="w-35">
-										{@const { val, unit } = formatSeconds(parseInt(timeLimit))}
-										{val}
-										{val === 1 ? unit.slice(0, -1) : unit}
-									</Select.Trigger>
-									<Select.Content>
-										{#if configData.data?.time_configs}
-											{#each configData.data.time_configs as time}
-												{@const { val, unit } = formatSeconds(time)}
-												<Select.Item value={time.toString()}>
-													{val}
-													{val === 1 ? unit.slice(0, -1) : unit}
-												</Select.Item>
-											{/each}
-										{:else}
-											<Select.Item value="86400">1 Day</Select.Item>
-										{/if}
-									</Select.Content>
-								</Select.Root>
-							</div>
-							<div class="flex h-9 items-center gap-2">
-								<div class="flex items-center">
-									<input
-										type="checkbox"
-										id="password"
-										bind:checked={isPasswordProtected}
-										class="mr-2 h-4 w-4 rounded border-primary text-primary focus:ring-primary"
-									/>
-									<label
-										for="password"
-										class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-										>Protect with password</label
-									>
-								</div>
-								{#if isPasswordProtected}
-									<div class="relative max-w-xs flex-1">
-										<Input
-											type={showPassword ? 'text' : 'password'}
-											placeholder="Password"
-											bind:value={password}
-											class="h-9 pr-10"
-										/>
-										<button
-											type="button"
-											onclick={() => (showPassword = !showPassword)}
-											class="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
-										>
-											{#if showPassword}
-												<EyeOff class="h-4 w-4" />
-											{:else}
-												<Eye class="h-4 w-4" />
-											{/if}
-										</button>
-									</div>
-								{/if}
-							</div>
-						</div>
-
-						<Button
-							class="w-full cursor-pointer"
-							onclick={handleUpload}
-							disabled={files.length === 0 || uploadingInProgress}>Upload</Button
-						>
-						{#if uploadingInProgress}
-							<div class="mt-3">
-								<Progress value={uploadProgress} />
-							</div>
-						{/if}
+					<div class="mb-8 flex w-full max-w-md items-center gap-2">
+						<Input readonly value={finalLink} class="font-mono text-sm" />
 					</div>
 
-					<div class="flex flex-col justify-center p-4 lg:p-8">
-						<h2 class="mb-4 text-2xl font-bold md:mb-2 md:text-xl lg:mb-6 lg:text-3xl">
-							End-to-End Encryption
-						</h2>
-						<p
-							class="mb-6 text-muted-foreground md:mb-4 md:text-sm lg:mb-8 lg:text-lg lg:leading-relaxed"
-						>
-							Your files are encrypted in your browser before they are ever uploaded. This means
-							only you and the people you share the link with can access them. We cannot see your
-							files.
-						</p>
-						<div class="rounded-xl border border-border bg-muted/50 p-4 md:p-3 lg:p-5">
-							<h3 class="mb-2 font-semibold">How it works</h3>
-							<p class="text-sm text-muted-foreground">
-								A unique key is generated for each upload. This key is used to encrypt your files
-								and is included in the share link after the '#' symbol. The server never receives
-								this key.
-							</p>
+					<div class="mb-8 flex flex-col items-center gap-4">
+						<div class="rounded-lg border bg-white p-2 dark:bg-white">
+							<QRCode value={finalLink} size={180} color="#000000" backgroundColor="#ffffff" />
 						</div>
+					</div>
+
+					<div class="flex gap-4">
+						<Button onclick={copyLink} class="w-40 cursor-pointer">
+							{#if isCopied}
+								<Check class="mr-2 h-4 w-4" /> Copied
+							{:else}
+								<Copy class="mr-2 h-4 w-4" /> Copy link
+							{/if}
+						</Button>
+						<Button variant="outline" onclick={clearAllFiles} class="w-24 cursor-pointer">OK</Button
+						>
 					</div>
 				</div>
+			{:else if isUploading}
+				{#if uploadingInProgress}
+					<!-- Modern Upload Animation -->
+					<div class="flex flex-col items-center justify-center py-20">
+						<div class="relative mb-8 h-32 w-32">
+							<!-- Outer spinning ring -->
+							<div class="absolute inset-0 rounded-full border-4 border-primary/20"></div>
+							<div
+								class="absolute inset-0 animate-spin rounded-full border-4 border-primary border-t-transparent"
+								style="animation-duration: 1.5s;"
+							></div>
+
+							<!-- Inner pulsing circle -->
+							<div class="absolute inset-4 animate-pulse rounded-full bg-primary/10"></div>
+
+							<!-- Icon -->
+							<div class="absolute inset-0 flex items-center justify-center">
+								<CloudUpload class="h-12 w-12 animate-bounce text-primary" />
+							</div>
+						</div>
+
+						<h3 class="mb-2 animate-pulse text-2xl font-semibold">Encrypting & Uploading...</h3>
+						<p class="mb-8 text-muted-foreground">Please wait while we secure your files</p>
+
+						<div class="w-full max-w-md space-y-2">
+							<Progress value={uploadProgress} class="h-2" />
+							<div class="flex justify-between text-xs text-muted-foreground">
+								<span>{uploadProgress}%</span>
+								<span>{totalSize}</span>
+							</div>
+						</div>
+					</div>
+				{:else}
+					<!-- Upload Interface -->
+					<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+						<!-- Left Column: File List and Controls -->
+						<div class="flex flex-col pb-2">
+							<!-- File List -->
+							<div class="mb-2 flex justify-end">
+								<Tooltip.Provider>
+									<Tooltip.Root>
+										<Tooltip.Trigger
+											class={`${buttonVariants({ variant: 'ghost' })} cursor-pointer`}
+											onclick={() => {
+												clearAllFiles();
+											}}
+										>
+											<Trash2 class="h-4 w-4" />
+										</Tooltip.Trigger>
+										<Tooltip.Content>
+											<p>Clear all files</p>
+										</Tooltip.Content>
+									</Tooltip.Root>
+								</Tooltip.Provider>
+							</div>
+							<ScrollArea class="mb-4 max-h-72 w-full rounded-lg border border-border bg-card">
+								<div class="p-4">
+									{#each files as file}
+										{@render fileItem(file)}
+									{/each}
+								</div>
+							</ScrollArea>
+
+							<!-- Controls -->
+							<div class="mb-4 flex items-center">
+								<button
+									class="flex cursor-pointer items-center text-sm text-primary hover:underline"
+									onclick={() => fileInput?.click()}
+								>
+									<Plus class="mr-1 h-4 w-4" />
+									Select files to upload
+								</button>
+								<input
+									bind:this={fileInput}
+									type="file"
+									id="file-input"
+									class="hidden"
+									multiple
+									onchange={handleFileSelect}
+								/>
+								<div class="ml-auto text-sm text-muted-foreground">Total size: {totalSize}</div>
+							</div>
+
+							<!-- Expiry and Password Options -->
+							<div class="mb-4 space-y-2">
+								<div class="flex items-center">
+									<span class="text-sm">Expires after</span>
+									<Select.Root type="single" bind:value={downloadLimit}>
+										<Select.Trigger class="ml-2 w-35">
+											{downloadLimit}
+											{downloadLimit === '1' ? 'download' : 'downloads'}
+										</Select.Trigger>
+										<Select.Content>
+											{#if configData.data?.download_configs}
+												{#each configData.data.download_configs as limit}
+													<Select.Item value={limit.toString()}
+														>{limit} {limit === 1 ? 'download' : 'downloads'}</Select.Item
+													>
+												{/each}
+											{:else}
+												<Select.Item value="1">1 download</Select.Item>
+											{/if}
+										</Select.Content>
+									</Select.Root>
+									<span class="mx-2 text-sm">or</span>
+									<Select.Root type="single" bind:value={timeLimit}>
+										<Select.Trigger class="w-35">
+											{@const { val, unit } = formatSeconds(parseInt(timeLimit))}
+											{val}
+											{val === 1 ? unit.slice(0, -1) : unit}
+										</Select.Trigger>
+										<Select.Content>
+											{#if configData.data?.time_configs}
+												{#each configData.data.time_configs as time}
+													{@const { val, unit } = formatSeconds(time)}
+													<Select.Item value={time.toString()}>
+														{val}
+														{val === 1 ? unit.slice(0, -1) : unit}
+													</Select.Item>
+												{/each}
+											{:else}
+												<Select.Item value="86400">1 Day</Select.Item>
+											{/if}
+										</Select.Content>
+									</Select.Root>
+								</div>
+								<div class="flex h-9 items-center gap-2">
+									<div class="flex items-center">
+										<input
+											type="checkbox"
+											id="password"
+											bind:checked={isPasswordProtected}
+											class="mr-2 h-4 w-4 rounded border-primary text-primary focus:ring-primary"
+										/>
+										<label
+											for="password"
+											class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+											>Protect with password</label
+										>
+									</div>
+									{#if isPasswordProtected}
+										<div class="relative max-w-xs flex-1">
+											<Input
+												type={showPassword ? 'text' : 'password'}
+												placeholder="Password"
+												bind:value={password}
+												class="h-9 pr-10"
+											/>
+											<button
+												type="button"
+												onclick={() => (showPassword = !showPassword)}
+												class="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
+											>
+												{#if showPassword}
+													<EyeOff class="h-4 w-4" />
+												{:else}
+													<Eye class="h-4 w-4" />
+												{/if}
+											</button>
+										</div>
+									{/if}
+								</div>
+							</div>
+
+							<Button
+								class="w-full cursor-pointer"
+								onclick={handleUpload}
+								disabled={files.length === 0 || uploadingInProgress}>Upload</Button
+							>
+						</div>
+
+						<div class="flex flex-col justify-center p-4 lg:p-8">
+							<h2 class="mb-4 text-2xl font-bold md:mb-2 md:text-xl lg:mb-6 lg:text-3xl">
+								End-to-End Encryption
+							</h2>
+							<p
+								class="mb-6 text-muted-foreground md:mb-4 md:text-sm lg:mb-8 lg:text-lg lg:leading-relaxed"
+							>
+								Your files are encrypted in your browser before they are ever uploaded. This means
+								only you and the people you share the link with can access them. We cannot see your
+								files.
+							</p>
+							<div class="rounded-xl border border-border bg-muted/50 p-4 md:p-3 lg:p-5">
+								<h3 class="mb-2 font-semibold">How it works</h3>
+								<p class="text-sm text-muted-foreground">
+									A unique key is generated for each upload. This key is used to encrypt your files
+									and is included in the share link after the '#' symbol. The server never receives
+									this key.
+								</p>
+							</div>
+						</div>
+					</div>
+				{/if}
 			{:else}
 				<!-- Initial Drop Area -->
 				<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
