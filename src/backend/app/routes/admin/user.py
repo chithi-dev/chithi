@@ -1,6 +1,7 @@
 from fastapi import APIRouter
-from app.deps import SessionDep, CurrentUser
-from app.models.user import UserUpdate, UserOut
+
+from app.deps import CurrentUser, SessionDep
+from app.models.user import UserOut, UserUpdate
 
 router = APIRouter()
 

@@ -1,8 +1,8 @@
-import typer
 import asyncio
-
-from sqlmodel import select
 from getpass import getpass
+
+import typer
+from sqlmodel import select
 
 from app.db import AsyncSessionLocal
 from app.models import User

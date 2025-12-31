@@ -1,18 +1,20 @@
-from sqlmodel.ext.asyncio.session import AsyncSession
-from typing import Annotated, Any
-from app.db import get_session
-from fastapi import Depends, HTTPException, status
+from typing import Annotated
+
+import aioboto3
 import jwt
+from botocore.client import BaseClient
+from botocore.exceptions import ClientError
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import InvalidTokenError
 from pydantic import ValidationError
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+from app import security
+from app.db import get_session
 from app.models import User
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from app.schemas.token import TokenPayload
 from app.settings import settings
-from app import security
-import aioboto3
-from botocore.exceptions import ClientError
-from botocore.client import BaseClient
 
 bearer_scheme = HTTPBearer(auto_error=True)
 

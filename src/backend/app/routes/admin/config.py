@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException
-from app.deps import SessionDep, CurrentUser
-from app.models.config import Config
-from sqlmodel import select
-from app.models.config import ConfigIn
 from http import HTTPStatus
+
+from fastapi import APIRouter, HTTPException
+from sqlmodel import select
+
+from app.deps import CurrentUser, SessionDep
+from app.models.config import Config, ConfigIn
 
 router = APIRouter()
 

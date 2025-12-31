@@ -7,10 +7,12 @@ Create Date: 2025-12-22 11:44:57.079785
 """
 
 from typing import Sequence
-from alembic import op
+
 import sqlalchemy as sa
 import sqlmodel.sql.sqltypes
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 from app.models import Config
 
 # revision identifiers, used by Alembic.

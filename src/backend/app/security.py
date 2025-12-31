@@ -1,8 +1,10 @@
-from pwdlib import PasswordHash
 from datetime import datetime, timedelta, timezone
-import jwt
-from app.settings import settings
 from typing import Any
+
+import jwt
+from pwdlib import PasswordHash
+
+from app.settings import settings
 
 # Initialize with recommended Argon2 settings
 password_hash = PasswordHash.recommended()
