@@ -1,5 +1,3 @@
-import secrets
-
 from pydantic import PostgresDsn, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -48,6 +46,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = (
         60 * 60 * 24 * 8  # 60 minutes * 24 hours * 8 days = 8 days
     )
+    # RustFS
+    RUSTFS_ENDPOINT_URL: str = "http://localhost:9000"
+    RUSTFS_ACCESS_KEY: str = "rustfsadmin"
+    RUSTFS_SECRET_ACCESS_KEY: str = "rustfsadmin"
+    RUSTFS_BUCKET_NAME: str = "chithi"
 
 
 settings = Settings()  # type: ignore
