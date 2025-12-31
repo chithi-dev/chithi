@@ -3,13 +3,13 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlmodel import select, or_
+from sqlmodel import or_, select
 
 from app import security
 from app.deps import SessionDep
+from app.models import User
 from app.schemas.token import Token
 from app.settings import settings
-from app.models import User
 
 router = APIRouter()
 

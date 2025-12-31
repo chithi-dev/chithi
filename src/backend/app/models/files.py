@@ -1,7 +1,8 @@
-from sqlmodel import SQLModel, Field
-from sqlalchemy import text, Column, DateTime, func
 from datetime import datetime
 from uuid import UUID
+
+from sqlalchemy import Column, DateTime, func, text
+from sqlmodel import Field, SQLModel
 
 
 class File(SQLModel, table=True):

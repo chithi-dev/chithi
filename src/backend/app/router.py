@@ -1,10 +1,11 @@
+import gc
 import importlib
 import logging
-import gc
 from pathlib import Path
+from typing import Set
+
 from fastapi import APIRouter
 from fastapi.routing import APIRoute
-from typing import Set
 
 # Configure logging
 logger = logging.getLogger("auto_router")

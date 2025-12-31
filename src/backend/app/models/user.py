@@ -1,6 +1,7 @@
 from uuid import UUID
-from sqlmodel import Field, SQLModel
+
 from sqlalchemy import text
+from sqlmodel import Field, SQLModel
 
 
 class UserUpdate(SQLModel):

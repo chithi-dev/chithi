@@ -1,7 +1,9 @@
 from http import HTTPStatus
+
 from fastapi import APIRouter, HTTPException
-from app.deps import SessionDep
 from sqlmodel import select
+
+from app.deps import SessionDep
 from app.models.config import Config
 
 router = APIRouter()

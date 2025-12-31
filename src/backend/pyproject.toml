@@ -28,7 +28,11 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["fastapi-cli>=0.0.16", "types-aioboto3>=15.5.0"]
+dev = [
+    "fastapi-cli>=0.0.16",
+    "ruff>=0.14.10",
+    "types-aioboto3>=15.5.0",
+]
 
 [tool.setuptools]
 packages = ["app"]
@@ -39,3 +43,13 @@ package = true
 
 [project.scripts]
 backend = "app.__main__:main"
+
+[tool.ruff.lint]
+extend-select = ["I"]  # Enables isort rules
+
+[tool.ruff.format]
+skip-magic-trailing-comma = false  # Avoids conflict with isort.split-on-trailing-comma
+
+[tool.ruff.lint.isort]
+split-on-trailing-comma = true  # Keep this aligned with format.skip-magic-trailing-comma
+combine-as-imports = true
