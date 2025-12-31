@@ -23,10 +23,12 @@ dependencies = [
     "alembic>=1.17.2",
     # Cli
     "typer>=0.20.1",
+    # Rustfs Upload
+    "aioboto3>=15.5.0",
 ]
 
 [dependency-groups]
-dev = ["fastapi-cli>=0.0.16"]
+dev = ["fastapi-cli>=0.0.16", "types-aioboto3>=15.5.0"]
 
 [tool.setuptools]
 packages = ["app"]
