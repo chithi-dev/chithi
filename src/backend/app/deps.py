@@ -2,13 +2,13 @@ from typing import Annotated
 
 import aioboto3
 import jwt
-from botocore.client import BaseClient
 from botocore.exceptions import ClientError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import InvalidTokenError
 from pydantic import ValidationError
 from sqlmodel.ext.asyncio.session import AsyncSession
+from types_aiobotocore_s3 import S3Client
 
 from app import security
 from app.db import get_session
@@ -58,6 +58,6 @@ TokenDep = Annotated[
     Depends(bearer_scheme),
 ]
 CurrentUser = Annotated[User, Depends(get_current_user)]
-S3Dep = Annotated[BaseClient, Depends(get_s3_client)]
+S3Dep = Annotated[S3Client, Depends(get_s3_client)]  # type: ignore
 
 __all__ = ["SessionDep", "CurrentUser", "TokenDep", "S3Dep"]

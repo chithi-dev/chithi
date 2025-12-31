@@ -25,14 +25,23 @@ dependencies = [
     "typer>=0.20.1",
     # Rustfs Upload
     "aioboto3>=15.5.0",
+    "celery[redis]>=5.6.1",
+    "redis[hiredis]>=6.4.0",
+    # Mandatory type
+    "types-aiobotocore-s3>=2.25.2",
 ]
 
 [dependency-groups]
 dev = [
+    "celery-types>=0.24.0",
     "fastapi-cli>=0.0.16",
+    "poethepoet>=0.39.0",
     "ruff>=0.14.10",
     "types-aioboto3>=15.5.0",
 ]
+[tool.poe.tasks]
+celery = "celery -A app.celery worker --loglevel=info"
+dev = "fastapi dev ./app/main.py"
 
 [tool.setuptools]
 packages = ["app"]

@@ -52,5 +52,9 @@ class Settings(BaseSettings):
     RUSTFS_SECRET_ACCESS_KEY: str = "rustfsadmin"
     RUSTFS_BUCKET_NAME: str = "chithi"
 
+    # Celery Backend
+    CELERY_BROKER_URL: str = "redis://localhost:6379"
+    CELERY_RESULT_BACKEND: str = "redis://localhost:6379"
+
 
 settings = Settings()  # type: ignore

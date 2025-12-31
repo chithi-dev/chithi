@@ -12,7 +12,7 @@ class UserUpdate(SQLModel):
 class UserOut(SQLModel):
     username: str = Field(index=True, unique=True)
     email: str | None = Field(default=None, index=True, unique=True)
-
+    
 
 class User(UserOut, table=True):
     id: UUID = Field(
