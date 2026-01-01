@@ -38,7 +38,11 @@
 				<Dropdown.Root>
 					<Dropdown.Trigger>
 						<Avatar.Root>
-							<Avatar.Image src={hashedAvatar} alt="@{userData.data?.username ?? 'username'}" />
+							{#if userData.data?.email}
+								{#key hashedAvatar}
+									<Avatar.Image src={hashedAvatar} alt="@{userData.data?.username ?? 'username'}" />
+								{/key}
+							{/if}
 							<Avatar.Fallback>{initials}</Avatar.Fallback>
 						</Avatar.Root>
 					</Dropdown.Trigger>
