@@ -2,18 +2,17 @@ from datetime import datetime, timezone
 
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
 from sqlmodel import select
 
 from app.deps import S3Dep, SessionDep
-from app.models.files import File
+from app.models.files import File, FileInformationOut
 from app.settings import settings
 
 router = APIRouter()
 
 
-@router.get("/download/{key}")
-async def download_files(
+@router.get("/information/{key}", response_model=FileInformationOut)
+async def get_file_information(
     key: str,
     session: SessionDep,
     s3: S3Dep,
@@ -33,27 +32,18 @@ async def download_files(
     if file_record.download_count >= file_record.expire_after_n_download:
         raise HTTPException(status_code=410, detail="Download limit reached")
 
-    file_record.download_count += 1
-    session.add(file_record)
-    await session.commit()
-
     try:
-        s3_response = await s3.get_object(Bucket=settings.RUSTFS_BUCKET_NAME, Key=key)
+        s3_response = await s3.head_object(
+            Bucket=settings.RUSTFS_BUCKET_NAME,
+            Key=key,
+        )
     except ClientError as e:
-        # Check if it is a 404
         error_code = e.response.get("Error", {}).get("Code")
-        if error_code == "NoSuchKey":
+        if error_code == "404" or error_code == "NoSuchKey":
             raise HTTPException(status_code=404, detail="File not found in storage")
         raise e
 
-    async def stream_generator():
-        async for chunk in s3_response["Body"]:
-            yield chunk
-
-    return StreamingResponse(
-        stream_generator(),
-        media_type=s3_response.get("ContentType", "application/octet-stream"),
-        headers={
-            "Content-Disposition": f'attachment; filename="{file_record.filename}"'
-        },
-    )
+    return {
+        "filename": file_record.filename,
+        "size": s3_response.get("ContentLength"),
+    }

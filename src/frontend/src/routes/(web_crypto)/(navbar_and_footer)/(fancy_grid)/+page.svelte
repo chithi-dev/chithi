@@ -20,12 +20,10 @@
 	import { marked } from '$lib/functions/marked';
 	import { formatFileSize } from '$lib/functions/bytes';
 	import { formatSeconds } from '$lib/functions/times';
-	import { createTar } from '$lib/functions/tar';
+	import { createTarStream, createEncryptedStream } from '$lib/functions/streams';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { v7 as uuidv7 } from 'uuid';
 	import { BACKEND_API } from '$lib/consts/backend';
-	import { gzipBlob } from '$lib/functions/compression';
-	import { encryptBlobWithHKDF } from '$lib/functions/encryption';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import QRCode from '$lib/components/QRCode.svelte';
@@ -283,75 +281,69 @@
 		// isUploading is already true
 		try {
 			uploadingInProgress = true;
-			const tar = await createTar(files);
 
-			// Prefer gzipped archive when available
-			let blobToUpload: Blob = tar;
+			// 1. Create Tar Stream
+			let stream = createTarStream(files);
+
+			// 2. Gzip (if available)
 			try {
-				const gz = await gzipBlob(tar);
-				blobToUpload = gz;
-			} catch (gzErr: any) {
-				console.warn('Gzip not available; uploading uncompressed tar', gzErr);
+				const CompressionStreamCtor = (globalThis as any).CompressionStream;
+				if (CompressionStreamCtor) {
+					const cs = new CompressionStreamCtor('gzip');
+					stream = stream.pipeThrough(cs);
+				}
+			} catch (e) {
+				console.warn('Gzip not available', e);
 			}
 
-			// Encrypt the (gzipped) blob using AES-256-GCM + HKDF-SHA-256
-			const encRes = await encryptBlobWithHKDF(
-				blobToUpload,
-				isPasswordProtected ? password : undefined
-			);
+			// 3. Encrypt
+			const {
+				stream: encryptedStream,
+				keySecret,
+				meta
+			} = await createEncryptedStream(stream, isPasswordProtected ? password : undefined);
 
-			// Use a v7 UUID as the filename (no extension)
+			// 4. Upload
 			const filename = uuidv7();
-			const form = new FormData();
-			form.append('file', encRes.ciphertext, filename);
-			// include encryption metadata so server can store it alongside the blob
-			// form.append('meta', JSON.stringify(encRes.meta));
-			// include some other metadata if set
-			form.append('expire_after_n_download', downloadLimit);
-			form.append('expire_after', timeLimit);
+			const encryptedBlob = await new Response(encryptedStream).blob();
 
-			// Upload using XHR so we can track progress
-			uploadProgress = 0;
+			const formData = new FormData();
+			formData.append('expire_after_n_download', downloadLimit);
+			formData.append('expire_after', timeLimit);
+			formData.append('file', encryptedBlob, filename);
 
-			const resText = await new Promise<string>((resolve, reject) => {
+			const data = await new Promise<any>((resolve, reject) => {
 				const xhr = new XMLHttpRequest();
 				xhr.open('POST', `${BACKEND_API}/upload`);
+
 				xhr.upload.onprogress = (e) => {
 					if (e.lengthComputable) {
 						uploadProgress = Math.round((e.loaded / e.total) * 100);
-					} else {
-						// Unknown total — nudge the progress bar slowly
-						uploadProgress = Math.min(99, uploadProgress + 1);
 					}
 				};
+
 				xhr.onload = () => {
 					if (xhr.status >= 200 && xhr.status < 300) {
-						resolve(xhr.responseText);
+						try {
+							resolve(JSON.parse(xhr.responseText));
+						} catch (e) {
+							reject(new Error('Invalid JSON response'));
+						}
 					} else {
-						reject(
-							new Error(`Upload failed: ${xhr.status} ${xhr.statusText} ${xhr.responseText || ''}`)
-						);
+						reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
 					}
 				};
-				xhr.onerror = () => reject(new Error('Network error during upload'));
-				xhr.send(form);
-			});
 
+				xhr.onerror = () => reject(new Error('Network error'));
+				xhr.send(formData);
+			});
 			uploadProgress = 100;
 
-			// Success — show simple confirmation, display the key fragment (keep secret client-side), and clear files
-			const data = (() => {
-				try {
-					return JSON.parse(resText);
-				} catch (e) {
-					return null;
-				}
-			})();
 			const serverPath =
 				data && (data.id || data.path || data.key) ? data.id || data.path || data.key : null;
 
 			if (serverPath) {
-				finalLink = `${window.location.origin}/download/${serverPath}?secret=${encRes.keySecret}`;
+				finalLink = `${window.location.origin}/download/${serverPath}?secret=${keySecret}`;
 				isUploadComplete = true;
 
 				// Add to history

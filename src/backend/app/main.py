@@ -45,3 +45,7 @@ app.include_router(upload_router)
 from app.routes.download import router as download_router
 
 app.include_router(download_router)
+
+from app.routes.information import router as information_router
+
+app.include_router(information_router)
