@@ -1,5 +1,3 @@
-from datetime import datetime, timezone
-
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, HTTPException
 from sqlmodel import select
@@ -24,13 +22,8 @@ async def get_file_information(
     if not file_record:
         raise HTTPException(status_code=404, detail="File not found")
 
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-
-    if file_record.expires_at < now:
-        raise HTTPException(status_code=410, detail="File expired")
-
-    if file_record.download_count >= file_record.expire_after_n_download:
-        raise HTTPException(status_code=410, detail="Download limit reached")
+    if file_record.is_expired:
+        raise HTTPException(status_code=410, detail="File is expired")
 
     try:
         s3_response = await s3.head_object(

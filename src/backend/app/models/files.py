@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Self
 from uuid import UUID
 
@@ -34,6 +34,14 @@ class File(FileOut, table=True):
     created_at: datetime = Field()
 
     __table_args__ = (UniqueConstraint("id", "key"),)
+
+    @property
+    def is_expired(self) -> bool:
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        return (
+            now > self.expires_at
+            or self.download_count >= self.expire_after_n_download
+        )
 
     @model_validator(mode="after")
     def validate_expire(self) -> Self:

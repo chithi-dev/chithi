@@ -132,6 +132,10 @@
 				// If we are in needs_password state, and we failed, it might be wrong password
 				if (previousStatus === 'needs_password' || password) {
 					toast.error('Download failed: Incorrect password or corrupted file');
+				} else if (e.name === 'OperationError') {
+					toast.error('Download failed: Mismatched key or corrupted file');
+					status = 'error';
+					errorMsg = 'Mismatched key or corrupted file';
 				} else {
 					toast.error('Download failed: ' + e.message);
 					status = 'error';
