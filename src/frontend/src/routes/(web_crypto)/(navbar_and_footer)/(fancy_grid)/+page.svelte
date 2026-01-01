@@ -401,7 +401,7 @@
 				<div class="text-sm leading-none font-medium">{file.name}</div>
 				<div class="text-xs text-foreground">
 					{#if (file as any).relativePath}
-						<span class="block max-w-[12.5rem] truncate text-xs opacity-70"
+						<span class="block max-w-50 truncate text-xs opacity-70"
 							>{(file as any).relativePath}</span
 						>
 					{/if}
@@ -453,7 +453,7 @@
 		<RecentUpload />
 	</div>
 	<CardContent class="p-6">
-		<div class="grid min-h-[600px] grid-cols-1 gap-8 lg:grid-cols-2">
+		<div class="grid min-h-150 grid-cols-1 gap-8 lg:grid-cols-2">
 			{#if configData.isLoading || (dev && debugLoading)}
 				<div
 					class="relative flex h-full w-full flex-col items-center justify-center rounded-lg bg-card p-12"
@@ -472,10 +472,9 @@
 						/>
 					</svg>
 					<Skeleton class="mb-6 h-16 w-16 rounded-full" />
-					<Skeleton class="mb-2 h-5 w-48" />
-					<Skeleton class="mb-2 h-4 w-64" />
-					<Skeleton class="mb-6 h-4 w-48 md:mb-4" />
-					<Skeleton class="h-10 w-44 rounded-md md:h-10 md:w-40" />
+					<Skeleton class="mb-2 h-7 w-48" />
+					<Skeleton class="mx-auto mb-8 h-6 w-103.5 md:mb-4 md:h-5" />
+					<Skeleton class="h-19 w-64 rounded-md md:h-14 md:w-56" />
 				</div>
 			{:else if isUploadComplete}
 				<!-- Final Success Screen -->
@@ -513,7 +512,7 @@
 			{:else if isUploading}
 				{#if uploadingInProgress}
 					<!-- Modern Upload Animation -->
-					<div class="flex h-full flex-col items-center justify-center py-20">
+					<div class="flex h-25 flex-col items-center justify-center py-20">
 						<div class="relative mb-8 h-32 w-32">
 							<!-- Outer spinning ring -->
 							<div class="absolute inset-0 rounded-full border-4 border-primary/20"></div>
@@ -597,7 +596,7 @@
 							<div class="flex items-center">
 								<span class="text-sm">Expires after</span>
 								<Select.Root type="single" bind:value={downloadLimit}>
-									<Select.Trigger class="ml-2 w-[8.75rem]">
+									<Select.Trigger class="ml-2 w-35">
 										{downloadLimit}
 										{downloadLimit === '1' ? 'download' : 'downloads'}
 									</Select.Trigger>
@@ -615,7 +614,7 @@
 								</Select.Root>
 								<span class="mx-2 text-sm">or</span>
 								<Select.Root type="single" bind:value={timeLimit}>
-									<Select.Trigger class="w-[8.75rem]">
+									<Select.Trigger class="w-35">
 										{@const { val, unit } = formatSeconds(parseInt(timeLimit))}
 										{val}
 										{val === 1 ? unit.slice(0, -1) : unit}
@@ -783,20 +782,30 @@
 
 			<!-- Right Column: Info -->
 			{#if configData.isLoading || (dev && debugLoading)}
-				<div class="flex h-full w-full flex-col p-4 lg:p-8">
-					<ScrollArea class="max-h-[500px] w-full">
+				<div class="flex h-16 w-full flex-col p-4 lg:p-8">
+					<ScrollArea class="max-h-125 w-full">
 						<div
-							class="prose w-full max-w-none space-y-4 prose-zinc md:text-sm lg:text-lg lg:leading-relaxed dark:prose-invert"
+							class="prose w-full max-w-none prose-zinc md:text-sm lg:text-lg lg:leading-relaxed dark:prose-invert"
 						>
-						<Skeleton class="h-6 w-1/2" />
-							<Skeleton class="h-4 w-full" />
-							<Skeleton class="h-4 w-3/4" />
+							<Skeleton class="mb-4 h-8 w-1/2" />
+							<div class="space-y-2">
+								<Skeleton class="h-4 w-full" />
+								<Skeleton class="h-4 w-full" />
+								<Skeleton class="h-4 w-2/4" />
+								<br />
+								<Skeleton class="h-4 w-full" />
+								<Skeleton class="h-4 w-2/3" />
+
+								<br />
+								<Skeleton class="h-4 w-full" />
+								<Skeleton class="h-4 w-1/3" />
+							</div>
 						</div>
 					</ScrollArea>
 				</div>
 			{:else if !isUploadComplete && !isUploading}
 				<div class="flex h-full w-full flex-col p-4 lg:p-8">
-					<ScrollArea class="max-h-[500px] w-full">
+					<ScrollArea class="max-h-125 w-full">
 						<div
 							class="prose w-full max-w-none prose-zinc md:text-sm lg:text-lg lg:leading-relaxed dark:prose-invert"
 						>
