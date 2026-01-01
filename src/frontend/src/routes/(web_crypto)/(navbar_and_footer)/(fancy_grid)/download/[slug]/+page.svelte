@@ -1,7 +1,147 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
-	import { FileText, Shield } from 'lucide-svelte';
+	import { Input } from '$lib/components/ui/input';
+	import { FileText, Shield, Lock, AlertCircle, Loader2, Download } from 'lucide-svelte';
+	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
+	import { BACKEND_API } from '$lib/consts/backend';
+	import { createDecryptedStream } from '$lib/functions/streams';
+	import { formatFileSize } from '$lib/functions/bytes';
+	import { toast } from 'svelte-sonner';
+	import { Progress } from '$lib/components/ui/progress';
+
+	let key = $derived($page.url.searchParams.get('secret'));
+	let slug = $derived($page.params.slug);
+
+	let status = $state<'checking' | 'ready' | 'needs_password' | 'error' | 'downloading'>(
+		'checking'
+	);
+	let errorMsg = $state('');
+	let filename = $state('file');
+	let fileSize = $state(0);
+	let password = $state('');
+	let downloadProgress = $state(0);
+
+	async function startCheck() {
+		if (!key) {
+			status = 'error';
+			errorMsg = 'Missing decryption key';
+			return;
+		}
+		status = 'checking';
+		try {
+			const res = await fetch(`${BACKEND_API}/information/${slug}`);
+			if (!res.ok) {
+				if (res.status === 404) throw new Error('File not found');
+				if (res.status === 410) throw new Error('File expired or limit reached');
+				throw new Error('Failed to get file info');
+			}
+
+			const info = await res.json();
+			filename = info.filename;
+			fileSize = info.size;
+			status = 'ready';
+		} catch (e: any) {
+			status = 'error';
+			errorMsg = e.message || 'An error occurred';
+		}
+	}
+
+	onMount(() => {
+		startCheck();
+	});
+
+	async function handlePasswordSubmit() {
+		if (!key) return;
+		try {
+			await handleDownload();
+		} catch (e) {
+			// Error handled in handleDownload or here?
+			// handleDownload sets status.
+		}
+	}
+
+	async function handleDownload() {
+		if (!key) return;
+		const previousStatus = status;
+		status = 'downloading';
+		downloadProgress = 0;
+
+		try {
+			const res = await fetch(`${BACKEND_API}/download/${slug}`);
+			if (!res.ok) throw new Error('Download failed');
+
+			const totalSize = fileSize;
+			let loaded = 0;
+
+			const progressStream = new TransformStream({
+				transform(chunk, controller) {
+					loaded += chunk.length;
+					if (totalSize > 0) {
+						downloadProgress = Math.round((loaded / totalSize) * 100);
+					}
+					controller.enqueue(chunk);
+				}
+			});
+
+			const bodyWithProgress = res.body!.pipeThrough(progressStream);
+
+			if ('showSaveFilePicker' in window) {
+				const handle = await (window as any).showSaveFilePicker({
+					suggestedName: filename
+				});
+				const writable = await handle.createWritable();
+
+				const decryptedStream = await createDecryptedStream(bodyWithProgress, key, password);
+				await decryptedStream.pipeTo(writable);
+
+				status = 'ready';
+				toast.success('Download complete');
+			} else {
+				const decryptedStream = await createDecryptedStream(bodyWithProgress, key, password);
+				const chunks = [];
+				const reader = decryptedStream.getReader();
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) break;
+					chunks.push(value);
+				}
+				const blob = new Blob(chunks as any, { type: 'application/octet-stream' });
+				const url = window.URL.createObjectURL(blob);
+				const a = document.createElement('a');
+				a.href = url;
+				a.download = filename;
+				document.body.appendChild(a);
+				a.click();
+				window.URL.revokeObjectURL(url);
+				document.body.removeChild(a);
+
+				status = 'ready';
+				toast.success('Download complete');
+			}
+		} catch (e: any) {
+			console.error(e);
+			if (e.message === 'Password required for decryption') {
+				status = 'needs_password';
+				toast.info('Password required');
+				return;
+			}
+
+			if (e.name !== 'AbortError') {
+				// If we are in needs_password state, and we failed, it might be wrong password
+				if (previousStatus === 'needs_password' || password) {
+					toast.error('Download failed: Incorrect password or corrupted file');
+				} else {
+					toast.error('Download failed: ' + e.message);
+					status = 'error';
+					errorMsg = 'Download failed';
+				}
+			} else {
+				status = 'ready';
+			}
+		}
+	}
 </script>
 
 <Card.Root class="relative z-10 mx-auto w-full max-w-5xl border-border bg-card">
@@ -16,20 +156,59 @@
 					</Card.Description>
 				</Card.Header>
 				<Card.Content class="w-full px-0">
-					<div class="flex items-center gap-4 rounded-lg border bg-background/50 p-4">
-						<div class="rounded bg-blue-500/10 p-2 text-blue-500">
-							<FileText class="h-6 w-6" />
+					{#if status === 'checking'}
+						<div class="flex flex-col items-center justify-center py-8">
+							<Loader2 class="mb-4 h-8 w-8 animate-spin text-primary" />
+							<p class="text-muted-foreground">Verifying key and checking file...</p>
 						</div>
-						<div class="flex-1 overflow-hidden">
-							<p class="truncate font-medium">docker-compose.yml</p>
-							<p class="text-xs text-muted-foreground">1.7KB</p>
+					{:else if status === 'error'}
+						<div class="flex flex-col items-center justify-center py-8 text-destructive">
+							<AlertCircle class="mb-4 h-12 w-12" />
+							<p class="font-medium">{errorMsg}</p>
 						</div>
-					</div>
+					{:else if status === 'needs_password'}
+						<div class="flex flex-col gap-4 py-4">
+							<div class="flex items-center justify-center gap-2 text-amber-500">
+								<Lock class="h-5 w-5" />
+								<span class="font-medium">Password Required</span>
+							</div>
+							<Input
+								type="password"
+								placeholder="Enter password"
+								bind:value={password}
+								onkeydown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+							/>
+							<Button onclick={handlePasswordSubmit}>Unlock</Button>
+						</div>
+					{:else}
+						<div class="mb-6 flex items-center gap-4 rounded-lg border bg-background/50 p-4">
+							<div class="rounded bg-primary/10 p-2 text-primary">
+								<FileText class="h-6 w-6" />
+							</div>
+							<div class="flex-1 overflow-hidden">
+								<p class="truncate font-medium">{filename}</p>
+								<p class="text-xs text-muted-foreground">{formatFileSize(fileSize)}</p>
+							</div>
+						</div>
+
+						<Card.Footer class="flex w-full flex-col gap-6 px-0">
+							{#if status === 'downloading'}
+								<div class="w-full space-y-2">
+									<Progress value={downloadProgress} class="h-2" />
+									<div class="flex justify-between text-xs text-muted-foreground">
+										<span>{downloadProgress}%</span>
+										<span>Decrypting & Downloading...</span>
+									</div>
+								</div>
+							{:else}
+								<Button class="w-full cursor-pointer" size="lg" onclick={handleDownload}>
+									<Download class="mr-2 h-4 w-4" />
+									Download
+								</Button>
+							{/if}
+						</Card.Footer>
+					{/if}
 				</Card.Content>
-				<Card.Footer class="flex w-full flex-col gap-6 px-0">
-					<Button class="w-full bg-blue-600 text-white hover:bg-blue-700" size="lg">Download</Button
-					>
-				</Card.Footer>
 			</div>
 		</div>
 	</Card.Content>

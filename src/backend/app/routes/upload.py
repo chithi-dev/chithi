@@ -29,7 +29,7 @@ async def upload_file(
     key = filename
     resp = await s3.create_multipart_upload(
         Bucket=settings.RUSTFS_BUCKET_NAME,
-        Key=settings.RUSTFS_ACCESS_KEY,
+        Key=str(key),
         ContentType=file.content_type or "application/octet-stream",
     )
     upload_id = resp["UploadId"]
@@ -44,7 +44,7 @@ async def upload_file(
 
             part = await s3.upload_part(
                 Bucket=settings.RUSTFS_BUCKET_NAME,
-                Key=settings.RUSTFS_ACCESS_KEY,
+                Key=str(key),
                 UploadId=upload_id,
                 PartNumber=part_number,
                 Body=chunk,
@@ -55,7 +55,7 @@ async def upload_file(
 
         await s3.complete_multipart_upload(
             Bucket=settings.RUSTFS_BUCKET_NAME,
-            Key=settings.RUSTFS_ACCESS_KEY,
+            Key=str(key),
             UploadId=upload_id,
             MultipartUpload={"Parts": parts},
         )
@@ -63,7 +63,7 @@ async def upload_file(
     except Exception:
         await s3.abort_multipart_upload(
             Bucket=settings.RUSTFS_BUCKET_NAME,
-            Key=settings.RUSTFS_ACCESS_KEY,
+            Key=str(key),
             UploadId=upload_id,
         )
         raise

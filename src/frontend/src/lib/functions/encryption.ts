@@ -20,6 +20,14 @@ export function base64url(u8: Uint8Array) {
 	return bytesToBase64(u8).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+export function base64urlToBytes(str: string) {
+	let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+	while (b64.length % 4) {
+		b64 += '=';
+	}
+	return base64ToBytes(b64);
+}
+
 export function xorBytes(a: Uint8Array, b: Uint8Array) {
 	const out = new Uint8Array(Math.max(a.length, b.length));
 	for (let i = 0; i < out.length; i++) {
@@ -80,8 +88,6 @@ export async function pbkdf2Derive(
 	return new Uint8Array(bits);
 }
 
-// Encrypt a blob (tar or gz) using AES-256-GCM with HKDF-SHA-256 derived key.
-// If password is provided, the derived PBKDF2 bytes are xor'ed with the random ikm before HKDF.
 export type EncryptionMeta = {
 	cipher: 'AES-GCM';
 	hkdf: { hash: 'SHA-512'; salt: string };
@@ -89,41 +95,92 @@ export type EncryptionMeta = {
 	pbkdf2?: { salt: string; iterations: number };
 };
 
-export async function encryptBlobWithHKDF(
-	blob: Blob,
+export const CHUNK_SIZE = 64 * 1024; // 64KB
+
+export function getChunkIv(baseIv: Uint8Array, chunkIndex: number): Uint8Array {
+	const iv = new Uint8Array(baseIv);
+	const view = new DataView(iv.buffer, iv.byteOffset, iv.byteLength);
+	// XOR the chunk index into the last 4 bytes (big-endian)
+	const last4 = view.getUint32(8, false);
+	view.setUint32(8, last4 ^ chunkIndex, false);
+	return iv;
+}
+
+// Encrypt a blob (tar or gz) using AES-256-GCM with HKDF-SHA-512 derived key.
+// Uses chunked encryption (64KB chunks) to support partial decryption.
+export async function encryptFile(
+	file: Blob,
 	password?: string
 ): Promise<{ ciphertext: Blob; meta: EncryptionMeta; keySecret: string }> {
-	// ikm (random secret) — reveal in URL fragment (base64url)
+	// 1. Generate Secrets
 	const ikm = crypto.getRandomValues(new Uint8Array(32));
 	const hkdfSalt = crypto.getRandomValues(new Uint8Array(16));
+	const baseIv = crypto.getRandomValues(new Uint8Array(12));
+
 	let finalIKM = ikm;
 	const meta: EncryptionMeta = {
 		cipher: 'AES-GCM',
 		hkdf: { hash: 'SHA-512', salt: bytesToBase64(hkdfSalt) },
-		iv: ''
+		iv: bytesToBase64(baseIv)
 	};
 
 	if (password && password.length > 0) {
-		const iterations = 150_000; // recommended >= 100k
+		const iterations = 150_000;
 		const pbkdf2Salt = crypto.getRandomValues(new Uint8Array(16));
 		const pb = await pbkdf2Derive(password, pbkdf2Salt, iterations, 32);
 		finalIKM = xorBytes(ikm, pb);
 		meta.pbkdf2 = { salt: bytesToBase64(pbkdf2Salt), iterations };
 	}
 
-	// Derive AES key
+	// 2. Derive AES Key
 	const aesKey = await deriveAESKeyFromIKM(finalIKM, hkdfSalt);
 
-	// Encrypt
-	const iv = crypto.getRandomValues(new Uint8Array(12));
-	meta.iv = bytesToBase64(iv);
+	// 3. Encrypt in Chunks
+	const chunks: Blob[] = [];
+	const totalSize = file.size;
+	let offset = 0;
+	let chunkIndex = 0;
 
-	const plaintext = new Uint8Array(await blob.arrayBuffer());
-	const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, plaintext);
-	const ctU8 = new Uint8Array(ct);
-	const ciphertextBlob = new Blob([ctU8], { type: 'application/octet-stream' });
+	// If file is empty, we still want to encrypt it (produces just the tag)
+	if (totalSize === 0) {
+		const chunkIv = getChunkIv(baseIv, 0);
+		const encryptedChunk = await crypto.subtle.encrypt(
+			{ name: 'AES-GCM', iv: chunkIv as any },
+			aesKey,
+			new Uint8Array(0)
+		);
+		chunks.push(new Blob([encryptedChunk]));
+	} else {
+		while (offset < totalSize) {
+			const chunkBlob = file.slice(offset, offset + CHUNK_SIZE);
+			const chunkBuffer = await chunkBlob.arrayBuffer();
+			const chunkIv = getChunkIv(baseIv, chunkIndex);
 
-	// keySecret is the ikm to reveal in link fragment (base64url)
+			const encryptedChunk = await crypto.subtle.encrypt(
+				{ name: 'AES-GCM', iv: chunkIv as any },
+				aesKey,
+				chunkBuffer
+			);
+
+			chunks.push(new Blob([encryptedChunk]));
+
+			offset += CHUNK_SIZE;
+			chunkIndex++;
+		}
+	}
+
+	const metaJson = JSON.stringify(meta);
+	const metaBytes = new TextEncoder().encode(metaJson);
+	const metaLen = new Uint8Array(4);
+	new DataView(metaLen.buffer).setUint32(0, metaBytes.length, false); // Big endian
+
+	const monolithicBlob = new Blob([metaLen, metaBytes, ...chunks], {
+		type: 'application/octet-stream'
+	});
 	const keySecret = base64url(ikm);
-	return { ciphertext: ciphertextBlob, meta, keySecret };
+
+	return { ciphertext: monolithicBlob, meta, keySecret };
 }
+
+// Alias for backward compatibility
+export const encryptBlobWithHKDF = encryptFile;

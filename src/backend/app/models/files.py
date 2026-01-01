@@ -7,6 +7,11 @@ from sqlalchemy import UniqueConstraint, text
 from sqlmodel import Field, SQLModel
 
 
+class FileInformationOut(SQLModel):
+    filename: str
+    size: int
+
+
 class FileOut(SQLModel):
     # Unique Identifier for the S3 storage
     key: str = Field()
