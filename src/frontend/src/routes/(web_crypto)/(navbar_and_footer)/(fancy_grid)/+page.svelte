@@ -33,6 +33,7 @@
 	import { addHistoryEntry } from '$lib/database';
 	import { cn } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
+	import { dev } from '$app/environment';
 
 	const { config: configData } = useConfigQuery();
 
@@ -57,6 +58,7 @@
 	let isUploadComplete = $state(false);
 	let finalLink = $state('');
 	let isCopied = $state(false);
+	let debugLoading = $state(false);
 	let renderedDetails = $derived(marked.parse(configData.data?.site_description ?? ''));
 
 	$effect(() => {
@@ -399,7 +401,7 @@
 				<div class="text-sm leading-none font-medium">{file.name}</div>
 				<div class="text-xs text-foreground">
 					{#if (file as any).relativePath}
-						<span class="block max-w-50 truncate text-xs opacity-70"
+						<span class="block max-w-[12.5rem] truncate text-xs opacity-70"
 							>{(file as any).relativePath}</span
 						>
 					{/if}
@@ -414,6 +416,25 @@
 		>
 			<X class="h-4 w-4" />
 		</Button>
+	</div>
+{/snippet}
+
+{#snippet encryptionInfo()}
+	<div class="flex h-full w-full flex-col justify-center p-4 lg:p-8">
+		<h2 class="mb-4 text-2xl font-bold md:mb-2 md:text-xl lg:mb-6 lg:text-3xl">
+			End-to-End Encryption
+		</h2>
+		<p class="mb-6 text-muted-foreground md:mb-4 md:text-sm lg:mb-8 lg:text-lg lg:leading-relaxed">
+			Your files are encrypted in your browser before they are ever uploaded. This means only you
+			and the people you share the link with can access them. We cannot see your files.
+		</p>
+		<div class="rounded-xl border border-border bg-muted/50 p-4 md:p-3 lg:p-5">
+			<h3 class="mb-2 font-semibold">How it works</h3>
+			<p class="text-sm text-muted-foreground">
+				A unique key is generated for each upload. This key is used to encrypt your files and is
+				included in the share link after the '#' symbol. The server never receives this key.
+			</p>
+		</div>
 	</div>
 {/snippet}
 
@@ -432,104 +453,99 @@
 		<RecentUpload />
 	</div>
 	<CardContent class="p-6">
-		{#if configData.isLoading}
-			<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+		<div class="grid min-h-[600px] grid-cols-1 gap-8 lg:grid-cols-2">
+			{#if configData.isLoading || (dev && debugLoading)}
 				<div
-					class="flex h-full w-full flex-col items-center justify-center rounded-lg border-2 border-dashed border-border p-12"
+					class="relative flex h-full w-full flex-col items-center justify-center rounded-lg bg-card p-12"
 				>
+					<svg class="pointer-events-none absolute inset-0 h-full w-full rounded-lg">
+						<rect
+							width="100%"
+							height="100%"
+							rx="8"
+							ry="8"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="2"
+							class="text-border"
+							stroke-dasharray="10"
+						/>
+					</svg>
 					<Skeleton class="mb-6 h-16 w-16 rounded-full" />
-					<Skeleton class="mb-2 h-8 w-48" />
-					<Skeleton class="mb-8 h-4 w-64" />
-					<Skeleton class="h-14 w-56 rounded-md" />
+					<Skeleton class="mb-2 h-5 w-48" />
+					<Skeleton class="mb-2 h-4 w-64" />
+					<Skeleton class="mb-6 h-4 w-48 md:mb-4" />
+					<Skeleton class="h-10 w-44 rounded-md md:h-10 md:w-40" />
 				</div>
-				<div class="flex flex-col space-y-4 p-2 lg:p-8">
-					<Skeleton class="h-8 w-3/4" />
-					<Skeleton class="h-4 w-full" />
-					<Skeleton class="h-4 w-full" />
-					<Skeleton class="h-4 w-2/3" />
-					<Skeleton class="h-4 w-full" />
-					<Skeleton class="h-4 w-full" />
-					<Skeleton class="h-4 w-5/6" />
-					<Skeleton class="h-4 w-full" />
-					<Skeleton class="h-4 w-full" />
-					<Skeleton class="h-4 w-4/5" />
-					<Skeleton class="h-4 w-full" />
-					<Skeleton class="h-4 w-full" />
-					<Skeleton class="h-4 w-3/4" />
-					<Skeleton class="h-4 w-full" />
-					<Skeleton class="h-4 w-full" />
-					<Skeleton class="h-4 w-5/6" />
-				</div>
-			</div>
-		{:else if isUploadComplete}
-			<!-- Final Success Screen -->
-			<div class="flex flex-col items-center justify-center py-12 text-center">
-				<div class="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10">
-					<Lock class="h-10 w-10 text-green-500" />
-				</div>
-				<h2 class="mb-2 text-3xl font-bold tracking-tight">
-					Your file is encrypted and ready to send
-				</h2>
-				<p class="mb-8 text-muted-foreground">Copy the link to share your file:</p>
-
-				<div class="mb-8 flex w-full max-w-md items-center gap-2">
-					<Input readonly value={finalLink} class="font-mono text-sm" />
-				</div>
-
-				<div class="mb-8 flex flex-col items-center gap-4">
-					<div class="rounded-lg border bg-white p-2 dark:bg-white">
-						<QRCode value={finalLink} size={180} color="#000000" backgroundColor="#ffffff" />
+			{:else if isUploadComplete}
+				<!-- Final Success Screen -->
+				<div class="flex h-full flex-col items-center justify-center py-12 text-center">
+					<div class="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10">
+						<Lock class="h-10 w-10 text-green-500" />
 					</div>
-				</div>
+					<h2 class="mb-2 text-3xl font-bold tracking-tight">
+						Your file is encrypted and ready to send
+					</h2>
+					<p class="mb-8 text-muted-foreground">Copy the link to share your file:</p>
 
-				<div class="flex gap-4">
-					<Button onclick={copyLink} class="w-40 cursor-pointer">
-						{#if isCopied}
-							<Check class="mr-2 h-4 w-4" /> Copied
-						{:else}
-							<Copy class="mr-2 h-4 w-4" /> Copy link
-						{/if}
-					</Button>
-					<Button variant="outline" onclick={clearAllFiles} class="w-24 cursor-pointer">OK</Button>
-				</div>
-			</div>
-		{:else if isUploading}
-			{#if uploadingInProgress}
-				<!-- Modern Upload Animation -->
-				<div class="flex flex-col items-center justify-center py-20">
-					<div class="relative mb-8 h-32 w-32">
-						<!-- Outer spinning ring -->
-						<div class="absolute inset-0 rounded-full border-4 border-primary/20"></div>
-						<div
-							class="absolute inset-0 animate-spin rounded-full border-4 border-primary border-t-transparent"
-							style="animation-duration: 1.5s;"
-						></div>
+					<div class="mb-8 flex w-full max-w-md items-center gap-2">
+						<Input readonly value={finalLink} class="font-mono text-sm" />
+					</div>
 
-						<!-- Inner pulsing circle -->
-						<div class="absolute inset-4 animate-pulse rounded-full bg-primary/10"></div>
-
-						<!-- Icon -->
-						<div class="absolute inset-0 flex items-center justify-center">
-							<CloudUpload class="h-12 w-12 animate-bounce text-primary" />
+					<div class="mb-8 flex flex-col items-center gap-4">
+						<div class="rounded-lg border bg-white p-2 dark:bg-white">
+							<QRCode value={finalLink} size={180} color="#000000" backgroundColor="#ffffff" />
 						</div>
 					</div>
 
-					<h3 class="mb-2 animate-pulse text-2xl font-semibold">Encrypting & Uploading...</h3>
-					<p class="mb-8 text-muted-foreground">Please wait while we secure your files</p>
-
-					<div class="w-full max-w-md space-y-2">
-						<Progress value={uploadProgress} class="h-2" />
-						<div class="flex justify-between text-xs text-muted-foreground">
-							<span>{uploadProgress}%</span>
-							<span>{totalSize}</span>
-						</div>
+					<div class="flex gap-4">
+						<Button onclick={copyLink} class="w-40 cursor-pointer">
+							{#if isCopied}
+								<Check class="mr-2 h-4 w-4" /> Copied
+							{:else}
+								<Copy class="mr-2 h-4 w-4" /> Copy link
+							{/if}
+						</Button>
+						<Button variant="outline" onclick={clearAllFiles} class="w-24 cursor-pointer">OK</Button
+						>
 					</div>
 				</div>
-			{:else}
-				<!-- Upload Interface -->
-				<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+			{:else if isUploading}
+				{#if uploadingInProgress}
+					<!-- Modern Upload Animation -->
+					<div class="flex h-full flex-col items-center justify-center py-20">
+						<div class="relative mb-8 h-32 w-32">
+							<!-- Outer spinning ring -->
+							<div class="absolute inset-0 rounded-full border-4 border-primary/20"></div>
+							<div
+								class="absolute inset-0 animate-spin rounded-full border-4 border-primary border-t-transparent"
+								style="animation-duration: 1.5s;"
+							></div>
+
+							<!-- Inner pulsing circle -->
+							<div class="absolute inset-4 animate-pulse rounded-full bg-primary/10"></div>
+
+							<!-- Icon -->
+							<div class="absolute inset-0 flex items-center justify-center">
+								<CloudUpload class="h-12 w-12 animate-bounce text-primary" />
+							</div>
+						</div>
+
+						<h3 class="mb-2 animate-pulse text-2xl font-semibold">Encrypting & Uploading...</h3>
+						<p class="mb-8 text-muted-foreground">Please wait while we secure your files</p>
+
+						<div class="w-full max-w-md space-y-2">
+							<Progress value={uploadProgress} class="h-2" />
+							<div class="flex justify-between text-xs text-muted-foreground">
+								<span>{uploadProgress}%</span>
+								<span>{totalSize}</span>
+							</div>
+						</div>
+					</div>
+				{:else}
+					<!-- Upload Interface -->
 					<!-- Left Column: File List and Controls -->
-					<div class="flex flex-col pb-2">
+					<div class="flex h-full w-full flex-col pb-2">
 						<!-- File List -->
 						<div class="mb-2 flex justify-end">
 							<Tooltip.Provider>
@@ -581,7 +597,7 @@
 							<div class="flex items-center">
 								<span class="text-sm">Expires after</span>
 								<Select.Root type="single" bind:value={downloadLimit}>
-									<Select.Trigger class="ml-2 w-35">
+									<Select.Trigger class="ml-2 w-[8.75rem]">
 										{downloadLimit}
 										{downloadLimit === '1' ? 'download' : 'downloads'}
 									</Select.Trigger>
@@ -599,7 +615,7 @@
 								</Select.Root>
 								<span class="mx-2 text-sm">or</span>
 								<Select.Root type="single" bind:value={timeLimit}>
-									<Select.Trigger class="w-35">
+									<Select.Trigger class="w-[8.75rem]">
 										{@const { val, unit } = formatSeconds(parseInt(timeLimit))}
 										{val}
 										{val === 1 ? unit.slice(0, -1) : unit}
@@ -663,32 +679,9 @@
 							disabled={files.length === 0 || uploadingInProgress}>Upload</Button
 						>
 					</div>
-
-					<div class="flex flex-col justify-center p-4 lg:p-8">
-						<h2 class="mb-4 text-2xl font-bold md:mb-2 md:text-xl lg:mb-6 lg:text-3xl">
-							End-to-End Encryption
-						</h2>
-						<p
-							class="mb-6 text-muted-foreground md:mb-4 md:text-sm lg:mb-8 lg:text-lg lg:leading-relaxed"
-						>
-							Your files are encrypted in your browser before they are ever uploaded. This means
-							only you and the people you share the link with can access them. We cannot see your
-							files.
-						</p>
-						<div class="rounded-xl border border-border bg-muted/50 p-4 md:p-3 lg:p-5">
-							<h3 class="mb-2 font-semibold">How it works</h3>
-							<p class="text-sm text-muted-foreground">
-								A unique key is generated for each upload. This key is used to encrypt your files
-								and is included in the share link after the '#' symbol. The server never receives
-								this key.
-							</p>
-						</div>
-					</div>
-				</div>
-			{/if}
-		{:else}
-			<!-- Initial Drop Area -->
-			<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+				{/if}
+			{:else}
+				<!-- Initial Drop Area -->
 				<!-- Left Column: Drop Area -->
 				<div
 					class={cn(
@@ -786,16 +779,40 @@
 						/>
 					</svg>
 				</div>
+			{/if}
 
-				<!-- Right Column: Info -->
-				<div class="flex flex-col justify-between p-2 lg:p-8">
-					<div
-						class="prose mb-6 max-w-none prose-zinc md:mb-4 md:text-sm lg:mb-8 lg:text-lg lg:leading-relaxed dark:prose-invert"
-					>
-						{@html renderedDetails}
-					</div>
+			<!-- Right Column: Info -->
+			{#if configData.isLoading || (dev && debugLoading)}
+				<div class="flex h-full w-full flex-col p-4 lg:p-8">
+					<ScrollArea class="max-h-[500px] w-full">
+						<div
+							class="prose w-full max-w-none space-y-4 prose-zinc md:text-sm lg:text-lg lg:leading-relaxed dark:prose-invert"
+						>
+						<Skeleton class="h-6 w-1/2" />
+							<Skeleton class="h-4 w-full" />
+							<Skeleton class="h-4 w-3/4" />
+						</div>
+					</ScrollArea>
 				</div>
-			</div>
-		{/if}
+			{:else if !isUploadComplete && !isUploading}
+				<div class="flex h-full w-full flex-col p-4 lg:p-8">
+					<ScrollArea class="max-h-[500px] w-full">
+						<div
+							class="prose w-full max-w-none prose-zinc md:text-sm lg:text-lg lg:leading-relaxed dark:prose-invert"
+						>
+							{@html renderedDetails}
+						</div>
+					</ScrollArea>
+				</div>
+			{:else}
+				{@render encryptionInfo()}
+			{/if}
+		</div>
 	</CardContent>
 </Card>
+
+{#if dev}
+	<div class="fixed bottom-4 left-4 z-50">
+		<Button onclick={() => (debugLoading = !debugLoading)}>Toggle Skeleton</Button>
+	</div>
+{/if}
