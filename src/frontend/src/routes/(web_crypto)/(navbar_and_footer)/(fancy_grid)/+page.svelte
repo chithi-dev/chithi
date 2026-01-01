@@ -21,7 +21,7 @@
 	import { marked } from '$lib/functions/marked';
 	import { formatFileSize } from '$lib/functions/bytes';
 	import { formatSeconds } from '$lib/functions/times';
-	import { createTarStream, createEncryptedStream } from '$lib/functions/streams';
+	import { createZipStream, createEncryptedStream } from '$lib/functions/streams';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { v7 as uuidv7 } from 'uuid';
 	import { BACKEND_API } from '$lib/consts/backend';
@@ -283,19 +283,8 @@
 		try {
 			uploadingInProgress = true;
 
-			// 1. Create Tar Stream
-			let stream = createTarStream(files);
-
-			// 2. Gzip (if available)
-			try {
-				const CompressionStreamCtor = (globalThis as any).CompressionStream;
-				if (CompressionStreamCtor) {
-					const cs = new CompressionStreamCtor('gzip');
-					stream = stream.pipeThrough(cs);
-				}
-			} catch (e) {
-				console.warn('Gzip not available', e);
-			}
+			// 1. Create Zip Stream
+			const stream = createZipStream(files);
 
 			// 3. Encrypt
 			const {

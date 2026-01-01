@@ -10,55 +10,120 @@ import {
 	base64ToBytes,
 	base64urlToBytes
 } from './encryption';
-import { createTarHeader } from './tar';
+import {
+	createLocalFileHeader,
+	createDataDescriptor,
+	createCentralDirectoryHeader,
+	createEndOfCentralDirectory,
+	crc32,
+	type ZipFileEntry
+} from './zip';
 
-export function createTarStream(files: File[]): ReadableStream<Uint8Array> {
+export function createZipStream(files: File[]): ReadableStream<Uint8Array> {
 	let fileIndex = 0;
 	let currentFileReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 	let fileBytesRead = 0;
+	let fileCrc = 0;
+	let currentFileOffset = 0;
+	let totalOffset = 0;
 	let finishedStream = false;
+	let state: 'header' | 'content' | 'descriptor' | 'cd' | 'eocd' | 'done' = 'header';
+
+	const entries: ZipFileEntry[] = [];
+	let cdIndex = 0;
+	let cdStartOffset = 0;
 
 	return new ReadableStream({
 		async pull(controller) {
-			if (finishedStream) {
-				controller.close();
-				return;
-			}
-
-			if (!currentFileReader) {
-				if (fileIndex >= files.length) {
-					// End of files, write two empty blocks
-					const endBlock = new Uint8Array(1024);
-					controller.enqueue(endBlock);
-					finishedStream = true;
+			while (true) {
+				if (finishedStream) {
 					controller.close();
 					return;
 				}
 
-				const file = files[fileIndex];
-				// Write header
-				const header = createTarHeader(file);
-				controller.enqueue(header);
+				if (state === 'header') {
+					if (fileIndex >= files.length) {
+						state = 'cd';
+						cdStartOffset = totalOffset;
+						continue;
+					}
 
-				currentFileReader = file.stream().getReader();
-				fileBytesRead = 0;
-			}
+					const file = files[fileIndex];
+					const name = ((file as any).relativePath as string) || file.name;
+					const lastModified = new Date(file.lastModified);
 
-			// Read from current file
-			const { done, value } = await currentFileReader!.read();
-			if (done) {
-				// File finished
-				// Write padding
-				if (fileBytesRead % 512 !== 0) {
-					const padding = new Uint8Array(512 - (fileBytesRead % 512));
-					controller.enqueue(padding);
+					const header = createLocalFileHeader(name, 0, lastModified);
+
+					// Record entry start
+					currentFileOffset = totalOffset;
+
+					controller.enqueue(header);
+					totalOffset += header.length;
+
+					currentFileReader = file.stream().getReader();
+					fileBytesRead = 0;
+					fileCrc = 0;
+					state = 'content';
+					return; // Yield
 				}
-				currentFileReader = null;
-				fileIndex++;
-				// Loop will continue on next pull
-			} else {
-				fileBytesRead += value.byteLength;
-				controller.enqueue(value);
+
+				if (state === 'content') {
+					const { done, value } = await currentFileReader!.read();
+					if (done) {
+						state = 'descriptor';
+						continue;
+					}
+
+					fileBytesRead += value.byteLength;
+					fileCrc = crc32(value, fileCrc);
+					controller.enqueue(value);
+					totalOffset += value.byteLength;
+					return; // Yield
+				}
+
+				if (state === 'descriptor') {
+					const descriptor = createDataDescriptor(fileCrc, fileBytesRead);
+					controller.enqueue(descriptor);
+					totalOffset += descriptor.length;
+
+					const file = files[fileIndex];
+					const name = ((file as any).relativePath as string) || file.name;
+
+					entries.push({
+						name,
+						size: fileBytesRead,
+						crc: fileCrc,
+						offset: currentFileOffset,
+						lastModified: new Date(file.lastModified)
+					});
+
+					fileIndex++;
+					currentFileReader = null;
+					state = 'header';
+					return; // Yield
+				}
+
+				if (state === 'cd') {
+					if (cdIndex >= entries.length) {
+						state = 'eocd';
+						continue;
+					}
+
+					const entry = entries[cdIndex];
+					const header = createCentralDirectoryHeader(entry);
+					controller.enqueue(header);
+					totalOffset += header.length;
+					cdIndex++;
+					return; // Yield
+				}
+
+				if (state === 'eocd') {
+					const cdSize = totalOffset - cdStartOffset;
+					const eocd = createEndOfCentralDirectory(entries.length, cdSize, cdStartOffset);
+					controller.enqueue(eocd);
+					finishedStream = true;
+					return; // Yield
+				}
 			}
 		}
 	});
