@@ -453,7 +453,7 @@
 		<RecentUpload />
 	</div>
 	<CardContent class="p-6">
-		<div class="grid min-h-150 grid-cols-1 gap-8 lg:grid-cols-2">
+		<div class="grid grid-cols-1 gap-8 lg:min-h-150 lg:grid-cols-2">
 			{#if configData.isLoading || (dev && debugLoading)}
 				<div
 					class="relative flex h-full w-full flex-col items-center justify-center rounded-lg bg-card p-12"
@@ -563,7 +563,7 @@
 								</Tooltip.Root>
 							</Tooltip.Provider>
 						</div>
-						<ScrollArea class="mb-4 max-h-72 w-full rounded-lg border border-border bg-card">
+						<ScrollArea class="mb-4 h-72 w-full rounded-lg border border-border bg-card lg:h-auto lg:flex-1">
 							<div class="p-4">
 								{#each files as file}
 									{@render fileItem(file)}
@@ -782,8 +782,8 @@
 
 			<!-- Right Column: Info -->
 			{#if configData.isLoading || (dev && debugLoading)}
-				<div class="flex h-16 w-full flex-col p-4 lg:p-8">
-					<ScrollArea class="max-h-125 w-full">
+				<div class="flex h-full w-full flex-col p-4 lg:p-8">
+					<ScrollArea class="h-auto w-full lg:h-full">
 						<div
 							class="prose w-full max-w-none prose-zinc md:text-sm lg:text-lg lg:leading-relaxed dark:prose-invert"
 						>
@@ -805,7 +805,7 @@
 				</div>
 			{:else if !isUploadComplete && !isUploading}
 				<div class="flex h-full w-full flex-col p-4 lg:p-8">
-					<ScrollArea class="max-h-125 w-full">
+					<ScrollArea class="h-auto w-full lg:h-full">
 						<div
 							class="prose w-full max-w-none prose-zinc md:text-sm lg:text-lg lg:leading-relaxed dark:prose-invert"
 						>
