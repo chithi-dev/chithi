@@ -204,7 +204,7 @@
 	--animate-pulse-slow: pulse-slow 8s ease-in-out infinite;
 	--animate-float: float 10s linear infinite;
 	--animate-twinkle: twinkle 4s ease-in-out infinite;
-	--animate-dash: dash 1s linear infinite;
+	--animate-dash: dash 0.5s linear infinite;
 
 	@keyframes dash {
 		to {
