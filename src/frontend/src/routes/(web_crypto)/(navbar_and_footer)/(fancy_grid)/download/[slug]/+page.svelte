@@ -2,8 +2,8 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { FileText, Shield, Lock, AlertCircle, Loader2, Download } from 'lucide-svelte';
-	import { page } from '$app/stores';
+	import { FileText, Lock, CircleAlert, LoaderCircle, Download } from 'lucide-svelte';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { BACKEND_API } from '$lib/consts/backend';
 	import { createDecryptedStream } from '$lib/functions/streams';
@@ -11,8 +11,8 @@
 	import { toast } from 'svelte-sonner';
 	import { Progress } from '$lib/components/ui/progress';
 
-	let key = $derived($page.url.searchParams.get('secret'));
-	let slug = $derived($page.params.slug);
+	let key = $derived(page.url.searchParams.get('secret'));
+	let slug = $derived(page.params.slug);
 
 	let status = $state<'checking' | 'ready' | 'needs_password' | 'error' | 'downloading'>(
 		'checking'
@@ -162,12 +162,12 @@
 				<Card.Content class="w-full px-0">
 					{#if status === 'checking'}
 						<div class="flex flex-col items-center justify-center py-8">
-							<Loader2 class="mb-4 h-8 w-8 animate-spin text-primary" />
+							<LoaderCircle class="mb-4 h-8 w-8 animate-spin text-primary" />
 							<p class="text-muted-foreground">Verifying key and checking file...</p>
 						</div>
 					{:else if status === 'error'}
 						<div class="flex flex-col items-center justify-center py-8 text-destructive">
-							<AlertCircle class="mb-4 h-12 w-12" />
+							<CircleAlert class="mb-4 h-12 w-12" />
 							<p class="font-medium">{errorMsg}</p>
 						</div>
 					{:else if status === 'needs_password'}
