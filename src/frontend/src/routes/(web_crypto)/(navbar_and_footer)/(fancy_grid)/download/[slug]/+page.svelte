@@ -2,7 +2,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { FileText, Lock, CircleAlert, LoaderCircle, Download } from 'lucide-svelte';
+	import { FileText, CircleAlert, LoaderCircle, Download } from 'lucide-svelte';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { BACKEND_API } from '$lib/consts/backend';
@@ -171,18 +171,15 @@
 							<p class="font-medium">{errorMsg}</p>
 						</div>
 					{:else if status === 'needs_password'}
-						<div class="flex flex-col gap-4 py-4">
-							<div class="flex items-center justify-center gap-2 text-amber-500">
-								<Lock class="h-5 w-5" />
-								<span class="font-medium">Password Required</span>
-							</div>
+						<div class="mx-auto flex w-full max-w-sm items-center py-8">
 							<Input
 								type="password"
-								placeholder="Enter password"
+								placeholder="Password"
+								class="rounded-r-none focus-visible:z-10"
 								bind:value={password}
 								onkeydown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
 							/>
-							<Button onclick={handlePasswordSubmit}>Unlock</Button>
+							<Button class="rounded-l-none" onclick={handlePasswordSubmit}>Unlock</Button>
 						</div>
 					{:else}
 						<div class="mb-6 flex items-center gap-4 rounded-lg border bg-background/50 p-4">
