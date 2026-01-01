@@ -1,17 +1,10 @@
 <script lang="ts">
 	import { Button, buttonVariants } from '$lib/components/ui/button';
-	import {
-		Card,
-		CardContent,
-		CardHeader,
-		CardTitle,
-		CardDescription
-	} from '$lib/components/ui/card';
+	import { Card, CardContent } from '$lib/components/ui/card';
 	import { Input } from '$lib/components/ui/input';
 	import * as Select from '$lib/components/ui/select';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { useConfigQuery } from '$lib/queries/config';
-	import { onMount } from 'svelte';
 	import {
 		Plus,
 		X,
@@ -39,6 +32,7 @@
 	import RecentUpload from './recent_upload.svelte';
 	import { addHistoryEntry } from '$lib/database';
 	import { cn } from '$lib/utils';
+	import { toast } from 'svelte-sonner';
 
 	const { config: configData } = useConfigQuery();
 
@@ -110,6 +104,9 @@
 		isDragging = false;
 		isDraggingOverZone = false;
 		isDraggingOverCard = false;
+		if (e.dataTransfer?.types.includes('Files')) {
+			toast.error('File/folder must be dropped into the bordered area in the dashed circle');
+		}
 	};
 
 	const handleCardDragEnter = (e: DragEvent) => {
@@ -209,7 +206,7 @@
 		}
 	};
 
-	const handleDrop = async (e: DragEvent) => {
+	const handleZoneDrop = async (e: DragEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
 		isDragging = false;
@@ -239,6 +236,16 @@
 		} else if (e.dataTransfer?.files) {
 			addFiles(Array.from(e.dataTransfer.files));
 		}
+	};
+
+	const handleCardDrop = (e: DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		isDragging = false;
+		isDraggingOverZone = false;
+		isDraggingOverCard = false;
+		dragCounter = 0;
+		toast.error('File/Folder must be dropped in the bordered area');
 	};
 
 	const handleFileSelect = (e: Event) => {
@@ -417,7 +424,7 @@
 		isDraggingOverCard && 'shadow-[0_0_40px_-10px_var(--primary)]',
 		isDraggingOverZone && 'shadow-[0_0_60px_-10px_var(--primary)]'
 	)}
-	ondrop={handleDrop}
+	ondrop={handleCardDrop}
 	ondragenter={handleCardDragEnter}
 	ondragleave={handleCardDragLeave}
 >
@@ -688,6 +695,7 @@
 						'relative flex h-full cursor-pointer flex-col items-center justify-center rounded-lg bg-card transition-all duration-200 focus:outline-none',
 						isDraggingOverZone && 'scale-[1.02] shadow-xl'
 					)}
+					ondrop={handleZoneDrop}
 					onclick={() => fileInputInitial?.click()}
 					onkeydown={(e) => {
 						if (e.key === 'Enter' || e.key === ' ') {

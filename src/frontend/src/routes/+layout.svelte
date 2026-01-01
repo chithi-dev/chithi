@@ -2,9 +2,10 @@
 	import './layout.css';
 	import { browser } from '$app/environment';
 	import favicon from '$lib/assets/favicon.svg';
-	import { ModeWatcher, mode } from 'mode-watcher';
+	import { ModeWatcher } from 'mode-watcher';
 	import { QueryClient, QueryClientProvider } from '@tanstack/svelte-query';
 	import { SvelteQueryDevtools } from '@tanstack/svelte-query-devtools';
+	import { Toaster } from '$lib/components/ui/sonner/index.js';
 
 	let { children } = $props();
 
@@ -21,6 +22,8 @@
 	<link rel="icon" href={favicon} />
 	<title>Chithi</title>
 </svelte:head>
+
+<Toaster />
 
 <ModeWatcher />
 <QueryClientProvider client={queryClient}>
