@@ -440,7 +440,7 @@
 
 <Card
 	class={cn(
-		'relative z-10 mx-auto w-full max-w-6xl border-border bg-card transition-all duration-200',
+		'relative z-10 mx-auto w-full max-w-5xl border-border bg-card transition-all duration-200',
 		isDragging && 'shadow-[0_0_20px_-10px_var(--primary)]',
 		isDraggingOverCard && 'shadow-[0_0_40px_-10px_var(--primary)]',
 		isDraggingOverZone && 'shadow-[0_0_60px_-10px_var(--primary)]'
@@ -453,7 +453,7 @@
 		<RecentUpload />
 	</div>
 	<CardContent class="p-6">
-		<div class="grid grid-cols-1 gap-8 lg:min-h-150 lg:grid-cols-2">
+		<div class="grid min-h-150 grid-cols-1 gap-8 lg:grid-cols-2">
 			{#if configData.isLoading || (dev && debugLoading)}
 				<div
 					class="relative flex h-full w-full flex-col items-center justify-center rounded-lg bg-card p-12"
@@ -563,7 +563,9 @@
 								</Tooltip.Root>
 							</Tooltip.Provider>
 						</div>
-						<ScrollArea class="mb-4 h-72 w-full rounded-lg border border-border bg-card lg:h-auto lg:flex-1">
+						<ScrollArea
+							class="mb-4 h-72 w-full rounded-lg border border-border bg-card lg:h-auto lg:flex-1"
+						>
 							<div class="p-4">
 								{#each files as file}
 									{@render fileItem(file)}

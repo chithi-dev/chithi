@@ -87,7 +87,7 @@
 		></div>
 	</div>
 
-	<div class="relative z-10 shadow-[0_0_15px_-12px_var(--primary)]">
+	<div class="relative z-10 w-full max-w-5xl shadow-[0_0_15px_-12px_var(--primary)]">
 		{@render children()}
 	</div>
 </main>
