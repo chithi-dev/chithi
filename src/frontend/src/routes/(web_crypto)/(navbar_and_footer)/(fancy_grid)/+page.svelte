@@ -38,10 +38,14 @@
 	import QRCode from '$lib/components/QRCode.svelte';
 	import RecentUpload from './recent_upload.svelte';
 	import { addHistoryEntry } from '$lib/database';
+	import { cn } from '$lib/utils';
 
 	const { config: configData } = useConfigQuery();
 
 	let isDragging = $state(false);
+	let isDraggingOverCard = $state(false);
+	let isDraggingOverZone = $state(false);
+	let dragCounter = 0;
 	let files: File[] = $state([]);
 	let isUploading = $state(false);
 	let totalSize = $state('0 Bytes');
@@ -80,19 +84,60 @@
 		}
 	});
 
-	const handleDragOver = (e: DragEvent) => {
+	const handleWindowDragEnter = (e: DragEvent) => {
 		e.preventDefault();
+		dragCounter++;
 		if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+		isDragging = true;
+	};
+
+	const handleWindowDragLeave = (e: DragEvent) => {
+		dragCounter--;
+		if (dragCounter <= 0) {
+			isDragging = false;
+			dragCounter = 0;
+		}
+	};
+
+	const handleWindowDragOver = (e: DragEvent) => {
+		e.preventDefault();
 		if (!isDragging) isDragging = true;
 	};
 
-	const handleDragLeave = (e: DragEvent) => {
+	const handleWindowDrop = (e: DragEvent) => {
+		e.preventDefault();
+		dragCounter = 0;
+		isDragging = false;
+		isDraggingOverZone = false;
+		isDraggingOverCard = false;
+	};
+
+	const handleCardDragEnter = (e: DragEvent) => {
+		e.preventDefault();
+		isDraggingOverCard = true;
+	};
+
+	const handleCardDragLeave = (e: DragEvent) => {
 		const currentTarget = e.currentTarget as Node;
 		const relatedTarget = e.relatedTarget as Node;
 		if (currentTarget && relatedTarget && currentTarget.contains(relatedTarget)) {
 			return;
 		}
-		isDragging = false;
+		isDraggingOverCard = false;
+	};
+
+	const handleZoneDragEnter = (e: DragEvent) => {
+		e.preventDefault();
+		isDraggingOverZone = true;
+	};
+
+	const handleZoneDragLeave = (e: DragEvent) => {
+		const currentTarget = e.currentTarget as Node;
+		const relatedTarget = e.relatedTarget as Node;
+		if (currentTarget && relatedTarget && currentTarget.contains(relatedTarget)) {
+			return;
+		}
+		isDraggingOverZone = false;
 	};
 
 	const traverseFileTree = async (item: any, path = ''): Promise<File[]> => {
@@ -168,6 +213,9 @@
 		e.preventDefault();
 		e.stopPropagation();
 		isDragging = false;
+		isDraggingOverZone = false;
+		isDraggingOverCard = false;
+		dragCounter = 0;
 
 		const items = e.dataTransfer?.items;
 		if (items) {
@@ -325,6 +373,13 @@
 	};
 </script>
 
+<svelte:window
+	ondragenter={handleWindowDragEnter}
+	ondragover={handleWindowDragOver}
+	ondragleave={handleWindowDragLeave}
+	ondrop={handleWindowDrop}
+/>
+
 {#snippet fileItem(file: File)}
 	<div
 		class="flex items-center justify-between border-b border-border py-2 first:pt-0 last:border-0"
@@ -356,13 +411,15 @@
 {/snippet}
 
 <Card
-	class="relative z-10 mx-auto w-full max-w-6xl border-border bg-card transition-all duration-200 {isDragging
-		? 'shadow-[0_0_40px_-10px_var(--primary)]'
-		: ''}"
-	ondragover={handleDragOver}
-	ondragenter={handleDragOver}
-	ondragleave={handleDragLeave}
+	class={cn(
+		'relative z-10 mx-auto w-full max-w-6xl border-border bg-card transition-all duration-200',
+		isDragging && 'shadow-[0_0_20px_-10px_var(--primary)]',
+		isDraggingOverCard && 'shadow-[0_0_40px_-10px_var(--primary)]',
+		isDraggingOverZone && 'shadow-[0_0_60px_-10px_var(--primary)]'
+	)}
 	ondrop={handleDrop}
+	ondragenter={handleCardDragEnter}
+	ondragleave={handleCardDragLeave}
 >
 	<div class="absolute top-4 right-4 z-20">
 		<RecentUpload />
@@ -627,7 +684,10 @@
 			<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
 				<!-- Left Column: Drop Area -->
 				<div
-					class="relative flex h-full cursor-pointer flex-col items-center justify-center rounded-lg bg-card transition-all duration-200 focus:outline-none"
+					class={cn(
+						'relative flex h-full cursor-pointer flex-col items-center justify-center rounded-lg bg-card transition-all duration-200 focus:outline-none',
+						isDraggingOverZone && 'scale-[1.02] shadow-xl'
+					)}
 					onclick={() => fileInputInitial?.click()}
 					onkeydown={(e) => {
 						if (e.key === 'Enter' || e.key === ' ') {
@@ -635,6 +695,8 @@
 							fileInputInitial?.click();
 						}
 					}}
+					ondragenter={handleZoneDragEnter}
+					ondragleave={handleZoneDragLeave}
 					tabindex="0"
 					role="button"
 					aria-label="File drop area - click or drop files to upload"
@@ -643,29 +705,28 @@
 					<div class="relative z-10 flex flex-col items-center justify-center p-12">
 						<!-- Plus icon in circle -->
 						<div
-							class="mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary transition-opacity duration-200 {isDragging
-								? 'opacity-40'
-								: 'opacity-100'}"
+							class={cn(
+								'mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary transition-all duration-200',
+								isDraggingOverZone && 'scale-110 bg-primary/10'
+							)}
 						>
-							<Plus
-								class="h-8 w-8 text-primary transition-opacity duration-200 {isDragging
-									? 'opacity-40'
-									: 'opacity-100'}"
-							/>
+							<Plus class="h-8 w-8 text-primary transition-transform duration-200" />
 						</div>
 
 						<!-- Text content -->
 						<h2
-							class="mb-2 text-xl font-medium transition-opacity duration-200 {isDragging
-								? 'opacity-40'
-								: 'opacity-100'}"
+							class={cn(
+								'mb-2 text-xl font-medium transition-colors duration-200',
+								isDraggingOverZone && 'text-primary'
+							)}
 						>
 							Drag and drop files
 						</h2>
 						<p
-							class="mb-8 text-center text-muted-foreground transition-opacity duration-200 md:mb-4 md:text-sm {isDragging
-								? 'opacity-40'
-								: 'opacity-100'}"
+							class={cn(
+								'mb-8 text-center transition-colors duration-200 md:mb-4 md:text-sm',
+								isDraggingOverZone ? 'text-primary/80' : 'text-muted-foreground'
+							)}
 						>
 							or click to send up to {formatFileSize(configData.data?.max_file_size_limit ?? 0)} of files
 							with end-to-end encryption
@@ -675,9 +736,10 @@
 						<Button
 							variant="default"
 							size="lg"
-							class="cursor-pointer px-8 py-6 text-lg transition-opacity duration-200 md:px-6 md:py-4 md:text-base {isDragging
-								? 'opacity-40'
-								: 'opacity-100'}"
+							class={cn(
+								'cursor-pointer px-8 py-6 text-lg transition-all duration-200 md:px-6 md:py-4 md:text-base',
+								isDraggingOverZone && 'scale-105 shadow-lg'
+							)}
 							onclick={(e) => {
 								e.stopPropagation();
 								fileInputInitial?.click();
@@ -707,9 +769,11 @@
 							fill="none"
 							stroke="currentColor"
 							stroke-width="2"
-							class="text-border transition-all duration-200 {isDragging
-								? 'animate-dash text-primary'
-								: ''}"
+							class={cn(
+								'text-border transition-all duration-200',
+								isDragging && (isDraggingOverZone ? 'text-primary' : 'text-primary/50'),
+								isDraggingOverZone && 'animate-dash'
+							)}
 							stroke-dasharray="10"
 						/>
 					</svg>
