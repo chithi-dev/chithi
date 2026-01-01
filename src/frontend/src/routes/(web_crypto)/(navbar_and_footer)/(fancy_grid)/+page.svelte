@@ -296,17 +296,18 @@
 			uploadingInProgress = true;
 			uploadProgress = 0;
 
-			// 1. Create Zip Stream
+			// Create Zip Stream
 			const stream = createZipStream(files);
 
-			// 2. Encrypt
-			const {
-				stream: encryptedStream,
-				keySecret,
-				meta
-			} = await createEncryptedStream(stream, isPasswordProtected ? password : undefined);
+			//  Encrypt
+			const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
+			const { stream: encryptedStream, keySecret } = await createEncryptedStream(
+				stream,
+				isPasswordProtected ? password : undefined,
+				currentTotalSize
+			);
 
-			// 3. Upload
+			// Upload
 			// send a readable filename (original file name or folder name) and a generated blob filename
 			const readableFilename = files.length === 1 ? files[0].name : folderName;
 			const blobFilename = uuidv7();
@@ -320,8 +321,6 @@
 			if (files.length > 1) {
 				formData.append('folder_name', folderName);
 			}
-			// include metadata for debugging/inspection (server may ignore it)
-			if (meta) formData.append('meta', JSON.stringify(meta));
 
 			const data = await new Promise<any>((resolve, reject) => {
 				const xhr = new XMLHttpRequest();

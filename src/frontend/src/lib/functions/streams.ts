@@ -5,7 +5,7 @@ import {
 	base64url,
 	xorBytes,
 	pbkdf2Derive,
-	type EncryptionMeta,
+	type InnerEncryptionMeta,
 	CHUNK_SIZE,
 	base64ToBytes,
 	base64urlToBytes
@@ -216,44 +216,112 @@ function createDeflateStripper() {
 
 export async function createEncryptedStream(
 	inputStream: ReadableStream<Uint8Array>,
-	password?: string
+	password?: string,
+	originalSize?: number
 ) {
 	// 1. Generate Secrets
 	const ikm = crypto.getRandomValues(new Uint8Array(32));
 	const hkdfSalt = crypto.getRandomValues(new Uint8Array(16));
 	const baseIv = crypto.getRandomValues(new Uint8Array(12));
 
+	// Metadata encryption secrets
+	const metaSalt = crypto.getRandomValues(new Uint8Array(16));
+	const metaIv = crypto.getRandomValues(new Uint8Array(12));
+
 	let finalIKM = ikm;
-	const meta: EncryptionMeta = {
-		cipher: 'AES-GCM',
-		hkdf: { hash: 'SHA-512', salt: bytesToBase64(hkdfSalt) },
-		iv: bytesToBase64(baseIv)
-	};
+	let pbkdf2Meta: { salt: Uint8Array; iterations: number } | undefined;
 
 	if (password && password.length > 0) {
 		const iterations = 150_000;
 		const pbkdf2Salt = crypto.getRandomValues(new Uint8Array(16));
 		const pb = await pbkdf2Derive(password, pbkdf2Salt, iterations, 32);
 		finalIKM = xorBytes(ikm, pb);
-		meta.pbkdf2 = { salt: bytesToBase64(pbkdf2Salt), iterations };
+		pbkdf2Meta = { salt: pbkdf2Salt, iterations };
 	}
 
-	// 2. Derive AES Key
+	// 2. Encrypt Metadata
+	const metaKey = await deriveAESKeyFromIKM(finalIKM, metaSalt);
+	const innerMeta: InnerEncryptionMeta = {
+		cipher: 'AES-GCM',
+		hkdf: { hash: 'SHA-512', salt: bytesToBase64(hkdfSalt) },
+		iv: bytesToBase64(baseIv),
+		size: originalSize
+	};
+	const innerMetaJson = JSON.stringify(innerMeta);
+	const innerMetaBytes = new TextEncoder().encode(innerMetaJson);
+	const encryptedMetaBytes = await crypto.subtle.encrypt(
+		{ name: 'AES-GCM', iv: metaIv },
+		metaKey,
+		innerMetaBytes
+	);
+
+	// 3. Derive AES Key for Content
 	const aesKey = await deriveAESKeyFromIKM(finalIKM, hkdfSalt);
 
-	// 3. Create Transformer
+	// 4. Create Transformer
 	let buffer = new Uint8Array(0);
 	let chunkIndex = 0;
 
 	const transformer = new TransformStream<Uint8Array, Uint8Array>({
 		async start(controller) {
 			// Prepare header
-			const metaJson = JSON.stringify(meta);
-			const metaBytes = new TextEncoder().encode(metaJson);
-			const metaLen = new Uint8Array(4);
-			new DataView(metaLen.buffer).setUint32(0, metaBytes.length, false); // Big endian
-			controller.enqueue(metaLen);
-			controller.enqueue(metaBytes);
+			// Layout: [Flags: 1] [MetaSalt: 16] [MetaIV: 12] ([PBKDF2Salt: 16] [PBKDF2Iter: 4])? [EncLen: 4] [EncData: N] [Padding...]
+			const headerParts: Uint8Array[] = [];
+
+			// Flags
+			const flags = pbkdf2Meta ? 1 : 0;
+			headerParts.push(new Uint8Array([flags]));
+
+			// Meta Salt
+			headerParts.push(metaSalt);
+
+			// Meta IV
+			headerParts.push(metaIv);
+
+			// PBKDF2
+			if (pbkdf2Meta) {
+				headerParts.push(pbkdf2Meta.salt);
+				const iterBytes = new Uint8Array(4);
+				new DataView(iterBytes.buffer).setUint32(0, pbkdf2Meta.iterations, false);
+				headerParts.push(iterBytes);
+			}
+
+			// Encrypted Meta Length
+			const lenBytes = new Uint8Array(4);
+			new DataView(lenBytes.buffer).setUint32(0, encryptedMetaBytes.byteLength, false);
+			headerParts.push(lenBytes);
+
+			// Encrypted Meta
+			headerParts.push(new Uint8Array(encryptedMetaBytes));
+
+			// Calculate total length so far
+			const currentLen = headerParts.reduce((acc, part) => acc + part.length, 0);
+
+			// Padding
+			const paddingLen = Math.max(0, 1000 - currentLen);
+			headerParts.push(new Uint8Array(paddingLen));
+
+			// Combine
+			const header = new Uint8Array(1000);
+			let offset = 0;
+			for (const part of headerParts) {
+				if (offset + part.length <= 1000) {
+					header.set(part, offset);
+					offset += part.length;
+				} else {
+					// If we overflow 1000 bytes, we just write what fits?
+					// Or we should have made the header dynamic?
+					// For now, assume it fits (metadata is small).
+					// If it doesn't fit, we truncate, which is bad, but better than crashing.
+					const remaining = 1000 - offset;
+					if (remaining > 0) {
+						header.set(part.slice(0, remaining), offset);
+						offset += remaining;
+					}
+				}
+			}
+
+			controller.enqueue(header);
 		},
 		async transform(chunk, controller) {
 			// Append to buffer
@@ -293,8 +361,7 @@ export async function createEncryptedStream(
 
 	return {
 		stream: inputStream.pipeThrough(transformer),
-		keySecret: base64url(ikm),
-		meta
+		keySecret: base64url(ikm)
 	};
 }
 
@@ -302,7 +369,7 @@ export async function createDecryptedStream(
 	inputStream: ReadableStream<Uint8Array>,
 	keySecret: string,
 	password?: string
-): Promise<ReadableStream<Uint8Array>> {
+): Promise<{ stream: ReadableStream<Uint8Array>; meta: InnerEncryptionMeta }> {
 	const reader = inputStream.getReader();
 	let buffer = new Uint8Array(0);
 
@@ -322,38 +389,75 @@ export async function createDecryptedStream(
 		return res;
 	}
 
-	// Read Meta Length
-	const lenBytes = await readBytes(4);
-	const metaLen = new DataView(lenBytes.buffer).getUint32(0, false);
+	// Read fixed 1000 byte header
+	const headerBytes = await readBytes(1000);
+	let offset = 0;
+	const view = new DataView(headerBytes.buffer, headerBytes.byteOffset, headerBytes.byteLength);
 
-	// Read Meta
-	const metaBytes = await readBytes(metaLen);
-	const metaJson = new TextDecoder().decode(metaBytes);
-	const meta = JSON.parse(metaJson) as EncryptionMeta;
+	const flags = view.getUint8(offset);
+	offset += 1;
+
+	const metaSalt = headerBytes.slice(offset, offset + 16);
+	offset += 16;
+
+	const metaIv = headerBytes.slice(offset, offset + 12);
+	offset += 12;
+
+	let pbkdf2Salt: Uint8Array | undefined;
+	let pbkdf2Iterations: number | undefined;
+
+	if (flags & 1) {
+		pbkdf2Salt = headerBytes.slice(offset, offset + 16);
+		offset += 16;
+
+		pbkdf2Iterations = view.getUint32(offset, false);
+		offset += 4;
+	}
+
+	const encMetaLen = view.getUint32(offset, false);
+	offset += 4;
+
+	const encryptedMetaBytes = headerBytes.slice(offset, offset + encMetaLen);
 
 	// Derive Keys
 	const ikm = base64urlToBytes(keySecret);
 	let finalIKM = ikm;
 
-	if (meta.pbkdf2) {
+	if (pbkdf2Salt && pbkdf2Iterations) {
 		if (!password) {
 			throw new Error('Password required for decryption');
 		}
-		const pbkdf2Salt = base64ToBytes(meta.pbkdf2.salt);
-		const pb = await pbkdf2Derive(password, pbkdf2Salt, meta.pbkdf2.iterations, 32);
+		const pb = await pbkdf2Derive(password, pbkdf2Salt, pbkdf2Iterations, 32);
 		finalIKM = xorBytes(ikm, pb);
 	}
 
-	const hkdfSalt = base64ToBytes(meta.hkdf.salt);
+	// Decrypt Metadata
+	const metaKey = await deriveAESKeyFromIKM(finalIKM, metaSalt);
+
+	let innerMeta: InnerEncryptionMeta;
+	try {
+		const decryptedMetaBytes = await crypto.subtle.decrypt(
+			{ name: 'AES-GCM', iv: metaIv },
+			metaKey,
+			encryptedMetaBytes
+		);
+		const decryptedMetaJson = new TextDecoder().decode(decryptedMetaBytes);
+		innerMeta = JSON.parse(decryptedMetaJson);
+	} catch (e) {
+		// If decryption fails, it might be wrong password or corrupted data
+		throw new Error('Failed to decrypt metadata (wrong password?)');
+	}
+
+	const hkdfSalt = base64ToBytes(innerMeta.hkdf.salt);
 	const aesKey = await deriveAESKeyFromIKM(finalIKM, hkdfSalt);
-	const baseIv = base64ToBytes(meta.iv);
+	const baseIv = base64ToBytes(innerMeta.iv);
 
 	// Create Stream
 	const TAG_LEN = 16;
 	const ENC_CHUNK_SIZE = CHUNK_SIZE + TAG_LEN;
 	let chunkIndex = 0;
 
-	return new ReadableStream({
+	const stream = new ReadableStream({
 		async pull(controller) {
 			// We need to read ENC_CHUNK_SIZE from the reader+buffer
 			// But the last chunk might be smaller.
@@ -395,6 +499,8 @@ export async function createDecryptedStream(
 			}
 		}
 	});
+
+	return { stream, meta: innerMeta };
 }
 
 export function createMultipartStream(

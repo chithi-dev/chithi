@@ -1,5 +1,6 @@
-from botocore.exceptions import ClientError
 import os
+
+from botocore.exceptions import ClientError
 from fastapi import APIRouter, BackgroundTasks, Header, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlmodel import select
@@ -10,6 +11,12 @@ from app.settings import settings
 from app.tasks.clean_file import delete_expired_file
 
 router = APIRouter()
+
+
+async def gibberish_generator():
+    chunk_size = 64 * 1024
+    while True:
+        yield os.urandom(chunk_size)
 
 
 @router.get("/download/{key}")
@@ -40,10 +47,23 @@ async def download_files(
     if file_record.download_count >= file_record.expire_after_n_download:
         background_tasks.add_task(delete_expired_file.delay, str(file_record.id))
 
+    if range_header.strip() == "bytes=0-":
+        return StreamingResponse(
+            gibberish_generator(),
+            status_code=200,
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": f'attachment; filename="{file_record.filename}"',
+            },
+        )
+
     try:
         s3_response = await s3.get_object(
             Bucket=settings.RUSTFS_BUCKET_NAME, Key=key, Range=range_header
         )
+
+        if s3_response["ResponseMetadata"]["HTTPStatusCode"] == 200:
+            raise HTTPException(status_code=400, detail="Range header is required")
     except ClientError as e:
         # Check if it is a 404
         error_code = e.response.get("Error", {}).get("Code")
@@ -64,14 +84,6 @@ async def download_files(
                             content_length = end - start + 1
             except ValueError:
                 pass
-
-            async def gibberish_generator():
-                chunk_size = 64 * 1024
-                remaining = content_length
-                while remaining > 0:
-                    size = min(chunk_size, remaining)
-                    yield os.urandom(size)
-                    remaining -= size
 
             return StreamingResponse(
                 gibberish_generator(),
