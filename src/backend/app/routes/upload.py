@@ -20,14 +20,17 @@ CHUNK_SIZE = ByteSize(
 @router.post("/upload")
 async def upload_file(
     file: UploadFile,
+    filename: Annotated[str | None, Form()],
     expire_after_n_download: Annotated[int, Form()],
     expire_after: Annotated[int, Form()],
     # Dependency Injection
     s3: S3Dep,
     session: SessionDep,
 ) -> FileOut:
-    filename = file.filename or uuid.uuid7()
-    key = filename
+    if not filename:
+        filename = uuid.uuid7()  # type: ignore
+
+    key = uuid.uuid7()
     resp = await s3.create_multipart_upload(
         Bucket=settings.RUSTFS_BUCKET_NAME,
         Key=str(key),

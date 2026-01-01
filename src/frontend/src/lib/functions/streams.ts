@@ -23,6 +23,7 @@ export function createZipStream(files: File[]): ReadableStream<Uint8Array> {
 	let fileIndex = 0;
 	let currentFileReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 	let fileBytesRead = 0;
+	let fileUncompressedSize = 0;
 	let fileCrc = 0;
 	let currentFileOffset = 0;
 	let totalOffset = 0;
@@ -32,6 +33,21 @@ export function createZipStream(files: File[]): ReadableStream<Uint8Array> {
 	const entries: ZipFileEntry[] = [];
 	let cdIndex = 0;
 	let cdStartOffset = 0;
+
+	// Check for Deflate Raw support
+	let supportsDeflateRaw = false;
+	let supportsDeflate = false;
+	try {
+		new CompressionStream('deflate-raw');
+		supportsDeflateRaw = true;
+	} catch (e) {
+		try {
+			new CompressionStream('deflate');
+			supportsDeflate = true;
+		} catch (e2) {
+			// Ignore
+		}
+	}
 
 	return new ReadableStream({
 		async pull(controller) {
@@ -52,7 +68,30 @@ export function createZipStream(files: File[]): ReadableStream<Uint8Array> {
 					const name = ((file as any).relativePath as string) || file.name;
 					const lastModified = new Date(file.lastModified);
 
-					const header = createLocalFileHeader(name, 0, lastModified);
+					let compressionMethod = 0;
+					let stream = file.stream();
+
+					// CRC and Size tracking transformer
+					const crcTransformer = new TransformStream({
+						transform(chunk, controller) {
+							fileCrc = crc32(chunk, fileCrc);
+							fileUncompressedSize += chunk.byteLength;
+							controller.enqueue(chunk);
+						}
+					});
+
+					stream = stream.pipeThrough(crcTransformer);
+
+					if (supportsDeflateRaw) {
+						compressionMethod = 8;
+						stream = stream.pipeThrough(new CompressionStream('deflate-raw'));
+					} else if (supportsDeflate) {
+						compressionMethod = 8;
+						stream = stream.pipeThrough(new CompressionStream('deflate'));
+						stream = stream.pipeThrough(createDeflateStripper() as any);
+					}
+
+					const header = createLocalFileHeader(name, 0, lastModified, compressionMethod);
 
 					// Record entry start
 					currentFileOffset = totalOffset;
@@ -60,8 +99,9 @@ export function createZipStream(files: File[]): ReadableStream<Uint8Array> {
 					controller.enqueue(header);
 					totalOffset += header.length;
 
-					currentFileReader = file.stream().getReader();
+					currentFileReader = stream.getReader();
 					fileBytesRead = 0;
+					fileUncompressedSize = 0;
 					fileCrc = 0;
 					state = 'content';
 					return; // Yield
@@ -75,14 +115,13 @@ export function createZipStream(files: File[]): ReadableStream<Uint8Array> {
 					}
 
 					fileBytesRead += value.byteLength;
-					fileCrc = crc32(value, fileCrc);
 					controller.enqueue(value);
 					totalOffset += value.byteLength;
 					return; // Yield
 				}
 
 				if (state === 'descriptor') {
-					const descriptor = createDataDescriptor(fileCrc, fileBytesRead);
+					const descriptor = createDataDescriptor(fileCrc, fileBytesRead, fileUncompressedSize);
 					controller.enqueue(descriptor);
 					totalOffset += descriptor.length;
 
@@ -91,10 +130,12 @@ export function createZipStream(files: File[]): ReadableStream<Uint8Array> {
 
 					entries.push({
 						name,
-						size: fileBytesRead,
+						compressedSize: fileBytesRead,
+						uncompressedSize: fileUncompressedSize,
 						crc: fileCrc,
 						offset: currentFileOffset,
-						lastModified: new Date(file.lastModified)
+						lastModified: new Date(file.lastModified),
+						compressionMethod: supportsDeflateRaw || supportsDeflate ? 8 : 0
 					});
 
 					fileIndex++;
@@ -125,6 +166,50 @@ export function createZipStream(files: File[]): ReadableStream<Uint8Array> {
 					return; // Yield
 				}
 			}
+		}
+	});
+}
+
+function createDeflateStripper() {
+	let buffer = new Uint8Array(0);
+	let headerRemoved = false;
+
+	return new TransformStream<Uint8Array, Uint8Array>({
+		transform(chunk, controller) {
+			let data = chunk;
+
+			if (!headerRemoved) {
+				const newBuf = new Uint8Array(buffer.length + data.length);
+				newBuf.set(buffer);
+				newBuf.set(data, buffer.length);
+				buffer = newBuf;
+
+				if (buffer.length >= 2) {
+					// Strip header (2 bytes)
+					data = buffer.slice(2);
+					headerRemoved = true;
+					buffer = new Uint8Array(0);
+					// Continue to process data
+				} else {
+					// Wait for more data
+					return;
+				}
+			}
+
+			// Footer handling: keep last 4 bytes
+			const newBuf = new Uint8Array(buffer.length + data.length);
+			newBuf.set(buffer);
+			newBuf.set(data, buffer.length);
+			buffer = newBuf;
+
+			if (buffer.length > 4) {
+				const toEmit = buffer.slice(0, buffer.length - 4);
+				controller.enqueue(toEmit);
+				buffer = buffer.slice(buffer.length - 4);
+			}
+		},
+		flush(controller) {
+			// Discard buffer (Adler-32)
 		}
 	});
 }

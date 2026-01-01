@@ -69,7 +69,11 @@
 		downloadProgress = 0;
 
 		try {
-			const res = await fetch(`${BACKEND_API}/download/${slug}`);
+			const res = await fetch(`${BACKEND_API}/download/${slug}`, {
+				headers: {
+					Range: 'bytes=0-'
+				}
+			});
 			if (!res.ok) throw new Error('Download failed');
 
 			const totalSize = fileSize;
