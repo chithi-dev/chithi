@@ -88,11 +88,11 @@ export async function pbkdf2Derive(
 	return new Uint8Array(bits);
 }
 
-export type EncryptionMeta = {
+export type InnerEncryptionMeta = {
 	cipher: 'AES-GCM';
 	hkdf: { hash: 'SHA-512'; salt: string };
 	iv: string;
-	pbkdf2?: { salt: string; iterations: number };
+	size?: number;
 };
 
 export const CHUNK_SIZE = 64 * 1024; // 64KB

@@ -69,27 +69,80 @@
 		downloadProgress = 0;
 
 		try {
+			// Initial request to get the first chunk (header)
+			const initialChunkSize = 1000; // Fixed 1000 bytes header
 			const res = await fetch(`${BACKEND_API}/download/${slug}`, {
 				headers: {
-					Range: 'bytes=0-'
+					Range: `bytes=0-${initialChunkSize - 1}`
 				}
 			});
 			if (!res.ok) throw new Error('Download failed');
 
-			const totalSize = fileSize;
-			let loaded = 0;
-
-			const progressStream = new TransformStream({
-				transform(chunk, controller) {
-					loaded += chunk.length;
-					if (totalSize > 0) {
-						downloadProgress = Math.round((loaded / totalSize) * 100);
+			// Use fileSize from state, fallback to Content-Range header
+			let totalSize = fileSize;
+			if (!totalSize) {
+				const contentRange = res.headers.get('Content-Range');
+				if (contentRange) {
+					const match = contentRange.match(/\/(\d+)$/);
+					if (match) {
+						totalSize = parseInt(match[1], 10);
 					}
-					controller.enqueue(chunk);
+				}
+			}
+
+			const firstChunk = new Uint8Array(await res.arrayBuffer());
+
+			let offset = firstChunk.byteLength;
+			const DOWNLOAD_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
+
+			const chunkedStream = new ReadableStream({
+				start(controller) {
+					controller.enqueue(firstChunk);
+					if (totalSize > 0) {
+						downloadProgress = Math.round((offset / totalSize) * 100);
+					}
+				},
+				async pull(controller) {
+					if (totalSize > 0 && offset >= totalSize) {
+						controller.close();
+						return;
+					}
+
+					const end =
+						totalSize > 0
+							? Math.min(offset + DOWNLOAD_CHUNK_SIZE - 1, totalSize - 1)
+							: offset + DOWNLOAD_CHUNK_SIZE - 1;
+
+					try {
+						const chunkRes = await fetch(`${BACKEND_API}/download/${slug}`, {
+							headers: {
+								Range: `bytes=${offset}-${end}`
+							}
+						});
+
+						if (chunkRes.status === 416) {
+							controller.close();
+							return;
+						}
+
+						if (!chunkRes.ok) throw new Error('Download chunk failed');
+
+						const chunk = new Uint8Array(await chunkRes.arrayBuffer());
+						if (chunk.byteLength === 0) {
+							controller.close();
+							return;
+						}
+
+						controller.enqueue(chunk);
+						offset += chunk.byteLength;
+						if (totalSize > 0) {
+							downloadProgress = Math.round((offset / totalSize) * 100);
+						}
+					} catch (e) {
+						controller.error(e);
+					}
 				}
 			});
-
-			const bodyWithProgress = res.body!.pipeThrough(progressStream);
 
 			if ('showSaveFilePicker' in window) {
 				const handle = await (window as any).showSaveFilePicker({
@@ -97,13 +150,21 @@
 				});
 				const writable = await handle.createWritable();
 
-				const decryptedStream = await createDecryptedStream(bodyWithProgress, key, password);
+				const { stream: decryptedStream } = await createDecryptedStream(
+					chunkedStream,
+					key,
+					password
+				);
 				await decryptedStream.pipeTo(writable);
 
 				status = 'ready';
 				toast.success('Download complete');
 			} else {
-				const decryptedStream = await createDecryptedStream(bodyWithProgress, key, password);
+				const { stream: decryptedStream } = await createDecryptedStream(
+					chunkedStream,
+					key,
+					password
+				);
 				const chunks = [];
 				const reader = decryptedStream.getReader();
 				while (true) {
@@ -116,6 +177,7 @@
 				const a = document.createElement('a');
 				a.href = url;
 				a.download = filename;
+				a.classList.add('hidden');
 				document.body.appendChild(a);
 				a.click();
 				window.URL.revokeObjectURL(url);
