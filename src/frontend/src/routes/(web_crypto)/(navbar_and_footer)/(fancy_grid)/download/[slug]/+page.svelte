@@ -4,7 +4,7 @@
 	import { FileText, Shield } from 'lucide-svelte';
 </script>
 
-<Card.Root class="relative z-10 w-[500px] border-border bg-card">
+<Card.Root class="relative z-10 w-125 border-border bg-card">
 	<Card.Header class="text-center">
 		<Card.Title class="text-2xl font-bold">Download files</Card.Title>
 		<Card.Description class="text-muted-foreground">
