@@ -32,6 +32,7 @@
 	import { addHistoryEntry } from '$lib/database';
 	import { cn } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
+	import { goto } from '$app/navigation';
 	import { dev } from '$app/environment';
 
 	const { config: configData } = useConfigQuery();
@@ -58,11 +59,17 @@
 	let finalLink = $state('');
 	let isCopied = $state(false);
 	let debugLoading = $state(false);
+	let folderName = $state(uuidv7());
 	let renderedDetails = $derived(marked.parse(configData.data?.site_description ?? ''));
 
 	$effect(() => {
 		const total = files.reduce((sum, file) => sum + file.size, 0);
 		totalSize = formatFileSize(total);
+		if (files.length === 1) {
+			folderName = files[0].name;
+		} else if (files.length === 0) {
+			folderName = uuidv7();
+		}
 	});
 
 	$effect(() => {
@@ -200,7 +207,11 @@
 			}
 		}
 
+		const wasSingleFile = files.length === 1;
 		files = [...files, ...newFiles];
+		if (wasSingleFile && files.length > 1) {
+			folderName = uuidv7();
+		}
 		if (files.length > 0) {
 			isUploading = true;
 			isUploadComplete = false;
@@ -269,6 +280,7 @@
 		isUploading = false;
 		isUploadComplete = false;
 		finalLink = '';
+		folderName = uuidv7();
 	};
 
 	const copyLink = () => {
@@ -282,25 +294,34 @@
 		// isUploading is already true
 		try {
 			uploadingInProgress = true;
+			uploadProgress = 0;
 
 			// 1. Create Zip Stream
 			const stream = createZipStream(files);
 
-			// 3. Encrypt
+			// 2. Encrypt
 			const {
 				stream: encryptedStream,
 				keySecret,
 				meta
 			} = await createEncryptedStream(stream, isPasswordProtected ? password : undefined);
 
-			// 4. Upload
-			const filename = uuidv7();
+			// 3. Upload
+			// send a readable filename (original file name or folder name) and a generated blob filename
+			const readableFilename = files.length === 1 ? files[0].name : folderName;
+			const blobFilename = uuidv7();
 			const encryptedBlob = await new Response(encryptedStream).blob();
 
 			const formData = new FormData();
+			formData.append('filename', readableFilename);
 			formData.append('expire_after_n_download', downloadLimit);
 			formData.append('expire_after', timeLimit);
-			formData.append('file', encryptedBlob, filename);
+			formData.append('file', encryptedBlob, blobFilename);
+			if (files.length > 1) {
+				formData.append('folder_name', folderName);
+			}
+			// include metadata for debugging/inspection (server may ignore it)
+			if (meta) formData.append('meta', JSON.stringify(meta));
 
 			const data = await new Promise<any>((resolve, reject) => {
 				const xhr = new XMLHttpRequest();
@@ -309,6 +330,9 @@
 				xhr.upload.onprogress = (e) => {
 					if (e.lengthComputable) {
 						uploadProgress = Math.round((e.loaded / e.total) * 100);
+					} else {
+						// fallback to visible progress when total is unknown
+						uploadProgress = Math.min(99, uploadProgress + 1);
 					}
 				};
 
@@ -320,43 +344,54 @@
 							reject(new Error('Invalid JSON response'));
 						}
 					} else {
-						reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
+						reject(
+							new Error(`Upload failed: ${xhr.status} ${xhr.statusText} ${xhr.responseText || ''}`)
+						);
 					}
 				};
 
-				xhr.onerror = () => reject(new Error('Network error'));
+				xhr.onerror = () => reject(new Error('Network error during upload'));
 				xhr.send(formData);
 			});
+
 			uploadProgress = 100;
 
 			const serverPath =
 				data && (data.id || data.path || data.key) ? data.id || data.path || data.key : null;
 
-			if (serverPath) {
-				finalLink = `${window.location.origin}/download/${serverPath}?secret=${keySecret}`;
-				isUploadComplete = true;
+			if (!serverPath) throw new Error('Invalid server response');
 
-				// Add to history
-				const expiryTime = Date.now() + parseInt(timeLimit) * 1000;
-				const entryName = files.length === 1 ? files[0].name : `${files.length} files`;
+			const downloadPath = `/download/${serverPath}?secret=${keySecret}`;
+			finalLink = `${window.location.origin}${downloadPath}`;
+			isUploadComplete = true;
+			isUploading = false;
 
-				addHistoryEntry({
-					id: filename,
-					name: entryName,
-					link: finalLink,
-					expiry: expiryTime,
-					downloadLimit: downloadLimit,
-					createdAt: Date.now(),
-					size: totalSize
-				});
-			} else {
-				throw new Error('Invalid server response');
-			}
+			// Add to history (use server key/id so it matches remote resource)
+			const expiryTime = Date.now() + parseInt(timeLimit) * 1000;
+			const entryName = files.length === 1 ? files[0].name : folderName;
+
+			addHistoryEntry({
+				id: serverPath,
+				name: entryName,
+				link: finalLink,
+				expiry: expiryTime,
+				downloadLimit: downloadLimit,
+				createdAt: Date.now(),
+				size: totalSize
+			});
+
+			// copy link and show success toast
+			navigator.clipboard.writeText(finalLink);
+			isCopied = true;
+			setTimeout(() => (isCopied = false), 2000);
+			toast.success('Upload complete');
+			// navigate to the download page with secret in the hash
+			goto(downloadPath);
 		} catch (err: any) {
 			console.error('Upload failed', err);
-			alert('Upload failed: ' + (err?.message ?? err));
+			toast.error('Upload failed: ' + (err?.message ?? err));
+			// keep files so user can retry; reset upload progress and flags
 			uploadingInProgress = false;
-			clearAllFiles();
 			uploadProgress = 0;
 		} finally {
 			uploadingInProgress = false;
@@ -530,7 +565,10 @@
 					<!-- Left Column: File List and Controls -->
 					<div class="flex h-full w-full flex-col pb-2">
 						<!-- File List -->
-						<div class="mb-2 flex justify-end">
+						<div class="mb-2 flex items-center justify-end gap-2">
+							{#if files.length > 1}
+								<Input bind:value={folderName} class="h-8 w-48" placeholder="Folder Name" />
+							{/if}
 							<Tooltip.Provider>
 								<Tooltip.Root>
 									<Tooltip.Trigger

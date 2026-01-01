@@ -17,16 +17,19 @@ export function crc32(buf: Uint8Array, previous: number = 0): number {
 
 export interface ZipFileEntry {
 	name: string;
-	size: number;
+	compressedSize: number;
+	uncompressedSize: number;
 	crc: number;
 	offset: number;
 	lastModified: Date;
+	compressionMethod: number;
 }
 
 export function createLocalFileHeader(
 	name: string,
 	extraLen: number = 0,
-	lastModified: Date
+	lastModified: Date,
+	compressionMethod: number = 0
 ): Uint8Array {
 	const encoder = new TextEncoder();
 	const nameBytes = encoder.encode(name);
@@ -36,7 +39,7 @@ export function createLocalFileHeader(
 	view.setUint32(0, 0x04034b50, true); // Signature
 	view.setUint16(4, 0x0014, true); // Version needed (2.0)
 	view.setUint16(6, 0x0808, true); // Flags (bit 3 set for data descriptor, bit 11 for UTF-8)
-	view.setUint16(8, 0x0000, true); // Compression (Store)
+	view.setUint16(8, compressionMethod, true); // Compression
 
 	// Time/Date
 	const time =
@@ -62,13 +65,17 @@ export function createLocalFileHeader(
 	return buf;
 }
 
-export function createDataDescriptor(crc: number, size: number): Uint8Array {
+export function createDataDescriptor(
+	crc: number,
+	compressedSize: number,
+	uncompressedSize: number
+): Uint8Array {
 	const buf = new Uint8Array(16);
 	const view = new DataView(buf.buffer);
 	view.setUint32(0, 0x08074b50, true); // Signature
 	view.setUint32(4, crc, true);
-	view.setUint32(8, size, true);
-	view.setUint32(12, size, true);
+	view.setUint32(8, compressedSize, true);
+	view.setUint32(12, uncompressedSize, true);
 	return buf;
 }
 
@@ -82,7 +89,7 @@ export function createCentralDirectoryHeader(entry: ZipFileEntry): Uint8Array {
 	view.setUint16(4, 0x0014, true); // Version made by
 	view.setUint16(6, 0x0014, true); // Version needed
 	view.setUint16(8, 0x0808, true); // Flags (bit 3, bit 11)
-	view.setUint16(10, 0x0000, true); // Compression
+	view.setUint16(10, entry.compressionMethod, true); // Compression
 
 	// Time/Date
 	const date = entry.lastModified;
@@ -94,8 +101,8 @@ export function createCentralDirectoryHeader(entry: ZipFileEntry): Uint8Array {
 	view.setUint16(14, dateVal, true);
 
 	view.setUint32(16, entry.crc, true);
-	view.setUint32(20, entry.size, true);
-	view.setUint32(24, entry.size, true);
+	view.setUint32(20, entry.compressedSize, true);
+	view.setUint32(24, entry.uncompressedSize, true);
 
 	view.setUint16(28, nameBytes.length, true);
 	view.setUint16(30, 0, true); // Extra field length
