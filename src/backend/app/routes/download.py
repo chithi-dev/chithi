@@ -1,13 +1,12 @@
-from datetime import datetime, timezone
-
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlmodel import select
 
 from app.deps import S3Dep, SessionDep
 from app.models.files import File
 from app.settings import settings
+from app.tasks.clean_file import delete_expired_file
 
 router = APIRouter()
 
@@ -17,6 +16,7 @@ async def download_files(
     key: str,
     session: SessionDep,
     s3: S3Dep,
+    background_tasks: BackgroundTasks,
 ):
     query = select(File).where(File.key == key)
     result = await session.exec(query)
@@ -25,17 +25,15 @@ async def download_files(
     if not file_record:
         raise HTTPException(status_code=404, detail="File not found")
 
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
-
-    if file_record.expires_at < now:
-        raise HTTPException(status_code=410, detail="File expired")
-
-    if file_record.download_count >= file_record.expire_after_n_download:
-        raise HTTPException(status_code=410, detail="Download limit reached")
+    if file_record.is_expired:
+        raise HTTPException(status_code=410, detail="File is expired")
 
     file_record.download_count += 1
     session.add(file_record)
     await session.commit()
+
+    if file_record.download_count >= file_record.expire_after_n_download:
+        background_tasks.add_task(delete_expired_file.delay, str(file_record.id))
 
     try:
         s3_response = await s3.get_object(Bucket=settings.RUSTFS_BUCKET_NAME, Key=key)

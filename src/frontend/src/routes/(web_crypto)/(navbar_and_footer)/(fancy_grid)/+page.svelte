@@ -15,7 +15,8 @@
 		Check,
 		Copy,
 		Lock,
-		CloudUpload
+		CloudUpload,
+		Download
 	} from 'lucide-svelte';
 	import { marked } from '$lib/functions/marked';
 	import { formatFileSize } from '$lib/functions/bytes';
@@ -497,8 +498,10 @@
 								<Copy class="mr-2 h-4 w-4" /> Copy link
 							{/if}
 						</Button>
-						<Button variant="outline" onclick={clearAllFiles} class="w-24 cursor-pointer">OK</Button
-						>
+						<Button variant="outline" href={finalLink} class="w-32 cursor-pointer">
+							<Download class="mr-2 h-4 w-4" />
+							Download
+						</Button>
 					</div>
 				</div>
 			{:else if isUploading}

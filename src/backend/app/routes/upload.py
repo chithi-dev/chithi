@@ -8,6 +8,7 @@ from app.converter.bytes import ByteSize
 from app.deps import S3Dep, SessionDep
 from app.models.files import File, FileOut
 from app.settings import settings
+from app.tasks.clean_file import delete_expired_file
 
 router = APIRouter()
 
@@ -78,5 +79,8 @@ async def upload_file(
     )
     session.add(file_obj)
     await session.commit()
+    await session.refresh(file_obj)
+
+    delete_expired_file.apply_async((str(file_obj.id),), eta=file_obj.expires_at)
 
     return FileOut(key=str(key))
