@@ -69,78 +69,34 @@
 		downloadProgress = 0;
 
 		try {
-			// Initial request to get the first chunk (header)
-			const initialChunkSize = 1000; // Fixed 1000 bytes header
-			const res = await fetch(`${BACKEND_API}/download/${slug}`, {
-				headers: {
-					Range: `bytes=0-${initialChunkSize - 1}`
-				}
-			});
+			const res = await fetch(`${BACKEND_API}/download/${slug}`);
 			if (!res.ok) throw new Error('Download failed');
+			if (!res.body) throw new Error('No response body');
 
-			// Use fileSize from state, fallback to Content-Range header
-			let totalSize = fileSize;
-			if (!totalSize) {
-				const contentRange = res.headers.get('Content-Range');
-				if (contentRange) {
-					const match = contentRange.match(/\/(\d+)$/);
-					if (match) {
-						totalSize = parseInt(match[1], 10);
-					}
-				}
-			}
+			const totalSize = fileSize;
+			let loaded = 0;
 
-			const firstChunk = new Uint8Array(await res.arrayBuffer());
-
-			let offset = firstChunk.byteLength;
-			const DOWNLOAD_CHUNK_SIZE = 1024 * 1024 * 5; // 5MB
-
-			const chunkedStream = new ReadableStream({
-				start(controller) {
-					controller.enqueue(firstChunk);
-					if (totalSize > 0) {
-						downloadProgress = Math.round((offset / totalSize) * 100);
-					}
-				},
+			const reader = res.body.getReader();
+			const streamWithProgress = new ReadableStream({
 				async pull(controller) {
-					if (totalSize > 0 && offset >= totalSize) {
-						controller.close();
-						return;
-					}
-
-					const end =
-						totalSize > 0
-							? Math.min(offset + DOWNLOAD_CHUNK_SIZE - 1, totalSize - 1)
-							: offset + DOWNLOAD_CHUNK_SIZE - 1;
-
 					try {
-						const chunkRes = await fetch(`${BACKEND_API}/download/${slug}`, {
-							headers: {
-								Range: `bytes=${offset}-${end}`
-							}
-						});
-
-						if (chunkRes.status === 416) {
+						const { done, value } = await reader.read();
+						if (done) {
 							controller.close();
 							return;
 						}
-
-						if (!chunkRes.ok) throw new Error('Download chunk failed');
-
-						const chunk = new Uint8Array(await chunkRes.arrayBuffer());
-						if (chunk.byteLength === 0) {
-							controller.close();
-							return;
-						}
-
-						controller.enqueue(chunk);
-						offset += chunk.byteLength;
+						loaded += value.byteLength;
 						if (totalSize > 0) {
-							downloadProgress = Math.round((offset / totalSize) * 100);
+							downloadProgress = Math.round((loaded / totalSize) * 100);
 						}
+						controller.enqueue(value);
 					} catch (e) {
 						controller.error(e);
+						throw e;
 					}
+				},
+				cancel(reason) {
+					return reader.cancel(reason);
 				}
 			});
 
@@ -151,7 +107,7 @@
 				const writable = await handle.createWritable();
 
 				const { stream: decryptedStream } = await createDecryptedStream(
-					chunkedStream,
+					streamWithProgress,
 					key,
 					password
 				);
@@ -161,7 +117,7 @@
 				toast.success('Download complete');
 			} else {
 				const { stream: decryptedStream } = await createDecryptedStream(
-					chunkedStream,
+					streamWithProgress,
 					key,
 					password
 				);
@@ -250,7 +206,11 @@
 					{:else}
 						<div class="mb-6 flex items-center gap-4 rounded-lg border bg-background/50 p-4">
 							<div class="rounded bg-primary/10 p-2 text-primary">
-								<FileText class="h-6 w-6" />
+								{#if status === 'downloading'}
+									<Download class="h-6 w-6 " />
+								{:else}
+									<FileText class="h-6 w-6" />
+								{/if}
 							</div>
 							<div class="flex-1 overflow-hidden">
 								<p class="truncate font-medium">{filename}</p>
@@ -264,7 +224,10 @@
 									<Progress value={downloadProgress} class="h-2" />
 									<div class="flex justify-between text-xs text-muted-foreground">
 										<span>{downloadProgress}%</span>
-										<span>Decrypting & Downloading...</span>
+										<span class="flex items-center">
+											<Download class="mr-2 h-3 w-3 animate-bounce" />
+											Decrypting & Downloading...
+										</span>
 									</div>
 								</div>
 							{:else}

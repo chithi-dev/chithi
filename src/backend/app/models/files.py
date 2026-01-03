@@ -11,6 +11,12 @@ class FileInformationOut(SQLModel):
     filename: str
     size: int
 
+    download_count: int
+    created_at: int
+
+    expires_at: datetime
+    expire_after_n_download: int
+
 
 class FileOut(SQLModel):
     # Unique Identifier for the S3 storage
@@ -39,8 +45,7 @@ class File(FileOut, table=True):
     def is_expired(self) -> bool:
         now = datetime.now(timezone.utc).replace(tzinfo=None)
         return (
-            now > self.expires_at
-            or self.download_count >= self.expire_after_n_download
+            now > self.expires_at or self.download_count >= self.expire_after_n_download
         )
 
     @model_validator(mode="after")

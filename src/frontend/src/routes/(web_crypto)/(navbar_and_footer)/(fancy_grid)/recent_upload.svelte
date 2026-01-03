@@ -4,13 +4,64 @@
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { Trash2, History, Copy, Check, Download } from 'lucide-svelte';
 	import { onMount } from 'svelte';
-	import { deleteHistoryEntry, cleanupExpiredEntries, recentUploads } from '$lib/database';
+	import {
+		deleteHistoryEntry,
+		cleanupExpiredEntries,
+		recentUploads,
+		updateHistoryEntry
+	} from '$lib/database';
+	import { formatFileSize } from '$lib/functions/bytes';
+	import { get } from 'svelte/store';
+	import { FILE_INFO_URL } from '$lib/consts/backend';
 
 	let open = $state(false);
 	let copiedId = $state<string | null>(null);
 
+	type FileInformationOut = {
+		filename: string;
+		size: number;
+		download_count: number;
+		created_at: string;
+		expires_at: string;
+		expired: boolean;
+	};
+	const fetchFileInformation = async (key: string): Promise<FileInformationOut> => {
+		const res = await fetch(`${FILE_INFO_URL}/${key}`);
+		if (!res.ok) {
+			throw new Error('Failed to fetch file information');
+		}
+		return res.json();
+	};
+
 	onMount(() => {
-		cleanupExpiredEntries();
+		const init = async () => {
+			await cleanupExpiredEntries();
+			const entries = get(recentUploads);
+
+			await Promise.all(
+				entries.map(async (entry) => {
+					try {
+						const info = await fetchFileInformation(entry.id);
+						if (info.expired) {
+							await deleteHistoryEntry(entry.id);
+							return;
+						}
+						await updateHistoryEntry(entry.id, {
+							name: info.filename,
+							size: formatFileSize(info.size),
+							expiry: new Date(info.expires_at).getTime(),
+							createdAt: new Date(info.created_at).getTime(),
+							downloadCount: info.download_count
+						});
+					} catch (error) {
+						console.error(`Failed to update info for ${entry.id}`, error);
+						await deleteHistoryEntry(entry.id);
+					}
+				})
+			);
+		};
+		init();
+
 		const interval = setInterval(cleanupExpiredEntries, 60000);
 		return () => clearInterval(interval);
 	});
@@ -66,7 +117,9 @@
 									<div class="flex items-center gap-2 text-xs text-muted-foreground">
 										<span>{entry.size}</span>
 										<span>•</span>
-										<span>{entry.downloadLimit} dls</span>
+										<span
+											>{Math.max(0, parseInt(entry.downloadLimit) - (entry.downloadCount || 0))} left</span
+										>
 									</div>
 									<div class="text-xs text-muted-foreground">
 										Exp: {new Date(entry.expiry).toLocaleString()}
