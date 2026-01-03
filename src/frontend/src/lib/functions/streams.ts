@@ -10,206 +10,32 @@ import {
 	base64ToBytes,
 	base64urlToBytes
 } from './encryption';
-import {
-	createLocalFileHeader,
-	createDataDescriptor,
-	createCentralDirectoryHeader,
-	createEndOfCentralDirectory,
-	crc32,
-	type ZipFileEntry
-} from './zip';
+import ArchiveWorker from '../workers/archive.worker?worker';
 
-export function createZipStream(files: File[]): ReadableStream<Uint8Array> {
-	let fileIndex = 0;
-	let currentFileReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
-	let fileBytesRead = 0;
-	let fileUncompressedSize = 0;
-	let fileCrc = 0;
-	let currentFileOffset = 0;
-	let totalOffset = 0;
-	let finishedStream = false;
-	let state: 'header' | 'content' | 'descriptor' | 'cd' | 'eocd' | 'done' = 'header';
-
-	const entries: ZipFileEntry[] = [];
-	let cdIndex = 0;
-	let cdStartOffset = 0;
-
-	// Check for Deflate Raw support
-	let supportsDeflateRaw = false;
-	let supportsDeflate = false;
-	try {
-		new CompressionStream('deflate-raw');
-		supportsDeflateRaw = true;
-	} catch (e) {
-		try {
-			new CompressionStream('deflate');
-			supportsDeflate = true;
-		} catch (e2) {
-			// Ignore
-		}
-	}
-
+export function create7zStream(files: File[]): ReadableStream<Uint8Array> {
 	return new ReadableStream({
-		async pull(controller) {
-			while (true) {
-				if (finishedStream) {
+		start(controller) {
+			const worker = new ArchiveWorker();
+			worker.onmessage = (e) => {
+				const { type, data, error } = e.data;
+				if (type === 'complete') {
+					controller.enqueue(data);
 					controller.close();
-					return;
-				}
-
-				if (state === 'header') {
-					if (fileIndex >= files.length) {
-						state = 'cd';
-						cdStartOffset = totalOffset;
-						continue;
-					}
-
-					const file = files[fileIndex];
-					const name = ((file as any).relativePath as string) || file.name;
-					const lastModified = new Date(file.lastModified);
-
-					let compressionMethod = 0;
-					let stream = file.stream();
-
-					// CRC and Size tracking transformer
-					const crcTransformer = new TransformStream({
-						transform(chunk, controller) {
-							fileCrc = crc32(chunk, fileCrc);
-							fileUncompressedSize += chunk.byteLength;
-							controller.enqueue(chunk);
-						}
-					});
-
-					stream = stream.pipeThrough(crcTransformer);
-
-					if (supportsDeflateRaw) {
-						compressionMethod = 8;
-						stream = stream.pipeThrough(new CompressionStream('deflate-raw'));
-					} else if (supportsDeflate) {
-						compressionMethod = 8;
-						stream = stream.pipeThrough(new CompressionStream('deflate'));
-						stream = stream.pipeThrough(createDeflateStripper() as any);
-					}
-
-					const header = createLocalFileHeader(name, 0, lastModified, compressionMethod);
-
-					// Record entry start
-					currentFileOffset = totalOffset;
-
-					controller.enqueue(header);
-					totalOffset += header.length;
-
-					currentFileReader = stream.getReader();
-					fileBytesRead = 0;
-					fileUncompressedSize = 0;
-					fileCrc = 0;
-					state = 'content';
-					return; // Yield
-				}
-
-				if (state === 'content') {
-					const { done, value } = await currentFileReader!.read();
-					if (done) {
-						state = 'descriptor';
-						continue;
-					}
-
-					fileBytesRead += value.byteLength;
-					controller.enqueue(value);
-					totalOffset += value.byteLength;
-					return; // Yield
-				}
-
-				if (state === 'descriptor') {
-					const descriptor = createDataDescriptor(fileCrc, fileBytesRead, fileUncompressedSize);
-					controller.enqueue(descriptor);
-					totalOffset += descriptor.length;
-
-					const file = files[fileIndex];
-					const name = ((file as any).relativePath as string) || file.name;
-
-					entries.push({
-						name,
-						compressedSize: fileBytesRead,
-						uncompressedSize: fileUncompressedSize,
-						crc: fileCrc,
-						offset: currentFileOffset,
-						lastModified: new Date(file.lastModified),
-						compressionMethod: supportsDeflateRaw || supportsDeflate ? 8 : 0
-					});
-
-					fileIndex++;
-					currentFileReader = null;
-					state = 'header';
-					return; // Yield
-				}
-
-				if (state === 'cd') {
-					if (cdIndex >= entries.length) {
-						state = 'eocd';
-						continue;
-					}
-
-					const entry = entries[cdIndex];
-					const header = createCentralDirectoryHeader(entry);
-					controller.enqueue(header);
-					totalOffset += header.length;
-					cdIndex++;
-					return; // Yield
-				}
-
-				if (state === 'eocd') {
-					const cdSize = totalOffset - cdStartOffset;
-					const eocd = createEndOfCentralDirectory(entries.length, cdSize, cdStartOffset);
-					controller.enqueue(eocd);
-					finishedStream = true;
-					return; // Yield
-				}
-			}
-		}
-	});
-}
-
-function createDeflateStripper() {
-	let buffer = new Uint8Array(0);
-	let headerRemoved = false;
-
-	return new TransformStream<Uint8Array, Uint8Array>({
-		transform(chunk, controller) {
-			let data = chunk;
-
-			if (!headerRemoved) {
-				const newBuf = new Uint8Array(buffer.length + data.length);
-				newBuf.set(buffer);
-				newBuf.set(data, buffer.length);
-				buffer = newBuf;
-
-				if (buffer.length >= 2) {
-					// Strip header (2 bytes)
-					data = buffer.slice(2);
-					headerRemoved = true;
-					buffer = new Uint8Array(0);
-					// Continue to process data
+					worker.terminate();
 				} else {
-					// Wait for more data
-					return;
+					controller.error(new Error(error));
+					worker.terminate();
 				}
-			}
-
-			// Footer handling: keep last 4 bytes
-			const newBuf = new Uint8Array(buffer.length + data.length);
-			newBuf.set(buffer);
-			newBuf.set(data, buffer.length);
-			buffer = newBuf;
-
-			if (buffer.length > 4) {
-				const toEmit = buffer.slice(0, buffer.length - 4);
-				controller.enqueue(toEmit);
-				buffer = buffer.slice(buffer.length - 4);
-			}
-		},
-		flush(controller) {
-			// Discard buffer (Adler-32)
+			};
+			worker.onerror = (e) => {
+				console.error('Worker error event:', e);
+				// ErrorEvent.message is often "Script error." for cross-origin scripts or generic errors
+				// We try to get more info if possible, but often it's limited in workers
+				const errorMessage = e.message || 'Unknown worker error (check console)';
+				controller.error(new Error(errorMessage));
+				worker.terminate();
+			};
+			worker.postMessage({ files: [...files] });
 		}
 	});
 }

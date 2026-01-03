@@ -21,7 +21,7 @@
 	import { marked } from '$lib/functions/marked';
 	import { formatFileSize } from '$lib/functions/bytes';
 	import { formatSeconds } from '$lib/functions/times';
-	import { createZipStream, createEncryptedStream } from '$lib/functions/streams';
+	import { create7zStream, createEncryptedStream } from '$lib/functions/streams';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { v7 as uuidv7 } from 'uuid';
 	import { BACKEND_API } from '$lib/consts/backend';
@@ -295,8 +295,8 @@
 			uploadingInProgress = true;
 			uploadProgress = 0;
 
-			// Create Zip Stream
-			const stream = createZipStream(files);
+			// Create 7z Stream
+			const stream = create7zStream($state.snapshot(files));
 
 			//  Encrypt
 			const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
