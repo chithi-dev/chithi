@@ -37,7 +37,7 @@
 		"eslint": "^9.39.1",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.13.1",
-		"globals": "^16.5.0",
+		"globals": "^17.0.0",
 		"idb": "^8.0.3",
 		"lucide-svelte": "^0.562.0",
 		"marked": "^17.0.1",
