@@ -1,3 +1,5 @@
+import { argon2id } from 'hash-wasm';
+
 export function bytesToBase64(u8: Uint8Array) {
 	let binary = '';
 	for (let i = 0; i < u8.byteLength; i++) {
@@ -36,56 +38,36 @@ export function xorBytes(a: Uint8Array, b: Uint8Array) {
 	return out;
 }
 
-// Derive AES-256-GCM key from ikm using HKDF-SHA-512
-function toArrayBuffer(u8: Uint8Array) {
-	return u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength);
-}
-
+// Derive AES-256-GCM key from ikm using Argon2id
 export async function deriveAESKeyFromIKM(
 	ikm: Uint8Array,
 	hkdfSalt: Uint8Array,
 	info?: Uint8Array
 ) {
-	const baseKey = await crypto.subtle.importKey('raw', toArrayBuffer(ikm) as any, 'HKDF', false, [
-		'deriveKey'
+	const derivedBits = await argon2Derive(ikm, hkdfSalt, 1, 1024, 32, 1);
+	return await crypto.subtle.importKey('raw', derivedBits as any, { name: 'AES-GCM' }, false, [
+		'encrypt',
+		'decrypt'
 	]);
-	const key = await crypto.subtle.deriveKey(
-		{
-			name: 'HKDF',
-			hash: 'SHA-512',
-			salt: toArrayBuffer(hkdfSalt) as any,
-			info: toArrayBuffer(info || new Uint8Array([])) as any
-		},
-		baseKey,
-		{ name: 'AES-GCM', length: 256 },
-		false,
-		['encrypt', 'decrypt']
-	);
-	return key;
 }
 
-// PBKDF2 derive raw bytes (used for optional password mixing)
-export async function pbkdf2Derive(
-	password: string,
+export async function argon2Derive(
+	password: string | Uint8Array,
 	salt: Uint8Array,
 	iterations: number,
-	lengthBytes = 32
+	memorySize = 16384,
+	hashLength = 32,
+	parallelism = 1
 ) {
-	const enc = new TextEncoder();
-	const pwKey = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, [
-		'deriveBits'
-	]);
-	const bits = await crypto.subtle.deriveBits(
-		{
-			name: 'PBKDF2',
-			hash: 'SHA-512',
-			salt: toArrayBuffer(salt) as any,
-			iterations
-		},
-		pwKey,
-		lengthBytes * 8
-	);
-	return new Uint8Array(bits);
+	return await argon2id({
+		password,
+		salt,
+		iterations,
+		memorySize,
+		hashLength,
+		parallelism,
+		outputType: 'binary'
+	});
 }
 
 export type InnerEncryptionMeta = {

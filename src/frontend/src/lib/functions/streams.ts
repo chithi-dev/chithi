@@ -4,7 +4,7 @@ import {
 	bytesToBase64,
 	base64url,
 	xorBytes,
-	pbkdf2Derive,
+	argon2Derive,
 	type InnerEncryptionMeta,
 	CHUNK_SIZE,
 	base64ToBytes,
@@ -229,14 +229,18 @@ export async function createEncryptedStream(
 	const metaIv = crypto.getRandomValues(new Uint8Array(12));
 
 	let finalIKM = ikm;
-	let pbkdf2Meta: { salt: Uint8Array; iterations: number } | undefined;
+	let argon2Meta:
+		| { salt: Uint8Array; iterations: number; memory: number; parallelism: number }
+		| undefined;
 
 	if (password && password.length > 0) {
-		const iterations = 150_000;
-		const pbkdf2Salt = crypto.getRandomValues(new Uint8Array(16));
-		const pb = await pbkdf2Derive(password, pbkdf2Salt, iterations, 32);
+		const iterations = 32;
+		const memory = 16384;
+		const parallelism = 1;
+		const salt = crypto.getRandomValues(new Uint8Array(16));
+		const pb = await argon2Derive(password, salt, iterations, memory, 32, parallelism);
 		finalIKM = xorBytes(ikm, pb);
-		pbkdf2Meta = { salt: pbkdf2Salt, iterations };
+		argon2Meta = { salt, iterations, memory, parallelism };
 	}
 
 	// 2. Encrypt Metadata
@@ -269,7 +273,7 @@ export async function createEncryptedStream(
 			const headerParts: Uint8Array[] = [];
 
 			// Flags
-			const flags = pbkdf2Meta ? 1 : 0;
+			const flags = argon2Meta ? 1 : 0;
 			headerParts.push(new Uint8Array([flags]));
 
 			// Meta Salt
@@ -278,12 +282,15 @@ export async function createEncryptedStream(
 			// Meta IV
 			headerParts.push(metaIv);
 
-			// PBKDF2
-			if (pbkdf2Meta) {
-				headerParts.push(pbkdf2Meta.salt);
-				const iterBytes = new Uint8Array(4);
-				new DataView(iterBytes.buffer).setUint32(0, pbkdf2Meta.iterations, false);
-				headerParts.push(iterBytes);
+			// Argon2
+			if (argon2Meta) {
+				headerParts.push(argon2Meta.salt);
+				const params = new Uint8Array(12);
+				const view = new DataView(params.buffer);
+				view.setUint32(0, argon2Meta.iterations, false);
+				view.setUint32(4, argon2Meta.memory, false);
+				view.setUint32(8, argon2Meta.parallelism, false);
+				headerParts.push(params);
 			}
 
 			// Encrypted Meta Length
@@ -403,14 +410,22 @@ export async function createDecryptedStream(
 	const metaIv = headerBytes.slice(offset, offset + 12);
 	offset += 12;
 
-	let pbkdf2Salt: Uint8Array | undefined;
-	let pbkdf2Iterations: number | undefined;
+	let argon2Salt: Uint8Array | undefined;
+	let argon2Iterations: number | undefined;
+	let argon2Memory: number | undefined;
+	let argon2Parallelism: number | undefined;
 
 	if (flags & 1) {
-		pbkdf2Salt = headerBytes.slice(offset, offset + 16);
+		argon2Salt = headerBytes.slice(offset, offset + 16);
 		offset += 16;
 
-		pbkdf2Iterations = view.getUint32(offset, false);
+		argon2Iterations = view.getUint32(offset, false);
+		offset += 4;
+
+		argon2Memory = view.getUint32(offset, false);
+		offset += 4;
+
+		argon2Parallelism = view.getUint32(offset, false);
 		offset += 4;
 	}
 
@@ -423,11 +438,18 @@ export async function createDecryptedStream(
 	const ikm = base64urlToBytes(keySecret);
 	let finalIKM = ikm;
 
-	if (pbkdf2Salt && pbkdf2Iterations) {
+	if (argon2Salt && argon2Iterations && argon2Memory && argon2Parallelism) {
 		if (!password) {
 			throw new Error('Password required for decryption');
 		}
-		const pb = await pbkdf2Derive(password, pbkdf2Salt, pbkdf2Iterations, 32);
+		const pb = await argon2Derive(
+			password,
+			argon2Salt,
+			argon2Iterations,
+			argon2Memory,
+			32,
+			argon2Parallelism
+		);
 		finalIKM = xorBytes(ikm, pb);
 	}
 
