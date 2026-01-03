@@ -32,7 +32,6 @@
 	import { addHistoryEntry } from '$lib/database';
 	import { cn } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
-	import { goto } from '$app/navigation';
 	import { dev } from '$app/environment';
 
 	const { config: configData } = useConfigQuery();
@@ -384,8 +383,6 @@
 			isCopied = true;
 			setTimeout(() => (isCopied = false), 2000);
 			toast.success('Upload complete');
-			// navigate to the download page with secret in the hash
-			goto(downloadPath);
 		} catch (err: any) {
 			console.error('Upload failed', err);
 			toast.error('Upload failed: ' + (err?.message ?? err));
