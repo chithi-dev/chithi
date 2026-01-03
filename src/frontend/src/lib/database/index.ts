@@ -10,6 +10,7 @@ export interface UploadEntry {
 	link: string;
 	expiry: number;
 	downloadLimit: string;
+	downloadCount?: number;
 	createdAt: number;
 	size: string;
 }
@@ -121,5 +122,31 @@ export const cleanupExpiredEntries = async () => {
 		await refreshStore();
 	} catch (err) {
 		console.error('Failed to cleanup history', err);
+	}
+};
+
+export const updateHistoryEntry = async (id: string, updates: Partial<UploadEntry>) => {
+	try {
+		const db = await openDB();
+		const tx = db.transaction(STORE_NAME, 'readwrite');
+		const store = tx.objectStore(STORE_NAME);
+		const request = store.get(id);
+
+		await new Promise<void>((resolve, reject) => {
+			request.onsuccess = () => {
+				const entry = request.result as UploadEntry;
+				if (entry) {
+					const updatedEntry = { ...entry, ...updates };
+					store.put(updatedEntry);
+				}
+				resolve();
+			};
+			request.onerror = () => reject(request.error);
+			tx.oncomplete = () => resolve();
+		});
+		await refreshStore();
+	} catch (err) {
+		console.error('Failed to update history entry', err);
+		throw err;
 	}
 };
