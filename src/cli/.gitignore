@@ -214,3 +214,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Ignore dll
+*.dll
+*.pyd
+
+# Ignore the final exe
+*.exe
