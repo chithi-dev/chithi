@@ -5,5 +5,22 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    # CLI
     "typer>=0.21.0",
+    "async-typer>=0.1.10",
+    # Asnyc loop implementation
+    "uvloop>=0.22.1;sys_platform=='linux'",
+    # Cryptography helper
+    "cryptography>=46.0.3",
+    # Http Client
+    "httpx[http2]>=0.28.1",
 ]
+
+[tool.setuptools]
+packages = ["app"]
+
+[tool.uv]
+package = true
+
+[project.scripts]
+chithi = "app.__main__:main"
