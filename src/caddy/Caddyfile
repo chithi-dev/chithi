@@ -9,7 +9,6 @@ localhost {
     }
 
     # Reverse proxy for the Frontend
-    # Note: Using the container name 'frontend' defined in your docker-compose
     handle {
         reverse_proxy frontend:3000
     }
