@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, AsyncGenerator
 
 import aioboto3
 import jwt
@@ -36,7 +36,7 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> User:
     return user
 
 
-async def get_s3_client():
+async def get_s3_client() -> AsyncGenerator[S3Client, None]:
     session = aioboto3.Session()
     async with session.client(
         "s3",

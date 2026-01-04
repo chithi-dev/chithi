@@ -1,11 +1,11 @@
 import asyncio
 from uuid import UUID
 
-import aioboto3
 from sqlmodel import select
 
 from app.celery import celery
 from app.db import AsyncSessionLocal
+from app.deps import get_s3_client
 from app.models.files import File
 from app.settings import settings
 
@@ -21,13 +21,7 @@ async def _delete_file(file_id: UUID):
             return f"File {file_id} not found"
 
         # Delete from S3
-        session_s3 = aioboto3.Session()
-        async with session_s3.client(
-            "s3",
-            endpoint_url=settings.RUSTFS_ENDPOINT_URL,
-            aws_access_key_id=settings.RUSTFS_ACCESS_KEY,
-            aws_secret_access_key=settings.RUSTFS_SECRET_ACCESS_KEY,
-        ) as s3_client:
+        async for s3_client in get_s3_client():
             await s3_client.delete_object(
                 Bucket=settings.RUSTFS_BUCKET_NAME,
                 Key=file_obj.key,
