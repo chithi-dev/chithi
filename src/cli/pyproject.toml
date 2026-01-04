@@ -16,11 +16,20 @@ dependencies = [
     "httpx[http2]>=0.28.1",
 ]
 
+
+[dependency-groups]
+build = ["nuitka>=2.8.9"]
+dev = ["poethepoet>=0.39.0"]
+
+[tool.poe.tasks]
+nuitka = "nuitka --onefile --follow-imports --lto=yes --standalone ./app/__main__.py"
+
 [tool.setuptools]
 packages = ["app"]
 
 [tool.uv]
 package = true
+
 
 [project.scripts]
 chithi = "app.__main__:main"

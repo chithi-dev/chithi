@@ -1,5 +1,5 @@
 import asyncio
-from app.main import app as main_app
+from app.main import app
 
 try:
     import uvloop  # type:ignore
@@ -10,8 +10,11 @@ except ImportError:
 
 
 def main():
-    app = main_app()
     if HAS_UVLOOP:
-        uvloop.run(app)  # type:ignore
+        uvloop.run(app())  # type:ignore
     else:
-        asyncio.run(app)
+        asyncio.run(app())
+
+
+if __name__ == "__main__":
+    main()
