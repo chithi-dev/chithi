@@ -16,10 +16,8 @@ dependencies = [
 
 [dependency-groups]
 build = ["nuitka>=2.8.9", "pyinstaller>=6.17.0"]
-dev = [
-    "poethepoet>=0.39.0",
-    "textual-dev>=1.8.0",
-]
+dev = ["poethepoet>=0.39.0", "textual-dev>=1.8.0"]
 
 [tool.poe.tasks]
-nuitka = "nuitka --onefile --follow-imports --lto=yes --standalone main.py"
+dev = "textual run ./src/app.py --dev"
+nuitka = "nuitka --onefile --follow-imports --lto=yes --standalone ./src/app.py"
