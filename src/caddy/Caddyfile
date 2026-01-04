@@ -1,0 +1,20 @@
+{
+    # email your-email@example.com
+}
+
+localhost {
+    # Reverse proxy for the Backend API
+    handle_path /api* {
+        reverse_proxy backend:8000
+    }
+
+    # Reverse proxy for the Frontend
+    # Note: Using the container name 'frontend' defined in your docker-compose
+    handle {
+        reverse_proxy frontend:3000
+    }
+
+    log {
+        output file /var/log/caddy/access.log
+    }
+}

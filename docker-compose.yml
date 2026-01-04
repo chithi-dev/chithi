@@ -65,7 +65,7 @@ services:
     command: /bin/sh /app/scripts/start_backend.sh
     ports:
       - "8000:8000"
-    environment:
+    environment: &backend-variable
       POSTGRES_SERVER: postgres
       POSTGRES_PORT: 5432
       POSTGRES_USER: postgres
@@ -91,17 +91,7 @@ services:
     container_name: celery_worker
     restart: unless-stopped
     command: /bin/sh /app/scripts/start_celery.sh
-    environment:
-      POSTGRES_SERVER: postgres
-      POSTGRES_PORT: 5432
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: supersecretpassword
-      POSTGRES_DB: chithi
-      RUSTFS_ENDPOINT_URL: http://rustfs:9000
-      RUSTFS_ACCESS_KEY: rustfsadmin
-      RUSTFS_SECRET_ACCESS_KEY: rustfsadmin
-      CELERY_BROKER_URL: redis://redis:6379
-      CELERY_RESULT_BACKEND: redis://redis:6379
+    environment: *backend-variable
     depends_on:
       postgres:
         condition: service_started
@@ -109,6 +99,20 @@ services:
         condition: service_healthy
       backend:
         condition: service_started
+  caddy:
+      image: caddy:alpine
+      container_name: caddy-proxy
+      restart: unless-stopped
+      ports:
+        - "80:80"
+        - "443:443"
+      volumes:
+        - ./src/caddy/Caddyfile:/etc/caddy/Caddyfile
+        - caddy_data:/data
+        - caddy_config:/config
+      depends_on:
+        - frontend
+        - backend
 
   frontend:
     build:
@@ -116,6 +120,8 @@ services:
       dockerfile: Dockerfile
     container_name: frontend
     restart: unless-stopped
+    environment:
+      PUBLIC_BACKEND_API: http://localhost/api
     ports:
       - "3000:3000"
     depends_on:
@@ -124,3 +130,5 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  caddy_data:
+  caddy_config:
