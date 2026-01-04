@@ -1,0 +1,32 @@
+name: Test Frontend Docker Build
+
+on:
+    push:
+        branches: ['main']
+        paths:
+            - 'src/frontend/**'
+            - '.github/workflows/**'
+    pull_request:
+        branches: ['main']
+        paths:
+            - 'src/frontend/**'
+            - '.github/workflows/**'
+    workflow_dispatch:
+
+jobs:
+    build-docker:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v3
+
+            - name: Build Docker image
+              uses: docker/build-push-action@v5
+              with:
+                  context: ./src/frontend
+                  file: ./src/frontend/Dockerfile
+                  push: false
