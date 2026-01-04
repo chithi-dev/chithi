@@ -30,8 +30,7 @@ dependencies = [
     "redis[hiredis]>=6.4.0",
     # Mandatory type
     "types-aiobotocore-s3>=2.25.2",
-    # Task runner
-    "poethepoet>=0.39.0",
+    
 ]
 
 [dependency-groups]
@@ -40,11 +39,12 @@ dev = [
     "fastapi-cli>=0.0.16",
     "ruff>=0.14.10",
     "types-aioboto3>=15.5.0",
+    # Task runner
+    "poethepoet>=0.39.0",
 ]
 [tool.poe.tasks]
 celery = "celery -A app.celery worker --loglevel=info"
 dev = "fastapi dev ./app/main.py"
-prod = "uvicorn app.main:app"
 
 [tool.setuptools]
 packages = ["app"]
