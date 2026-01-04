@@ -121,7 +121,7 @@ services:
     container_name: frontend
     restart: unless-stopped
     environment:
-      PUBLIC_BACKEND_API: http://localhost/api
+      PUBLIC_BACKEND_API: https://backend.localhost
     ports:
       - "3000:3000"
     depends_on:
