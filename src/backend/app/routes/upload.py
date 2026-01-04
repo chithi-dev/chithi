@@ -2,10 +2,12 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Form, UploadFile
+from fastapi import APIRouter, Form, HTTPException, UploadFile, status
+from sqlmodel import select
 
 from app.converter.bytes import ByteSize
 from app.deps import S3Dep, SessionDep
+from app.models.config import Config
 from app.models.files import File, FileOut
 from app.settings import settings
 from app.tasks.clean_file import delete_expired_file
@@ -15,6 +17,26 @@ router = APIRouter()
 CHUNK_SIZE = ByteSize(
     mb=8  # 8MB (S3 minimum for multipart)
 ).total_bytes()
+
+
+async def _get_current_storage_used(session: SessionDep, s3: S3Dep) -> int:
+    """Sum the sizes (ContentLength) of currently active (non-expired) files."""
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    query = select(File).where(
+        File.expires_at > now, File.download_count < File.expire_after_n_download
+    )
+    result = await session.exec(query)
+    files = result.all()
+
+    total = 0
+    for f in files:
+        try:
+            resp = await s3.head_object(Bucket=settings.RUSTFS_BUCKET_NAME, Key=f.key)
+            total += int(resp.get("ContentLength", 0) or 0)
+        except Exception:
+            # If the object is missing or head fails for any reason, ignore and continue
+            continue
+    return total
 
 
 @router.post("/upload")
@@ -31,6 +53,29 @@ async def upload_file(
         filename = uuid.uuid7()  # type: ignore
 
     key = uuid.uuid7()
+
+    # Load the singleton config and determine current usage
+    config_q = select(Config)
+    config_result = await session.exec(config_q)
+    config = config_result.first()
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Configuration not found",
+        )
+
+    total_limit = config.total_storage_limit
+    max_file_size_limit = config.max_file_size_limit
+    current_used = 0
+    if total_limit is not None:
+        current_used = await _get_current_storage_used(session, s3)
+        # Quick fail: no space at all left
+        if current_used >= total_limit:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="Storage quota exceeded",
+            )
+
     resp = await s3.create_multipart_upload(
         Bucket=settings.RUSTFS_BUCKET_NAME,
         Key=str(key),
@@ -39,12 +84,34 @@ async def upload_file(
     upload_id = resp["UploadId"]
     parts = []
     part_number = 1
+    uploaded_size = 0
 
     try:
         while True:
             chunk = await file.read(CHUNK_SIZE)
             if not chunk:
                 break
+
+            # Enforce max file size limit
+            if (
+                max_file_size_limit is not None
+                and uploaded_size + len(chunk) > max_file_size_limit
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail="File size exceeds the maximum allowed limit",
+                )
+
+            # Enforce total storage limit incrementally
+            if (
+                total_limit is not None
+                and current_used + uploaded_size + len(chunk) > total_limit
+            ):
+                # This will be caught by the outer except block which aborts the multipart upload
+                raise HTTPException(
+                    status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                    detail="Storage quota exceeded",
+                )
 
             part = await s3.upload_part(
                 Bucket=settings.RUSTFS_BUCKET_NAME,
@@ -56,6 +123,7 @@ async def upload_file(
 
             parts.append({"PartNumber": part_number, "ETag": part["ETag"]})
             part_number += 1
+            uploaded_size += len(chunk)
 
         await s3.complete_multipart_upload(
             Bucket=settings.RUSTFS_BUCKET_NAME,
@@ -71,7 +139,6 @@ async def upload_file(
             UploadId=upload_id,
         )
         raise
-
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     file_obj = File(
         filename=str(filename),
