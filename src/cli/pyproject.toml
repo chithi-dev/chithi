@@ -22,13 +22,17 @@ build = ["nuitka>=2.8.9"]
 dev = ["poethepoet>=0.39.0"]
 
 [tool.poe.tasks]
-nuitka = "nuitka --onefile --follow-imports --lto=yes --standalone ./app/__main__.py"
+# Is not possible to build due to type hint error
+nuitka = "nuitka --standalone --follow-imports --lto=yes --python-flag=-m ./app"
+nuitka-debug = "nuitka --standalone --follow-imports --lto=yes --debug --python-flag=-m ./app"
+
 
 [tool.setuptools]
 packages = ["app"]
 
 [tool.uv]
 package = true
+default-groups = ['build', 'dev']
 
 
 [project.scripts]
