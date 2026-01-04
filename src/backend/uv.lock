@@ -388,7 +388,6 @@ dependencies = [
     { name = "alembic" },
     { name = "celery", extra = ["redis"] },
     { name = "fastapi" },
-    { name = "poethepoet" },
     { name = "pwdlib", extra = ["argon2"] },
     { name = "pydantic-settings" },
     { name = "pyjwt" },
@@ -405,6 +404,7 @@ dependencies = [
 dev = [
     { name = "celery-types" },
     { name = "fastapi-cli" },
+    { name = "poethepoet" },
     { name = "ruff" },
     { name = "types-aioboto3" },
 ]
@@ -415,7 +415,6 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.17.2" },
     { name = "celery", extras = ["redis"], specifier = ">=5.6.1" },
     { name = "fastapi", specifier = ">=0.127.0" },
-    { name = "poethepoet", specifier = ">=0.39.0" },
     { name = "pwdlib", extras = ["argon2"], specifier = ">=0.3.0" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
     { name = "pyjwt", specifier = ">=2.10.1" },
@@ -432,6 +431,7 @@ requires-dist = [
 dev = [
     { name = "celery-types", specifier = ">=0.24.0" },
     { name = "fastapi-cli", specifier = ">=0.0.16" },
+    { name = "poethepoet", specifier = ">=0.39.0" },
     { name = "ruff", specifier = ">=0.14.10" },
     { name = "types-aioboto3", specifier = ">=15.5.0" },
 ]
@@ -1230,11 +1230,11 @@ wheels = [
 
 [[package]]
 name = "types-aiobotocore-s3"
-version = "3.0.0"
+version = "3.1.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/cc/53/96c11080d11b1d55772191119de87916631990e89ac11b2a4ba9282d665a/types_aiobotocore_s3-3.0.0.tar.gz", hash = "sha256:5d7ed23f4bb01c6afc22fb9f7e3dea9aab437494dc56ddcc83db86e60d262038", size = 76633, upload-time = "2025-12-11T02:05:31.796Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2f/f9/76c84023add0e6b8b647eb8d085538b1a180bd560a0b5d115d5fea79cd11/types_aiobotocore_s3-3.1.0.tar.gz", hash = "sha256:2f61d2f785fcbad9af2a01b3162b50436f95bea5440e0b9b848e6f60a23a3602", size = 76650, upload-time = "2026-01-03T02:07:22.875Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/34/4e/16cc6fb82e599d002b1b16d745914d26c77c7fc26d7e1ecd56a31326256f/types_aiobotocore_s3-3.0.0-py3-none-any.whl", hash = "sha256:988f17b9227aac4fdce4379cffccab6533707bd276395ee617761578598edee4", size = 84322, upload-time = "2025-12-11T02:05:30.088Z" },
+    { url = "https://files.pythonhosted.org/packages/24/08/9ef8235e3b7fd1bfd843a6047a9518c15852e853df76b14c0bd3df7b38f5/types_aiobotocore_s3-3.1.0-py3-none-any.whl", hash = "sha256:b019d2db117a0f17df0f60c3eec547ae98a17ce4d03e73ba5a3cfe77d7f30291", size = 84332, upload-time = "2026-01-03T02:02:28.847Z" },
 ]
 
 [[package]]
