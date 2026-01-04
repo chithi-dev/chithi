@@ -5,14 +5,30 @@
 
 version: 2
 updates:
-  - package-ecosystem: "npm" # See documentation for possible values
-    directory: "./src/frontend" # Location of package manifests
-    open-pull-requests-limit: 100
-    schedule:
-      interval: "daily"
+    ## Frontend
 
-  - package-ecosystem: "uv" # See documentation for possible values
-    directory: "./src/backend" # Location of package manifests
-    open-pull-requests-limit: 100
-    schedule:
-      interval: "daily"
+    - package-ecosystem: 'npm' # See documentation for possible values
+      directory: './src/frontend' # Location of package manifests
+      open-pull-requests-limit: 100
+      schedule:
+          interval: 'daily'
+
+    - package-ecosystem: 'docker' # See documentation for possible values
+      directory: './src/frontend' # Location of package manifests
+      open-pull-requests-limit: 100
+      schedule:
+          interval: 'daily'
+
+    ## BACKEND
+
+    - package-ecosystem: 'uv' # See documentation for possible values
+      directory: './src/backend' # Location of package manifests
+      open-pull-requests-limit: 100
+      schedule:
+          interval: 'daily'
+
+    - package-ecosystem: 'docker' # See documentation for possible values
+      directory: './src/backend' # Location of package manifests
+      open-pull-requests-limit: 100
+      schedule:
+          interval: 'daily'
