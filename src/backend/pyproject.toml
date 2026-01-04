@@ -43,7 +43,6 @@ dev = [
     "poethepoet>=0.39.0",
 ]
 [tool.poe.tasks]
-celery = "celery -A app.celery worker --loglevel=info"
 dev = "fastapi dev ./app/main.py"
 
 [tool.setuptools]
