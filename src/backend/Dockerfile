@@ -37,5 +37,3 @@ ENV HOST=127.0.0.1
 ENV PORT=8000
 EXPOSE 8000/udp 8000/tcp
 
-# Run the FastAPI application by default
-CMD ["sh", "-c", "poe prod"]
