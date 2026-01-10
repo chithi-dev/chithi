@@ -7,16 +7,18 @@ COPY . .
 #   docker build --build-arg PUBLIC_BACKEND_API=https://api.example.com -t myimage .
 ARG PUBLIC_BACKEND_API
 ENV PUBLIC_BACKEND_API=${PUBLIC_BACKEND_API}
-RUN npm run build:node
+RUN npm run build:static
 RUN npm prune --production
 
-FROM node:25-alpine
+FROM alpine:edge
 WORKDIR /app
+RUN apk add --no-cache busybox-extras
 ARG PUBLIC_BACKEND_API
 ENV PUBLIC_BACKEND_API=${PUBLIC_BACKEND_API}
 COPY --from=builder /app/build build/
 COPY --from=builder /app/node_modules node_modules/
 COPY package.json .
+COPY busybox.conf .
 EXPOSE 3000
 ENV NODE_ENV=production
-CMD [ "node", "build" ]
+CMD [ "httpd", "-f", "-v", "-p", "3000", "-h", "build", "-c", "/app/busybox.conf" ]
