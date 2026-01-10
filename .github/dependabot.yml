@@ -32,3 +32,17 @@ updates:
       open-pull-requests-limit: 100
       schedule:
           interval: 'daily'
+
+    ## Caddy
+
+    - package-ecosystem: 'go' # See documentation for possible values
+      directory: './src/caddy' # Location of package manifests
+      open-pull-requests-limit: 100
+      schedule:
+          interval: 'daily'
+
+    - package-ecosystem: 'docker' # See documentation for possible values
+      directory: './src/caddy' # Location of package manifests
+      open-pull-requests-limit: 100
+      schedule:
+          interval: 'daily'
