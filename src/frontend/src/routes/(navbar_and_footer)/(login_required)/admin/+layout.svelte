@@ -9,7 +9,7 @@
 	const tabs: { name: string; href: string }[] = [
 		{ name: 'Profile', href: './user' },
 		{ name: 'Project Settings', href: './config' },
-		{ name: 'Outstanding', href: './urls' }
+		{ name: 'Outstanding URLs', href: './urls' }
 	];
 </script>
 

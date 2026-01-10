@@ -37,6 +37,6 @@ async def delete_file(
     if file_object.is_expired:
         raise HTTPException(status_code=HTTPStatus.GONE, detail="File is expired")
 
-    background_tasks.add_task(delete_expired_file, str(id))
+    background_tasks.add_task(delete_expired_file.delay, str(id))
 
     return FileOut(key=file_object.key)

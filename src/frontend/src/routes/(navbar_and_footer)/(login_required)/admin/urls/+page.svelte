@@ -33,7 +33,6 @@
 			toast.error('Failed to revoke URL');
 		} finally {
 			isRevoking = false;
-			fileToRevoke = null;
 		}
 	}
 
@@ -121,7 +120,7 @@
 										variant="ghost"
 										size="icon"
 										class="text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-										onclick={() => handleRevoke(file.id)}
+										onclick={() => openRevokeDialog(file.id)}
 										disabled={isRevoking}
 										title="Revoke URL"
 									>
@@ -135,4 +134,27 @@
 			{/if}
 		</Card.Content>
 	</Card.Root>
+
+	<Dialog.Root bind:open={isRevokeDialogOpen}>
+		<Dialog.Content>
+			<Dialog.Header>
+				<Dialog.Title>Revoke URL</Dialog.Title>
+				<Dialog.Description>
+					Are you sure you want to revoke this URL? This cannot be undone.
+				</Dialog.Description>
+			</Dialog.Header>
+			<Dialog.Footer>
+				<Button variant="outline" onclick={() => (isRevokeDialogOpen = false)} disabled={isRevoking}
+					>Cancel</Button
+				>
+				<Button variant="destructive" onclick={confirmRevoke} disabled={isRevoking}>
+					{#if isRevoking}
+						Revoking...
+					{:else}
+						Revoke
+					{/if}
+				</Button>
+			</Dialog.Footer>
+		</Dialog.Content>
+	</Dialog.Root>
 </div>

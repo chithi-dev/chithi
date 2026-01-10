@@ -6,7 +6,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import * as Select from '$lib/components/ui/select';
-	import { LoaderCircle, Plus, X } from 'lucide-svelte';
+	import { LoaderCircle, X } from 'lucide-svelte';
 	import { fade, slide } from 'svelte/transition';
 
 	import { useConfigQuery } from '$lib/queries/config';
