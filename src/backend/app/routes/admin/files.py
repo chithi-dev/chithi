@@ -1,6 +1,6 @@
 from http import HTTPStatus
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from sqlmodel import select
 
 from app.deps import CurrentUser, SessionDep
