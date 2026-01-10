@@ -13,7 +13,7 @@
 	];
 </script>
 
-<div class="min-h-screen w-full bg-background pb-20">
+<div class="w-full flex-1 bg-background pb-20">
 	<Tabs.Root value={page.url.pathname} class="w-full">
 		<div class="mx-auto flex w-full max-w-5xl items-center px-6 pt-6 md:px-10">
 			<Tabs.List
