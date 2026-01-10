@@ -8,3 +8,4 @@ export const FILE_INFO_URL = `${BACKEND_API}/information`;
 
 export const ADMIN_CONFIG_URL = `${BACKEND_API}/admin/config`;
 export const ADMIN_USER_UPDATE_URL = `${BACKEND_API}/admin/user`;
+export const ADMIN_FILES_URL = `${BACKEND_API}/admin/files`;
