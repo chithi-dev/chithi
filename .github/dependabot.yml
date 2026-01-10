@@ -35,7 +35,7 @@ updates:
 
     ## Caddy
 
-    - package-ecosystem: 'go' # See documentation for possible values
+    - package-ecosystem: 'gomod' # See documentation for possible values
       directory: './src/caddy' # Location of package manifests
       open-pull-requests-limit: 100
       schedule:
