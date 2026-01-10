@@ -10,7 +10,7 @@ from sqlmodel import Field, SQLModel
 class FileInformationOut(SQLModel):
     id: UUID
     filename: str
-    size: int | None = None
+    size: int
 
     download_count: int
     created_at: datetime
