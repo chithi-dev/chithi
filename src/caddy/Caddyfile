@@ -10,7 +10,15 @@ backend.localhost {
 localhost {
     # Reverse proxy for the Frontend
     handle {
-        reverse_proxy frontend:3000
+        reverse_proxy frontend:3000{
+		handle_response {
+		    @notfound status 404
+		    handle @notfound {
+		        header Content-Type "{http.reverse_proxy.header.Content-Type}"
+		        copy_response
+		        status 200
+		    }
+		}
     }
 
 }
