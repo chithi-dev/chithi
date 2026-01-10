@@ -28,7 +28,7 @@ RUN go build \
     .
 
 # Aggressive compression with UPX
-RUN upx --best --lzma /caddy
+RUN upx --ultra-brute /caddy
 
 # Stage 2: Scratch Runtime (Minimal)
 FROM scratch
