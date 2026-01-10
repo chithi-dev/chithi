@@ -41,7 +41,7 @@ async def get_file_information(
         "filename": file_record.filename,
         "size": s3_response.get("ContentLength"),
         "download_count": file_record.download_count,
-        "created_at": int(file_record.created_at.timestamp()),
+        "created_at": file_record.created_at,
         "expires_at": file_record.expires_at,
         "expire_after_n_download": file_record.expire_after_n_download,
     }
