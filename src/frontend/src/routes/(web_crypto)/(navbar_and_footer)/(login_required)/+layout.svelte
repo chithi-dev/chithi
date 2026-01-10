@@ -15,7 +15,7 @@
 </script>
 
 {#if userData.isLoading}
-	Loading...
+	<div class="min-h-screen">Loading...</div>
 {:else if [null, undefined].includes(userData.data)}
 	Login Required
 {:else}

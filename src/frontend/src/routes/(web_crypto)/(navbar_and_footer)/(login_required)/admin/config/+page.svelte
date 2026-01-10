@@ -6,20 +6,7 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import * as Select from '$lib/components/ui/select';
-	import {
-		HardDrive,
-		FileCode,
-		Download,
-		Globe,
-		Pencil,
-		X,
-		Settings2,
-		LoaderCircle,
-		Clock,
-		Plus,
-		FileCheck,
-		FileExclamationPoint
-	} from 'lucide-svelte';
+	import { LoaderCircle, Plus, X } from 'lucide-svelte';
 	import { fade, slide } from 'svelte/transition';
 
 	import { useConfigQuery } from '$lib/queries/config';
@@ -40,7 +27,7 @@
 
 	// UI state
 	let editing = $state<
-		'storage' | 'file' | 'steps' | 'desc' | 'time' | 'allowed' | 'banned' | null
+		'storage' | 'file' | 'desc' | 'time' | 'allowed' | 'banned' | 'steps' | null
 	>(null);
 	let editVal = $state(0);
 	let editUnit = $state<ByteUnit>('GB');
@@ -53,8 +40,8 @@
 
 	// Preset limits
 	const LIMITS = Object.freeze({
-		download_preset: 5,
-		time_preset: 5,
+		download_preset: 8,
+		time_preset: 8,
 		site_description: {
 			words: 150,
 			paragraph: 3,
@@ -96,155 +83,216 @@
 	}
 </script>
 
-<div class="flex min-h-screen w-full flex-col">
-	<main class="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-4 p-4 md:gap-8 md:p-8">
-		<header class="flex items-center justify-between border-b border-border pb-4">
-			<div class="flex items-center">
-				<div class="rounded-xl border bg-background p-3 shadow-sm">
-					<Settings2 class="size-6" />
-				</div>
-				<h1 class="ml-3 text-2xl font-bold md:text-xl">Chithi Admin Panel</h1>
-			</div>
+<div class="space-y-6">
+	<!-- Syncing Indicator positioned absolutely or just floating -->
+	{#if configQuery.isFetching}
+		<div
+			in:fade
+			class="fixed top-24 right-10 z-50 flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase backdrop-blur-sm"
+		>
+			<LoaderCircle class="size-3.5 animate-spin" /> Syncing
+		</div>
+	{/if}
 
-			<div class="flex items-center gap-3">
-				{#if configQuery.isFetching}
-					<div
-						in:fade
-						class="flex items-center gap-2 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-					>
-						<LoaderCircle class="size-3 animate-spin" /> Syncing
+	{#if configQuery.isLoading}
+		<div class="space-y-6">
+			{#each Array(3) as _}
+				<div class="rounded-xl border bg-card p-8">
+					<div class="space-y-4">
+						<Skeleton class="h-6 w-1/4" />
+						<Skeleton class="h-4 w-1/2" />
+						<div class="pt-4"><Skeleton class="h-10 w-full" /></div>
 					</div>
-				{/if}
-			</div>
-		</header>
-		{#if configQuery.isLoading}
-			<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-				{#each Array(6) as _}
-					<div class="space-y-4 rounded-xl border bg-card p-6 text-card-foreground shadow-sm">
-						<div class="flex justify-between">
-							<Skeleton class="h-4 w-24 bg-muted" />
-							<Skeleton class="h-8 w-8 bg-muted" />
-						</div>
-						<Skeleton class="h-12 w-32 bg-muted" />
+				</div>
+			{/each}
+		</div>
+	{:else if configData}
+		<!-- Storage & Files Section -->
+		<Card.Root class="border shadow-sm">
+			<Card.Header class="border-b bg-muted/20 px-6 py-4">
+				<Card.Title class="text-base font-medium">Storage & Files</Card.Title>
+			</Card.Header>
+			<Card.Content class="space-y-8 p-6">
+				<!-- Storage Limit -->
+				<div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+					<div class="space-y-1 md:w-1/2">
+						<Label class="text-base font-medium">Storage Limit</Label>
+						<p class="text-sm text-muted-foreground">
+							The total storage capacity allocated for this instance. Older files may be pruned if
+							this limit is reached.
+						</p>
 					</div>
-				{/each}
-			</div>
-		{:else if configData}
-			<div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-				<Card.Root class="rounded-xl border bg-card text-card-foreground shadow-sm">
-					<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-						<div class="flex items-center gap-2">
-							<HardDrive class="size-4 text-violet-500" />
-							<Card.Title
-								class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-								>Storage Pool</Card.Title
-							>
-						</div>
-						<Button
-							variant="outline"
-							size="icon"
-							class="size-8"
-							onclick={() => startEdit('storage')}
-						>
-							<Pencil class="size-3.5" />
-						</Button>
-					</Card.Header>
-					<Card.Content class="flex min-h-24 flex-col justify-center">
+					<div class="flex w-full flex-col items-end gap-2 md:w-auto md:min-w-75">
 						{#if editing === 'storage'}
-							<div in:fade class="space-y-2">
-								<div class="flex gap-1">
-									<Input type="number" bind:value={editVal} class="h-8" min="0" step="0.01" />
-									<Select.Root type="single" bind:value={editUnit}>
-										<Select.Trigger class="h-8 w-22 text-[10px] uppercase"
-											>{editUnit}</Select.Trigger
-										>
-										<Select.Content>
-											{#each Object.keys(B_VALS) as u}<Select.Item value={u} label={u}
-													>{u}</Select.Item
-												>{/each}
-										</Select.Content>
-									</Select.Root>
-								</div>
+							<div in:slide class="flex w-full gap-2">
+								<Input
+									type="number"
+									bind:value={editVal}
+									class="bg-background"
+									min="0"
+									step="0.01"
+								/>
+								<Select.Root type="single" bind:value={editUnit}>
+									<Select.Trigger class="w-25">{editUnit}</Select.Trigger>
+									<Select.Content>
+										{#each Object.keys(B_VALS) as u}<Select.Item value={u} label={u}
+												>{u}</Select.Item
+											>{/each}
+									</Select.Content>
+								</Select.Root>
+							</div>
+							<div class="flex gap-2">
+								<Button variant="ghost" size="sm" onclick={() => (editing = null)}>Cancel</Button>
 								<Button
 									size="sm"
-									class="h-7 w-full text-[10px] font-bold"
 									onclick={() => {
 										save({ total_storage_limit: bytesToNumber(editVal, editUnit) });
 										editing = null;
-									}}>SAVE</Button
+									}}>Save</Button
 								>
 							</div>
 						{:else}
 							{@const f = formatBytes(configData.total_storage_limit)}
-							<div class="flex items-baseline gap-2">
-								<span class="text-5xl font-black">{f.val}</span>
-								<span class="text-xs font-bold text-violet-500 uppercase">{f.unit}</span>
-							</div>
-						{/if}
-					</Card.Content>
-				</Card.Root>
-
-				<Card.Root class="rounded-xl border bg-card text-card-foreground shadow-sm">
-					<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-						<div class="flex items-center gap-2">
-							<FileCode class="size-4 text-primary" />
-							<Card.Title
-								class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-								>File Ceiling</Card.Title
+							<div
+								class="flex w-full items-center justify-between rounded-md border bg-muted/40 px-3 py-2 text-sm"
 							>
-						</div>
-						<Button variant="outline" size="icon" class="size-8" onclick={() => startEdit('file')}>
-							<Pencil class="size-3.5" />
-						</Button>
-					</Card.Header>
-					<Card.Content class="flex min-h-24 flex-col justify-center">
+								<span class="font-mono font-medium">{f.val} {f.unit}</span>
+							</div>
+							<Button variant="outline" size="sm" onclick={() => startEdit('storage')}>Edit</Button>
+						{/if}
+					</div>
+				</div>
+
+				<div class="h-px bg-border/50"></div>
+				<!-- Separator -->
+
+				<!-- File Ceiling -->
+				<div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+					<div class="space-y-1 md:w-1/2">
+						<Label class="text-base font-medium">Max File Size</Label>
+						<p class="text-sm text-muted-foreground">
+							The permissible size limit for a single file upload.
+						</p>
+					</div>
+					<div class="flex w-full flex-col items-end gap-2 md:w-auto md:min-w-75">
 						{#if editing === 'file'}
-							<div in:fade class="space-y-2">
-								<div class="flex gap-1">
-									<Input type="number" bind:value={editVal} class="h-8" min="0" step="0.01" />
-									<Select.Root type="single" bind:value={editUnit}>
-										<Select.Trigger class="h-8 w-22 text-[10px] uppercase"
-											>{editUnit}</Select.Trigger
-										>
-										<Select.Content>
-											{#each Object.keys(B_VALS) as u}<Select.Item value={u} label={u}
-													>{u}</Select.Item
-												>{/each}
-										</Select.Content>
-									</Select.Root>
-								</div>
+							<div in:slide class="flex w-full gap-2">
+								<Input
+									type="number"
+									bind:value={editVal}
+									class="bg-background"
+									min="0"
+									step="0.01"
+								/>
+								<Select.Root type="single" bind:value={editUnit}>
+									<Select.Trigger class="w-25">{editUnit}</Select.Trigger>
+									<Select.Content>
+										{#each Object.keys(B_VALS) as u}<Select.Item value={u} label={u}
+												>{u}</Select.Item
+											>{/each}
+									</Select.Content>
+								</Select.Root>
+							</div>
+							<div class="flex gap-2">
+								<Button variant="ghost" size="sm" onclick={() => (editing = null)}>Cancel</Button>
 								<Button
 									size="sm"
-									class="h-7 w-full text-[10px] font-bold"
 									onclick={() => {
 										save({ max_file_size_limit: bytesToNumber(editVal, editUnit) });
 										editing = null;
-									}}>SAVE</Button
+									}}>Save</Button
 								>
 							</div>
 						{:else}
 							{@const f = formatBytes(configData.max_file_size_limit)}
-							<div class="flex items-baseline gap-2">
-								<span class="text-5xl font-black">{f.val}</span>
-								<span class="text-xs font-bold text-primary uppercase">{f.unit}</span>
-							</div>
-						{/if}
-					</Card.Content>
-				</Card.Root>
-
-				<Card.Root class="rounded-xl border bg-card text-card-foreground shadow-sm">
-					<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-						<div class="flex items-center gap-2">
-							<Clock class="size-4 text-primary" />
-							<Card.Title
-								class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-								>Expiry Options</Card.Title
+							<div
+								class="flex w-full items-center justify-between rounded-md border bg-muted/40 px-3 py-2 text-sm"
 							>
+								<span class="font-mono font-medium">{f.val} {f.unit}</span>
+							</div>
+							<Button variant="outline" size="sm" onclick={() => startEdit('file')}>Edit</Button>
+						{/if}
+					</div>
+				</div>
+			</Card.Content>
+		</Card.Root>
+
+		<!-- Retention Section -->
+		<Card.Root class="border shadow-sm">
+			<Card.Header class="border-b bg-muted/20 px-6 py-4">
+				<Card.Title class="text-base font-medium">Retention Policy</Card.Title>
+			</Card.Header>
+			<Card.Content class="space-y-8 p-6">
+				<!-- Default Expiry -->
+				<div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+					<div class="space-y-1 md:w-1/2">
+						<Label class="text-base font-medium">Default Expiry</Label>
+						<p class="text-sm text-muted-foreground">
+							The default retention period applied to uploads if none is specified.
+						</p>
+					</div>
+					<div class="w-full md:w-auto md:min-w-75">
+						<Select.Root
+							type="single"
+							value={String(configData.default_expiry)}
+							onValueChange={(v) => save({ default_expiry: Number(v) })}
+						>
+							<Select.Trigger class="w-full bg-background font-mono">
+								{formatSeconds(configData.default_expiry).val}
+								{formatSeconds(configData.default_expiry).unit}
+							</Select.Trigger>
+							<Select.Content>
+								{#each configData.time_configs as t}
+									{@const f = formatSeconds(t)}
+									<Select.Item value={String(t)} label="{f.val} {f.unit}"
+										>{f.val} {f.unit}</Select.Item
+									>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</div>
+				</div>
+
+				<div class="h-px bg-border/50"></div>
+
+				<!-- Default Downloads -->
+				<div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+					<div class="space-y-1 md:w-1/2">
+						<Label class="text-base font-medium">Default Download Limit</Label>
+						<p class="text-sm text-muted-foreground">
+							The default maximum number of downloads for a file.
+						</p>
+					</div>
+					<div class="w-full md:w-auto md:min-w-75">
+						<Select.Root
+							type="single"
+							value={String(configData.default_number_of_downloads)}
+							onValueChange={(v) => save({ default_number_of_downloads: Number(v) })}
+						>
+							<Select.Trigger class="w-full bg-background font-mono">
+								{configData.default_number_of_downloads}x
+							</Select.Trigger>
+							<Select.Content>
+								{#each configData.download_configs as dl}
+									<Select.Item value={String(dl)} label="{dl}x">{dl}x</Select.Item>
+								{/each}
+							</Select.Content>
+						</Select.Root>
+					</div>
+				</div>
+
+				<div class="h-px bg-border/50"></div>
+
+				<!-- Expiry Presets -->
+				<div class="flex flex-col gap-4">
+					<div class="flex items-center justify-between">
+						<div class="space-y-1">
+							<Label class="text-base font-medium">Time Presets</Label>
+							<p class="text-sm text-muted-foreground">Time options available to users.</p>
 						</div>
 						<Button
 							variant="outline"
-							size="icon"
-							class="card-btn size-8"
+							size="sm"
 							onclick={() => {
 								editing = editing === 'time' ? null : 'time';
 								if (editing === 'time') {
@@ -253,27 +301,45 @@
 								}
 							}}
 						>
-							<Pencil class="size-3.5" />
+							{editing === 'time' ? 'Done' : 'Edit'}
 						</Button>
-					</Card.Header>
-					{#if (configData?.time_configs?.length ?? 0) > LIMITS.time_preset || (editing === 'time' && (configData?.time_configs?.length ?? 0) + 1 > LIMITS.time_preset)}
-						<div in:fade class="p-4 text-xs text-destructive italic">
-							User experience may be hindered if you add more than {LIMITS.time_preset} time presets.
-						</div>
-					{/if}
-					<Card.Content
-						class={'flex min-h-24 flex-col justify-center space-y-3' +
-							((configData?.time_configs?.length ?? 0) > LIMITS.time_preset ||
-							(editing === 'time' &&
-								(configData?.time_configs?.length ?? 0) + 1 > LIMITS.time_preset)
-								? ' border border-destructive/50 bg-destructive/10'
-								: '')}
-					>
+					</div>
+
+					<div class="flex min-h-16 flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-4">
+						{#each configData.time_configs as t, i}
+							{@const f = formatSeconds(t)}
+							<Badge
+								variant="secondary"
+								class="h-8 border-border bg-background px-3 text-sm font-normal hover:bg-background"
+							>
+								{f.val}
+								{f.unit}
+								{#if editing === 'time'}
+									<div class="mx-2 h-3 w-px bg-border"></div>
+									<button
+										onclick={() =>
+											save({
+												time_configs: configData.time_configs.filter(
+													(_: any, idx: number) => idx !== i
+												)
+											})}
+										class="text-muted-foreground hover:text-foreground"
+									>
+										<X class="size-3" />
+									</button>
+								{/if}
+							</Badge>
+						{/each}
 						{#if editing === 'time'}
-							<div in:slide class="flex gap-1">
-								<Input type="number" bind:value={tempInput.time} class="h-7 text-xs" min="1" />
+							<div in:slide class="ml-2 flex items-center gap-2 border-l pl-2">
+								<Input
+									type="number"
+									bind:value={tempInput.time}
+									class="h-8 w-20 bg-background"
+									min="1"
+								/>
 								<Select.Root type="single" bind:value={tempInput.timeUnit}>
-									<Select.Trigger class="h-7 w-20 text-[9px] uppercase"
+									<Select.Trigger class="h-8 w-25 bg-background"
 										>{tempInput.timeUnit}</Select.Trigger
 									>
 									<Select.Content>
@@ -282,378 +348,303 @@
 								</Select.Root>
 								<Button
 									size="sm"
-									class="h-7"
+									class="h-8"
 									onclick={() => {
 										const secs = secondsToNumber(tempInput.time, tempInput.timeUnit);
 										const newTimeConfigs = [...configData.time_configs, secs].sort((a, b) => a - b);
 										save({ time_configs: newTimeConfigs });
-									}}><Plus class="size-3" /></Button
+									}}>Add</Button
 								>
 							</div>
 						{/if}
-						<div class="flex flex-wrap gap-1">
-							{#each configData.time_configs as t, i}
-								{@const f = formatSeconds(t)}
-								<Badge variant="secondary" class="text-[10px]">
-									{f.val}{f.unit.charAt(0)}
-									{#if editing === 'time'}
-										<button
-											onclick={() =>
-												save({
-													time_configs: configData.time_configs.filter(
-														(_: number, idx: number) => idx !== i
-													)
-												})}
-											class="ml-1 hover:text-foreground"
-										>
-											<X class="size-2.5" />
-										</button>
-									{/if}
-								</Badge>
-							{/each}
-						</div>
-					</Card.Content>
-				</Card.Root>
+					</div>
+				</div>
 
-				<Card.Root class="rounded-xl border bg-card text-card-foreground shadow-sm lg:col-span-2">
-					<Card.Header class="pb-2">
-						<Card.Title
-							class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-							>Retention Defaults</Card.Title
-						>
-					</Card.Header>
-					<Card.Content class="grid min-h-24 grid-cols-2 gap-8">
-						<div class="flex flex-col justify-center">
-							<Label class="mb-2 text-[9px] font-bold text-muted-foreground uppercase"
-								>Default Expiry</Label
-							>
-							<Select.Root
-								type="single"
-								value={String(configData.default_expiry)}
-								onValueChange={(v) => save({ default_expiry: Number(v) })}
-							>
-								<Select.Trigger class="h-10 font-mono text-xl">
-									{formatSeconds(configData.default_expiry).val}
-									{formatSeconds(configData.default_expiry).unit}
-								</Select.Trigger>
-								<Select.Content>
-									{#each configData.time_configs as t}
-										{@const f = formatSeconds(t)}
-										<Select.Item value={String(t)} label="{f.val} {f.unit}"
-											>{f.val} {f.unit}</Select.Item
-										>
-									{/each}
-								</Select.Content>
-							</Select.Root>
-						</div>
-						<div class="flex flex-col justify-center border-l pl-8">
-							<Label class="mb-2 text-[9px] font-bold text-muted-foreground uppercase"
-								>Default Downloads</Label
-							>
-							<Select.Root
-								type="single"
-								value={String(configData.default_number_of_downloads)}
-								onValueChange={(v) => save({ default_number_of_downloads: Number(v) })}
-							>
-								<Select.Trigger class="h-10 font-mono text-xl"
-									>{configData.default_number_of_downloads}x</Select.Trigger
-								>
-								<Select.Content>
-									{#each configData.download_configs as dl}
-										<Select.Item value={String(dl)} label="{dl}x">{dl}x</Select.Item>
-									{/each}
-								</Select.Content>
-							</Select.Root>
-						</div>
-					</Card.Content>
-				</Card.Root>
-
-				<Card.Root class="rounded-xl border bg-card text-card-foreground shadow-sm">
-					<Card.Header class="flex flex-row items-center justify-between space-y-0 pb-2">
-						<div class="flex items-center gap-2">
-							<Download class="size-4 text-primary" />
-							<Card.Title
-								class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-								>Download Presets</Card.Title
-							>
+				<!-- Download Presets -->
+				<div class="flex flex-col gap-4">
+					<div class="flex items-center justify-between">
+						<div class="space-y-1">
+							<Label class="text-base font-medium">Download Limit Presets</Label>
+							<p class="text-sm text-muted-foreground">
+								Download count options available to users.
+							</p>
 						</div>
 						<Button
 							variant="outline"
-							size="icon"
-							class="size-8"
+							size="sm"
 							onclick={() => {
 								editing = editing === 'steps' ? null : 'steps';
 								if (editing === 'steps') tempInput.dl = 1;
 							}}
 						>
-							<Pencil class="size-3.5" />
+							{editing === 'steps' ? 'Done' : 'Edit'}
 						</Button>
-					</Card.Header>
-					{#if (configData?.download_configs?.length ?? 0) > LIMITS.download_preset || (editing === 'steps' && (configData?.download_configs?.length ?? 0) + 1 > LIMITS.download_preset)}
-						<div in:fade class="p-4 text-xs text-destructive italic">
-							User experience may be hindered if you add more than {LIMITS.download_preset} extensions.
-						</div>
-					{/if}
-					<Card.Content
-						class={'flex min-h-24 flex-col justify-center space-y-3' +
-							((configData?.download_configs?.length ?? 0) > LIMITS.download_preset ||
-							(editing === 'steps' &&
-								(configData?.download_configs?.length ?? 0) + 1 > LIMITS.download_preset)
-								? ' border border-destructive/50 bg-destructive/10'
-								: '')}
-					>
+					</div>
+
+					<div class="flex min-h-16 flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-4">
+						{#each configData.download_configs as dl, i}
+							<Badge
+								variant="secondary"
+								class="h-8 border-border bg-background px-3 text-sm font-normal hover:bg-background"
+							>
+								{dl}x
+								{#if editing === 'steps'}
+									<div class="mx-2 h-3 w-px bg-border"></div>
+									<button
+										onclick={() =>
+											save({
+												download_configs: configData.download_configs.filter(
+													(_: any, idx: number) => idx !== i
+												)
+											})}
+										class="text-muted-foreground hover:text-foreground"
+									>
+										<X class="size-3" />
+									</button>
+								{/if}
+							</Badge>
+						{/each}
 						{#if editing === 'steps'}
-							<div in:slide class="flex gap-1">
-								<Input type="number" bind:value={tempInput.dl} class="h-7 text-xs" min="1" />
+							<div in:slide class="ml-2 flex items-center gap-2 border-l pl-2">
+								<Input
+									type="number"
+									bind:value={tempInput.dl}
+									class="h-8 w-20 bg-background"
+									min="1"
+								/>
 								<Button
 									size="sm"
-									class="h-7"
+									class="h-8"
 									onclick={() => {
 										const newList = [...configData.download_configs, tempInput.dl].sort(
 											(a, b) => a - b
 										);
 										save({ download_configs: newList });
-									}}>ADD</Button
+									}}>Add</Button
 								>
 							</div>
 						{/if}
-						<div class="flex flex-wrap gap-1">
-							{#each configData.download_configs as dl, i}
-								<Badge variant="secondary" class="text-[10px]">
-									{dl}x
-									{#if editing === 'steps'}
-										<button
-											onclick={() =>
-												save({
-													download_configs: configData.download_configs.filter(
-														(_: number, idx: number) => idx !== i
-													)
-												})}
-											class="ml-1 hover:text-foreground"
-										>
-											<X class="size-2.5" />
-										</button>
-									{/if}
-								</Badge>
-							{/each}
-						</div>
-					</Card.Content>
-				</Card.Root>
+					</div>
+				</div>
+			</Card.Content>
+		</Card.Root>
 
-				<Card.Root class="rounded-xl border bg-card text-card-foreground shadow-sm lg:col-span-3">
-					<Card.Header class="pb-2">
-						<Card.Title
-							class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-							>File Type Restrictions</Card.Title
-						>
-					</Card.Header>
-					<Card.Content class="grid gap-8 md:grid-cols-2">
-						<div class="space-y-3">
-							<div class="flex items-center justify-between border-b pb-2">
-								<div class="flex items-center gap-2">
-									<FileCheck class="size-4 text-emerald-500" />
-									<Label class="text-[9px] font-bold text-muted-foreground uppercase"
-										>Allowed Extensions</Label
-									>
-								</div>
-								<Button
-									variant="ghost"
-									size="sm"
-									class="h-6 w-6 p-0 text-muted-foreground hover:text-emerald-500"
-									onclick={() => {
-										editing = editing === 'allowed' ? null : 'allowed';
-										tempInput.str = '';
-									}}
-								>
-									{#if editing === 'allowed'}<X class="size-3.5" />{:else}<Plus
-											class="size-3.5"
-										/>{/if}
-								</Button>
-							</div>
-							{#if editing === 'allowed'}
-								<div in:slide class="flex gap-1">
-									<Input
-										placeholder="e.g. pdf, png"
-										bind:value={tempInput.str}
-										class="h-7 text-xs"
-										onkeydown={(e: KeyboardEvent) => {
-											if (e.key === 'Enter') {
-												const ext = sanitizeExt(tempInput.str);
-												if (ext)
-													save({
-														allowed_file_types: [
-															...new Set([...(configData.allowed_file_types || []), ext])
-														]
-													});
-												tempInput.str = '';
-											}
-										}}
-									/>
-								</div>
-							{/if}
-							<div class="flex flex-wrap gap-1.5">
-								{#if !configData.allowed_file_types?.length}
-									<span class="text-xs text-muted-foreground italic">All files allowed</span>
-								{:else}
-									{#each configData.allowed_file_types as type}
-										<Badge
-											variant="outline"
-											class="flex gap-1 border-emerald-200 bg-emerald-50 text-[10px] text-emerald-700 dark:border-emerald-700 dark:bg-emerald-900/10 dark:text-emerald-300"
-										>
-											{type}
-											{#if editing === 'allowed'}
-												<button
-													onclick={() =>
-														save({
-															allowed_file_types: configData.allowed_file_types.filter(
-																(t: string) => t !== type
-															)
-														})}><X class="size-2.5" /></button
-												>
-											{/if}
-										</Badge>
-									{/each}
-								{/if}
-							</div>
+		<!-- File Security -->
+		<Card.Root class="border shadow-sm">
+			<Card.Header class="border-b bg-muted/20 px-6 py-4">
+				<Card.Title class="text-base font-medium">File Security</Card.Title>
+			</Card.Header>
+			<Card.Content class="grid gap-10 p-6 md:grid-cols-2">
+				<!-- Allowed -->
+				<div class="space-y-4">
+					<div class="flex items-center justify-between">
+						<div class="space-y-1">
+							<Label class="text-base font-medium">Allowed Extensions</Label>
+							<p class="text-sm text-muted-foreground">Whitelist specific file types.</p>
 						</div>
-						<div class="space-y-3 md:border-l md:pl-8">
-							<div class="flex items-center justify-between border-b pb-2">
-								<div class="flex items-center gap-2">
-									<FileExclamationPoint class="size-4 text-destructive" />
-									<Label class="text-[9px] font-bold text-muted-foreground uppercase"
-										>Banned Extensions</Label
-									>
-								</div>
-								<Button
-									variant="ghost"
-									size="sm"
-									class="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-									onclick={() => {
-										editing = editing === 'banned' ? null : 'banned';
-										tempInput.str = '';
-									}}
-								>
-									{#if editing === 'banned'}<X class="size-3.5" />{:else}<Plus
-											class="size-3.5"
-										/>{/if}
-								</Button>
-							</div>
-							{#if editing === 'banned'}
-								<div in:slide class="flex gap-1">
-									<Input
-										placeholder="e.g. exe, bat"
-										bind:value={tempInput.str}
-										class="h-7 text-xs"
-										onkeydown={(e: KeyboardEvent) => {
-											if (e.key === 'Enter') {
-												const ext = sanitizeExt(tempInput.str);
-												if (ext)
-													save({
-														banned_file_types: [
-															...new Set([...(configData.banned_file_types || []), ext])
-														]
-													});
-												tempInput.str = '';
-											}
-										}}
-									/>
-								</div>
-							{/if}
-							<div class="flex flex-wrap gap-1.5">
-								{#if !configData.banned_file_types?.length}
-									<span class="text-xs text-muted-foreground italic">No types banned</span>
-								{:else}
-									{#each configData.banned_file_types as type}
-										<Badge variant="destructive" class="flex gap-1 text-[10px]">
-											{type}
-											{#if editing === 'banned'}
-												<button
-													onclick={() =>
-														save({
-															banned_file_types: configData.banned_file_types.filter(
-																(t: string) => t !== type
-															)
-														})}><X class="size-2.5" /></button
-												>
-											{/if}
-										</Badge>
-									{/each}
-								{/if}
-							</div>
-						</div>
-					</Card.Content>
-				</Card.Root>
-
-				<Card.Root
-					class="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm lg:col-span-3"
-				>
-					<Card.Header class="flex flex-row items-center justify-between border-b px-6 pb-4">
-						<div class="flex items-center gap-2">
-							<Globe class="size-4 text-primary" />
-							<Card.Title
-								class="text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
-								>Site Description</Card.Title
-							>
-						</div>
-						<div class="flex gap-2">
-							{#if editing === 'desc'}
-								<Button
-									variant="outline"
-									size="sm"
-									onclick={() => {
-										save({ site_description: descDraft });
-										editing = null;
-										editing = null;
-									}}
-									class="h-7 text-[10px] uppercase">Save Changes</Button
-								>
-							{/if}
+					</div>
+					<div class="flex gap-2">
+						<Input
+							placeholder="Add extension (e.g. pdf)..."
+							bind:value={tempInput.str}
+							onkeydown={(e: any) => {
+								if (editing === 'allowed' && e.key === 'Enter') {
+									const ext = sanitizeExt(tempInput.str);
+									if (ext)
+										save({
+											allowed_file_types: [
+												...new Set([...(configData.allowed_file_types || []), ext])
+											]
+										});
+									tempInput.str = '';
+								}
+							}}
+							onfocus={() => (editing = 'allowed')}
+							class="bg-background"
+						/>
+						{#if editing === 'allowed' && tempInput.str}
 							<Button
-								variant="outline"
 								size="sm"
 								onclick={() => {
-									if (editing === 'desc') {
-										editing = null;
-									} else {
-										editing = 'desc';
-										descDraft = configData?.site_description ?? '';
-									}
-								}}
-								class="h-7 text-[10px] uppercase"
+									const ext = sanitizeExt(tempInput.str);
+									if (ext)
+										save({
+											allowed_file_types: [
+												...new Set([...(configData.allowed_file_types || []), ext])
+											]
+										});
+									tempInput.str = '';
+								}}>Add</Button
 							>
-								{editing === 'desc' ? 'Close Preview' : 'Edit Markdown'}
-							</Button>
-						</div>
-					</Card.Header>
-					<Card.Content class="p-0">
-						{#if editing === 'desc'}
-							<div in:slide class="grid divide-x md:grid-cols-2">
-								<textarea
-									bind:value={descDraft}
-									class="min-h-75 resize-none bg-muted p-6 font-mono text-sm outline-none"
-									rows="10"
-								></textarea>
-								{#if descExceeds}
-									<div class="p-4 text-xs text-destructive italic">
-										Limit exceeded: {descWordCount}/{LIMITS.site_description.words} words, {descCharCount}/{LIMITS
-											.site_description.chars} chars, {descParagraphCount}/{LIMITS.site_description
-											.paragraph} paragraphs.
-									</div>
-								{/if}
-								<div class="max-w-none overflow-y-auto p-6">
-									<div class="prose prose-zinc dark:prose-invert max-w-none">
-										{@html previewHtml}
-									</div>
-								</div>
-							</div>
-						{:else}
-							<div in:fade class="max-w-none p-8">
-								<div class="prose prose-zinc dark:prose-invert max-w-none">{@html previewHtml}</div>
-							</div>
 						{/if}
-					</Card.Content>
-				</Card.Root>
-			</div>
-		{/if}
-	</main>
+					</div>
+					<div class="flex min-h-10 flex-wrap gap-2 rounded-md border bg-muted/20 p-3">
+						{#if !configData.allowed_file_types?.length}
+							<span class="p-1 text-xs text-muted-foreground italic"
+								>All files types are allowed.</span
+							>
+						{:else}
+							{#each configData.allowed_file_types as type}
+								<Badge
+									variant="outline"
+									class="gap-1 border-emerald-500/20 bg-emerald-500/10 pr-1 text-emerald-600"
+								>
+									{type}
+									<button
+										onclick={() =>
+											save({
+												allowed_file_types: configData.allowed_file_types.filter(
+													(t: any) => t !== type
+												)
+											})}
+										class="rounded-full p-0.5 hover:bg-emerald-500/20"
+									>
+										<X class="size-3" />
+									</button>
+								</Badge>
+							{/each}
+						{/if}
+					</div>
+				</div>
+
+				<!-- Banned -->
+				<div class="space-y-4">
+					<div class="flex items-center justify-between">
+						<div class="space-y-1">
+							<Label class="text-base font-medium">Banned Extensions</Label>
+							<p class="text-sm text-muted-foreground">Blacklist specific file types.</p>
+						</div>
+					</div>
+					<div class="flex gap-2">
+						<Input
+							placeholder="Add extension (e.g. exe)..."
+							bind:value={tempInput.str}
+							onkeydown={(e: any) => {
+								/* Logic needs to know which input we are in. Since I use tempInput.str for both, I must ensure 'editing' state is correct or split the state */
+								if (editing === 'banned' && e.key === 'Enter') {
+									const ext = sanitizeExt(tempInput.str);
+									if (ext)
+										save({
+											banned_file_types: [
+												...new Set([...(configData.banned_file_types || []), ext])
+											]
+										});
+									tempInput.str = '';
+								}
+							}}
+							onfocus={() => (editing = 'banned')}
+							class="bg-background"
+						/>
+						{#if editing === 'banned' && tempInput.str}
+							<Button
+								size="sm"
+								onclick={() => {
+									const ext = sanitizeExt(tempInput.str);
+									if (ext)
+										save({
+											banned_file_types: [
+												...new Set([...(configData.banned_file_types || []), ext])
+											]
+										});
+									tempInput.str = '';
+								}}>Add</Button
+							>
+						{/if}
+					</div>
+					<div class="flex min-h-10 flex-wrap gap-2 rounded-md border bg-muted/20 p-3">
+						{#if !configData.banned_file_types?.length}
+							<span class="p-1 text-xs text-muted-foreground italic">No file types are banned.</span
+							>
+						{:else}
+							{#each configData.banned_file_types as type}
+								<Badge
+									variant="outline"
+									class="gap-1 border-destructive/20 bg-destructive/10 pr-1 text-destructive"
+								>
+									{type}
+									<button
+										onclick={() =>
+											save({
+												banned_file_types: configData.banned_file_types.filter(
+													(t: any) => t !== type
+												)
+											})}
+										class="rounded-full p-0.5 hover:bg-destructive/20"
+									>
+										<X class="size-3" />
+									</button>
+								</Badge>
+							{/each}
+						{/if}
+					</div>
+				</div>
+			</Card.Content>
+		</Card.Root>
+
+		<!-- Site Description -->
+		<Card.Root class="border shadow-sm">
+			<Card.Header
+				class="flex flex-row items-center justify-between border-b bg-muted/20 px-6 py-4"
+			>
+				<div>
+					<Card.Title class="text-base font-medium">Site Description</Card.Title>
+					<Card.Description class="mt-1"
+						>Markdown content displayed on the public homepage.</Card.Description
+					>
+				</div>
+				<Button
+					variant="outline"
+					size="sm"
+					onclick={() => {
+						if (editing === 'desc') {
+							editing = null;
+						} else {
+							editing = 'desc';
+							descDraft = configData?.site_description ?? '';
+						}
+					}}
+				>
+					{editing === 'desc' ? 'Cancel' : 'Edit Description'}
+				</Button>
+			</Card.Header>
+			<Card.Content class="p-0">
+				{#if editing === 'desc'}
+					<div in:slide class="flex flex-col">
+						<div class="p-6 pb-2">
+							<textarea
+								bind:value={descDraft}
+								class="min-h-75 w-full resize-y rounded-md border bg-background p-4 font-mono text-sm leading-relaxed outline-none focus:ring-2 focus:ring-ring"
+								placeholder="Enter your site description in Markdown..."
+							></textarea>
+							<div class="mt-2 flex justify-between text-xs text-muted-foreground">
+								<span>Supports basic Markdown</span>
+								<span class={descExceeds ? 'font-bold text-destructive' : ''}>
+									{descWordCount}/{LIMITS.site_description.words} words
+								</span>
+							</div>
+						</div>
+						<div class="flex justify-end gap-2 border-t bg-muted/20 p-4">
+							<Button variant="ghost" onclick={() => (editing = null)}>Cancel</Button>
+							<Button
+								onclick={() => {
+									save({ site_description: descDraft });
+									editing = null;
+								}}
+								disabled={descExceeds}>Save Changes</Button
+							>
+						</div>
+					</div>
+				{:else}
+					<div
+						in:fade
+						class="prose max-w-none p-8 text-sm leading-relaxed prose-zinc dark:prose-invert"
+					>
+						{@html previewHtml}
+					</div>
+				{/if}
+			</Card.Content>
+		</Card.Root>
+	{:else}
+		<!-- Fallback if null configData, maybe show nothing or error -->
+	{/if}
 </div>
