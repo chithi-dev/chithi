@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card';
+	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { Skeleton } from '$lib/components/ui/skeleton';
@@ -12,18 +13,27 @@
 	const { files, revokeFile } = useFilesQuery();
 
 	let isRevoking = $state(false);
+	let isRevokeDialogOpen = $state(false);
+	let fileToRevoke = $state<string | null>(null);
 
-	async function handleRevoke(id: string) {
-		if (!confirm('Are you sure you want to revoke this URL? This cannot be undone.')) return;
+	function openRevokeDialog(id: string) {
+		fileToRevoke = id;
+		isRevokeDialogOpen = true;
+	}
+
+	async function confirmRevoke() {
+		if (!fileToRevoke) return;
 
 		try {
 			isRevoking = true;
-			await revokeFile(id);
+			await revokeFile(fileToRevoke);
 			toast.success('URL revoked successfully');
+			isRevokeDialogOpen = false;
 		} catch (e) {
 			toast.error('Failed to revoke URL');
 		} finally {
 			isRevoking = false;
+			fileToRevoke = null;
 		}
 	}
 
@@ -53,7 +63,7 @@
 			{:else if !files.data || files.data.length === 0}
 				<div class="p-12 text-center text-muted-foreground">No outstanding URLs found.</div>
 			{:else}
-				<ScrollArea class="h-[600px]">
+				<ScrollArea class="h-150">
 					<div class="divide-y divide-border">
 						{#each files.data as file (file.id)}
 							<div
