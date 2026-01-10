@@ -19,7 +19,9 @@ export const useFilesQuery = () => {
 		queryKey: ['admin-files'],
 		queryFn: async () => {
 			const token = localStorage.getItem('auth_token');
-			if (!token) return [];
+			if (!token) {
+				throw new Error('Not authenticated');
+			}
 
 			const res = await fetch(ADMIN_FILES_URL, {
 				headers: {
@@ -28,7 +30,10 @@ export const useFilesQuery = () => {
 			});
 
 			if (!res.ok) {
-				return [];
+				if (res.status === 401) {
+					throw new Error('Authentication failed');
+				}
+				throw new Error(`Failed to fetch files: ${res.statusText}`);
 			}
 			return res.json() as Promise<FileInfo[]>;
 		},
