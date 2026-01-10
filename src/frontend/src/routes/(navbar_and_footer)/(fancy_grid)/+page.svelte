@@ -15,7 +15,7 @@
 		Check,
 		Copy,
 		Lock,
-		CloudUpload,
+		Upload,
 		Download
 	} from 'lucide-svelte';
 	import { marked } from '$lib/functions/marked';
@@ -491,7 +491,7 @@
 				</div>
 			{:else if isUploadComplete}
 				<!-- Final Success Screen -->
-				<div class="flex h-full flex-col items-center justify-center py-12 text-center">
+				<div class="col-span-1 flex h-full flex-col items-center justify-center py-12 text-center lg:col-span-2">
 					<div class="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10">
 						<Lock class="h-10 w-10 text-green-500" />
 					</div>
@@ -527,30 +527,37 @@
 			{:else if isUploading}
 				{#if uploadingInProgress}
 					<!-- Modern Upload Animation -->
-					<div class="flex h-25 flex-col items-center justify-center py-20">
-						<div class="relative mb-8 h-32 w-32">
-							<!-- Outer spinning ring -->
-							<div class="absolute inset-0 rounded-full border-4 border-primary/20"></div>
+					<div class="flex h-full w-full flex-col items-center justify-center p-8">
+						<div class="relative mb-8 flex h-40 w-40 items-center justify-center">
+							<!-- Background Layers -->
+							<div class="absolute inset-0 animate-pulse rounded-full bg-primary/5"></div>
+
+							<!-- Static Track -->
+							<div class="absolute inset-0 rounded-full border-4 border-muted/20"></div>
+
+							<!-- Dynamic Rings -->
 							<div
-								class="absolute inset-0 animate-spin rounded-full border-4 border-primary border-t-transparent"
-								style="animation-duration: 1.5s;"
+								class="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary shadow-[0_0_15px_-3px_var(--primary)]"
+								style="animation-duration: 1.5s; animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);"
 							></div>
 
-							<!-- Inner pulsing circle -->
-							<div class="absolute inset-4 animate-pulse rounded-full bg-primary/10"></div>
+							<div
+								class="absolute inset-3 animate-spin rounded-full border-4 border-transparent border-t-primary/70 border-r-primary/30"
+								style="animation-duration: 2s; animation-direction: reverse; animation-timing-function: linear;"
+							></div>
 
-							<!-- Icon -->
-							<div class="absolute inset-0 flex items-center justify-center">
-								<CloudUpload class="h-12 w-12 animate-bounce text-primary" />
+							<!-- Center Icon -->
+							<div class="relative z-10">
+								<Upload class="h-12 w-12 text-primary drop-shadow-md" />
 							</div>
 						</div>
 
-						<h3 class="mb-2 animate-pulse text-2xl font-semibold">Encrypting & Uploading...</h3>
+						<h3 class="mb-2 text-2xl font-semibold tracking-tight">Encrypting & Uploading...</h3>
 						<p class="mb-8 text-muted-foreground">Please wait while we secure your files</p>
 
-						<div class="w-full max-w-md space-y-2">
+						<div class="w-full max-w-md space-y-3">
 							<Progress value={uploadProgress} class="h-2" />
-							<div class="flex justify-between text-xs text-muted-foreground">
+							<div class="flex justify-between text-xs font-medium text-muted-foreground">
 								<span>{uploadProgress}%</span>
 								<span>{totalSize}</span>
 							</div>
@@ -833,7 +840,7 @@
 						</div>
 					</ScrollArea>
 				</div>
-			{:else}
+			{:else if !isUploadComplete}
 				{@render encryptionInfo()}
 			{/if}
 		</div>

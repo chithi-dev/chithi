@@ -26,6 +26,10 @@ from app.routes.admin.user import router as admin_user_router
 
 app.include_router(admin_user_router, prefix="/admin")
 
+from app.routes.admin.files import router as admin_file_router
+
+app.include_router(admin_file_router, prefix="/admin")
+
 from app.routes.config import router as config_router
 
 app.include_router(config_router)

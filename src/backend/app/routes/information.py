@@ -37,6 +37,7 @@ async def get_file_information(
         raise e
 
     return {
+        "id": file_record.id,
         "filename": file_record.filename,
         "size": s3_response.get("ContentLength"),
         "download_count": file_record.download_count,

@@ -4,7 +4,8 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import * as Avatar from '$lib/components/ui/avatar';
-	import { LoaderCircle, Save } from 'lucide-svelte';
+	import { Skeleton } from '$lib/components/ui/skeleton';
+	import { LoaderCircle } from 'lucide-svelte';
 	import { useAuth } from '$lib/queries/auth';
 	import { fade } from 'svelte/transition';
 	import { kebab_to_initials } from '$lib/functions/string-conversion';
@@ -19,7 +20,8 @@
 	let success = $state<string | null>(null);
 
 	let initials = $derived(kebab_to_initials(username));
-	let hashedAvatar = $state<null | string>(null);
+	let avatarBlobUrl = $state<string | null>(null);
+	let isAvatarLoading = $state(false);
 
 	$effect(() => {
 		if (user.data) {
@@ -29,9 +31,35 @@
 	});
 
 	$effect(() => {
+		let active = true;
+		let objectUrl: string | null = null;
+
 		(async () => {
-			hashedAvatar = await make_libravatar_url(email ?? '');
+			if (!email) return;
+			isAvatarLoading = true;
+			try {
+				const url = await make_libravatar_url(email);
+				const res = await fetch(url);
+				const blob = await res.blob();
+				if (active) {
+					objectUrl = URL.createObjectURL(blob);
+					avatarBlobUrl = objectUrl;
+				}
+			} catch (err) {
+				console.error('Failed to load avatar', err);
+			} finally {
+				if (active) {
+					isAvatarLoading = false;
+				}
+			}
 		})();
+
+		return () => {
+			active = false;
+			if (objectUrl) {
+				URL.revokeObjectURL(objectUrl);
+			}
+		};
 	});
 
 	async function handleSubmit(e: Event) {
@@ -76,12 +104,14 @@
 							</p>
 						</div>
 						<div class="flex w-full justify-start md:w-auto md:min-w-75 md:justify-start">
-							<Avatar.Root class="h-16 w-16 border bg-muted">
-								{#key hashedAvatar && username}
-									<Avatar.Image src={hashedAvatar} alt="@{username}" />
-								{/key}
-								<Avatar.Fallback class="text-lg">{initials}</Avatar.Fallback>
-							</Avatar.Root>
+							{#if isAvatarLoading}
+								<Skeleton class="h-16 w-16 rounded-full" />
+							{:else}
+								<Avatar.Root class="h-16 w-16 border bg-muted">
+									<Avatar.Image src={avatarBlobUrl} alt="@{username}" />
+									<Avatar.Fallback class="text-lg">{initials}</Avatar.Fallback>
+								</Avatar.Root>
+							{/if}
 						</div>
 					</div>
 
@@ -94,12 +124,7 @@
 							<p class="text-sm text-muted-foreground">This is your public display name.</p>
 						</div>
 						<div class="w-full md:w-auto md:min-w-75">
-							<Input
-								id="username"
-								bind:value={username}
-								class="max-w-75 bg-background"
-								required
-							/>
+							<Input id="username" bind:value={username} class="max-w-75 bg-background" required />
 						</div>
 					</div>
 

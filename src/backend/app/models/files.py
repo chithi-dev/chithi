@@ -8,11 +8,12 @@ from sqlmodel import Field, SQLModel
 
 
 class FileInformationOut(SQLModel):
+    id: UUID
     filename: str
     size: int
 
     download_count: int
-    created_at: int
+    created_at: datetime
 
     expires_at: datetime
     expire_after_n_download: int
