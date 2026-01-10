@@ -100,7 +100,9 @@ services:
       backend:
         condition: service_started
   caddy:
-      image: caddy:alpine
+      build:
+        context: ./src/caddy
+        dockerfile: Dockerfile
       container_name: caddy-proxy
       restart: unless-stopped
       ports:
