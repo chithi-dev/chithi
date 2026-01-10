@@ -49,7 +49,7 @@ dev = "fastapi dev ./app/main.py"
 packages = ["app"]
 
 [tool.uv]
-default-groups = ["dev"]
+default-groups = "all"
 package = true
 
 [project.scripts]
