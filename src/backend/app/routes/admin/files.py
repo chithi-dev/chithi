@@ -18,7 +18,18 @@ async def show_all_files(
     query = select(File)
     result = await session.exec(query)
     file_objects = result.all()
-    return file_objects
+    return [
+        {
+            "id": file.id,
+            "filename": file.filename,
+            "size": None,  # Size is not available in the File model, would need S3 lookup
+            "download_count": file.download_count,
+            "created_at": int(file.created_at.timestamp()),
+            "expires_at": file.expires_at,
+            "expire_after_n_download": file.expire_after_n_download,
+        }
+        for file in file_objects
+    ]
 
 
 @router.delete("/files/{id}")

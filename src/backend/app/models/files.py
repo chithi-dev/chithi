@@ -13,7 +13,7 @@ class FileInformationOut(SQLModel):
     size: int
 
     download_count: int
-    created_at: datetime
+    created_at: int
 
     expires_at: datetime
     expire_after_n_download: int

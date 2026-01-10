@@ -36,8 +36,12 @@
 		}
 	}
 
-	function formatDate(dateStr?: string) {
+	function formatDate(dateStr?: string | number) {
 		if (!dateStr) return 'N/A';
+		// If it's a number (timestamp), convert to milliseconds
+		if (typeof dateStr === 'number') {
+			return new Date(dateStr * 1000).toLocaleString();
+		}
 		return new Date(dateStr).toLocaleString();
 	}
 </script>

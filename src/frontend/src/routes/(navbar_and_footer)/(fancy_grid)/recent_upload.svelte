@@ -21,7 +21,7 @@
 		filename: string;
 		size: number;
 		download_count: number;
-		created_at: string;
+		created_at: number;
 		expires_at: string;
 		expired: boolean;
 	};
@@ -50,7 +50,7 @@
 							name: info.filename,
 							size: formatFileSize(info.size),
 							expiry: new Date(info.expires_at).getTime(),
-							createdAt: new Date(info.created_at).getTime(),
+							createdAt: info.created_at * 1000,
 							downloadCount: info.download_count
 						});
 					} catch (error) {
