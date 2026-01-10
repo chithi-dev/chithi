@@ -6,9 +6,9 @@ export type FileInfo = {
 	filename: string;
 	folder_name?: string;
 	size?: number;
-	created_at?: string;
+	created_at: string;
 	expires_at?: string;
-	download_limit?: number;
+	expire_after_n_download?: number;
 	download_count?: number;
 };
 
