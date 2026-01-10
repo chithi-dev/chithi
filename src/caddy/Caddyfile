@@ -1,16 +1,21 @@
 {
     # email your-email@example.com
 }
+
 backend.localhost {
-    handle {
-        reverse_proxy backend:8000
-    }
+	reverse_proxy backend:8000
 }
 
 localhost {
     # Reverse proxy for the Frontend
-    handle {
-        reverse_proxy frontend:3000
+    reverse_proxy frontend:3000 {
+        @notfound {
+			status 404
+		}
+        handle_response @notfound {
+            copy_response {
+				status 200
+			}
+        }
     }
-
 }
