@@ -11,13 +11,18 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
-  rustfs-init:
-    image: busybox
-    container_name: rustfs-init
-    command: sh -c "mkdir -p /data && chown -R 10001:10001 /data"
+  volume-permission-helper:
+    image: alpine
     volumes:
       - rustfs:/data
+    command: >
+      sh -c "
+        chown -R 10001:10001 /data0 /data1 /data2 /data3 /logs &&
+        echo 'Volume Permissions fixed' &&
+        exit 0
+      "
     restart: "no"
+
   rustfs:
     image: rustfs/rustfs:latest
     security_opt:
@@ -45,7 +50,7 @@ services:
       start_period: 40s
       
     depends_on:
-      rustfs-init:
+      volume-permission-helper:
         condition: service_completed_successfully
   redis:
     image: redis:8-alpine
