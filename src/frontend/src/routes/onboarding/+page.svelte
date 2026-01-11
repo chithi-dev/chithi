@@ -6,9 +6,11 @@
 	import { Check } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Skeleton } from '$lib/components/ui/skeleton';
+
 	// Steps
 	import Step1 from './1.svelte';
 	import Step2 from './2.svelte';
+
 	const { status } = useOnboarding();
 
 	$effect(() => {
@@ -102,7 +104,7 @@
 							<p class="text-center text-sm text-slate-600 dark:text-zinc-400">
 								If you need to reconfigure, sign in and adjust settings from the dashboard.
 							</p>
-							<Button class="mt-2 h-12 w-full" on:click={() => goto('/')}>Go to dashboard</Button>
+							<Button class="mt-2 h-12 w-full" onclick={() => goto('/')}>Go to dashboard</Button>
 						</div>
 					</Card.Content>
 				</Card.Root>
