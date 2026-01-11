@@ -6,19 +6,16 @@
 	let { children } = $props();
 
 	const { status } = useOnboarding();
-	let onboarded = $state(false);
+
 	$effect.pre(() => {
 		if (status.isLoading || !status.data) return;
-		onboarded = status.data.onboarded;
-
 		const isOnboardingRoute = page.url.pathname.startsWith('/onboarding');
-		const needsOnboarding = !onboarded;
+		const needsOnboarding = !status.data.onboarded;
 		if (needsOnboarding && !isOnboardingRoute) {
 			goto('/onboarding');
 		}
 	});
 </script>
 
-{#if onboarded || page.url.pathname.startsWith('/onboarding') || status.isLoading}
-	{@render children()}
-{/if}
+
+{@render children()}
