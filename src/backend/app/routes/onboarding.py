@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlmodel import func, select
 
 from app.deps import SessionDep
-from app.models import User, UserCreate
+from app.models.user import User, UserCreate
 from app.security import get_password_hash
 
 router = APIRouter(tags=["onboarding"])
