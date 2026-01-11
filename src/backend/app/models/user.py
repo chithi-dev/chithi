@@ -9,10 +9,16 @@ class UserUpdate(SQLModel):
     email: str | None = None
 
 
+class UserCreate(SQLModel):
+    username: str
+    email: str | None = None
+    password: str
+
+
 class UserOut(SQLModel):
     username: str = Field(index=True, unique=True)
     email: str | None = Field(default=None, index=True, unique=True)
-    
+
 
 class User(UserOut, table=True):
     id: UUID = Field(
