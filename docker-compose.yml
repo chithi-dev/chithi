@@ -18,6 +18,7 @@ services:
       - "no-new-privileges:true"
     container_name: rustfs
     restart: unless-stopped
+    user: "10001:10001"
     ports:
       - "9000:9000"
       - "9001:9001"
