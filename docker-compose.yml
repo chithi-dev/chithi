@@ -17,7 +17,7 @@ services:
       - rustfs:/data
     command: >
       sh -c "
-        chown -R 10001:10001 /data0 /data1 /data2 /data3 /logs &&
+        chown -R 10001:10001 /data &&
         echo 'Volume Permissions fixed' &&
         exit 0
       "
