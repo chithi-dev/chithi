@@ -8,14 +8,6 @@
 	import Step2 from './2.svelte';
 
 	let step = $state(1);
-	const { status } = useOnboarding();
-
-	// Check if already onboarded
-	$effect(() => {
-		if (status.data?.onboarded) {
-			goto('/login');
-		}
-	});
 
 	function nextStep() {
 		if (step === 1) {

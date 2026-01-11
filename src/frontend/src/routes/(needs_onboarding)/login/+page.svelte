@@ -44,7 +44,6 @@
 		if (token) {
 			goto(nextUrl);
 		}
-		console.log('OJK');
 	}
 </script>
 
