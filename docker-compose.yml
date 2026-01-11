@@ -31,12 +31,7 @@ services:
       RUSTFS_SECRET_KEY: "rustfsadmin"
       RUSTFS_CONSOLE_ENABLE: "true"
     healthcheck:
-      test:
-        [
-          "CMD",
-          "sh", "-c",
-          "curl -f http://localhost:9000/health && curl -f http://localhost:9001/rustfs/console/health"
-        ]
+      test: [ "CMD", "sh", "-c", "curl -f http://localhost:9000/health && curl -f http://localhost:9001/rustfs/console/health" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -51,7 +46,7 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -100,21 +95,23 @@ services:
       backend:
         condition: service_started
   caddy:
-      build:
-        context: ./src/caddy
-        dockerfile: Dockerfile
-      container_name: caddy-proxy
-      restart: unless-stopped
-      ports:
-        - "80:80"
-        - "443:443"
-      volumes:
-        - ./src/caddy/Caddyfile:/etc/caddy/Caddyfile
-        - caddy_data:/data
-        - caddy_config:/config
-      depends_on:
-        - frontend
-        - backend
+    build:
+      context: ./src/caddy
+      dockerfile: Dockerfile
+    container_name: caddy-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN=chithi.dev
+    volumes:
+      - ./src/caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+      - backend
 
   frontend:
     build:
@@ -123,7 +120,7 @@ services:
     container_name: frontend
     restart: unless-stopped
     environment:
-      PUBLIC_BACKEND_API: https://backend.localhost
+      PUBLIC_BACKEND_API: https://chithi.dev/api
     ports:
       - "3000:3000"
     depends_on:
