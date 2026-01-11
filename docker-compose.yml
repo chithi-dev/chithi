@@ -104,9 +104,8 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      - DOMAIN=chithi.dev
+      DOMAIN: https://chithi.dev
     volumes:
-      - ./src/caddy/Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
