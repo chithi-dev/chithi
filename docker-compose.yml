@@ -11,14 +11,20 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
-
+  rustfs-init:
+    image: busybox
+    container_name: rustfs-init
+    command: sh -c "mkdir -p /data && chown -R 10001:10001 /data"
+    volumes:
+      - rustfs:/data
+    restart: "no"
   rustfs:
     image: rustfs/rustfs:latest
     security_opt:
       - "no-new-privileges:true"
     container_name: rustfs
     restart: unless-stopped
-    user: "10001:10001"
+    user: "10001:10001" 
     ports:
       - "9000:9000"
       - "9001:9001"
@@ -37,7 +43,10 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
+      
+    depends_on:
+      rustfs-init:
+        condition: service_completed_successfully
   redis:
     image: redis:8-alpine
     container_name: redis
