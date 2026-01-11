@@ -22,7 +22,7 @@ services:
       - "9000:9000"
       - "9001:9001"
     volumes:
-      - ./data:/data
+      - rustfs:/data
     environment:
       RUSTFS_ADDRESS: "0.0.0.0:9000"
       RUSTFS_CONSOLE_ADDRESS: "0.0.0.0:9001"
@@ -103,6 +103,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      
     environment:
       DOMAIN: https://chithi.dev
     volumes:
@@ -130,3 +131,4 @@ volumes:
   redis_data:
   caddy_data:
   caddy_config:
+  rustfs:
