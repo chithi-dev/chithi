@@ -52,7 +52,7 @@ jobs:
                   tags: ${{ steps.meta.outputs.tags }}
                   labels: ${{ steps.meta.outputs.labels }}
 
-    build-and-push-frontend:
+    build-and-push-frontend-node:
         runs-on: ubuntu-latest
         permissions:
             contents: read
