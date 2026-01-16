@@ -1,4 +1,4 @@
-name: Test Frontend Static Docker Build
+name: Test Frontend Node Docker Build
 
 on:
     push:
