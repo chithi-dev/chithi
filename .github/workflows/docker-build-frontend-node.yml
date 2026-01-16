@@ -1,4 +1,4 @@
-name: Test Frontend Docker Build
+name: Test Frontend Node Docker Build
 
 on:
     push:
@@ -28,5 +28,5 @@ jobs:
               uses: docker/build-push-action@v5
               with:
                   context: ./src/frontend
-                  file: ./src/frontend/Dockerfile
+                  file: ./src/frontend/builds/Dockerfile.node
                   push: false
