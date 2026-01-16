@@ -56,5 +56,8 @@ class Settings(BaseSettings):
     CELERY_BROKER_URL: str = "redis://localhost:6379"
     CELERY_RESULT_BACKEND: str = "redis://localhost:6379"
 
+    # Reverse Proxy
+    ROOT_PATH: str = ""
+
 
 settings = Settings()  # type: ignore

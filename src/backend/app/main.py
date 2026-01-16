@@ -2,6 +2,7 @@ import logging
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.settings import settings
 
 # logging.basicConfig(
 #     level=logging.INFO,
@@ -10,7 +11,9 @@ from fastapi.middleware.cors import CORSMiddleware
 # )
 logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
-app = FastAPI()
+app = FastAPI(
+    root_path=settings.ROOT_PATH,
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
