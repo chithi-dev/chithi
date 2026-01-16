@@ -13,6 +13,7 @@ logging.getLogger("sqlalchemy.engine").setLevel(logging.WARNING)
 
 app = FastAPI(
     root_path=settings.ROOT_PATH,
+    openapi_url="/openapi.json",
 )
 app.add_middleware(
     CORSMiddleware,
