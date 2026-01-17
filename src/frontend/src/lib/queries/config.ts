@@ -29,12 +29,13 @@ export const useConfigQuery = () => {
 		queryKey: ['config'],
 		queryFn: async () => {
 			const token = localStorage.getItem('auth_token');
-			if (!token) return null;
+			let headers: Record<string, string> = {};
+			if (token) {
+				headers.Authorization = `Bearer ${token}`;
+			}
 
 			const res = await fetch(CONFIG_URL, {
-				headers: {
-					Authorization: `Bearer ${token}`
-				}
+				headers: headers
 			});
 
 			return res.json();
