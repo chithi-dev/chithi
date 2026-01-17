@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { SunIcon, Send, MoonIcon, Settings, LogOut, User } from 'lucide-svelte';
+	import { SunIcon, Send, MoonIcon, LogOut, UserCog, SlidersVertical, Link } from 'lucide-svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { toggleMode } from 'mode-watcher';
 	import * as Avatar from '$lib/components/ui/avatar';
@@ -23,6 +23,24 @@
 			hashedAvatar = await make_libravatar_url(userData.data?.email ?? '');
 		})();
 	});
+
+	const adminLinks = [
+		{
+			href: '/admin/user',
+			name: 'Customize User',
+			icon: UserCog
+		},
+		{
+			href: '/admin/config',
+			name: 'Config',
+			icon: SlidersVertical
+		},
+		{
+			href: '/admin/urls',
+			name: 'Outstanding URLs',
+			icon: Link
+		}
+	];
 </script>
 
 <div class="flex min-h-screen min-w-screen flex-col bg-background text-foreground">
@@ -62,20 +80,22 @@
 						</Dropdown.Item>
 
 						<Dropdown.Separator />
-
-						<Dropdown.Item class="flex items-center gap-2">
-							<a href="/admin/config" class="flex w-full items-center gap-2">
-								<Settings class="h-4 w-4" />
-								Config
-							</a>
-						</Dropdown.Item>
-
-						<Dropdown.Item class="flex items-center gap-2">
-							<a href="/admin/user" class="flex w-full items-center gap-2">
-								<User class="h-4 w-4" />
-								Users
-							</a>
-						</Dropdown.Item>
+						<Dropdown.DropdownMenuSub>
+							<Dropdown.DropdownMenuSubTrigger>Admin</Dropdown.DropdownMenuSubTrigger>
+							<Dropdown.DropdownMenuPortal>
+								<Dropdown.DropdownMenuSubContent>
+									{#each adminLinks as item}
+										<Dropdown.DropdownMenuItem>
+											<a href="/admin/config" class="flex w-full items-center gap-2">
+												<item.icon />
+												{item.name}
+											</a>
+										</Dropdown.DropdownMenuItem>
+									{/each}
+									<!-- <Dropdown.DropdownMenuSeparator /> -->
+								</Dropdown.DropdownMenuSubContent>
+							</Dropdown.DropdownMenuPortal>
+						</Dropdown.DropdownMenuSub>
 						<Dropdown.Item class="mt-1 flex items-center gap-2" variant="destructive">
 							<a href="/logout" class="flex w-full items-center gap-2">
 								<LogOut class="h-4 w-4" />

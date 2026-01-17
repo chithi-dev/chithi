@@ -46,6 +46,7 @@ export function useAuth() {
 		if (browser && token) {
 			localStorage.setItem('auth_token', token);
 		}
+		await queryClient.invalidateQueries({ queryKey: ['auth-user'] });
 
 		return token;
 	};
