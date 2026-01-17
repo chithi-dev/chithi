@@ -1,8 +1,9 @@
-import logging
 from typing import Literal
 
 from pydantic import PostgresDsn, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.parser.log import parse_string_to_log
 
 LOG_TYPES = Literal["warning", "info", "critical", "error", "debug"]
 
@@ -67,7 +68,7 @@ class Settings(BaseSettings):
     # Debugging Flags
 
     # SqlAlchemy
-    SQLALCHEMY_LOG: LOG_TYPES | bool = False
+    SQLALCHEMY_LOG: LOG_TYPES | None = None
 
     @computed_field
     @property
@@ -76,20 +77,10 @@ class Settings(BaseSettings):
     ) -> int:
         log_type = self.SQLALCHEMY_LOG
         if log_type:
-            match log_type:
-                case "critical":
-                    return logging.CRITICAL
-                case "debug":
-                    return logging.DEBUG
-                case "warning":
-                    return logging.WARNING
-                case "info":
-                    return logging.INFO
-                case _:
-                    raise ValueError(f"`{log_type}` is not supported")
+            return parse_string_to_log(log_type)
         else:
             raise ValueError(
-                f"`SQLALCHEMY_LOG` must be set, currently it is {log_type}"
+                f"`SQLALCHEMY_LOG` must be set to string, currently it is {log_type}"
             )
 
 
