@@ -142,6 +142,7 @@ async def upload_file(
     now = datetime.now(timezone.utc).replace(tzinfo=None)
     file_obj = File(
         filename=str(filename),
+        size=uploaded_size,
         expires_at=now + timedelta(seconds=expire_after),
         expire_after_n_download=expire_after_n_download,
         created_at=now,

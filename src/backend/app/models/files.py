@@ -39,6 +39,7 @@ class File(FileOut, table=True):
     # Tracking downloads
     download_count: int = Field(default=0)
     created_at: datetime = Field()
+    size: int = Field()
 
     __table_args__ = (UniqueConstraint("id", "key"),)
 
