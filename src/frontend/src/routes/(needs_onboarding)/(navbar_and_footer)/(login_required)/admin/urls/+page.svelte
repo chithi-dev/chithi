@@ -107,8 +107,8 @@
 												<span class="flex items-center gap-1" title="Downloads">
 													<Download class="h-3 w-3" />
 													{file.download_count}
-													{#if file.download_limit}
-														/ {file.download_limit}
+													{#if file.expire_after_n_download}
+														/ {file.expire_after_n_download}
 													{/if}
 												</span>
 											{/if}
