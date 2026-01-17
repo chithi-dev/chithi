@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     USE_SQLITE: bool = False
     SQLITE_DB: str = "sql_app.db"
 
-    @computed_field  # type: ignore[prop-decorator]
+    @computed_field
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> PostgresDsn | str:
         if self.USE_SQLITE:
@@ -41,9 +41,6 @@ class Settings(BaseSettings):
             port=self.POSTGRES_PORT,
             path=self.POSTGRES_DB,
         )
-
-    # API Config
-    API_STR: str = "/api/v1"
 
     # JWT
     SECRET_KEY: str = (
