@@ -19,7 +19,7 @@
 	import { useAuth } from '$lib/queries/auth';
 	import { goto } from '$app/navigation';
 
-	// Svelte 5 Runes
+	// States
 	let isLoading = $state(false);
 	let showPassword = $state(false);
 	let email = $state('');

@@ -52,9 +52,9 @@ export function useAuth() {
 	};
 
 	const logout = () => {
-		if (browser) {
-			localStorage.removeItem('auth_token');
-		}
+		if (!browser) return null;
+
+		localStorage.removeItem('auth_token');
 		queryClient.setQueryData(['auth-user'], null);
 		queryClient.clear();
 	};
