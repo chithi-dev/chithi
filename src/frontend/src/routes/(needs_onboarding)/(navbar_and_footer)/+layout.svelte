@@ -10,6 +10,7 @@
 	import { Switch } from '$lib/components/ui/switch/index.js';
 	import { kebab_to_initials } from '$lib/functions/string-conversion';
 	import { make_libravatar_url } from '$lib/functions/libravatar';
+	import { page } from '$app/state';
 
 	const { isAuthenticated, user: userData } = useAuth();
 
@@ -97,7 +98,7 @@
 							</Dropdown.DropdownMenuPortal>
 						</Dropdown.DropdownMenuSub>
 						<Dropdown.Item class="mt-1 flex items-center gap-2" variant="destructive">
-							<a href="/logout" class="flex w-full items-center gap-2">
+							<a href="/logout?next={page.url.pathname}" class="flex w-full items-center gap-2">
 								<LogOut class="h-4 w-4" />
 								Logout
 							</a>
@@ -105,7 +106,7 @@
 					</Dropdown.Content>
 				</Dropdown.Root>
 			{:else}
-				<Button variant="outline" size="sm" href="/login">Login</Button>
+				<Button variant="outline" size="sm" href="/login?next={page.url.pathname}">Login</Button>
 				<Button
 					variant="outline"
 					size="icon"
