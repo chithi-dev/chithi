@@ -491,7 +491,9 @@
 				</div>
 			{:else if isUploadComplete}
 				<!-- Final Success Screen -->
-				<div class="col-span-1 flex h-full flex-col items-center justify-center py-12 text-center lg:col-span-2">
+				<div
+					class="col-span-1 flex h-full flex-col items-center justify-center py-12 text-center lg:col-span-2"
+				>
 					<div class="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10">
 						<Lock class="h-10 w-10 text-green-500" />
 					</div>
