@@ -30,7 +30,7 @@
 	<header class="flex items-center justify-between border-b border-border p-4">
 		<div class="flex items-center">
 			<Send class="h-6 w-6 text-primary" />
-			<h1 class="ml-2 text-2xl font-bold md:text-xl">Send</h1>
+			<h1 class="ml-2 text-2xl font-bold md:text-xl">Chithi</h1>
 		</div>
 
 		<div class="flex items-center gap-2">
@@ -115,19 +115,19 @@
 			<nav
 				class="flex flex-row flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground md:gap-6"
 			>
-				<a
+				<!-- <a
 					href="/donate"
 					class="font-medium whitespace-nowrap transition-colors hover:text-foreground">Donate</a
 				>
 				<a href="/cli" class="font-medium whitespace-nowrap transition-colors hover:text-foreground"
 					>CLI</a
-				>
+				> 
 				<a
 					href="/dmca"
 					class="font-medium whitespace-nowrap transition-colors hover:text-foreground">DMCA</a
-				>
+				> -->
 				<a
-					href="/source"
+					href="https://github.com/chithi-dev/chithi"
 					class="font-medium whitespace-nowrap transition-colors hover:text-foreground">Source</a
 				>
 			</nav>

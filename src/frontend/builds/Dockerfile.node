@@ -3,6 +3,7 @@ WORKDIR /app
 COPY package*.json .
 RUN npm ci
 COPY . .
+RUN rm busybox.conf
 RUN npm run build:node
 RUN npm prune --production
 
