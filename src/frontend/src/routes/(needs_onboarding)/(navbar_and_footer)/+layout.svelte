@@ -132,7 +132,7 @@
 
 	<!-- Footer -->
 	<footer class="border-t border-border p-4">
-		<div class="mx-auto w-full max-w-6xl">
+		<div class="w-full">
 			<nav
 				class="flex flex-row flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground md:gap-6"
 			>

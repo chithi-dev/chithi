@@ -66,5 +66,8 @@
 		"vite": "^7.3.1",
 		"vitest": "^4.0.17",
 		"xss": "^1.0.15"
+	},
+	"dependencies": {
+		"@ethercorps/sveltekit-og": "^4.2.1"
 	}
 }
