@@ -53,7 +53,9 @@ export function useAuth() {
 
 	const logout = () => {
 		if (!browser) return null;
-
+		if (!localStorage.getItem('auth_token')) {
+			throw new Error('Not authenticated');
+		}
 		localStorage.removeItem('auth_token');
 		queryClient.setQueryData(['auth-user'], null);
 		queryClient.clear();

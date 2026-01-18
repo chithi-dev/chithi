@@ -18,6 +18,7 @@
 	import { cn } from '$lib/utils';
 	import { useAuth } from '$lib/queries/auth';
 	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
 
 	// States
 	let isLoading = $state(false);
@@ -40,9 +41,15 @@
 
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault();
-		const token = await login(email, password);
-		if (token) {
-			goto(nextUrl);
+		try {
+			const token = await login(email, password);
+			if (token) {
+				goto(nextUrl);
+			}
+		} catch (e) {
+			if (e instanceof Error) {
+				toast.error(e.message);
+			}
 		}
 	}
 </script>
