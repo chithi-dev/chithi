@@ -199,7 +199,7 @@
 
 		if (configData.data?.max_file_size_limit) {
 			if (currentTotalSize + newFilesSize > configData.data.max_file_size_limit) {
-				alert(
+				toast.error(
 					`Total file size cannot exceed ${formatFileSize(configData.data.max_file_size_limit)}`
 				);
 				return;

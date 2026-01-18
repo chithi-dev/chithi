@@ -7,11 +7,9 @@
 	import { useOnboarding } from '$lib/queries/onboarding';
 	import { useAuth } from '$lib/queries/auth';
 	import { toast } from 'svelte-sonner';
+	import type { Props } from './types';
 
 	// Props
-	interface Props {
-		onNext: () => void;
-	}
 	let { onNext }: Props = $props();
 
 	// Svelte 5 Runes

@@ -4,14 +4,12 @@
 	import { Label } from '$lib/components/ui/label';
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
-	import { Settings, Check, LoaderCircle, ArrowRight } from 'lucide-svelte';
+	import type { Props } from './types';
+	import { Settings, Check, LoaderCircle } from 'lucide-svelte';
 	import { useConfigQuery } from '$lib/queries/config';
 	import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '$lib/functions/bytes';
 	import { toast } from 'svelte-sonner';
 
-	interface Props {
-		onNext: () => void;
-	}
 	let { onNext }: Props = $props();
 
 	const { config: configQuery, update_config } = useConfigQuery();
