@@ -11,7 +11,7 @@
 	import { kebab_to_initials } from '$lib/functions/string-conversion';
 	import { make_libravatar_url } from '$lib/functions/libravatar';
 	import { page } from '$app/state';
-
+	import GithubIcon from '$lib/logos/github.svelte';
 	const { isAuthenticated, user: userData } = useAuth();
 
 	let { children } = $props();
@@ -40,6 +40,13 @@
 			href: '/admin/urls',
 			name: 'Outstanding URLs',
 			icon: Link
+		}
+	];
+	const footerLinks = [
+		{
+			href: 'https://github.com/chithi-dev/chithi',
+			name: 'Source',
+			icon: GithubIcon
 		}
 	];
 </script>
@@ -132,25 +139,21 @@
 
 	<!-- Footer -->
 	<footer class="border-t border-border p-4">
-		<div class="mx-auto w-full max-w-6xl">
+		<div class="mx-auto w-full">
 			<nav
 				class="flex flex-row flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground md:gap-6"
 			>
-				<!-- <a
-					href="/donate"
-					class="font-medium whitespace-nowrap transition-colors hover:text-foreground">Donate</a
-				>
-				<a href="/cli" class="font-medium whitespace-nowrap transition-colors hover:text-foreground"
-					>CLI</a
-				> 
-				<a
-					href="/dmca"
-					class="font-medium whitespace-nowrap transition-colors hover:text-foreground">DMCA</a
-				> -->
-				<a
-					href="https://github.com/chithi-dev/chithi"
-					class="font-medium whitespace-nowrap transition-colors hover:text-foreground">Source</a
-				>
+				{#each footerLinks as footer_item}
+					<Button
+						variant="ghost"
+						size="icon"
+						aria-label={footer_item.name}
+						class="transition-colors hover:text-foreground"
+						href={footer_item.href}
+					>
+						<footer_item.icon />
+					</Button>
+				{/each}
 			</nav>
 		</div>
 	</footer>
