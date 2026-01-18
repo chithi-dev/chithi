@@ -486,7 +486,7 @@
 					</svg>
 					<Skeleton class="mb-6 h-16 w-16 rounded-full" />
 					<Skeleton class="mb-2 h-7 w-48" />
-					<Skeleton class="mx-auto mb-8 h-6 w-103.5 md:mb-4 md:h-5" />
+					<Skeleton class="mx-auto mb-8 h-6 w-full md:mb-4 md:h-5" />
 					<Skeleton class="h-19 w-64 rounded-md md:h-14 md:w-56" />
 				</div>
 			{:else if isUploadComplete}
