@@ -16,7 +16,7 @@ router = APIRouter()
 
 
 @router.post("/login")
-@rate_limit("3req/sec", "60req/min")
+@rate_limit("3req/sec", "4req/min")
 async def login_endpoint(
     session: SessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ) -> Token:
