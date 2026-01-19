@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 from sqlmodel import func, select
 
 from app.deps import SessionDep
+from app.models.onboarding import OnboardingOut, OnboardingPOSTOut
 from app.models.user import User, UserCreate
 from app.security import get_password_hash
 
@@ -13,7 +14,7 @@ async def get_onboarding_status(session: SessionDep):
     count_statement = select(func.count()).select_from(User)
     exec_result = await session.exec(count_statement)
     count = exec_result.one()
-    return {"onboarded": count >= 1}
+    return OnboardingOut(onboarded=count >= 1)
 
 
 @router.post("/onboarding", status_code=status.HTTP_201_CREATED)
@@ -37,4 +38,4 @@ async def complete_onboarding(user_in: UserCreate, session: SessionDep):
     session.add(user)
     await session.commit()
 
-    return {"message": "Onboarding completed successfully"}
+    return OnboardingPOSTOut(message="Onboarding completed successfully")
