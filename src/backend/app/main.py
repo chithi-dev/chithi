@@ -1,8 +1,9 @@
 import logging
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.guards.rate_limit import rate_limiter_guard
 from app.settings import settings
 
 # logging.basicConfig(
@@ -16,6 +17,7 @@ if settings.SQLALCHEMY_LOG:
 app = FastAPI(
     root_path=settings.ROOT_PATH,
     openapi_url="/openapi.json",
+    dependencies=[Depends(rate_limiter_guard)],
 )
 app.add_middleware(
     CORSMiddleware,
