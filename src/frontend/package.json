@@ -49,7 +49,7 @@
 		"mode-watcher": "^1.1.0",
 		"playwright": "^1.57.0",
 		"prettier": "^3.8.0",
-		"prettier-plugin-packagejson": "^2.5.21",
+		"prettier-plugin-packagejson": "^2.5.22",
 		"prettier-plugin-svelte": "^3.4.0",
 		"prettier-plugin-tailwindcss": "^0.7.2",
 		"qrcode": "^1.5.4",
