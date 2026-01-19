@@ -2,11 +2,13 @@ from typing import Annotated, AsyncGenerator
 
 import aioboto3
 import jwt
+import redis.asyncio as redis
 from botocore.exceptions import ClientError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import InvalidTokenError
 from pydantic import ValidationError
+from redis.asyncio import Redis
 from sqlmodel.ext.asyncio.session import AsyncSession
 from types_aiobotocore_s3 import S3Client
 
@@ -52,6 +54,18 @@ async def get_s3_client() -> AsyncGenerator[S3Client, None]:
         yield s3_client
 
 
+async def get_redis():
+    client = redis.from_url(
+        settings.REDIS_ENDPOINT,
+        encoding="utf-8",
+        decode_responses=True,
+    )
+    try:
+        yield client
+    finally:
+        await client.aclose()
+
+
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 TokenDep = Annotated[
     HTTPAuthorizationCredentials,
@@ -59,5 +73,5 @@ TokenDep = Annotated[
 ]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 S3Dep = Annotated[S3Client, Depends(get_s3_client)]  # type: ignore
-
+RedisDep = Annotated[Redis, Depends(get_redis)]
 __all__ = ["SessionDep", "CurrentUser", "TokenDep", "S3Dep"]

@@ -56,11 +56,15 @@ class Settings(BaseSettings):
     RUSTFS_BUCKET_NAME: str = "chithi"
 
     # Celery Backend
-    CELERY_BROKER_URL: str = "redis://localhost:6379"
-    CELERY_RESULT_BACKEND: str = "redis://localhost:6379"
+    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
+    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
 
     # Reverse Proxy
     ROOT_PATH: str = ""
+
+    # Redis
+
+    REDIS_ENDPOINT: str = "redis://localhost:6379/1"
 
     # Debugging Flags
 
