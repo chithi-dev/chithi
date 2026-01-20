@@ -266,6 +266,18 @@ export async function createEncryptedStream(
 	let buffer = new Uint8Array(0);
 	let chunkIndex = 0;
 
+	// Worker-pool shared state (moved to outer scope so transform/flush can access)
+	let workers: Worker[] = [];
+	let nextWorker = 0;
+	const encryptedMap = new Map<number, Uint8Array>();
+	let nextToEnqueue = 0;
+	let pendingCount = 0;
+	let allDonePromise: Promise<void> | null = null;
+	let allDoneResolve: (() => void) | null = null;
+	let allDoneReject: ((e: any) => void) | null = null;
+	let streamEnded = false;
+	let assignChunk: ((index: number, chunkData: Uint8Array) => void) | null = null;
+
 	const transformer = new TransformStream<Uint8Array, Uint8Array>({
 		async start(controller) {
 			// Prepare header
@@ -316,10 +328,6 @@ export async function createEncryptedStream(
 					header.set(part, offset);
 					offset += part.length;
 				} else {
-					// If we overflow 1000 bytes, we just write what fits?
-					// Or we should have made the header dynamic?
-					// For now, assume it fits (metadata is small).
-					// If it doesn't fit, we truncate, which is bad, but better than crashing.
 					const remaining = 1000 - offset;
 					if (remaining > 0) {
 						header.set(part.slice(0, remaining), offset);
@@ -329,6 +337,104 @@ export async function createEncryptedStream(
 			}
 
 			controller.enqueue(header);
+
+			// Setup worker pool for parallel encryption (if supported)
+			const concurrency = Math.max(1, (navigator && (navigator as any).hardwareConcurrency) || 4);
+			workers = [];
+			nextWorker = 0;
+			encryptedMap.clear();
+			nextToEnqueue = 0;
+			pendingCount = 0;
+			allDoneResolve = null;
+			allDoneReject = null;
+			streamEnded = false;
+
+			allDonePromise = new Promise<void>((res, rej) => {
+				allDoneResolve = res;
+				allDoneReject = rej;
+			});
+
+			const handleWorkerMessage = (data: any) => {
+				if (data?.type === 'encrypted') {
+					pendingCount--;
+					encryptedMap.set(data.index, new Uint8Array(data.encrypted));
+					// Enqueue in-order
+					while (encryptedMap.has(nextToEnqueue)) {
+						const arr = encryptedMap.get(nextToEnqueue)!;
+						encryptedMap.delete(nextToEnqueue);
+						controller.enqueue(arr);
+						nextToEnqueue++;
+					}
+
+					if (streamEnded && pendingCount === 0) {
+						if (allDoneResolve) allDoneResolve();
+					}
+				} else if (data?.type === 'error') {
+					if (allDoneReject) allDoneReject(new Error(data.message || 'Worker error'));
+				}
+			};
+
+			// Initialize workers
+			try {
+				const keyRaw = await crypto.subtle.exportKey('raw', aesKey);
+
+				for (let i = 0; i < concurrency; i++) {
+					const w = new Worker(new URL('../workers/encrypt.worker.ts', import.meta.url), {
+						type: 'module'
+					});
+					w.onmessage = (ev) => handleWorkerMessage(ev.data);
+					workers.push(w);
+					// Initialize worker with copies of key and baseIv (transferable). Use slice to avoid neutering the main copy.
+					const keyCopy = keyRaw.slice(0);
+					const ivCopy = baseIv.buffer.slice(0);
+					w.postMessage({ type: 'init', keyRaw: keyCopy, baseIv: ivCopy }, [keyCopy, ivCopy]);
+				}
+			} catch (e) {
+				// If worker initialization fails or Workers aren't supported, fall back to single-threaded crypto
+				workers.length = 0; // indicate no workers
+			}
+
+			// Helpers to assign chunk to worker (if available) or process inline
+			assignChunk = async (index: number, chunkData: Uint8Array) => {
+				pendingCount++;
+				if (workers.length > 0) {
+					// Transfer a tightly-packed ArrayBuffer
+					const transferable = chunkData.buffer.slice(
+						chunkData.byteOffset,
+						chunkData.byteOffset + chunkData.byteLength
+					);
+					const w = workers[nextWorker];
+					nextWorker = (nextWorker + 1) % workers.length;
+					w.postMessage({ type: 'encrypt', index, chunk: transferable }, [transferable]);
+				} else {
+					// Inline fallback
+					try {
+						const iv = getChunkIv(baseIv, index);
+						const buf = chunkData.buffer.slice(
+							chunkData.byteOffset,
+							chunkData.byteOffset + chunkData.byteLength
+						);
+						const encrypted = await crypto.subtle.encrypt(
+							{ name: 'AES-GCM', iv: iv as any },
+							aesKey,
+							buf as ArrayBuffer
+						);
+						pendingCount--;
+						encryptedMap.set(index, new Uint8Array(encrypted));
+						while (encryptedMap.has(nextToEnqueue)) {
+							const arr = encryptedMap.get(nextToEnqueue)!;
+							encryptedMap.delete(nextToEnqueue);
+							controller.enqueue(arr);
+							nextToEnqueue++;
+						}
+						if (streamEnded && pendingCount === 0) {
+							if (allDoneResolve) allDoneResolve();
+						}
+					} catch (err) {
+						if (allDoneReject) allDoneReject(err);
+					}
+				}
+			};
 		},
 		async transform(chunk, controller) {
 			// Append to buffer
@@ -342,26 +448,38 @@ export async function createEncryptedStream(
 				const chunkData = buffer.slice(0, CHUNK_SIZE);
 				buffer = buffer.slice(CHUNK_SIZE);
 
-				const chunkIv = getChunkIv(baseIv, chunkIndex);
-				const encrypted = await crypto.subtle.encrypt(
-					{ name: 'AES-GCM', iv: chunkIv as any },
-					aesKey,
-					chunkData
-				);
-				controller.enqueue(new Uint8Array(encrypted));
+				const index = chunkIndex;
 				chunkIndex++;
+				// Assign chunk for encryption (async)
+				if (assignChunk) assignChunk(index, chunkData);
 			}
 		},
 		async flush(controller) {
-			// Process remaining buffer
+			// Process remaining buffer (may be zero-length if no data)
 			if (buffer.length > 0 || chunkIndex === 0) {
-				const chunkIv = getChunkIv(baseIv, chunkIndex);
-				const encrypted = await crypto.subtle.encrypt(
-					{ name: 'AES-GCM', iv: chunkIv as any },
-					aesKey,
-					buffer
-				);
-				controller.enqueue(new Uint8Array(encrypted));
+				const chunkData = buffer.slice(0);
+				const index = chunkIndex;
+				chunkIndex++;
+				if (assignChunk) assignChunk(index, chunkData);
+			}
+
+			// Wait for all pending chunks to finish
+			streamEnded = true;
+			if (pendingCount > 0) {
+				try {
+					await allDonePromise;
+				} catch (e) {
+					throw e;
+				}
+			}
+
+			// Clean up workers
+			try {
+				for (const w of workers) {
+					w.terminate();
+				}
+			} catch (e) {
+				// ignore
 			}
 		}
 	});

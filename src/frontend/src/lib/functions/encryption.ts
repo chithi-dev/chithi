@@ -45,7 +45,8 @@ export async function deriveAESKeyFromIKM(
 	info?: Uint8Array
 ) {
 	const derivedBits = await argon2Derive(ikm, hkdfSalt, 1, 1024, 32, 1);
-	return await crypto.subtle.importKey('raw', derivedBits as any, { name: 'AES-GCM' }, false, [
+	// Import key as exportable so we can pass raw key material to workers for parallel encryption
+	return await crypto.subtle.importKey('raw', derivedBits as any, { name: 'AES-GCM' }, true, [
 		'encrypt',
 		'decrypt'
 	]);
