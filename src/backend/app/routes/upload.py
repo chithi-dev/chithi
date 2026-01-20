@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Form, HTTPException, UploadFile, status
 from sqlmodel import select
 
 from app.converter.bytes import ByteSize
@@ -48,6 +48,7 @@ async def upload_file(
     # Dependency Injection
     s3: S3Dep,
     session: SessionDep,
+    background: BackgroundTasks,
 ) -> FileOut:
     if not filename:
         filename = uuid.uuid7()  # type: ignore
@@ -152,6 +153,10 @@ async def upload_file(
     await session.commit()
     await session.refresh(file_obj)
 
-    delete_expired_file.apply_async((str(file_obj.id),), eta=file_obj.expires_at)
+    background.add_task(
+        lambda: delete_expired_file.apply_async(
+            (str(file_obj.id),), eta=file_obj.expires_at
+        )
+    )
 
     return FileOut(key=str(key))
