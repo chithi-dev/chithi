@@ -102,7 +102,7 @@
 
 			if ('showSaveFilePicker' in window) {
 				const handle = await (window as any).showSaveFilePicker({
-					suggestedName: filename
+					suggestedName: `${filename}.zip`
 				});
 				const writable = await handle.createWritable();
 
@@ -132,7 +132,7 @@
 				const url = window.URL.createObjectURL(blob);
 				const a = document.createElement('a');
 				a.href = url;
-				a.download = filename;
+				a.download = `${filename}.zip`;
 				a.classList.add('hidden');
 				document.body.appendChild(a);
 				a.click();
