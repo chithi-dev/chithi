@@ -643,10 +643,17 @@ export async function createDecryptedStream(
 		}
 	};
 
-	const assignChunk = (index: number, chunkBuf: Uint8Array, controller?: ReadableStreamDefaultController<Uint8Array>) => {
+	const assignChunk = (
+		index: number,
+		chunkBuf: Uint8Array,
+		controller?: ReadableStreamDefaultController<Uint8Array>
+	) => {
 		pendingCount++;
 		if (workers.length > 0) {
-			const transferable = chunkBuf.buffer.slice(chunkBuf.byteOffset, chunkBuf.byteOffset + chunkBuf.byteLength);
+			const transferable = chunkBuf.buffer.slice(
+				chunkBuf.byteOffset,
+				chunkBuf.byteOffset + chunkBuf.byteLength
+			);
 			const w = workers[nextWorker];
 			nextWorker = (nextWorker + 1) % workers.length;
 			w.postMessage({ type: 'decrypt', index, chunk: transferable }, [transferable]);
@@ -655,8 +662,15 @@ export async function createDecryptedStream(
 			(async () => {
 				try {
 					const iv = getChunkIv(baseIv, index);
-					const buf = chunkBuf.buffer.slice(chunkBuf.byteOffset, chunkBuf.byteOffset + chunkBuf.byteLength) as ArrayBuffer;
-					const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv as any }, aesKey, buf);
+					const buf = chunkBuf.buffer.slice(
+						chunkBuf.byteOffset,
+						chunkBuf.byteOffset + chunkBuf.byteLength
+					) as ArrayBuffer;
+					const decrypted = await crypto.subtle.decrypt(
+						{ name: 'AES-GCM', iv: iv as any },
+						aesKey,
+						buf
+					);
 					pendingCount--;
 					decryptedMap.set(index, new Uint8Array(decrypted));
 					// If a controller was passed in, flush available chunks immediately
@@ -749,11 +763,13 @@ export async function createDecryptedStream(
 
 	// Close workers when all done
 	if (allDonePromise != null) {
-		(allDonePromise as Promise<void>).then(() => {
-			for (const w of workers) w.terminate();
-		}).catch(() => {
-			for (const w of workers) w.terminate();
-		});
+		(allDonePromise as Promise<void>)
+			.then(() => {
+				for (const w of workers) w.terminate();
+			})
+			.catch(() => {
+				for (const w of workers) w.terminate();
+			});
 	}
 
 	return { stream, meta: innerMeta };

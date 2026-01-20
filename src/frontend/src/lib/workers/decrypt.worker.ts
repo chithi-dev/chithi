@@ -30,7 +30,11 @@ self.addEventListener('message', async (ev: MessageEvent) => {
 
 		if (msg.type === 'decrypt') {
 			if (!aesKey || !baseIv) {
-				(self as any).postMessage({ type: 'error', index: msg.index, message: 'Worker not initialized' });
+				(self as any).postMessage({
+					type: 'error',
+					index: msg.index,
+					message: 'Worker not initialized'
+				});
 				return;
 			}
 
@@ -38,10 +42,18 @@ self.addEventListener('message', async (ev: MessageEvent) => {
 			const iv = getChunkIv(baseIv, msg.index);
 			try {
 				const buf = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength);
-				const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv as any }, aesKey, buf);
+				const decrypted = await crypto.subtle.decrypt(
+					{ name: 'AES-GCM', iv: iv as any },
+					aesKey,
+					buf
+				);
 				(self as any).postMessage({ type: 'decrypted', index: msg.index, decrypted }, [decrypted]);
 			} catch (e: any) {
-				(self as any).postMessage({ type: 'error', index: msg.index, message: e?.message ?? String(e) });
+				(self as any).postMessage({
+					type: 'error',
+					index: msg.index,
+					message: e?.message ?? String(e)
+				});
 			}
 		}
 	} catch (e: any) {
