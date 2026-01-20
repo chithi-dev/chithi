@@ -592,16 +592,101 @@ export async function createDecryptedStream(
 	const aesKey = await deriveAESKeyFromIKM(finalIKM, hkdfSalt);
 	const baseIv = base64ToBytes(innerMeta.iv);
 
-	// Create Stream
+	// Create Stream (parallel decrypt using worker pool)
 	const TAG_LEN = 16;
 	const ENC_CHUNK_SIZE = CHUNK_SIZE + TAG_LEN;
 	let chunkIndex = 0;
 
-	const stream = new ReadableStream({
-		async pull(controller) {
-			// We need to read ENC_CHUNK_SIZE from the reader+buffer
-			// But the last chunk might be smaller.
+	// Worker pool state
+	const concurrency = Math.max(1, (navigator && (navigator as any).hardwareConcurrency) || 4);
+	const workers: Worker[] = [];
+	let nextWorker = 0;
+	const decryptedMap = new Map<number, Uint8Array>();
+	let nextToEnqueue = 0;
+	let pendingCount = 0;
+	let allDoneResolve: (() => void) | null = null;
+	let allDoneReject: ((e: any) => void) | null = null;
+	let allDonePromise: Promise<void> | null = null;
+	let streamEnded = false;
 
+	const startWorkers = async (controller: ReadableStreamDefaultController<Uint8Array>) => {
+		try {
+			const keyRaw = await crypto.subtle.exportKey('raw', aesKey);
+			for (let i = 0; i < concurrency; i++) {
+				const w = new Worker(new URL('../workers/decrypt.worker.ts', import.meta.url), {
+					type: 'module'
+				});
+				w.onmessage = (ev) => {
+					const data = ev.data;
+					if (data?.type === 'decrypted') {
+						pendingCount--;
+						decryptedMap.set(data.index, new Uint8Array(data.decrypted));
+						while (decryptedMap.has(nextToEnqueue)) {
+							const arr = decryptedMap.get(nextToEnqueue)!;
+							decryptedMap.delete(nextToEnqueue);
+							controller.enqueue(arr);
+							nextToEnqueue++;
+						}
+						if (streamEnded && pendingCount === 0 && allDoneResolve) allDoneResolve();
+					} else if (data?.type === 'error') {
+						if (allDoneReject) allDoneReject(new Error(data.message || 'Worker error'));
+					}
+				};
+				workers.push(w);
+				const keyCopy = keyRaw.slice(0);
+				const ivCopy = baseIv.buffer.slice(0);
+				w.postMessage({ type: 'init', keyRaw: keyCopy, baseIv: ivCopy }, [keyCopy, ivCopy]);
+			}
+		} catch (e) {
+			// if workers fail, we'll fall back to inline decryption
+			workers.length = 0;
+		}
+	};
+
+	const assignChunk = (index: number, chunkBuf: Uint8Array, controller?: ReadableStreamDefaultController<Uint8Array>) => {
+		pendingCount++;
+		if (workers.length > 0) {
+			const transferable = chunkBuf.buffer.slice(chunkBuf.byteOffset, chunkBuf.byteOffset + chunkBuf.byteLength);
+			const w = workers[nextWorker];
+			nextWorker = (nextWorker + 1) % workers.length;
+			w.postMessage({ type: 'decrypt', index, chunk: transferable }, [transferable]);
+		} else {
+			// inline fallback
+			(async () => {
+				try {
+					const iv = getChunkIv(baseIv, index);
+					const buf = chunkBuf.buffer.slice(chunkBuf.byteOffset, chunkBuf.byteOffset + chunkBuf.byteLength) as ArrayBuffer;
+					const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv as any }, aesKey, buf);
+					pendingCount--;
+					decryptedMap.set(index, new Uint8Array(decrypted));
+					// If a controller was passed in, flush available chunks immediately
+					if (controller) {
+						while (decryptedMap.has(nextToEnqueue)) {
+							const arr = decryptedMap.get(nextToEnqueue)!;
+							decryptedMap.delete(nextToEnqueue);
+							controller.enqueue(arr);
+							nextToEnqueue++;
+						}
+					}
+					if (streamEnded && pendingCount === 0 && allDoneResolve) allDoneResolve();
+				} catch (err) {
+					if (allDoneReject) allDoneReject(err);
+				}
+			})();
+		}
+	};
+
+	const stream = new ReadableStream<Uint8Array>({
+		async start(controller) {
+			// initialize worker pool only when stream starts
+			allDonePromise = new Promise<void>((res, rej) => {
+				allDoneResolve = res;
+				allDoneReject = rej;
+			});
+			await startWorkers(controller);
+		},
+		async pull(controller) {
+			// Fill buffer until we have at least ENC_CHUNK_SIZE or EOF
 			while (buffer.length < ENC_CHUNK_SIZE) {
 				const { done, value } = await reader.read();
 				if (done) break;
@@ -612,33 +697,64 @@ export async function createDecryptedStream(
 			}
 
 			if (buffer.length === 0) {
+				// No more data and nothing pending
+				if (pendingCount === 0) {
+					controller.close();
+					return;
+				}
+				// Wait for pending decryption to finish
+				streamEnded = true;
+				if (allDonePromise) await allDonePromise;
 				controller.close();
 				return;
 			}
 
 			let currentChunkSize = ENC_CHUNK_SIZE;
+			let isLast = false;
 			if (buffer.length < ENC_CHUNK_SIZE) {
-				// End of stream
+				// End of stream - last chunk
 				currentChunkSize = buffer.length;
+				isLast = true;
 			}
 
 			const chunkData = buffer.slice(0, currentChunkSize);
 			buffer = buffer.slice(currentChunkSize);
 
-			const chunkIv = getChunkIv(baseIv, chunkIndex);
-			try {
-				const decrypted = await crypto.subtle.decrypt(
-					{ name: 'AES-GCM', iv: chunkIv as any },
-					aesKey,
-					chunkData
-				);
-				controller.enqueue(new Uint8Array(decrypted));
-				chunkIndex++;
-			} catch (e) {
-				controller.error(e);
+			const index = chunkIndex++;
+			assignChunk(index, chunkData, controller);
+
+			// If last chunk and no more reads expected, wait until pending are done before closing in next pull
+			if (isLast && pendingCount === 0) {
+				// Enqueue any ready chunks
+				while (decryptedMap.has(nextToEnqueue)) {
+					const arr = decryptedMap.get(nextToEnqueue)!;
+					decryptedMap.delete(nextToEnqueue);
+					controller.enqueue(arr);
+					nextToEnqueue++;
+				}
+				controller.close();
+			}
+		},
+		async cancel() {
+			// Terminate workers
+			for (const w of workers) {
+				try {
+					w.terminate();
+				} catch (e) {
+					// ignore
+				}
 			}
 		}
 	});
+
+	// Close workers when all done
+	if (allDonePromise != null) {
+		(allDonePromise as Promise<void>).then(() => {
+			for (const w of workers) w.terminate();
+		}).catch(() => {
+			for (const w of workers) w.terminate();
+		});
+	}
 
 	return { stream, meta: innerMeta };
 }
