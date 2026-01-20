@@ -14,10 +14,11 @@ updates:
           interval: 'daily'
 
     - package-ecosystem: 'docker' # See documentation for possible values
-      directory: './src/frontend' # Location of package manifests
+      directory: './src/frontend/build/' # Location of package manifests
       open-pull-requests-limit: 100
       schedule:
           interval: 'daily'
+
 
     ## BACKEND
 
