@@ -94,7 +94,7 @@
 								<Dropdown.DropdownMenuSubContent>
 									{#each adminLinks as item}
 										<Dropdown.DropdownMenuItem>
-											<a href="/admin/config" class="flex w-full items-center gap-2">
+											<a href={item.href} class="flex w-full items-center gap-2">
 												<item.icon />
 												{item.name}
 											</a>
