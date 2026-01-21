@@ -5,7 +5,15 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, BackgroundTasks, Form, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+    status,
+)
 from sqlmodel import select
 
 from app.converter.bytes import ByteSize
@@ -22,8 +30,38 @@ router = APIRouter()
 
 CHUNK_SIZE = ByteSize(gb=1).total_bytes()
 
+# Dynamic chunk sizing constants
+MIN_PART_SIZE = ByteSize(mb=8).total_bytes()
+MAX_PART_SIZE = ByteSize(
+    mb=256
+).total_bytes()  # cap part size so memory usage doesn't explode
+MAX_PARTS = 10000  # S3 multipart upload parts limit
+
 # How many times to retry a failing part upload before giving up
 MAX_PART_RETRIES = 4
+
+
+def compute_chunk_size(file_size: int | None) -> int:
+    """Pick a part size based on total file size.
+
+    - If file_size is unknown, return the default MIN_PART_SIZE.
+    - Otherwise, pick ceil(file_size / MAX_PARTS), clamped to [MIN_PART_SIZE, MAX_PART_SIZE]
+      and rounded up to the nearest MB for nicer alignment.
+    """
+    if not file_size or file_size <= 0:
+        return MIN_PART_SIZE
+
+    # Required per-part size to keep number of parts <= MAX_PARTS
+    required = (file_size + MAX_PARTS - 1) // MAX_PARTS
+
+    # Clamp into allowed range
+    chosen = max(MIN_PART_SIZE, min(required, MAX_PART_SIZE))
+
+    # Round up to nearest MB for better network behaviour
+    mb = 1024 * 1024
+    if chosen % mb:
+        chosen = ((chosen + mb - 1) // mb) * mb
+    return chosen
 
 
 async def _upload_part_with_retries(
@@ -53,7 +91,7 @@ async def _upload_part_with_retries(
             )
             if not resp or "ETag" not in resp:
                 # Treat missing or empty response as an error to trigger retries/cleanup
-                raise RuntimeError("upload_part returned empty or malformed response")
+                raise RuntimeError("`upload_part` returned empty or malformed response")
             return resp  # type: ignore[return-value]
         except ClientError as e:
             logger.warning(
@@ -116,6 +154,7 @@ async def upload_file(
     expire_after_n_download: Annotated[int, Form()],
     expire_after: Annotated[int, Form()],
     # Dependency Injection
+    request: Request,
     s3: S3Dep,
     session: SessionDep,
     background: BackgroundTasks,
@@ -140,12 +179,38 @@ async def upload_file(
     current_used = 0
     if total_limit is not None:
         current_used = await _get_current_storage_used(session, s3)
-        # Quick fail: no space at all left
+        #  no space at all left
         if current_used >= total_limit:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
                 detail="Storage quota exceeded",
             )
+
+    # Determine file size (prefer Content-Length header, fall back to probing UploadFile)
+    file_size: int | None = None
+    cl = request.headers.get("content-length")
+    if cl:
+        try:
+            file_size = int(cl)
+        except Exception:
+            logger.debug("Invalid Content-Length header: %r", cl)
+    if not file_size:
+        try:
+            fobj = file.file
+            # Save position, seek to end to get size, then restore
+            pos = fobj.tell()
+            fobj.seek(0, 2)
+            file_size = fobj.tell()
+            fobj.seek(pos)
+        except Exception:
+            # Could not determine size; leave as None
+            file_size = None
+
+    chunk_size = compute_chunk_size(file_size)
+    logger.info(
+        "upload_chunk_size_selected",
+        extra={"file_size": file_size, "chunk_size": chunk_size},
+    )
 
     resp = await s3.create_multipart_upload(
         Bucket=settings.RUSTFS_BUCKET_NAME,
@@ -159,7 +224,7 @@ async def upload_file(
 
     try:
         while True:
-            chunk = await file.read(CHUNK_SIZE)
+            chunk = await file.read(chunk_size)
             if not chunk:
                 break
 
