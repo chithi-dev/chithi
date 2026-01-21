@@ -313,27 +313,50 @@ export async function createEncryptedStream(
 			// Encrypted Meta
 			headerParts.push(new Uint8Array(encryptedMetaBytes));
 
-			// Calculate total length so far
-			const currentLen = headerParts.reduce((acc, part) => acc + part.length, 0);
+			// Combine header parts (without fixed padding) into a payload that we will protect
+			// Payload layout (to be encrypted): [EncMetaLen:4][EncryptedMetaBytes]
+			const encMetaLenBytes = new Uint8Array(4);
+			new DataView(encMetaLenBytes.buffer).setUint32(0, encryptedMetaBytes.byteLength, false);
+			const payload = new Uint8Array(encMetaLenBytes.length + encryptedMetaBytes.byteLength);
+			payload.set(encMetaLenBytes, 0);
+			payload.set(new Uint8Array(encryptedMetaBytes), encMetaLenBytes.length);
 
-			// Padding
-			const paddingLen = Math.max(0, 1000 - currentLen);
-			headerParts.push(new Uint8Array(paddingLen));
+			// Encrypt the header payload with metaKey using a fresh headerIv so header size/content are not exposed
+			const headerIv = crypto.getRandomValues(new Uint8Array(12));
+			const encryptedHeader = new Uint8Array(
+				await crypto.subtle.encrypt({ name: 'AES-GCM', iv: headerIv }, metaKey, payload.buffer)
+			);
 
-			// Combine
-			const header = new Uint8Array(1000);
+			// Final header layout:
+			// [Magic:4] [HeaderLen:4] [Flags:1] [MetaSalt:16] [MetaIv:12] ([Argon2Salt:16][iters:4][mem:4][par:4])? [HeaderIv:12] [EncryptedHeader:HeaderLen]
+			const magic = new TextEncoder().encode('SND1');
+			const headerLenBytes = new Uint8Array(4);
+			new DataView(headerLenBytes.buffer).setUint32(0, encryptedHeader.byteLength, false);
+
+			const parts: Uint8Array[] = [];
+			parts.push(magic);
+			parts.push(headerLenBytes);
+			parts.push(new Uint8Array([flags]));
+			parts.push(metaSalt);
+			parts.push(metaIv);
+			if (argon2Meta) {
+				parts.push(argon2Meta.salt);
+				const params = new Uint8Array(12);
+				const view2 = new DataView(params.buffer);
+				view2.setUint32(0, argon2Meta.iterations, false);
+				view2.setUint32(4, argon2Meta.memory, false);
+				view2.setUint32(8, argon2Meta.parallelism, false);
+				parts.push(params);
+			}
+			parts.push(headerIv);
+			parts.push(encryptedHeader);
+
+			const totalLen = parts.reduce((acc, p) => acc + p.length, 0);
+			const header = new Uint8Array(totalLen);
 			let offset = 0;
-			for (const part of headerParts) {
-				if (offset + part.length <= 1000) {
-					header.set(part, offset);
-					offset += part.length;
-				} else {
-					const remaining = 1000 - offset;
-					if (remaining > 0) {
-						header.set(part.slice(0, remaining), offset);
-						offset += remaining;
-					}
-				}
+			for (const part of parts) {
+				header.set(part, offset);
+				offset += part.length;
 			}
 
 			controller.enqueue(header);
@@ -490,6 +513,49 @@ export async function createEncryptedStream(
 	};
 }
 
+export async function peekHeader(inputStream: ReadableStream<Uint8Array>) {
+	const reader = inputStream.getReader();
+	let buffer = new Uint8Array(0);
+
+	async function readBytes(n: number): Promise<Uint8Array> {
+		while (buffer.length < n) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			const newBuf = new Uint8Array(buffer.length + value.length);
+			newBuf.set(buffer);
+			newBuf.set(value, buffer.length);
+			buffer = newBuf;
+		}
+		if (buffer.length < n) throw new Error('Unexpected end of stream');
+		const res = buffer.slice(0, n);
+		buffer = buffer.slice(n);
+		return res;
+	}
+
+	try {
+		// Read initial 8 bytes (magic + header length) then parse flags
+		const pre = await readBytes(8);
+		const preView = new DataView(pre.buffer, pre.byteOffset, pre.byteLength);
+		const magic = new TextDecoder().decode(pre.slice(0, 4));
+		if (magic !== 'SND1') {
+			throw new Error('Unsupported header format');
+		}
+
+		// Now read flags + metaSalt + metaIv (we only need flags here)
+		const prefix = await readBytes(1 + 16 + 12);
+		const flags = prefix[0];
+		return { needsPassword: (flags & 1) === 1 };
+	} finally {
+		// Release the reader lock without cancelling the underlying stream so the tee'd
+		// partner stream remains usable for the actual download.
+		try {
+			reader.releaseLock();
+		} catch (e) {
+			// ignore
+		}
+	}
+}
+
 export async function createDecryptedStream(
 	inputStream: ReadableStream<Uint8Array>,
 	keySecret: string,
@@ -514,47 +580,104 @@ export async function createDecryptedStream(
 		return res;
 	}
 
-	// Read fixed 1000 byte header
-	const headerBytes = await readBytes(1000);
-	let offset = 0;
-	const view = new DataView(headerBytes.buffer, headerBytes.byteOffset, headerBytes.byteLength);
+	// Read header: only the new dynamic encrypted header format (magic 'SND1') is supported.
+	const pre = await readBytes(8);
+	const preView = new DataView(pre.buffer, pre.byteOffset, pre.byteLength);
+	const magicBytes = pre.slice(0, 4);
+	const magic = new TextDecoder().decode(magicBytes);
 
-	const flags = view.getUint8(offset);
-	offset += 1;
-
-	const metaSalt = headerBytes.slice(offset, offset + 16);
-	offset += 16;
-
-	const metaIv = headerBytes.slice(offset, offset + 12);
-	offset += 12;
-
+	// Declare variables that will be populated from the 'SND1' header
+	let flags: number;
+	let metaSalt: Uint8Array | undefined;
+	let metaIv: Uint8Array | undefined;
 	let argon2Salt: Uint8Array | undefined;
 	let argon2Iterations: number | undefined;
 	let argon2Memory: number | undefined;
 	let argon2Parallelism: number | undefined;
+	let encryptedMetaBytes: Uint8Array | undefined;
 
-	if (flags & 1) {
-		argon2Salt = headerBytes.slice(offset, offset + 16);
-		offset += 16;
-
-		argon2Iterations = view.getUint32(offset, false);
-		offset += 4;
-
-		argon2Memory = view.getUint32(offset, false);
-		offset += 4;
-
-		argon2Parallelism = view.getUint32(offset, false);
-		offset += 4;
-	}
-
-	const encMetaLen = view.getUint32(offset, false);
-	offset += 4;
-
-	const encryptedMetaBytes = headerBytes.slice(offset, offset + encMetaLen);
-
-	// Derive Keys
+	// Pre-declare key material holders
 	const ikm = base64urlToBytes(keySecret);
 	let finalIKM = ikm;
+
+	if (magic === 'SND1') {
+		// New dynamic format
+		const headerLen = preView.getUint32(4, false);
+
+		// Read flags + metaSalt + metaIv
+		const prefix = await readBytes(1 + 16 + 12);
+		let poff = 0;
+		flags = prefix[poff];
+		poff += 1;
+		metaSalt = prefix.slice(poff, poff + 16);
+		poff += 16;
+		metaIv = prefix.slice(poff, poff + 12);
+		poff += 12;
+
+		if (flags & 1) {
+			const argonPart = await readBytes(16 + 12); // salt + params
+			let aoff = 0;
+			argon2Salt = argonPart.slice(aoff, aoff + 16);
+			aoff += 16;
+			const aView = new DataView(argonPart.buffer, argonPart.byteOffset + aoff, 12);
+			argon2Iterations = aView.getUint32(0, false);
+			aoff += 4;
+			argon2Memory = aView.getUint32(4, false);
+			aoff += 4;
+			argon2Parallelism = aView.getUint32(8, false);
+		}
+
+		// Header IV for decrypting the encrypted header payload
+		const headerIv = await readBytes(12);
+
+		// Read encrypted header payload of headerLen bytes
+		const encryptedHeader = await readBytes(headerLen);
+
+		// If argon2 is used, derive pre-key material now so we can decrypt the header payload
+		if (argon2Salt && argon2Iterations && argon2Memory && argon2Parallelism) {
+			if (!password) throw new Error('Password required for decryption');
+			const pb = await argon2Derive(
+				password,
+				argon2Salt,
+				argon2Iterations,
+				argon2Memory,
+				32,
+				argon2Parallelism
+			);
+			finalIKM = xorBytes(ikm, pb);
+		}
+
+		// Decrypt the encrypted header payload using metaKey and headerIv
+		const metaKey = await deriveAESKeyFromIKM(finalIKM, metaSalt);
+		let decryptedHeaderBytes: Uint8Array;
+		try {
+			// Ensure we pass a standard ArrayBuffer (copy into a freshly-allocated Uint8Array so .buffer is an ArrayBuffer)
+			const encHeaderCopy = new Uint8Array(encryptedHeader.length);
+			encHeaderCopy.set(encryptedHeader);
+			const dec = await crypto.subtle.decrypt(
+				{ name: 'AES-GCM', iv: headerIv.buffer as ArrayBuffer },
+				metaKey,
+				encHeaderCopy.buffer as ArrayBuffer
+			);
+			decryptedHeaderBytes = new Uint8Array(dec);
+		} catch (e) {
+			throw new Error('Failed to decrypt header');
+		}
+
+		// Parse decrypted header payload: [EncMetaLen:4][EncryptedMetaBytes]
+		const decView = new DataView(
+			decryptedHeaderBytes.buffer,
+			decryptedHeaderBytes.byteOffset,
+			decryptedHeaderBytes.byteLength
+		);
+		const encMetaLen = decView.getUint32(0, false);
+		encryptedMetaBytes = decryptedHeaderBytes.slice(4, 4 + encMetaLen);
+	}
+
+	// Ensure required header fields were parsed
+	if (!metaSalt || !metaIv || !encryptedMetaBytes) {
+		throw new Error('Invalid header: missing metadata');
+	}
 
 	if (argon2Salt && argon2Iterations && argon2Memory && argon2Parallelism) {
 		if (!password) {
@@ -576,12 +699,15 @@ export async function createDecryptedStream(
 
 	let innerMeta: InnerEncryptionMeta;
 	try {
+		// Copy to an ArrayBuffer-backed Uint8Array to satisfy BufferSource typing
+		const encMetaCopy = new Uint8Array(encryptedMetaBytes.length);
+		encMetaCopy.set(encryptedMetaBytes);
 		const decryptedMetaBytes = await crypto.subtle.decrypt(
-			{ name: 'AES-GCM', iv: metaIv },
+			{ name: 'AES-GCM', iv: metaIv.buffer as ArrayBuffer },
 			metaKey,
-			encryptedMetaBytes
+			encMetaCopy.buffer as ArrayBuffer
 		);
-		const decryptedMetaJson = new TextDecoder().decode(decryptedMetaBytes);
+		const decryptedMetaJson = new TextDecoder().decode(new Uint8Array(decryptedMetaBytes));
 		innerMeta = JSON.parse(decryptedMetaJson);
 	} catch (e) {
 		// If decryption fails, it might be wrong password or corrupted data
