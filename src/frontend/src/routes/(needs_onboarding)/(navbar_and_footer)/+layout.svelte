@@ -54,10 +54,10 @@
 <div class="flex min-h-screen min-w-screen flex-col bg-background text-foreground">
 	<!-- Top Bar -->
 	<header class="flex items-center justify-between border-b border-border p-4">
-		<div class="flex items-center">
+		<a href="/" class="flex items-center">
 			<Send class="h-6 w-6 text-primary" />
 			<h1 class="ml-2 text-2xl font-bold md:text-xl">Chithi</h1>
-		</div>
+		</a>
 
 		<div class="flex items-center gap-2">
 			{#if isAuthenticated()}

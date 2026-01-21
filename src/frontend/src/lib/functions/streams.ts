@@ -217,7 +217,8 @@ function createDeflateStripper() {
 export async function createEncryptedStream(
 	inputStream: ReadableStream<Uint8Array>,
 	password?: string,
-	originalSize?: number
+	originalSize?: number,
+	onProgress?: (processed: number, total?: number) => void
 ) {
 	// 1. Generate Secrets
 	const ikm = crypto.getRandomValues(new Uint8Array(32));
@@ -266,10 +267,14 @@ export async function createEncryptedStream(
 	let buffer = new Uint8Array(0);
 	let chunkIndex = 0;
 
+	// Track plaintext sizes per chunk and processed total for progress reporting
+	const chunkSizes = new Map<number, number>();
+	let processedTotal = 0;
+
 	// Worker-pool shared state (moved to outer scope so transform/flush can access)
 	let workers: Worker[] = [];
 	let nextWorker = 0;
-	const encryptedMap = new Map<number, Uint8Array>();
+	let encryptedMap = new Map<number, Uint8Array>();
 	let nextToEnqueue = 0;
 	let pendingCount = 0;
 	let allDonePromise: Promise<void> | null = null;
@@ -387,10 +392,16 @@ export async function createEncryptedStream(
 						encryptedMap.delete(nextToEnqueue);
 						controller.enqueue(arr);
 						nextToEnqueue++;
+						// Update processedTotal based on recorded plaintext size
+						const sz = chunkSizes.get(nextToEnqueue - 1) || 0;
+						processedTotal += sz;
+						if (onProgress) onProgress(processedTotal, originalSize);
 					}
 
 					if (streamEnded && pendingCount === 0) {
 						if (allDoneResolve) allDoneResolve();
+						// Final progress report
+						if (onProgress) onProgress(originalSize ?? processedTotal, originalSize);
 					}
 				} else if (data?.type === 'error') {
 					if (allDoneReject) allDoneReject(new Error(data.message || 'Worker error'));
@@ -449,9 +460,14 @@ export async function createEncryptedStream(
 							encryptedMap.delete(nextToEnqueue);
 							controller.enqueue(arr);
 							nextToEnqueue++;
+							// Update processed total for progress reporting
+							const szInline = chunkSizes.get(nextToEnqueue - 1) ?? chunkData.byteLength;
+							processedTotal += szInline;
+							if (onProgress) onProgress(processedTotal, originalSize);
 						}
 						if (streamEnded && pendingCount === 0) {
 							if (allDoneResolve) allDoneResolve();
+							if (onProgress) onProgress(originalSize ?? processedTotal, originalSize);
 						}
 					} catch (err) {
 						if (allDoneReject) allDoneReject(err);
@@ -473,6 +489,8 @@ export async function createEncryptedStream(
 
 				const index = chunkIndex;
 				chunkIndex++;
+				// Record chunk size for accurate progress accounting
+				chunkSizes.set(index, chunkData.byteLength);
 				// Assign chunk for encryption (async)
 				if (assignChunk) assignChunk(index, chunkData);
 			}
@@ -483,6 +501,7 @@ export async function createEncryptedStream(
 				const chunkData = buffer.slice(0);
 				const index = chunkIndex;
 				chunkIndex++;
+				chunkSizes.set(index, chunkData.byteLength);
 				if (assignChunk) assignChunk(index, chunkData);
 			}
 

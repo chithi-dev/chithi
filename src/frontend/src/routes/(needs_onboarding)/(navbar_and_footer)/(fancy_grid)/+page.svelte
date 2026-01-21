@@ -59,6 +59,9 @@
 	let isCopied = $state(false);
 	let debugLoading = $state(false);
 	let folderName = $state(uuidv7());
+	// Encryption progress states
+	let encryptionProgress = $state(0);
+	let isEncrypting = $state(false);
 	let renderedDetails = $derived(marked.parse(configData.data?.site_description ?? ''));
 
 	$effect(() => {
@@ -300,10 +303,20 @@
 
 			//  Encrypt
 			const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
+			// start encryption progress reporting
+			isEncrypting = true;
+			encryptionProgress = 0;
 			const { stream: encryptedStream, keySecret } = await createEncryptedStream(
 				stream,
 				isPasswordProtected ? password : undefined,
-				currentTotalSize
+				currentTotalSize,
+				(processed, total) => {
+					if (total && total > 0) {
+						encryptionProgress = Math.min(100, Math.round((processed / total) * 100));
+					} else {
+						encryptionProgress = 0;
+					}
+				}
 			);
 
 			// Upload
@@ -311,6 +324,9 @@
 			const readableFilename = files.length === 1 ? files[0].name : folderName;
 			const blobFilename = uuidv7();
 			const encryptedBlob = await new Response(encryptedStream).blob();
+			// ensure encryption progress completes
+			isEncrypting = false;
+			encryptionProgress = 100;
 
 			const formData = new FormData();
 			formData.append('filename', readableFilename);
@@ -389,8 +405,12 @@
 			// keep files so user can retry; reset upload progress and flags
 			uploadingInProgress = false;
 			uploadProgress = 0;
+			// reset encryption state if error during encrypt
+			isEncrypting = false;
+			encryptionProgress = 0;
 		} finally {
 			uploadingInProgress = false;
+			isEncrypting = false;
 		}
 	};
 </script>
@@ -558,11 +578,19 @@
 						<p class="mb-8 text-muted-foreground">Please wait while we secure your files</p>
 
 						<div class="w-full max-w-md space-y-3">
-							<Progress value={uploadProgress} class="h-2" />
-							<div class="flex justify-between text-xs font-medium text-muted-foreground">
-								<span>{uploadProgress}%</span>
-								<span>{totalSize}</span>
-							</div>
+							{#if isEncrypting}
+								<Progress value={encryptionProgress} class="h-2" />
+								<div class="flex justify-between text-xs font-medium text-muted-foreground">
+									<span>Encrypting {encryptionProgress}%</span>
+									<span>{totalSize}</span>
+								</div>
+							{:else}
+								<Progress value={uploadProgress} class="h-2" />
+								<div class="flex justify-between text-xs font-medium text-muted-foreground">
+									<span>{uploadProgress}%</span>
+									<span>{totalSize}</span>
+								</div>
+							{/if}
 						</div>
 					</div>
 				{:else}
