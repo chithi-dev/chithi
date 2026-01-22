@@ -18,12 +18,22 @@
 
 	let initials = $derived(kebab_to_initials(userData.data?.username ?? ''));
 
+	let flagForRestart = $state(false);
 	let hashedAvatar = $state<null | string>(null);
 	$effect(() => {
 		(async () => {
 			hashedAvatar = await make_libravatar_url(userData.data?.email ?? '');
 		})();
 	});
+
+	function programmedNavigation(event: Event) {
+		const anchorElement = event.currentTarget as HTMLAnchorElement;
+		const href = anchorElement.getAttribute('href');
+		if (href === page.url.pathname) {
+			// Switch between true and false
+			flagForRestart = !flagForRestart;
+		}
+	}
 
 	const adminLinks = [
 		{
@@ -54,7 +64,7 @@
 <div class="flex min-h-screen min-w-screen flex-col bg-background text-foreground">
 	<!-- Top Bar -->
 	<header class="flex items-center justify-between border-b border-border p-4">
-		<a href="/" class="flex items-center">
+		<a href="/" class="flex items-center" onclick={programmedNavigation}>
 			<Send class="h-6 w-6 text-primary" />
 			<h1 class="ml-2 text-2xl font-bold md:text-xl">Chithi</h1>
 		</a>
@@ -135,7 +145,9 @@
 	</header>
 
 	<!-- Main Content -->
-	{@render children()}
+	{#key flagForRestart}
+		{@render children()}
+	{/key}
 
 	<!-- Footer -->
 	<footer class="border-t border-border p-4">
