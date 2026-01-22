@@ -17,7 +17,6 @@
 		"test": "npm run test:unit -- --run",
 		"test:unit": "vitest"
 	},
-	"dependencies": {},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.1",
 		"@eslint/js": "^9.39.1",
