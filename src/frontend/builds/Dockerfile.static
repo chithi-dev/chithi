@@ -17,7 +17,6 @@ ENV PUBLIC_BACKEND_API=${PUBLIC_BACKEND_API}
 COPY --from=builder /app/build build/
 COPY --from=builder /app/node_modules node_modules/
 COPY package.json .
-COPY busybox.conf .
 EXPOSE 3000
 ENV NODE_ENV=production
 CMD [ "httpd", "-f", "-v", "-p", "3000", "-h", "build", "-c", "/app/busybox.conf" ]
