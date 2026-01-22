@@ -1,3 +1,4 @@
+import secrets
 from typing import Literal
 
 from pydantic import PostgresDsn, computed_field
@@ -43,9 +44,8 @@ class Settings(BaseSettings):
         )
 
     # JWT
-    SECRET_KEY: str = (
-        "2-bfj00mIxvY8WgbRnhJaXmP44mner7qmJFMgdycu9A"  # secrets.token_urlsafe(32)
-    )
+    SECRET_KEY: str = secrets.token_urlsafe(32)
+
     ACCESS_TOKEN_EXPIRE_MINUTES: int = (
         60 * 60 * 24 * 8  # 60 minutes * 24 hours * 8 days = 8 days
     )
@@ -56,11 +56,15 @@ class Settings(BaseSettings):
     RUSTFS_BUCKET_NAME: str = "chithi"
 
     # Celery Backend
-    CELERY_BROKER_URL: str = "redis://localhost:6379"
-    CELERY_RESULT_BACKEND: str = "redis://localhost:6379"
+    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
+    CELERY_RESULT_BACKEND: str = "redis://localhost:6379/0"
 
     # Reverse Proxy
     ROOT_PATH: str = ""
+
+    # Redis
+
+    REDIS_ENDPOINT: str = "redis://localhost:6379/1"
 
     # Debugging Flags
 

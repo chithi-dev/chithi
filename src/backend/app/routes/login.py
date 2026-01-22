@@ -6,6 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlmodel import or_, select
 
 from app import security
+from app.decorators.rate_limit import rate_limit
 from app.deps import SessionDep
 from app.models import User
 from app.schemas.token import Token
@@ -15,7 +16,8 @@ router = APIRouter()
 
 
 @router.post("/login")
-async def login_access_token(
+@rate_limit("3req/sec", "4req/min")
+async def login_endpoint(
     session: SessionDep, form_data: Annotated[OAuth2PasswordRequestForm, Depends()]
 ) -> Token:
     # Look up user

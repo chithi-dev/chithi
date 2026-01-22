@@ -7,6 +7,11 @@ import { sveltekitOG } from '@ethercorps/sveltekit-og/plugin';
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit(), sveltekitOG()],
 
+	build: {
+		sourcemap: true,
+		minify: 'terser'
+	},
+
 	test: {
 		expect: { requireAssertions: true },
 

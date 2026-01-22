@@ -11,7 +11,7 @@
 	import { kebab_to_initials } from '$lib/functions/string-conversion';
 	import { make_libravatar_url } from '$lib/functions/libravatar';
 	import { page } from '$app/state';
-
+	import GithubIcon from '$lib/logos/github.svelte';
 	const { isAuthenticated, user: userData } = useAuth();
 
 	let { children } = $props();
@@ -42,15 +42,22 @@
 			icon: Link
 		}
 	];
+	const footerLinks = [
+		{
+			href: 'https://github.com/chithi-dev/chithi',
+			name: 'Source',
+			icon: GithubIcon
+		}
+	];
 </script>
 
 <div class="flex min-h-screen min-w-screen flex-col bg-background text-foreground">
 	<!-- Top Bar -->
 	<header class="flex items-center justify-between border-b border-border p-4">
-		<div class="flex items-center">
+		<a href="/" class="flex items-center">
 			<Send class="h-6 w-6 text-primary" />
 			<h1 class="ml-2 text-2xl font-bold md:text-xl">Chithi</h1>
-		</div>
+		</a>
 
 		<div class="flex items-center gap-2">
 			{#if isAuthenticated()}
@@ -87,7 +94,7 @@
 								<Dropdown.DropdownMenuSubContent>
 									{#each adminLinks as item}
 										<Dropdown.DropdownMenuItem>
-											<a href="/admin/config" class="flex w-full items-center gap-2">
+											<a href={item.href} class="flex w-full items-center gap-2">
 												<item.icon />
 												{item.name}
 											</a>
@@ -132,25 +139,21 @@
 
 	<!-- Footer -->
 	<footer class="border-t border-border p-4">
-		<div class="w-full">
+		<div class="mx-auto w-full">
 			<nav
 				class="flex flex-row flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground md:gap-6"
 			>
-				<!-- <a
-					href="/donate"
-					class="font-medium whitespace-nowrap transition-colors hover:text-foreground">Donate</a
-				>
-				<a href="/cli" class="font-medium whitespace-nowrap transition-colors hover:text-foreground"
-					>CLI</a
-				> 
-				<a
-					href="/dmca"
-					class="font-medium whitespace-nowrap transition-colors hover:text-foreground">DMCA</a
-				> -->
-				<a
-					href="https://github.com/chithi-dev/chithi"
-					class="font-medium whitespace-nowrap transition-colors hover:text-foreground">Source</a
-				>
+				{#each footerLinks as footer_item}
+					<Button
+						variant="ghost"
+						size="icon"
+						aria-label={footer_item.name}
+						class="transition-colors hover:text-foreground"
+						href={footer_item.href}
+					>
+						<footer_item.icon />
+					</Button>
+				{/each}
 			</nav>
 		</div>
 	</footer>

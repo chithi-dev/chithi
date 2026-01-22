@@ -6,7 +6,7 @@
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { BACKEND_API } from '$lib/consts/backend';
-	import { createDecryptedStream } from '$lib/functions/streams';
+	import { createDecryptedStream, peekHeader } from '$lib/functions/streams';
 	import { formatFileSize } from '$lib/functions/bytes';
 	import { toast } from 'svelte-sonner';
 	import { Progress } from '$lib/components/ui/progress';
@@ -100,14 +100,32 @@
 				}
 			});
 
+			// Peek the header to see if a password is required without consuming the main download stream
+			let downloadStream = streamWithProgress;
+			try {
+				const [peekStream, passStream] = streamWithProgress.tee();
+				const headerInfo = await peekHeader(peekStream);
+				if (headerInfo?.needsPassword && !password) {
+					// Stop the active reader to avoid wasting bandwidth
+					await reader.cancel();
+					status = 'needs_password';
+					return;
+				}
+				downloadStream = passStream;
+			} catch (e) {
+				// If peeking fails, fall back to the full stream and let createDecryptedStream handle errors
+				console.warn('Header peek failed, proceeding with full download', e);
+			}
+
+
 			if ('showSaveFilePicker' in window) {
 				const handle = await (window as any).showSaveFilePicker({
-					suggestedName: filename
+					suggestedName: `${filename}.zip`
 				});
 				const writable = await handle.createWritable();
 
 				const { stream: decryptedStream } = await createDecryptedStream(
-					streamWithProgress,
+					downloadStream,
 					key,
 					password
 				);
@@ -117,7 +135,7 @@
 				toast.success('Download complete');
 			} else {
 				const { stream: decryptedStream } = await createDecryptedStream(
-					streamWithProgress,
+					downloadStream,
 					key,
 					password
 				);
@@ -132,7 +150,7 @@
 				const url = window.URL.createObjectURL(blob);
 				const a = document.createElement('a');
 				a.href = url;
-				a.download = filename;
+				a.download = `${filename}.zip`;
 				a.classList.add('hidden');
 				document.body.appendChild(a);
 				a.click();
