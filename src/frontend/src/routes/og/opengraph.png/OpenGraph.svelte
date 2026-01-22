@@ -15,13 +15,10 @@
 			</div>
 			Chithi
 		</div>
-		<div class="flex h-10 w-10 rounded-full border border-[#555] bg-[#333]"></div>
 	</div>
 
 	<div class="relative flex w-full grow items-center justify-center">
-		<div
-			class="flex h-125 w-225 overflow-hidden rounded-2xl border border-[#222] bg-[#0f0f0f]"
-		>
+		<div class="flex h-125 w-225 overflow-hidden rounded-2xl border border-[#222] bg-[#0f0f0f]">
 			<div class="flex flex-1 p-6">
 				<div
 					class="flex h-full w-full flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#333] text-center"
