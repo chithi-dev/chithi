@@ -30,7 +30,6 @@ dependencies = [
     "redis[hiredis]>=6.4.0",
     # Mandatory type
     "types-aiobotocore-s3>=2.25.2",
-    "psutil>=7.2.1",
 ]
 
 [dependency-groups]

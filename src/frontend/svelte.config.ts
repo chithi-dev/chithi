@@ -26,9 +26,9 @@ export default {
 				? node_adapter({
 						precompress: false
 					})
-				: auto()
-		// alias: {
-		// 	'@/*': './src/lib/*'
-		// }
+				: auto(),
+		alias: {
+			'@/*': './src/lib/*'
+		}
 	}
 } satisfies Config;
