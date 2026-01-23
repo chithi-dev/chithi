@@ -45,7 +45,7 @@
 		"globals": "^17.1.0",
 		"hash-wasm": "^4.12.0",
 		"idb": "^8.0.3",
-		"lucide-svelte": "^0.562.0",
+		"lucide-svelte": "^0.563.0",
 		"marked": "^17.0.1",
 		"mode-watcher": "^1.1.0",
 		"playwright": "^1.58.0",
