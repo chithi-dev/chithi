@@ -1,5 +1,5 @@
 <script lang="ts">
-	let { description } = $props();
+	let { description, maxFileSize, isOverflown } = $props();
 </script>
 
 <div class="flex h-full w-full flex-col justify-between bg-[#030303] font-sans text-white">
@@ -34,7 +34,7 @@
 					</div>
 					<div class="mb-2 text-lg font-medium">Drag and drop files</div>
 					<div class="mb-6 max-w-50 text-xs text-[#666]">
-						or click to send up to 10 GB of files with end-to-end encryption
+						or click to send up to {maxFileSize} of files with end-to-end encryption
 					</div>
 					<div class="flex rounded-md bg-white px-5 py-2.5 text-sm font-bold text-black">
 						Select files to upload
@@ -42,10 +42,16 @@
 				</div>
 			</div>
 
-			<div class="flex flex-1 flex-col justify-center p-16">
+			<div class="flex flex-1 flex-col p-16">
 				<div class="mb-5 text-3xl font-bold">Configurable File Sharing</div>
-				<div class="text-base leading-relaxed text-[#999]">
+				<div class="relative flex-1 text-base leading-relaxed text-[#999]">
 					{description}
+					{#if isOverflown}
+						<div
+							class="absolute right-0 bottom-0 left-0 h-8"
+							style="mask-image: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%);"
+						></div>
+					{/if}
 				</div>
 			</div>
 		</div>

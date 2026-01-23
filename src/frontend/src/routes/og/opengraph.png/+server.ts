@@ -7,6 +7,7 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import { visit } from 'unist-util-visit';
 import type { Root, Text } from 'mdast';
+import { formatFileSize } from '$lib/functions/bytes';
 
 function markdownToText(md: string): string {
 	const tree = unified().use(remarkParse).parse(md) as Root;
@@ -28,7 +29,7 @@ export const GET: RequestHandler = async () => {
 	const data = await res.json();
 
 	const description = markdownToText(data.site_description ?? '');
-	console.log(data);
+	const maxFileSize = formatFileSize(data?.max_file_size_limit ?? 0);
 	return new ImageResponse(
 		OpenGraphComponent,
 		{
@@ -36,7 +37,9 @@ export const GET: RequestHandler = async () => {
 			height: 630
 		},
 		{
-			description: description
+			description: description,
+			maxFileSize: maxFileSize,
+			isOverflown: true
 		}
 	);
 };
