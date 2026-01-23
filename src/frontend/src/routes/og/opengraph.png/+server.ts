@@ -18,18 +18,41 @@ function markdownToText(md: string): string {
 		result += node.value;
 	});
 
-	// Replace multiple consecutive newlines with single newline
 	return result.replace(/\n\s*\n/g, '\n').trim();
 }
+function checkWordOverflow(
+	input: string,
+	limit = 150
+): {
+	overflown: boolean;
+	text: string;
+} {
+	const words = input.trim().split(/\s+/);
 
+	if (words.length > limit) {
+		return {
+			overflown: true,
+			text: words.slice(0, limit).join(' ')
+		};
+	}
+
+	return {
+		overflown: false,
+		text: input
+	};
+}
 export const GET: RequestHandler = async () => {
 	const res = await fetch(CONFIG_URL, { method: 'GET' });
 	if (!res.ok) throw new Error('Failed to fetch config data for OG image');
 
 	const data = await res.json();
 
-	const description = markdownToText(data.site_description ?? '');
 	const maxFileSize = formatFileSize(data?.max_file_size_limit ?? 0);
+	const { overflown, text: description } = checkWordOverflow(
+		markdownToText(data.site_description ?? ''),
+		150
+	);
+
 	return new ImageResponse(
 		OpenGraphComponent,
 		{
@@ -39,7 +62,7 @@ export const GET: RequestHandler = async () => {
 		{
 			description: description,
 			maxFileSize: maxFileSize,
-			isOverflown: true
+			isOverflown: overflown
 		}
 	);
 };

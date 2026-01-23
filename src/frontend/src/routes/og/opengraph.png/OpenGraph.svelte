@@ -44,14 +44,13 @@
 
 			<div class="flex flex-1 flex-col p-16">
 				<div class="mb-5 text-3xl font-bold">Configurable File Sharing</div>
-				<div class="relative flex-1 text-base leading-relaxed text-[#999]">
+				<div
+					class="relative flex-1 text-base leading-relaxed text-muted-foreground"
+					style={isOverflown
+						? 'mask-image: linear-gradient(0deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 1) 25%);'
+						: ''}
+				>
 					{description}
-					{#if isOverflown}
-						<div
-							class="absolute right-0 bottom-0 left-0 h-8"
-							style="mask-image: linear-gradient(0deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%);"
-						></div>
-					{/if}
 				</div>
 			</div>
 		</div>
