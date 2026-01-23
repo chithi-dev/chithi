@@ -17,12 +17,6 @@
 		"test": "npm run test:unit -- --run",
 		"test:unit": "vitest"
 	},
-	"dependencies": {
-		"@ethercorps/sveltekit-og": "^4.2.1",
-		"remark-parse": "^11.0.0",
-		"unified": "^11.0.5",
-		"unist-util-visit": "^5.1.0"
-	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.1",
 		"@eslint/js": "^9.39.1",
