@@ -1,3 +1,7 @@
+<script lang="ts">
+	let { description } = $props();
+</script>
+
 <div class="flex h-full w-full flex-col justify-between bg-[#030303] font-sans text-white">
 	<div class="relative flex w-full items-center justify-between px-16 py-10">
 		<div class="flex items-center text-2xl font-semibold">
@@ -41,9 +45,7 @@
 			<div class="flex flex-1 flex-col justify-center p-16">
 				<div class="mb-5 text-3xl font-bold">Configurable File Sharing</div>
 				<div class="text-base leading-relaxed text-[#999]">
-					Welcome to Public Chithi instance. It allows you to share file with a link that
-					automatically expires. So you know what you are sharing is always private and doesn't stay
-					on internet forever.
+					{description}
 				</div>
 			</div>
 		</div>
