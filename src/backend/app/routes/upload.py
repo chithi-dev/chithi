@@ -31,7 +31,7 @@ router = APIRouter()
 CHUNK_SIZE = ByteSize(gb=1).total_bytes()
 
 # Dynamic chunk sizing constants
-MIN_PART_SIZE = ByteSize(mb=8).total_bytes()
+MIN_PART_SIZE = ByteSize(mb=512).total_bytes()
 MAX_PART_SIZE = ByteSize(
     mb=256
 ).total_bytes()  # cap part size so memory usage doesn't explode
