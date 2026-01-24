@@ -21,6 +21,8 @@ import {
 	type ZipFileEntry
 } from './zip';
 
+const CONCURRENCY = Math.max(1, navigator?.hardwareConcurrency * 2 || 4);
+
 export function createZipStream(files: File[]): ReadableStream<Uint8Array> {
 	let fileIndex = 0;
 	let currentFileReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
@@ -369,7 +371,7 @@ export async function createEncryptedStream(
 			controller.enqueue(header);
 
 			// Setup worker pool for parallel encryption (if supported)
-			const concurrency = Math.max(1, (navigator && (navigator as any).hardwareConcurrency) || 4);
+			const concurrency = CONCURRENCY;
 			workers = [];
 			nextWorker = 0;
 			encryptedMap.clear();
@@ -743,7 +745,7 @@ export async function createDecryptedStream(
 	let chunkIndex = 0;
 
 	// Worker pool state
-	const concurrency = Math.max(1, (navigator && (navigator as any).hardwareConcurrency) || 4);
+	const concurrency = CONCURRENCY;
 	const workers: Worker[] = [];
 	let nextWorker = 0;
 	const decryptedMap = new Map<number, Uint8Array>();
