@@ -39,7 +39,7 @@ docker compose up --build
 
 There is a `docker-compose-dev.yml` with a minimal local development setup (Postgres, Redis, RustFS, and optional pgAdmin).
 
-<sub> If you are looking for the deployed codes behind chithi.dev, please take a look at my homelab's [configuration](https://github.com/baseplate-admin/homelab/blob/main/chithi/docker-compose.yml) with traefik</sub>
+<sub> If you are looking for the deployed codes behind chithi.dev, please take a look at my homelab's [configuration](https://github.com/baseplate-admin/homelab/blob/main/chithi/docker-compose.yml) with traefik, if you are willing to host a public instance of chithi please open a PR in `public.chiti.dev` [repo](https://github.com/chithi-dev/public.chithi.dev) with a modified `.upptimerc` </sub>
 
 ## Environment & Configuration
 
