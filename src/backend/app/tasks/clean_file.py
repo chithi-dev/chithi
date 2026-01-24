@@ -12,7 +12,6 @@ from app.settings import settings
 
 async def _delete_file(file_id: UUID):
     async with AsyncSessionLocal() as session:
-        # Fetch the file
         statement = select(File).where(File.id == file_id)
         result = await session.exec(statement)
         file_obj = result.first()
@@ -20,7 +19,6 @@ async def _delete_file(file_id: UUID):
         if not file_obj:
             return f"File {file_id} not found"
 
-        # Delete from S3
         async for s3_client in get_s3_client():
             await s3_client.delete_object(
                 Bucket=settings.RUSTFS_BUCKET_NAME,

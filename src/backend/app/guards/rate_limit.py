@@ -25,7 +25,6 @@ end
 
 
 async def rate_limiter_guard(request: Request, redis_client: RedisDep):
-    # Get the function handling the current request
     endpoint = request.scope.get("endpoint")
     if not endpoint or not hasattr(endpoint, "_rate_limits"):
         return
@@ -36,7 +35,6 @@ async def rate_limiter_guard(request: Request, redis_client: RedisDep):
     for limit, window in endpoint._rate_limits:
         key = f"rl:{user_id}:{endpoint.__name__}:{window}"
 
-        # We use the redis_client injected by FastAPI
         is_limited = await redis_client.eval(LUA_RATELIMIT, 1, key, now, window, limit)
 
         if is_limited:
