@@ -1,19 +1,19 @@
 # Chithi
 
-**Chithi** is an end-to-end file sharing application consisting of a FastAPI backend, a Svelte frontend, and a Celery worker for background tasks. The project aims to provide secure file uploads, temporary links, and user management with a simple modern UI.
+**Chithi** is an end-to-end file sharing application consisting of a FastAPI backend, a Svelte frontend, and a Celery worker with beat scheduler for background tasks. The project aims to provide secure file uploads, temporary links, and user management with a simple modern UI.
 
 ## Features
 
 - User onboarding, authentication and JWT-based sessions
 - File upload and download with S3-compatible backend
-- Background cleanup tasks using Celery + Redis
+- Background cleanup tasks using Celery + Beat + Redis
 - Admin endpoints for managing users and files
-- Svelte frontend and a small CLI/TUI for administration and local tooling
+- Svelte frontend and a small CLI/TUI (in near future)
 
 ## Architecture & Tech
 
 - Backend: FastAPI, SQLModel (Postgres), Celery (Redis), RustFS
-- Storage: RustFS (S3-compatible object store)
+- Storage: RustFS (S3-compatible object storage)
 - Frontend: SvelteKit + Vite
 - Containerized with Docker Compose
 
@@ -35,6 +35,8 @@ docker compose up --build
 
 There is a `docker-compose-dev.yml` with a minimal local development setup (Postgres, Redis, RustFS, and optional pgAdmin).
 
+<sub> If you are looking for the deployed codes behind chithi.dev, please take a look at my homelab's [configuration](https://github.com/baseplate-admin/homelab/blob/main/chithi/docker-compose.yml) with traefik</sub>
+
 ## Environment & Configuration
 
 Important environment variables (examples come from the compose files):
@@ -48,7 +50,7 @@ You can find the full example environment in `docker-compose.yml` and `docker-co
 
 ## Development
 
-Backend
+### Backend
 
 - Python >= 3.14
 - Install dependencies and run the app (example):
@@ -56,10 +58,10 @@ Backend
 ```bash
 # from src/backend
 uv sync
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 # poe run dev
+fastapi dev ./app/main.py # poe run dev
 ```
 
-Frontend
+### Frontend
 
 ```bash
 # from src/frontend
@@ -67,14 +69,9 @@ npm install
 npm run dev
 ```
 
-CLI / TUI
+### Testing & linting
 
-- CLI commands are available under the `src/cli` and `src/backend` Typer apps (user management helpers).
-- TUI is experimental and uses Textual (see `src/tui`).
-
-Testing & linting
-
-- Frontend: `npm run test` (Vitest), `npm run lint`
+- Frontend: `npm run test` (Vitest), `npm run lint` (eslint)
 - Backend: depends on dev setup (`ruff` is configured for linting in the backend project)
 
 ## Contributing

@@ -55,7 +55,7 @@ package = true
 backend = "app.__main__:main"
 
 [tool.ruff.lint]
-extend-select = ["I"]  # Enables isort rules
+extend-select = ["I"] 
 
 [tool.ruff.format]
 skip-magic-trailing-comma = false  # Avoids conflict with isort.split-on-trailing-comma
