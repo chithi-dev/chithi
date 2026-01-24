@@ -1,5 +1,5 @@
 import { env } from '$env/dynamic/public';
-import { strip_trailing_slash } from '$lib/functions/urls';
+import { strip_trailing_slash } from '#functions/urls';
 const envrionment_variable = env.PUBLIC_BACKEND_API ?? 'http://localhost:8000';
 
 export const BACKEND_API = strip_trailing_slash(envrionment_variable);

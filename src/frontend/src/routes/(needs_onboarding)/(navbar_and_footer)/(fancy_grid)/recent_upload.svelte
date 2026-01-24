@@ -10,7 +10,7 @@
 		recentUploads,
 		updateHistoryEntry
 	} from '$lib/database';
-	import { formatFileSize } from '$lib/functions/bytes';
+	import { formatFileSize } from '#functions/bytes';
 	import { get } from 'svelte/store';
 	import { FILE_INFO_URL } from '$lib/consts/backend';
 

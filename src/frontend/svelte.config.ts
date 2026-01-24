@@ -28,7 +28,10 @@ export default {
 					})
 				: auto(),
 		alias: {
-			'@/*': './src/lib/*'
+			'#workers/*': './src/lib/workers/*',
+			'#functions/*': './src/lib/functions/*',
+			'#logos/*': './src/lib/logos/*',
+			'#queries/*': './src/lib/queries/*'
 		}
 	}
 } satisfies Config;

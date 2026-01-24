@@ -2,7 +2,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import * as Tabs from '$lib/components/ui/tabs';
-	import { resolve_partial_path } from '@/functions/urls';
+	import { resolve_partial_path } from '#functions/urls';
 
 	let { children } = $props();
 

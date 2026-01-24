@@ -9,11 +9,11 @@
 	import { LoaderCircle, X } from 'lucide-svelte';
 	import { fade, slide } from 'svelte/transition';
 
-	import { useConfigQuery } from '$lib/queries/config';
-	import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '$lib/functions/bytes';
-	import { formatSeconds, secondsToNumber, T_UNITS, type TimeUnit } from '$lib/functions/times';
-	import { sanitizeExt } from '$lib/functions/sanitize';
-	import { marked } from '$lib/functions/marked';
+	import { useConfigQuery } from '#queries/config';
+	import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '#functions/bytes';
+	import { formatSeconds, secondsToNumber, T_UNITS, type TimeUnit } from '#functions/times';
+	import { sanitizeExt } from '#functions/sanitize';
+	import { marked } from '#functions/marked';
 
 	// Query hook
 	const { config: configQuery, update_config } = useConfigQuery();

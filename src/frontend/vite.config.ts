@@ -5,7 +5,9 @@ import { sveltekit } from '@sveltejs/kit/vite';
 
 export default defineConfig({
 	plugins: [tailwindcss(), sveltekit()],
-
+	worker: {
+		format: 'es'
+	},
 	build: {
 		sourcemap: true,
 		minify: 'terser'

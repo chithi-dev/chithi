@@ -6,10 +6,10 @@
 	import * as Avatar from '$lib/components/ui/avatar';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { LoaderCircle } from 'lucide-svelte';
-	import { useAuth } from '$lib/queries/auth';
+	import { useAuth } from '#queries/auth';
 	import { fade } from 'svelte/transition';
-	import { kebab_to_initials } from '$lib/functions/string-conversion';
-	import { make_libravatar_url } from '$lib/functions/libravatar';
+	import { kebab_to_initials } from '#functions/string-conversion';
+	import { make_libravatar_url } from '#functions/libravatar';
 
 	const { user, updateUser } = useAuth();
 

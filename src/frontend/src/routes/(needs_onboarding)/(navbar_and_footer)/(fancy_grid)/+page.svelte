@@ -4,7 +4,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import * as Select from '$lib/components/ui/select';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
-	import { useConfigQuery } from '$lib/queries/config';
+	import { useConfigQuery } from '#queries/config';
 	import {
 		Plus,
 		X,
@@ -18,10 +18,10 @@
 		Upload,
 		Download
 	} from 'lucide-svelte';
-	import { marked } from '$lib/functions/marked';
-	import { formatFileSize } from '$lib/functions/bytes';
-	import { formatSeconds } from '$lib/functions/times';
-	import { createZipStream, createEncryptedStream } from '$lib/functions/streams';
+	import { marked } from '#functions/marked';
+	import { formatFileSize } from '#functions/bytes';
+	import { formatSeconds } from '#functions/times';
+	import { createZipStream, createEncryptedStream } from '#functions/streams';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { v7 as uuidv7 } from 'uuid';
 	import { BACKEND_API } from '$lib/consts/backend';

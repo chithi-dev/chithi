@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { fly, fade } from 'svelte/transition';
 	import { goto } from '$app/navigation';
-	import { useOnboarding } from '$lib/queries/onboarding';
+	import { useOnboarding } from '#queries/onboarding';
 	import * as Card from '$lib/components/ui/card';
 	import { Check } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';

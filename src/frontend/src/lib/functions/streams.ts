@@ -10,6 +10,8 @@ import {
 	base64ToBytes,
 	base64urlToBytes
 } from './encryption';
+import EncryptWorker from '#workers/encrypt.worker?worker';
+import DecryptWorker from '#workers/decrypt.worker?worker';
 import {
 	createLocalFileHeader,
 	createDataDescriptor,
@@ -413,9 +415,7 @@ export async function createEncryptedStream(
 				const keyRaw = await crypto.subtle.exportKey('raw', aesKey);
 
 				for (let i = 0; i < concurrency; i++) {
-					const w = new Worker(new URL('../workers/encrypt.worker.ts', import.meta.url), {
-						type: 'module'
-					});
+					const w = new EncryptWorker();
 					w.onmessage = (ev) => handleWorkerMessage(ev.data);
 					workers.push(w);
 					// Initialize worker with copies of key and baseIv (transferable). Use slice to avoid neutering the main copy.
@@ -758,9 +758,7 @@ export async function createDecryptedStream(
 		try {
 			const keyRaw = await crypto.subtle.exportKey('raw', aesKey);
 			for (let i = 0; i < concurrency; i++) {
-				const w = new Worker(new URL('../workers/decrypt.worker.ts', import.meta.url), {
-					type: 'module'
-				});
+				const w = new DecryptWorker();
 				w.onmessage = (ev) => {
 					const data = ev.data;
 					if (data?.type === 'decrypted') {

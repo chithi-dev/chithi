@@ -4,9 +4,9 @@
 	import { Button } from '$lib/components/ui/button';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { useFilesQuery } from '$lib/queries/files';
+	import { useFilesQuery } from '#queries/files';
 	import { Trash2, FileIcon, FolderIcon, Download, Clock, CalendarClock } from 'lucide-svelte';
-	import { formatFileSize } from '$lib/functions/bytes';
+	import { formatFileSize } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';
 	import { fade } from 'svelte/transition';
 

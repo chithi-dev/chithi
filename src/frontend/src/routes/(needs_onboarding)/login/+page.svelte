@@ -16,7 +16,7 @@
 	} from 'lucide-svelte';
 	import { fly } from 'svelte/transition';
 	import { cn } from '$lib/utils';
-	import { useAuth } from '$lib/queries/auth';
+	import { useAuth } from '#queries/auth';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 

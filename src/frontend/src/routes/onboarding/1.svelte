@@ -4,8 +4,8 @@
 	import { Label } from '$lib/components/ui/label';
 	import * as Card from '$lib/components/ui/card';
 	import { User, ArrowRight, Mail, Lock, LoaderCircle } from 'lucide-svelte';
-	import { useOnboarding } from '$lib/queries/onboarding';
-	import { useAuth } from '$lib/queries/auth';
+	import { useOnboarding } from '#queries/onboarding';
+	import { useAuth } from '#queries/auth';
 	import { toast } from 'svelte-sonner';
 	import type { Props } from './types';
 

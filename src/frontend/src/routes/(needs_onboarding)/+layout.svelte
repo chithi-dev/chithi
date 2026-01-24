@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { useOnboarding } from '$lib/queries/onboarding';
+	import { useOnboarding } from '#queries/onboarding';
 
 	let { children } = $props();
 
@@ -16,6 +16,5 @@
 		}
 	});
 </script>
-
 
 {@render children()}

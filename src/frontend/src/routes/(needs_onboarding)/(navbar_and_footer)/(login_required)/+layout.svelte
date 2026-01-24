@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { useAuth } from '$lib/queries/auth';
+	import { useAuth } from '#queries/auth';
 	import { page } from '$app/state';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';

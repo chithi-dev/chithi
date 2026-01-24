@@ -6,8 +6,8 @@
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import { BACKEND_API } from '$lib/consts/backend';
-	import { createDecryptedStream, peekHeader } from '$lib/functions/streams';
-	import { formatFileSize } from '$lib/functions/bytes';
+	import { createDecryptedStream, peekHeader } from '#functions/streams';
+	import { formatFileSize } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';
 	import { Progress } from '$lib/components/ui/progress';
 
@@ -116,7 +116,6 @@
 				// If peeking fails, fall back to the full stream and let createDecryptedStream handle errors
 				console.warn('Header peek failed, proceeding with full download', e);
 			}
-
 
 			if ('showSaveFilePicker' in window) {
 				const handle = await (window as any).showSaveFilePicker({

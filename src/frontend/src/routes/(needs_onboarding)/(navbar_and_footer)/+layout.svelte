@@ -4,14 +4,14 @@
 	import { toggleMode } from 'mode-watcher';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Dropdown from '$lib/components/ui/dropdown-menu';
-	import { useAuth } from '$lib/queries/auth';
+	import { useAuth } from '#queries/auth';
 	import { mode } from 'mode-watcher';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { Switch } from '$lib/components/ui/switch/index.js';
-	import { kebab_to_initials } from '$lib/functions/string-conversion';
-	import { make_libravatar_url } from '$lib/functions/libravatar';
+	import { kebab_to_initials } from '#functions/string-conversion';
+	import { make_libravatar_url } from '#functions/libravatar';
 	import { page } from '$app/state';
-	import GithubIcon from '$lib/logos/github.svelte';
+	import GithubIcon from '#logos/github.svelte';
 	const { isAuthenticated, user: userData } = useAuth();
 
 	let { children } = $props();
