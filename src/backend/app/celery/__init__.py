@@ -27,7 +27,7 @@ def setup_periodic_tasks(sender: Celery, **kwargs):
 
     # Every hour clean up stalled multipart uploads older than MAX_AGE
     sender.add_periodic_task(
-        crontab(minute=0, hour="*"),
+        crontab(minute="*/10"),
         cleanup_stalled_multipart_uploads.s(settings.RUSTFS_BUCKET_NAME),
         name="cleanup_stalled_multipart_uploads_hourly",
     )
