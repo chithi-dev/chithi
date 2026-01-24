@@ -1,4 +1,8 @@
 # Chithi
+<center>
+    <img src="./assets/chithi-dev.png" alt="Chithi Dev Public Instance" />
+</center>
+
 
 **Chithi** is an end-to-end file sharing application consisting of a FastAPI backend, a Svelte frontend, and a Celery worker with beat scheduler for background tasks. The project aims to provide secure file uploads, temporary links, and user management with a simple modern UI.
 
