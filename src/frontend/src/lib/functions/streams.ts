@@ -1,23 +1,23 @@
+import DecryptWorker from '#workers/decrypt.worker?worker';
+import EncryptWorker from '#workers/encrypt.worker?worker';
 import {
+	CHUNK_SIZE,
+	argon2Derive,
+	base64ToBytes,
+	base64url,
+	base64urlToBytes,
+	bytesToBase64,
 	deriveAESKeyFromIKM,
 	getChunkIv,
-	bytesToBase64,
-	base64url,
 	xorBytes,
-	argon2Derive,
-	type InnerEncryptionMeta,
-	CHUNK_SIZE,
-	base64ToBytes,
-	base64urlToBytes
+	type InnerEncryptionMeta
 } from './encryption';
-import EncryptWorker from '#workers/encrypt.worker?worker';
-import DecryptWorker from '#workers/decrypt.worker?worker';
 import {
-	createLocalFileHeader,
-	createDataDescriptor,
-	createCentralDirectoryHeader,
-	createEndOfCentralDirectory,
 	crc32,
+	createCentralDirectoryHeader,
+	createDataDescriptor,
+	createEndOfCentralDirectory,
+	createLocalFileHeader,
 	type ZipFileEntry
 } from './zip';
 

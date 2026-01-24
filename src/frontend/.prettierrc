@@ -6,7 +6,8 @@
 	"plugins": [
 		"prettier-plugin-svelte",
 		"prettier-plugin-tailwindcss",
-		"prettier-plugin-packagejson"
+		"prettier-plugin-packagejson",
+		"prettier-plugin-organize-imports"
 	],
 	"overrides": [
 		{

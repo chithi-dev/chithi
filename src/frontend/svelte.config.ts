@@ -1,9 +1,9 @@
-import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 import type { Config } from '@sveltejs/kit';
+import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
+import auto from '@sveltejs/adapter-auto';
 import node_adapter from '@sveltejs/adapter-node';
 import static_adapter from '@sveltejs/adapter-static';
-import auto from '@sveltejs/adapter-auto';
 
 const is_static = process.env.BUILD_STATIC_ENV ?? false;
 const is_node = process.env.BUILD_NODE_ENV ?? false;

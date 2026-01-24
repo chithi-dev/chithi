@@ -1,5 +1,5 @@
 import { browser } from '$app/environment';
-import { LOGIN_URL, USER_URL, ADMIN_USER_UPDATE_URL } from '$lib/consts/backend';
+import { ADMIN_USER_UPDATE_URL, LOGIN_URL, USER_URL } from '$lib/consts/backend';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 export function useAuth() {
