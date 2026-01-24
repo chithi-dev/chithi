@@ -37,8 +37,8 @@ export const useFilesQuery = () => {
 			}
 			return res.json() as Promise<FileInfo[]>;
 		},
-		staleTime: 1000 * 60, // 1 minute
-		retry: false
+		staleTime: 1000, // 1 second
+		retry: true
 	}));
 
 	const revokeFile = async (id: string) => {
