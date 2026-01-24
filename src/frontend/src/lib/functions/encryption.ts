@@ -1,5 +1,10 @@
 import { argon2id } from 'hash-wasm';
 
+// Argon2 parameter defaults and safety cap
+const MAX_ARGON2_MEMORY_KIB = 512 * 1024 - 1; // cap: <512 MiB in KiB units
+const DEFAULT_ARGON2_MEMORY_KIB = 64 * 1024; // 64 MiB default
+const DEFAULT_ARGON2_ITERATIONS = 8;
+
 export function bytesToBase64(u8: Uint8Array) {
 	let binary = '';
 	for (let i = 0; i < u8.byteLength; i++) {
@@ -44,7 +49,15 @@ export async function deriveAESKeyFromIKM(
 	hkdfSalt: Uint8Array,
 	info?: Uint8Array
 ) {
-	const derivedBits = await argon2Derive(ikm, hkdfSalt, 1, 1024, 32, 1);
+	// Use stronger Argon2 parameters for key derivation (more work, memory-capped)
+	const derivedBits = await argon2Derive(
+		ikm,
+		hkdfSalt,
+		DEFAULT_ARGON2_ITERATIONS,
+		DEFAULT_ARGON2_MEMORY_KIB,
+		32,
+		1
+	);
 	// Import key as exportable so we can pass raw key material to workers for parallel encryption
 	return await crypto.subtle.importKey('raw', derivedBits as any, { name: 'AES-GCM' }, true, [
 		'encrypt',
@@ -56,15 +69,17 @@ export async function argon2Derive(
 	password: string | Uint8Array,
 	salt: Uint8Array,
 	iterations: number,
-	memorySize = 16384,
+	memorySize = DEFAULT_ARGON2_MEMORY_KIB,
 	hashLength = 32,
 	parallelism = 1
 ) {
+	// Cap memory to avoid excessive allocations in constrained environments (<512 MiB)
+	const memKb = Math.min(memorySize, MAX_ARGON2_MEMORY_KIB);
 	return await argon2id({
 		password,
 		salt,
 		iterations,
-		memorySize,
+		memorySize: memKb,
 		hashLength,
 		parallelism,
 		outputType: 'binary'
