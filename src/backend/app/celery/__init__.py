@@ -13,7 +13,10 @@ celery.autodiscover_tasks(["app.tasks"])
 @celery.on_after_configure.connect
 def setup_periodic_tasks(sender: Celery, **kwargs):
     # https://docs.celeryq.dev/en/main/userguide/periodic-tasks.html#entries
-    from app.periodic_tasks import cleanup_expired_files, cleanup_stalled_uploads
+    from app.periodic_tasks import (
+        cleanup_expired_files,
+        cleanup_stalled_multipart_uploads,
+    )
 
     # Every 10 mins check for unused files
     sender.add_periodic_task(
@@ -25,8 +28,8 @@ def setup_periodic_tasks(sender: Celery, **kwargs):
     # Every hour clean up stalled multipart uploads older than MAX_AGE
     sender.add_periodic_task(
         crontab(minute=0, hour="*"),
-        cleanup_stalled_uploads.s(settings.RUSTFS_BUCKET_NAME),
-        name="cleanup_stalled_uploads_hourly",
+        cleanup_stalled_multipart_uploads.s(settings.RUSTFS_BUCKET_NAME),
+        name="cleanup_stalled_multipart_uploads_hourly",
     )
 
 

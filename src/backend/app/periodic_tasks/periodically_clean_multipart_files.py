@@ -35,10 +35,10 @@ async def _cleanup(bucket: str):
 
 
 @celery.task(
-    name="cleanup_stalled_uploads",
+    name="cleanup_stalled_multipart_uploads",
     autoretry_for=(Exception,),
     retry_backoff=True,
     retry_kwargs={"max_retries": 5},
 )
-def cleanup_stalled_uploads(bucket: str):
+def cleanup_stalled_multipart_uploads(bucket: str):
     asyncio.run(_cleanup(bucket))
