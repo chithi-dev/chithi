@@ -275,7 +275,7 @@ export async function createEncryptedStream(
 	const chunkSizes = new Map<number, number>();
 	let processedTotal = 0;
 
-	// Worker-pool shared state (moved to outer scope so transform/flush can access)
+	// Worker-pool shared state
 	let workers: Worker[] = [];
 	let nextWorker = 0;
 	let encryptedMap = new Map<number, Uint8Array>();
@@ -370,7 +370,7 @@ export async function createEncryptedStream(
 
 			controller.enqueue(header);
 
-			// Setup worker pool for parallel encryption (if supported)
+			// Setup worker pool for parallel encryption
 			const concurrency = CONCURRENCY;
 			workers = [];
 			nextWorker = 0;
@@ -654,7 +654,7 @@ export async function createDecryptedStream(
 		// Read encrypted header payload of headerLen bytes
 		const encryptedHeader = await readBytes(headerLen);
 
-		// If argon2 is used, derive pre-key material now so we can decrypt the header payload
+		// Argon2 is used, derive pre-key material now so we can decrypt the header payload
 		if (argon2Salt && argon2Iterations && argon2Memory && argon2Parallelism) {
 			if (!password) throw new Error('Password required for decryption');
 			const pb = await argon2Derive(
@@ -739,7 +739,7 @@ export async function createDecryptedStream(
 	const aesKey = await deriveAESKeyFromIKM(finalIKM, hkdfSalt);
 	const baseIv = base64ToBytes(innerMeta.iv);
 
-	// Create Stream (parallel decrypt using worker pool)
+	// parallel decrypt using worker pool
 	const TAG_LEN = 16;
 	const ENC_CHUNK_SIZE = CHUNK_SIZE + TAG_LEN;
 	let chunkIndex = 0;
