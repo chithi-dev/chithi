@@ -50,8 +50,9 @@ export const getHistory = async (): Promise<UploadEntry[]> => {
 					entries
 						.filter((e) => e.expiry > now)
 						.map((e) => {
-							if (e.link.includes('#')) {
-								e.link = e.link.replace('#', '?secret=');
+							// Normalize legacy links that used a query parameter into fragment form
+							if (e.link.includes('?secret=')) {
+								e.link = e.link.replace('?secret=', '#');
 							}
 							return e;
 						})

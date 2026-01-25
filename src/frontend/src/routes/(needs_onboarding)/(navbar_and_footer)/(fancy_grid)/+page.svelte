@@ -375,7 +375,8 @@
 
 			if (!serverPath) throw new Error('Invalid server response');
 
-			const downloadPath = `/download/${serverPath}?secret=${keySecret}`;
+			// Store the key in the URL fragment so it is never sent to the server
+			const downloadPath = `/download/${serverPath}#${keySecret}`;
 			finalLink = `${window.location.origin}${downloadPath}`;
 			isUploadComplete = true;
 			isUploading = false;
