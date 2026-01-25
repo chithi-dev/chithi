@@ -2,9 +2,9 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { FileText, CircleAlert, LoaderCircle, Download } from 'lucide-svelte';
+	import { FileText, CircleAlert, LoaderCircle, Download, KeyRound } from 'lucide-svelte';
 	import { page } from '$app/state';
-	import { onMount } from 'svelte';
+	import { fly } from 'svelte/transition';
 	import { BACKEND_API } from '$lib/consts/backend';
 	import { createDecryptedStream, peekHeader } from '#functions/streams';
 	import { formatFileSize } from '#functions/bytes';
@@ -49,7 +49,7 @@
 		}
 	}
 
-	onMount(() => {
+	$effect.pre(() => {
 		startCheck();
 	});
 
@@ -206,10 +206,29 @@
 							<p class="text-muted-foreground">Verifying key and checking file...</p>
 						</div>
 					{:else if status === 'error'}
-						<div class="flex flex-col items-center justify-center py-8 text-destructive">
-							<CircleAlert class="mb-4 h-12 w-12" />
-							<p class="font-medium">{errorMsg}</p>
-						</div>
+						{#if !key}
+							<div in:fly={{ y: 20, duration: 800 }} class="mx-auto w-full max-w-lg">
+								<Card.Header class="px-0 text-center">
+									<div
+										class="mx-auto my-3 flex h-20 w-20 items-center justify-center rounded-full bg-destructive/10"
+									>
+										<KeyRound class="h-10 w-10 text-destructive" />
+									</div>
+									<Card.Title class="text-2xl font-bold">Decryption Key Required</Card.Title>
+									<Card.Description class="mt-2 text-muted-foreground">
+										{errorMsg || 'The decryption key is missing.'}
+									</Card.Description>
+								</Card.Header>
+								<Card.Footer class="mt-6 flex w-full flex-col gap-6 px-0">
+									<Button class="w-full cursor-pointer" variant="outline" href="/">Go Home</Button>
+								</Card.Footer>
+							</div>
+						{:else}
+							<div class="flex flex-col items-center justify-center py-8 text-destructive">
+								<CircleAlert class="mb-4 h-12 w-12" />
+								<p class="font-medium">{errorMsg}</p>
+							</div>
+						{/if}
 					{:else if status === 'needs_password'}
 						<div class="mx-auto flex w-full max-w-sm items-center py-8">
 							<Input
