@@ -143,6 +143,7 @@
 										id="password"
 										type={showPassword ? 'text' : 'password'}
 										bind:value={password}
+										placeholder="••••••••"
 										class="h-12 border-slate-200 bg-white/50 px-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50"
 										required
 									/>
