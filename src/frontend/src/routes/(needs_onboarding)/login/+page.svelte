@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
+	import * as Field from '$lib/components/ui/field';
 	import * as Card from '$lib/components/ui/card';
 	import { page } from '$app/state';
 	import {
@@ -103,69 +103,74 @@
 
 			<Card.Content>
 				<form onsubmit={handleSubmit} class="grid gap-6">
-					<div class="grid gap-4">
-						<div class="grid gap-2">
-							<Label for="email" class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400"
-								>Email or Username</Label
-							>
-							<div class="group relative">
-								<div
-									class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"
+					<Field.Set>
+						<Field.Group>
+							<Field.Field>
+								<Field.Label
+									for="email"
+									class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400"
+									>Email or Username</Field.Label
 								>
-									<Mail class="size-4" />
+								<div class="group relative">
+									<div
+										class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"
+									>
+										<Mail class="size-4" />
+									</div>
+									<Input
+										id="email"
+										bind:value={email}
+										placeholder="name@example.com"
+										class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50"
+										required
+									/>
 								</div>
-								<Input
-									id="email"
-									bind:value={email}
-									placeholder="name@example.com"
-									class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50"
-									required
-								/>
-							</div>
-						</div>
+							</Field.Field>
 
-						<div class="grid gap-2">
-							<div class="flex items-center px-1">
-								<Label for="password" class="text-sm font-medium text-slate-700 dark:text-zinc-400"
-									>Password</Label
+							<Field.Field>
+								<Field.Label
+									for="password"
+									class="text-sm font-medium text-slate-700 dark:text-zinc-400"
+									>Password</Field.Label
 								>
-							</div>
-							<div class="group relative">
-								<div
-									class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"
-								>
-									<Lock class="size-4" />
+								<div class="group relative">
+									<div
+										class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"
+									>
+										<Lock class="size-4" />
+									</div>
+									<Input
+										id="password"
+										type={showPassword ? 'text' : 'password'}
+										bind:value={password}
+										placeholder="••••••••"
+										class="h-12 border-slate-200 bg-white/50 px-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50"
+										required
+									/>
+
+									<Button
+										variant="ghost"
+										size="icon"
+										type="button"
+										onclick={() => (showPassword = !showPassword)}
+										disabled={isPasswordEmpty}
+										class={cn(
+											'absolute top-1 right-1 h-10 w-10 text-slate-400 transition-all duration-200 dark:text-zinc-500',
+											isPasswordEmpty && 'pointer-events-none scale-90 opacity-0',
+											!isPasswordEmpty &&
+												'scale-100 opacity-100 hover:bg-transparent hover:text-slate-900 dark:hover:text-white'
+										)}
+									>
+										{#if showPassword}
+											<EyeOff class="size-4" />
+										{:else}
+											<Eye class="size-4" />
+										{/if}
+									</Button>
 								</div>
-								<Input
-									id="password"
-									type={showPassword ? 'text' : 'password'}
-									bind:value={password}
-									class="h-12 border-slate-200 bg-white/50 px-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50"
-									required
-								/>
-
-								<Button
-									variant="ghost"
-									size="icon"
-									type="button"
-									onclick={() => (showPassword = !showPassword)}
-									disabled={isPasswordEmpty}
-									class={cn(
-										'absolute top-1 right-1 h-10 w-10 text-slate-400 transition-all duration-200 dark:text-zinc-500',
-										isPasswordEmpty && 'pointer-events-none scale-90 opacity-0',
-										!isPasswordEmpty &&
-											'scale-100 opacity-100 hover:bg-transparent hover:text-slate-900 dark:hover:text-white'
-									)}
-								>
-									{#if showPassword}
-										<EyeOff class="size-4" />
-									{:else}
-										<Eye class="size-4" />
-									{/if}
-								</Button>
-							</div>
-						</div>
-					</div>
+							</Field.Field>
+						</Field.Group>
+					</Field.Set>
 
 					<Button
 						type="submit"
