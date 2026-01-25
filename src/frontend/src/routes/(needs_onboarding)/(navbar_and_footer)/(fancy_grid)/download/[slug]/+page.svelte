@@ -11,7 +11,8 @@
 	import { toast } from 'svelte-sonner';
 	import { Progress } from '$lib/components/ui/progress';
 
-	let key = $derived(page.url.searchParams.get('secret'));
+	// Key is provided in the URL fragment (after '#') and must be present there
+	let key = $derived(page.url.hash ? page.url.hash.slice(1) : null);
 	let slug = $derived(page.params.slug);
 
 	let status = $state<'checking' | 'ready' | 'needs_password' | 'error' | 'downloading'>(

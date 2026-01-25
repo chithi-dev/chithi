@@ -3,9 +3,8 @@ import type { PageLoad } from './$types';
 
 export const load: PageLoad = ({ url }) => {
 	// Prefer key from URL fragment (hash), fallback to legacy ?secret= query param
-	const hash = url.hash ? url.hash.slice(1) : null;
-	const key = hash || url.searchParams.get('secret');
-	/*	const key = url.hash ? url.hash.slice(1) : null;*/ // Remove this to always use hash for key
+	const key = url.hash ? url.hash.slice(1) : null;
+
 	if (!key) {
 		throw error(400, {
 			code: 'MISSING_KEY',
