@@ -7,15 +7,7 @@ export const load: PageLoad = async ({ parent, fetch }) => {
 	await queryClient.prefetchQuery({
 		queryKey: ['config'],
 		queryFn: async () => {
-			const token = localStorage.getItem('auth_token');
-			let headers: Record<string, string> = {};
-			if (token) {
-				headers.Authorization = `Bearer ${token}`;
-			}
-
-			const res = await fetch(CONFIG_URL, {
-				headers: headers
-			});
+			const res = await fetch(CONFIG_URL);
 
 			return res.json();
 		},

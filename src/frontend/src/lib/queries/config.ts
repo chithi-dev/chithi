@@ -23,8 +23,6 @@ type ConfigIn = {
 };
 
 export const useConfigQuery = () => {
-	const queryClient = useQueryClient();
-
 	const query = createQuery(() => ({
 		queryKey: ['config'],
 		queryFn: async () => {
@@ -57,6 +55,8 @@ export const useConfigQuery = () => {
 			},
 			body: JSON.stringify(data)
 		});
+		const queryClient = useQueryClient();
+
 		if (res.ok) await queryClient.invalidateQueries({ queryKey: ['config'] });
 	};
 
