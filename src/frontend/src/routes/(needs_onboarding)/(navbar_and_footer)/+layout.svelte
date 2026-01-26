@@ -1,5 +1,14 @@
 <script lang="ts">
-	import { SunIcon, Send, MoonIcon, LogOut, UserCog, SlidersVertical, Link } from 'lucide-svelte';
+	import {
+		SunIcon,
+		Send,
+		MoonIcon,
+		LogOut,
+		UserCog,
+		SlidersVertical,
+		Link,
+		Globe2
+	} from 'lucide-svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { toggleMode } from 'mode-watcher';
 	import * as Avatar from '$lib/components/ui/avatar';
@@ -57,6 +66,11 @@
 			href: 'https://github.com/chithi-dev/chithi',
 			name: 'Source',
 			icon: GithubIcon
+		},
+		{
+			href: 'https://public.chithi.dev',
+			name: 'Public Instances',
+			icon: Globe2
 		}
 	];
 </script>
