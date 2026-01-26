@@ -2,9 +2,9 @@
 	import { goto } from '$app/navigation';
 	import { useAuth } from '#queries/auth';
 	import { page } from '$app/state';
-	import * as Card from '$lib/components/ui/card';
+	import * as Empty from '$lib/components/ui/empty/index';
+	import { LoaderCircle, Lock } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
-	import { Lock, LoaderCircle } from 'lucide-svelte';
 
 	const { isAuthenticated, user: userData } = useAuth();
 
@@ -22,26 +22,27 @@
 		<LoaderCircle class="h-8 w-8 animate-spin text-muted-foreground" />
 	</div>
 {:else if [null, undefined].includes(userData.data)}
-	<div class="flex w-full flex-1 items-center justify-center p-4">
-		<Card.Root class="w-full max-w-md shadow-lg">
-			<Card.Header class="text-center">
-				<div
+	<div class="flex h-screen w-full flex-1 items-center justify-center p-4">
+		<Empty.Root>
+			<Empty.Header class="text-center">
+				<Empty.Media
+					variant="icon"
 					class="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10"
 				>
 					<Lock class="h-6 w-6 text-primary" />
-				</div>
-				<Card.Title class="text-2xl font-bold">Login Required</Card.Title>
-				<Card.Description>Please sign in to access this protected area.</Card.Description>
-			</Card.Header>
-			<Card.Content>
+				</Empty.Media>
+				<Empty.Title class="text-2xl font-bold">Login Required</Empty.Title>
+				<Empty.Description>Please sign in to access this protected area.</Empty.Description>
+			</Empty.Header>
+			<Empty.Content>
 				<div class="text-center text-sm text-muted-foreground">
 					You are being redirected to the login page...
 				</div>
-			</Card.Content>
-			<Card.Footer class="flex justify-center">
-				<Button href={`/login?next=${page.url.pathname}`} class="w-full">Sign In</Button>
-			</Card.Footer>
-		</Card.Root>
+				<div class="mt-4 flex w-full justify-center">
+					<Button href={`/login?next=${page.url.pathname}`} class="w-full">Sign In</Button>
+				</div>
+			</Empty.Content>
+		</Empty.Root>
 	</div>
 {:else}
 	{@render children()}
