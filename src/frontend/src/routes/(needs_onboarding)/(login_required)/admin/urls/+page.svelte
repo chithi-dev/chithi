@@ -11,7 +11,6 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { page } from '$app/state';
 
-	// Note: Removed 'fade' transition as it often causes layout shifts on Table rows
 
 	const { files, revokeFile } = useFilesQuery();
 
