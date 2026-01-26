@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve_partial_path } from '#functions/urls';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
 	import {
 		CalendarIcon,
@@ -8,11 +9,10 @@
 		SettingsIcon,
 		UserPen
 	} from '@lucide/svelte';
-
 	const items = [
 		{
 			title: 'Profile',
-			url: './user',
+			url: '/admin/user',
 			icon: UserPen
 		},
 		{
