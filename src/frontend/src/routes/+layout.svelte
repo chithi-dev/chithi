@@ -27,7 +27,7 @@
 
 <ModeWatcher />
 <QueryClientProvider client={queryClient}>
-	<SvelteQueryDevtools buttonPosition="top-left" />
+	<!-- <SvelteQueryDevtools buttonPosition="top-left" /> -->
 
 	{@render children()}
 </QueryClientProvider>
