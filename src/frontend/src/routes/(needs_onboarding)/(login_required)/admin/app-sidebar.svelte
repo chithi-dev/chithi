@@ -11,6 +11,11 @@
 			title: 'Config',
 			url: '/admin/config',
 			icon: Settings
+		},
+		{
+			title: 'Outstanding Urls',
+			url: '/admin/urls',
+			icon: Settings
 		}
 	];
 </script>

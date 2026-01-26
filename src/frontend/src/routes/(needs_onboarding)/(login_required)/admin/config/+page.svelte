@@ -88,7 +88,7 @@
 	<div>
 		<h1 class="text-lg font-semibold">Instance Information</h1>
 		<p class="text-sm text-muted-foreground">
-			Manage your <code>{page.url.hostname}</code> chithi instance.
+			Manage your <code>{page.url.origin}</code> chithi instance.
 		</p>
 	</div>
 </div>
