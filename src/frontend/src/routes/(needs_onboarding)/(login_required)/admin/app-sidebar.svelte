@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-	import { Settings, UserPen } from '@lucide/svelte';
+	import { Settings, UserPen, Link } from '@lucide/svelte';
 	const items = [
 		{
 			title: 'Profile',
@@ -15,7 +15,7 @@
 		{
 			title: 'Outstanding Urls',
 			url: '/admin/urls',
-			icon: Settings
+			icon: Link
 		}
 	];
 </script>
