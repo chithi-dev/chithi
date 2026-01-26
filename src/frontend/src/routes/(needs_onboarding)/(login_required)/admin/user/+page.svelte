@@ -86,16 +86,15 @@
 	}
 </script>
 
-<div class="min-h-screen w-full bg-background">
-	<div class="flex items-center justify-between border-b border-border px-6 py-4">
-		<div>
-			<h1 class="text-lg font-semibold">Personal Information</h1>
-			<p class="text-sm text-muted-foreground">Manage your public profile and private details.</p>
-		</div>
+<div class="flex items-center justify-between border-b border-border px-6 py-4">
+	<div>
+		<h1 class="text-lg font-semibold">Personal Information</h1>
+		<p class="text-sm text-muted-foreground">Manage your public profile and private details.</p>
 	</div>
+</div>
+<Separator class="mb-10" />
 
-	<Separator class="mb-10" />
-
+<div class="min-h-screen w-full bg-background">
 	<Card.Root class="mx-auto h-full w-full max-w-4xl border shadow-sm">
 		<Card.Content class="h-full p-0">
 			<div class="flex h-full flex-col px-6 py-4">
