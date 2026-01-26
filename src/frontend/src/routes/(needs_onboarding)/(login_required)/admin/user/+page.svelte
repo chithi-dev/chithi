@@ -10,7 +10,7 @@
 	import { fade } from 'svelte/transition';
 	import { kebab_to_initials } from '#functions/string-conversion';
 	import { make_libravatar_url } from '#functions/libravatar';
-
+	import { Separator } from '$lib/components/ui/separator/index.js';
 	const { user, updateUser } = useAuth();
 
 	let username = $state('');
@@ -87,11 +87,16 @@
 </script>
 
 <div class="min-h-screen w-full bg-background">
+	<div class="flex items-center justify-between border-b border-border px-6 py-4">
+		<div>
+			<h1 class="text-lg font-semibold">Personal Information</h1>
+			<p class="text-sm text-muted-foreground">Manage your public profile and private details.</p>
+		</div>
+	</div>
+
+	<Separator class="mb-10" />
+
 	<Card.Root class="mx-auto h-full w-full max-w-4xl border shadow-sm">
-		<Card.Header class="border-b bg-muted/20 px-6 py-4">
-			<Card.Title class="text-base font-medium">Personal Information</Card.Title>
-			<Card.Description>Manage your public profile and private details.</Card.Description>
-		</Card.Header>
 		<Card.Content class="h-full p-0">
 			<div class="flex h-full flex-col px-6 py-4">
 				<form onsubmit={handleSubmit} class="flex-1 space-y-6">

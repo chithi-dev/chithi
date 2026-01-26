@@ -1,39 +1,12 @@
 <script lang="ts">
 	import { resolve_partial_path } from '#functions/urls';
 	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-	import {
-		CalendarIcon,
-		HouseIcon,
-		InboxIcon,
-		SearchIcon,
-		SettingsIcon,
-		UserPen
-	} from '@lucide/svelte';
+	import { UserPen } from '@lucide/svelte';
 	const items = [
 		{
 			title: 'Profile',
 			url: '/admin/user',
 			icon: UserPen
-		},
-		{
-			title: 'Inbox',
-			url: '#',
-			icon: InboxIcon
-		},
-		{
-			title: 'Calendar',
-			url: '#',
-			icon: CalendarIcon
-		},
-		{
-			title: 'Search',
-			url: '#',
-			icon: SearchIcon
-		},
-		{
-			title: 'Settings',
-			url: '#',
-			icon: SettingsIcon
 		}
 	];
 </script>
