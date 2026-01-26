@@ -95,7 +95,7 @@
 <Separator class="mb-10" />
 
 <div class="min-h-screen w-full bg-background">
-	<Card.Root class="mx-auto h-full w-full max-w-4xl border shadow-sm">
+	<Card.Root class=" h-full w-full  border shadow-sm">
 		<Card.Content class="h-full p-0">
 			<div class="flex h-full flex-col px-6 py-4">
 				<form onsubmit={handleSubmit} class="flex-1 space-y-6">
