@@ -37,7 +37,7 @@ export const useFilesQuery = () => {
 			}
 			return res.json() as Promise<FileInfo[]>;
 		},
-		staleTime: 1000, // 1 second
+		refetchInterval: 1000, // 1 second
 		retry: true
 	}));
 
