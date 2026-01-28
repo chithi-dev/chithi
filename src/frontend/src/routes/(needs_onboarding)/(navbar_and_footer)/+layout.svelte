@@ -75,7 +75,7 @@
 	];
 </script>
 
-<div class="flex min-h-screen min-w-screen flex-col bg-background text-foreground">
+<div class="flex min-h-svh min-w-screen flex-col bg-background text-foreground">
 	<!-- Top Bar -->
 	<header class="flex items-center justify-between border-b border-border p-4">
 		<a href="/" class="flex items-center" onclick={programmedNavigation}>

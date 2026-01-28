@@ -22,7 +22,7 @@
 		<LoaderCircle class="h-8 w-8 animate-spin text-muted-foreground" />
 	</div>
 {:else if [null, undefined].includes(userData.data)}
-	<div class="flex h-screen w-full flex-1 items-center justify-center p-4">
+	<div class="flex min-h-svh w-full flex-1 items-center justify-center p-4">
 		<Empty.Root>
 			<Empty.Header class="text-center">
 				<Empty.Media

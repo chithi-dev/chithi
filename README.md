@@ -1,8 +1,4 @@
 # Chithi
-<center>
-    <img src="./assets/chithi-dev.png" alt="Chithi Dev Public Instance" />
-</center>
-
 
 **Chithi** is an end-to-end file sharing application consisting of a FastAPI backend, a Svelte frontend, and a Celery worker with beat scheduler for background tasks. The project aims to provide secure file uploads, temporary links, and user management with a simple modern UI.
 
@@ -20,6 +16,15 @@
 - Storage: RustFS (S3-compatible object storage)
 - Frontend: SvelteKit + Vite
 - Containerized with Docker Compose
+
+## Screenshots
+
+<center>
+    <h3> Public Version </h3>
+    <img src="./assets/chithi-dev.avif" alt="Chithi Dev Public Instance" />
+    <h3> Development Version </h3>
+    <img src="./assets/chithi-(dev).avif" alt="Chithi Dev Localhost Instance" />
+</center>
 
 ## Quick start (recommended)
 
