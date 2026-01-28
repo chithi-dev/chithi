@@ -3,7 +3,7 @@ from typing import Self
 from uuid import UUID
 
 from pydantic import model_validator
-from sqlalchemy import UniqueConstraint, text
+from sqlalchemy import BigInteger, Column, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
 
 
@@ -37,9 +37,9 @@ class File(FileOut, table=True):
     expire_after_n_download: int = Field()
 
     # Tracking downloads
-    download_count: int = Field(default=0)
+    download_count: int = Field(default=0, sa_column=Column(BigInteger()))
     created_at: datetime = Field()
-    size: int = Field()
+    size: int = Field(sa_column=Column(BigInteger()))
 
     __table_args__ = (UniqueConstraint("id", "key"),)
 
