@@ -21,6 +21,17 @@
 </script>
 
 <Sidebar.Root>
+	<Sidebar.Header>
+		<Sidebar.Menu>
+			<Sidebar.MenuItem>
+				<Sidebar.MenuButton class="data-[slot=sidebar-menu-button]:p-1.5!">
+					<a href="/">
+						<p class=" font-semibold">Chithi</p>
+					</a>
+				</Sidebar.MenuButton>
+			</Sidebar.MenuItem>
+		</Sidebar.Menu>
+	</Sidebar.Header>
 	<Sidebar.Content>
 		<Sidebar.Group>
 			<Sidebar.GroupLabel>Chithi Admin Panel</Sidebar.GroupLabel>
