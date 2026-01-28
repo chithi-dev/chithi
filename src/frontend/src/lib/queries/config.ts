@@ -1,6 +1,26 @@
 import { ADMIN_CONFIG_URL, CONFIG_URL } from '$lib/consts/backend';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
+const queryKey = ['config'];
+const fetchConfig = async ({
+	fetch = globalThis.window.fetch
+}: {
+	fetch?: typeof globalThis.window.fetch;
+}) => {
+	const res = await fetch(CONFIG_URL);
+
+	return res.json();
+};
+
+export const prefetch = async ({ queryClient, fetch }: { queryClient: any; fetch: any }) => {
+	await queryClient.prefetchQuery({
+		queryKey: queryKey,
+		queryFn: () => fetchConfig({ fetch }),
+		staleTime: 10,
+		retry: true
+	});
+};
+
 type ConfigIn = {
 	// Storage constraints
 	total_storage_limit_gb?: number;
@@ -25,20 +45,7 @@ type ConfigIn = {
 export const useConfigQuery = () => {
 	const query = createQuery(() => ({
 		queryKey: ['config'],
-		queryFn: async () => {
-			const token = localStorage.getItem('auth_token');
-			let headers: Record<string, string> = {};
-			if (token) {
-				headers.Authorization = `Bearer ${token}`;
-			}
-
-			const res = await fetch(CONFIG_URL, {
-				headers: headers
-			});
-
-			return res.json();
-		},
-
+		queryFn: () => fetchConfig({}),
 		staleTime: 10,
 		retry: true
 	}));
