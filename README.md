@@ -1,5 +1,11 @@
 # Chithi
 
+<div align='center'>
+    <img alt="GitHub License" src="https://img.shields.io/github/license/baseplate-admin/chithi?style=for-the-badge&color=FF7F50">
+    <img alt="GitHub Issues or Pull Requests" src="https://img.shields.io/github/issues-closed/baseplate-admin/chithi?style=for-the-badge&color=FF7F50">
+    <img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/baseplate-admin/chithi?style=for-the-badge&color=FF7F50">
+</div>
+
 **Chithi** is an end-to-end file sharing application consisting of a FastAPI backend, a Svelte frontend, and a Celery worker with beat scheduler for background tasks. The project aims to provide secure file uploads, temporary links, and user management with a simple modern UI.
 
 ## Features
