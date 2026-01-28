@@ -13,7 +13,6 @@ updates:
       schedule:
           interval: 'daily'
 
-
     ## BACKEND
 
     - package-ecosystem: 'uv' # See documentation for possible values
@@ -41,3 +40,12 @@ updates:
       open-pull-requests-limit: 100
       schedule:
           interval: 'daily'
+    
+    ## CLI
+
+    - package-ecosystem: 'uv' # See documentation for possible values
+      directory: './src/cli' # Location of package manifests
+      open-pull-requests-limit: 100
+      schedule:
+          interval: 'daily'
+
