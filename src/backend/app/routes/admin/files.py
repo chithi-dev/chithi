@@ -15,7 +15,7 @@ async def show_all_files(
     _: CurrentUser,  # Only check for login here
     session: SessionDep,
 ):
-    query = select(File)
+    query = select(File).order_by(File.id)  # type: ignore
     result = await session.exec(query)
     file_objects = result.all()
     return file_objects
