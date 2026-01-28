@@ -7,7 +7,7 @@
 
 <Sidebar.Provider>
 	<AppSidebar />
-	<main class="min-h-screen w-full flex-1 p-6">
+	<main class="min-h-svh w-full flex-1 p-6">
 		<Sidebar.Trigger />
 		<div class="w-full max-w-none">
 			{@render children?.()}

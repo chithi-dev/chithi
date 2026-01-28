@@ -55,7 +55,7 @@
 </script>
 
 <div
-	class="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-zinc-950"
+	class="relative flex min-h-svh items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-zinc-950"
 >
 	<div class="absolute inset-0 z-0">
 		<div

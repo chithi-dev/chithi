@@ -94,7 +94,7 @@
 </div>
 <Separator class="mb-10" />
 
-<div class="min-h-screen w-full bg-background">
+<div class="min-h-svh w-full bg-background">
 	<Card.Root class=" h-full w-full  border shadow-sm">
 		<Card.Content class="h-full p-0">
 			<div class="flex h-full flex-col px-6 py-4">
