@@ -13,8 +13,8 @@
 	import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '#functions/bytes';
 	import { formatSeconds, secondsToNumber, T_UNITS, type TimeUnit } from '#functions/times';
 	import { sanitizeExt } from '#functions/sanitize';
-	import { marked } from '#functions/marked';
 	import { Separator } from '$lib/components/ui/separator';
+	import { html_to_markdown } from '#functions/markdown';
 
 	// Query hook
 	const { config: configQuery, update_config } = useConfigQuery();
@@ -23,7 +23,9 @@
 	let configData = $derived(configQuery.data);
 	let descDraft = $state('');
 	let previewHtml = $derived(
-		descDraft ? String(marked.parse(descDraft)) : marked.parse(configData?.site_description ?? '')
+		descDraft
+			? String(html_to_markdown(descDraft))
+			: html_to_markdown(configData?.site_description ?? '')
 	);
 
 	// UI state

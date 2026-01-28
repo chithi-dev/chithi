@@ -18,7 +18,6 @@
 		Upload,
 		Download
 	} from 'lucide-svelte';
-	import { marked } from '#functions/marked';
 	import { formatFileSize } from '#functions/bytes';
 	import { formatSeconds } from '#functions/times';
 	import { createZipStream, createEncryptedStream } from '#functions/streams';
@@ -33,6 +32,7 @@
 	import { cn } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
 	import { dev } from '$app/environment';
+	import { html_to_markdown } from '#functions/markdown';
 
 	const { config: configData } = useConfigQuery();
 
@@ -62,7 +62,7 @@
 	// Encryption progress states
 	let encryptionProgress = $state(0);
 	let isEncrypting = $state(false);
-	let renderedDetails = $derived(marked.parse(configData.data?.site_description ?? ''));
+	let renderedDetails = $derived(html_to_markdown(configData.data?.site_description ?? ''));
 
 	$effect(() => {
 		const total = files.reduce((sum, file) => sum + file.size, 0);
