@@ -25,6 +25,8 @@ export const prefetch = async ({ queryClient, fetch }: { queryClient: any; fetch
 };
 
 export const useOnboarding = () => {
+	const queryClient = useQueryClient();
+
 	const status = createQuery(() => ({
 		queryKey: queryKey,
 		queryFn: () => fetchOnboarding({}),
@@ -49,7 +51,6 @@ export const useOnboarding = () => {
 			throw new Error(err.detail || 'Failed to complete onboarding');
 		}
 
-		const queryClient = useQueryClient();
 		await queryClient.invalidateQueries({ queryKey: queryKey });
 		return res.json();
 	};

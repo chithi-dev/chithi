@@ -13,6 +13,7 @@ export type FileInfo = {
 };
 
 export const useFilesQuery = () => {
+	const queryClient = useQueryClient();
 	const query = createQuery(() => ({
 		queryKey: ['admin-files'],
 		queryFn: async () => {
@@ -50,7 +51,6 @@ export const useFilesQuery = () => {
 			}
 		});
 
-		const queryClient = useQueryClient();
 		if (res.ok) {
 			await queryClient.invalidateQueries({ queryKey: ['admin-files'] });
 		} else {
