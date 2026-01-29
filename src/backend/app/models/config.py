@@ -1,10 +1,10 @@
 from datetime import timedelta
 from uuid import UUID
 
-from sqlalchemy import BigInteger, Connection, Integer, String, event, text
+from sqlalchemy import BigInteger, Connection, FromClause, Integer, String, event, text
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapper
-from sqlmodel import Column, Field, SQLModel
+from sqlmodel import Column, Field, SQLModel, select
 
 from app.converter.bytes import ByteSize
 
@@ -51,8 +51,6 @@ class ConfigIn(SQLModel):
     banned_file_types: list[str] = Field(default=[], sa_column=Column(ARRAY(String)))
 
 
-
-
 class Config(ConfigIn, table=True):
     id: UUID = Field(
         default=None,
@@ -64,6 +62,7 @@ class Config(ConfigIn, table=True):
         },
     )
 
+
 @event.listens_for(Config, "before_update")
 def validate_config_update(mapper: Mapper, connection: Connection, target: Config):
     # ensure the expiry is one of the available time options
@@ -72,25 +71,38 @@ def validate_config_update(mapper: Mapper, connection: Connection, target: Confi
             f"Conflict: {target.default_expiry} must be one of the values in {target.time_configs}"
         )
 
-@event.listens_for(Config,'before_update')
-def validate_number_of_downloads(mapper: Mapper, connection: Connection, target: Config):
+
+@event.listens_for(Config, "before_update")
+def validate_number_of_downloads(
+    mapper: Mapper, connection: Connection, target: Config
+):
     if target.default_number_of_downloads not in target.download_configs:
         raise ValueError(
             "Conflict: default_number_of_downloads must be one of the values in download_configs"
         )
 
-@event.listens_for(Config,'before_update')
-def validate_file_types_consistency(mapper: Mapper, connection: Connection, target: Config):
+
+@event.listens_for(Config, "before_update")
+def validate_file_types_consistency(
+    mapper: Mapper, connection: Connection, target: Config
+):
     if set(target.allowed_file_types) & set(target.banned_file_types):
         raise ValueError(
             "Conflict: allowed_file_types and banned_file_types cannot share common extensions"
         )
 
+
 @event.listens_for(Config, "before_insert")
-def enforce_singleton(mapper: Mapper, connection: Connection, target: Config):
-    result = connection.execute(text("SELECT 1 FROM config LIMIT 1"))
-    if result.fetchone() is not None:
-        raise ValueError("Only one row is allowed in config")
+def enforce_singleton[T](mapper: Mapper[T], connection: Connection, target: T) -> None:
+    table: FromClause = mapper.local_table
+
+    stmt = select(1).select_from(table).limit(1)
+
+    result = connection.execute(stmt).fetchone()
+    table_name = getattr(table, "name", "unknown_table")
+
+    if result is not None:
+        raise ValueError(f"Only one row is allowed in the '{table_name}' table.")
 
 
 @event.listens_for(Config, "before_delete")
