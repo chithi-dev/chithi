@@ -35,7 +35,9 @@ class ConfigIn(SQLModel):
     default_number_of_downloads: int = 10
 
     # Markdown fields
-    site_description: str = "Welcome to Chithi"
+    site_description: str = Field(
+        default="## Configurable File Sharing\n\nWelcome to your Chithi instance. It allows you to share file with a link that automatically expires. So you know what you are sharing is always private and doesn't stay on internet forever."
+    )
 
     # Customizable fields
     download_configs: list[int] = Field(
