@@ -1,7 +1,6 @@
 import asyncio
 from uuid import UUID
 
-from botocore.exceptions import ClientError
 from sqlmodel import select
 
 from app.celery import celery
@@ -20,20 +19,11 @@ async def _delete_file(file_id: UUID):
         if not file_obj:
             return f"File {file_id} not found"
 
-        try:
-            async for s3_client in get_s3_client():
-                await s3_client.delete_object(
-                    Bucket=settings.RUSTFS_BUCKET_NAME,
-                    Key=file_obj.key,
-                )
-        except ClientError as e:
-            # Check for specific S3 error codes
-            error_response = e.response.get("Error", {})
-            error_code = error_response.get("Code", "Unknown")
-            if error_code == "NoSuchKey":
-                print(f"File {file_obj.key} was already gone from S3.")
-            else:
-                raise e
+        async for s3_client in get_s3_client():
+            await s3_client.delete_object(
+                Bucket=settings.RUSTFS_BUCKET_NAME,
+                Key=file_obj.key,
+            )
 
         # Delete from DB
         await session.delete(file_obj)
