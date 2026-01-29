@@ -87,14 +87,19 @@
 			{#if isAuthenticated()}
 				<Dropdown.Root>
 					<Dropdown.Trigger>
-						<Avatar.Root>
-							{#if userData.data?.email}
-								{#key hashedAvatar}
-									<Avatar.Image src={hashedAvatar} alt="@{userData.data?.username ?? 'username'}" />
-								{/key}
-							{/if}
-							<Avatar.Fallback>{initials}</Avatar.Fallback>
-						</Avatar.Root>
+						<div class="my-0.5">
+							<Avatar.Root>
+								{#if userData.data?.email}
+									{#key hashedAvatar}
+										<Avatar.Image
+											src={hashedAvatar}
+											alt="@{userData.data?.username ?? 'username'}"
+										/>
+									{/key}
+								{/if}
+								<Avatar.Fallback>{initials}</Avatar.Fallback>
+							</Avatar.Root>
+						</div>
 					</Dropdown.Trigger>
 
 					<Dropdown.Content align="end" sideOffset={4} class="w-48">
