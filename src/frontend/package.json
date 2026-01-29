@@ -59,7 +59,7 @@
 		"remark": "^15.0.1",
 		"remark-parse": "^11.0.0",
 		"remark-rehype": "^11.1.2",
-		"svelte": "^5.48.5",
+		"svelte": "^5.49.0",
 		"svelte-check": "^4.3.4",
 		"svelte-sonner": "^1.0.7",
 		"tailwind-merge": "^3.4.0",
