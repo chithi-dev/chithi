@@ -21,6 +21,8 @@
 	import { make_libravatar_url } from '#functions/libravatar';
 	import { page } from '$app/state';
 	import GithubIcon from '#logos/github.svelte';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+
 	const { isAuthenticated, user: userData } = useAuth();
 
 	let { children } = $props();
@@ -175,15 +177,22 @@
 				class="flex flex-row flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground md:gap-6"
 			>
 				{#each footerLinks as footer_item}
-					<Button
-						variant="ghost"
-						size="icon"
-						aria-label={footer_item.name}
-						class="transition-colors hover:text-foreground"
-						href={footer_item.href}
-					>
-						<footer_item.icon />
-					</Button>
+					<Tooltip.Provider>
+						<Tooltip.Root>
+							<Tooltip.Trigger
+								><Button
+									variant="ghost"
+									size="icon"
+									aria-label={footer_item.name}
+									class="transition-colors hover:text-foreground"
+									href={footer_item.href}
+								>
+									<footer_item.icon />
+								</Button></Tooltip.Trigger
+							>
+							<Tooltip.Content>{footer_item.name}</Tooltip.Content>
+						</Tooltip.Root>
+					</Tooltip.Provider>
 				{/each}
 			</nav>
 		</div>
