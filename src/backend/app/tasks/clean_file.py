@@ -14,7 +14,7 @@ async def _delete_file(file_id: UUID):
     async with AsyncSessionLocal() as session:
         statement = select(File).where(File.id == file_id)
         result = await session.exec(statement)
-        file_obj = result.first()
+        file_obj = result.one_or_none()
 
         if not file_obj:
             return f"File {file_id} not found"

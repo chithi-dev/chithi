@@ -1,6 +1,10 @@
+import asyncio
+
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import worker_process_init
 
+from app.db import engine
 from app.settings import settings
 
 celery = Celery(__name__)
@@ -31,6 +35,12 @@ def setup_periodic_tasks(sender: Celery, **kwargs):
         cleanup_stalled_multipart_uploads.s(settings.RUSTFS_BUCKET_NAME),
         name="cleanup_stalled_multipart_uploads_hourly",
     )
+
+
+
+@worker_process_init.connect
+def reset_engine_on_fork(*args, **kwargs):
+    asyncio.run(engine.dispose())
 
 
 __all__ = ["celery"]
