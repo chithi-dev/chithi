@@ -66,6 +66,11 @@
 	];
 	const footerLinks = [
 		{
+			href: 'https://docs.chithi.dev',
+			name: 'Documentation',
+			icon: BookOpenText
+		},
+		{
 			href: 'https://public.chithi.dev',
 			name: 'Public Instances',
 			icon: Globe2
@@ -74,11 +79,6 @@
 			href: 'https://github.com/chithi-dev/chithi',
 			name: 'Source',
 			icon: GithubIcon
-		},
-		{
-			href: 'https://docs.chithi.dev',
-			name: 'Documentation',
-			icon: BookOpenText
 		}
 	];
 </script>
