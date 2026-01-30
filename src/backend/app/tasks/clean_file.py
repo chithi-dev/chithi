@@ -33,4 +33,9 @@ async def _delete_file(file_id: UUID):
 
 @celery.task
 def delete_expired_file(file_id: str):
-    return asyncio.run(_delete_file(UUID(file_id)))
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        return loop.run_until_complete(_delete_file(UUID(file_id)))
+    finally:
+        loop.close()
