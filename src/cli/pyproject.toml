@@ -3,7 +3,7 @@ name = "cli"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.13"
 dependencies = [
     # CLI
     "typer>=0.21.0",
@@ -23,8 +23,8 @@ dev = ["poethepoet>=0.39.0"]
 
 [tool.poe.tasks]
 # Is not possible to build due to type hint error
-nuitka = "nuitka --standalone --follow-imports --lto=yes --python-flag=-m ./app"
-nuitka-debug = "nuitka --standalone --follow-imports --lto=yes --debug --python-flag=-m ./app"
+nuitka = "nuitka --standalone --follow-imports --lto=yes --python-flag=-m --python-flag=-OO --disable-bytecode-cache ./app"
+nuitka-debug = "nuitka --standalone --follow-imports --lto=yes --debug --python-flag=-m --python-flag=-OO --disable-bytecode-cache ./app"
 
 
 [tool.setuptools]
