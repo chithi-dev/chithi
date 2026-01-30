@@ -76,7 +76,7 @@
 			icon: GithubIcon
 		},
 		{
-			href: 'Documentation',
+			href: 'https://docs.chithi.dev',
 			name: 'Documentation',
 			icon: BookOpenText
 		}
