@@ -56,7 +56,6 @@ async def get_s3_client() -> AsyncGenerator[S3Client, None]:
         yield s3_client
 
 
-@asynccontextmanager
 async def get_redis():
     client = redis.from_url(
         settings.REDIS_ENDPOINT,
