@@ -23,8 +23,8 @@ dev = ["poethepoet>=0.39.0"]
 
 [tool.poe.tasks]
 # Is not possible to build due to type hint error
-nuitka = "nuitka --standalone --follow-imports --lto=yes --python-flag=-m --python-flag=-OO --disable-bytecode-cache ./app"
-nuitka-debug = "nuitka --standalone --follow-imports --lto=yes --debug --python-flag=-m --python-flag=-OO --disable-bytecode-cache ./app"
+nuitka = "nuitka --standalone --onefile --clang --lto=yes --python-flag=-m --python-flag=-OO --disable-bytecode-cache ./app"
+nuitka-debug = "nuitka --standalone --onefile --clang --lto=yes --debug --python-flag=-m --python-flag=-OO --disable-bytecode-cache ./app"
 
 
 [tool.setuptools]
