@@ -1,6 +1,7 @@
-import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
+
+import anyio
 
 from app.celery import celery
 from app.deps import get_s3_client
@@ -40,7 +41,7 @@ async def _cleanup(bucket: str):
     retry_kwargs={"max_retries": 5},
 )
 def cleanup_stalled_multipart_uploads(bucket: str):
-    asyncio.run(_cleanup(bucket))
+    anyio.run(_cleanup, bucket)
 
 
 __all__ = ["cleanup_stalled_multipart_uploads"]

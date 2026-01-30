@@ -1,6 +1,6 @@
-import asyncio
 from datetime import datetime, timezone
 
+import anyio
 from sqlmodel import or_, select
 
 from app.celery import celery
@@ -31,7 +31,7 @@ async def _find_and_enqueue_expired():
 @celery.task
 def cleanup_expired_files():
     """Periodic task: find expired files and enqueue deletion tasks."""
-    return asyncio.run(_find_and_enqueue_expired())
+    return anyio.run(_find_and_enqueue_expired)
 
 
 __all__ = ["cleanup_expired_files"]
