@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from typing import Annotated, AsyncGenerator
 
 import aioboto3
@@ -38,6 +39,7 @@ async def get_current_user(session: SessionDep, token: TokenDep) -> User:
     return user
 
 
+@asynccontextmanager
 async def get_s3_client() -> AsyncGenerator[S3Client, None]:
     session = aioboto3.Session()
     async with session.client(
@@ -54,6 +56,7 @@ async def get_s3_client() -> AsyncGenerator[S3Client, None]:
         yield s3_client
 
 
+@asynccontextmanager
 async def get_redis():
     client = redis.from_url(
         settings.REDIS_ENDPOINT,
@@ -72,6 +75,6 @@ TokenDep = Annotated[
     Depends(bearer_scheme),
 ]
 CurrentUser = Annotated[User, Depends(get_current_user)]
-S3Dep = Annotated[S3Client, Depends(get_s3_client)]  # type: ignore
+S3Dep = Annotated[S3Client, Depends(get_s3_client)]
 RedisDep = Annotated[Redis, Depends(get_redis)]
 __all__ = ["SessionDep", "CurrentUser", "TokenDep", "S3Dep"]
