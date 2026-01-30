@@ -1,6 +1,6 @@
-import asyncio
 from uuid import UUID
 
+import anyio
 from sqlmodel import select
 
 from app.celery import celery
@@ -19,7 +19,7 @@ async def _delete_file(file_id: UUID):
         if not file_obj:
             return f"File {file_id} not found"
 
-        async for s3_client in get_s3_client():
+        async with get_s3_client() as s3_client:
             await s3_client.delete_object(
                 Bucket=settings.RUSTFS_BUCKET_NAME,
                 Key=file_obj.key,
@@ -33,4 +33,4 @@ async def _delete_file(file_id: UUID):
 
 @celery.task
 def delete_expired_file(file_id: str):
-    return asyncio.run(_delete_file(UUID(file_id)))
+    anyio.run(_delete_file, UUID(file_id))

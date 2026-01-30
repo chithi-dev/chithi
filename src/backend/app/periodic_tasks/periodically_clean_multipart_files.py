@@ -12,7 +12,7 @@ MAX_AGE = timedelta(hours=6)
 
 async def _cleanup(bucket: str):
     now = datetime.now(timezone.utc)
-    async for s3 in get_s3_client():
+    async with get_s3_client() as s3:
         paginator = s3.get_paginator("list_multipart_uploads")
         async for page in paginator.paginate(Bucket=bucket):
             for upload in page.get("Uploads", []):

@@ -386,6 +386,7 @@ source = { editable = "." }
 dependencies = [
     { name = "aioboto3" },
     { name = "alembic" },
+    { name = "anyio" },
     { name = "celery", extra = ["redis"] },
     { name = "fastapi" },
     { name = "pwdlib", extra = ["argon2"] },
@@ -414,6 +415,7 @@ dev = [
 requires-dist = [
     { name = "aioboto3", specifier = ">=15.5.0" },
     { name = "alembic", specifier = ">=1.17.2" },
+    { name = "anyio", specifier = ">=4.12.0" },
     { name = "celery", extras = ["redis"], specifier = ">=5.6.1" },
     { name = "fastapi", specifier = ">=0.127.0" },
     { name = "pwdlib", extras = ["argon2"], specifier = ">=0.3.0" },
