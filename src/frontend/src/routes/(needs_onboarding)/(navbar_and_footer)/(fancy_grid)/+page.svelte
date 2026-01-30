@@ -59,6 +59,7 @@
 	let isCopied = $state(false);
 	let debugLoading = $state(false);
 	let folderName = $state(uuidv7());
+
 	// Encryption progress states
 	let encryptionProgress = $state(0);
 	let isEncrypting = $state(false);
@@ -288,6 +289,7 @@
 	const copyLink = () => {
 		navigator.clipboard.writeText(finalLink);
 		isCopied = true;
+		toast.success('Copied the link successfully');
 		setTimeout(() => (isCopied = false), 2000);
 	};
 
