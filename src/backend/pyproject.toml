@@ -8,6 +8,8 @@ dependencies = [
     # Fastapi
     "fastapi>=0.127.0",
     "python-multipart>=0.0.21",
+    # Faster Loops
+    "uvloop>=0.22.1; sys_platform == 'linux'",
     # ASGI server
     "uvicorn>=0.40.0",
     # Password Hashinh
