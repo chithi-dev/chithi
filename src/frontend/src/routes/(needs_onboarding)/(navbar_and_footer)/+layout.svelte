@@ -7,7 +7,8 @@
 		UserCog,
 		SlidersVertical,
 		Link,
-		Globe2
+		Globe2,
+		BookOpenText
 	} from 'lucide-svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { toggleMode } from 'mode-watcher';
@@ -73,6 +74,11 @@
 			href: 'https://github.com/chithi-dev/chithi',
 			name: 'Source',
 			icon: GithubIcon
+		},
+		{
+			href: 'Documentation',
+			name: 'Documentation',
+			icon: BookOpenText
 		}
 	];
 </script>
