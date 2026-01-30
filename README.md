@@ -1,4 +1,6 @@
-# Chithi
+<div align='center'>
+    <h1> Chithi </h1>
+</div>
 
 <div align='center'>
     <img alt="GitHub License" src="https://img.shields.io/github/license/baseplate-admin/chithi?style=for-the-badge&color=FF7F50">
