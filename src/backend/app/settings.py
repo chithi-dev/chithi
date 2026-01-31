@@ -2,6 +2,7 @@ import secrets
 from typing import Literal
 
 from pydantic import PostgresDsn, computed_field
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.parser.log import parse_string_to_log
@@ -69,7 +70,7 @@ class Settings(BaseSettings):
     # Debugging Flags
 
     # SqlAlchemy
-    SQLALCHEMY_LOG: LOG_TYPES | None = None
+    SQLALCHEMY_LOG: LOG_TYPES = "error"
 
     @computed_field
     @property
