@@ -10,14 +10,15 @@
 	import { formatFileSize } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';
 	import { Progress } from '$lib/components/ui/progress';
+	import CompleteSvg from '$lib/svgs/complete.svelte';
 
 	// Key is provided in the URL fragment (after '#') and must be present there
 	let key = $derived(page.url.hash ? page.url.hash.slice(1) : null);
 	let slug = $derived(page.params.slug);
 
-	let status = $state<'checking' | 'ready' | 'needs_password' | 'error' | 'downloading'>(
-		'checking'
-	);
+	let status = $state<
+		'checking' | 'ready' | 'needs_password' | 'error' | 'downloading' | 'completed'
+	>('checking');
 	let errorMsg = $state('');
 	let filename = $state('file');
 	let fileSize = $state(0);
@@ -157,7 +158,7 @@
 				window.URL.revokeObjectURL(url);
 				document.body.removeChild(a);
 
-				status = 'ready';
+				status = 'completed';
 				toast.success('Download complete');
 			}
 		} catch (e: any) {
@@ -195,7 +196,7 @@
 				<Card.Header class="px-0 text-center">
 					<Card.Title class="text-2xl font-bold">Download files</Card.Title>
 					<Card.Description class="text-muted-foreground">
-						This file was shared via Send with end-to-end encryption and a link that automatically
+						This file was shared via Chithi with end-to-end encryption and a link that automatically
 						expires.
 					</Card.Description>
 				</Card.Header>
@@ -239,6 +240,20 @@
 								onkeydown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
 							/>
 							<Button class="rounded-l-none" onclick={handlePasswordSubmit}>Unlock</Button>
+						</div>
+					{:else if status === 'completed'}
+						<div
+							in:fly={{ y: 10, duration: 400 }}
+							class="flex flex-col items-center justify-center py-4"
+						>
+							<div class="mb-6 flex flex-col items-center text-muted-foreground">
+								<CompleteSvg />
+							</div>
+
+							<div class="flex w-full gap-3 pt-2">
+								<Button variant="outline" class="flex-1" href="/">Go home</Button>
+								<Button class="flex-1" onclick={() => (status = 'ready')}>Download Again</Button>
+							</div>
 						</div>
 					{:else}
 						<div class="mb-6 flex items-center gap-4 rounded-lg border bg-background/50 p-4">
