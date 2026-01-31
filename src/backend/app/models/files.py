@@ -3,7 +3,7 @@ from typing import Self
 from uuid import UUID
 
 from pydantic import model_validator
-from sqlalchemy import BigInteger, Column, UniqueConstraint, text
+from sqlalchemy import BigInteger, Column, DateTime, UniqueConstraint, text
 from sqlmodel import Field, SQLModel
 
 
@@ -33,19 +33,24 @@ class File(FileOut, table=True):
     filename: str = Field()
 
     # Control expiry
-    expires_at: datetime = Field()
+    expires_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
     expire_after_n_download: int = Field()
 
     # Tracking downloads
     download_count: int = Field(default=0, sa_column=Column(BigInteger()))
-    created_at: datetime = Field()
+    created_at: datetime = Field(
+        sa_column=Column(DateTime(timezone=True), nullable=False)
+    )
+
     size: int = Field(sa_column=Column(BigInteger()))
 
     __table_args__ = (UniqueConstraint("id", "key"),)
 
     @property
     def is_expired(self) -> bool:
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        now = datetime.now(timezone.utc)
         return (
             now > self.expires_at or self.download_count >= self.expire_after_n_download
         )
