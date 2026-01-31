@@ -10,7 +10,7 @@ from app.tasks.clean_file import delete_expired_file
 
 
 async def _find_and_enqueue_expired():
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     async with AsyncSessionLocal() as session:
         statement = select(File.id).where(
             or_(
