@@ -19,7 +19,7 @@ async def _delete_file(file_id: UUID):
         if not file_obj:
             return f"File {file_id} not found"
 
-        async with get_s3_client() as s3_client:
+        async for s3_client in get_s3_client():
             await s3_client.delete_object(
                 Bucket=settings.RUSTFS_BUCKET_NAME,
                 Key=file_obj.key,
