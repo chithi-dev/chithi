@@ -11,5 +11,7 @@ def parse_string_to_log(log_type: str) -> int:
             return logging.WARNING
         case "info":
             return logging.INFO
+        case "error":
+            return logging.ERROR
         case _:
             raise ValueError(f"`{log_type}` is not supported")
