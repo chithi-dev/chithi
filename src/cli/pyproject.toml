@@ -10,10 +10,9 @@ dependencies = [
     "async-typer>=0.1.10",
     # Asnyc loop implementation
     "uvloop>=0.22.1;sys_platform=='linux'",
-    # Cryptography helper
-    "cryptography>=46.0.3",
     # Http Client
     "httpx[http2]>=0.28.1",
+    "py7zr>=1.1.2",
 ]
 
 
