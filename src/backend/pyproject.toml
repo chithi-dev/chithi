@@ -44,6 +44,10 @@ dev = [
     # Task runner
     "poethepoet>=0.39.0",
 ]
+test = [
+    "httpx>=0.28.1",
+    "pytest>=9.0.2",
+]
 [tool.poe.tasks]
 dev = "fastapi dev ./app/main.py"
 
