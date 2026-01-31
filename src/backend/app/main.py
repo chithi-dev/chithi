@@ -11,8 +11,9 @@ from app.settings import settings
 #     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 #     datefmt="%Y-%m-%d %H:%M:%S",
 # )
-if settings.SQLALCHEMY_LOG:
-    logging.getLogger("sqlalchemy.engine").setLevel(settings.SQLALCHEMY_LOG_TYPE)
+
+logging.getLogger("sqlalchemy.engine").setLevel(settings.SQLALCHEMY_LOG_TYPE)
+
 
 app = FastAPI(
     root_path=settings.ROOT_PATH,
