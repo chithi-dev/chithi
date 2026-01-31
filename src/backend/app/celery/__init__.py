@@ -1,7 +1,6 @@
 import asyncio
 
 from celery import Celery
-from celery.schedules import crontab
 from celery.signals import worker_process_init
 
 from app.db import engine
@@ -16,26 +15,9 @@ celery.autodiscover_tasks(["app.tasks"])
 
 @celery.on_after_configure.connect
 def setup_periodic_tasks(sender: Celery, **kwargs):
+    # from celery.schedules import crontab
     # https://docs.celeryq.dev/en/main/userguide/periodic-tasks.html#entries
-    from app.periodic_tasks import (
-        cleanup_expired_files,
-        cleanup_stalled_multipart_uploads,
-    )
-
-    # Every 10 mins check for unused files
-    sender.add_periodic_task(
-        crontab(minute="*/10"),
-        cleanup_expired_files.s(),
-        name="cleanup_files_every_10_minutes",
-    )
-
-    # Every hour clean up stalled multipart uploads older than MAX_AGE
-    sender.add_periodic_task(
-        crontab(minute="*/10"),
-        cleanup_stalled_multipart_uploads.s(settings.RUSTFS_BUCKET_NAME),
-        name="cleanup_stalled_multipart_uploads_hourly",
-    )
-
+    ...
 
 
 @worker_process_init.connect
