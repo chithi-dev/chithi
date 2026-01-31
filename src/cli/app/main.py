@@ -1,19 +1,21 @@
 from async_typer import AsyncTyper
-import os
-from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
+import py7zr
 
 app = AsyncTyper()
 
 
-key = ChaCha20Poly1305.generate_key()
-chacha = ChaCha20Poly1305(key)
-
-
-nonce = os.urandom(12)
-
-
 @app.async_command()
 async def hello(name: str):
-    ciphertext = chacha.encrypt(nonce, f"hello {name}".encode(), None)
-
-    print(ciphertext)
+    filters = [
+        {
+            "id": py7zr.FILTER_LZMA2,
+            "preset": 9,
+            "dict_size": 1024 * 1024 * 512,
+        }
+    ]
+    with py7zr.SevenZipFile(
+        "Archive.7z",
+        "w",
+        filters=filters,
+    ) as archive:
+        archive.writeall("test/")
