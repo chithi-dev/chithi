@@ -1,5 +1,5 @@
 <div align='center'>
-    <h1> Chithi </h1>
+    <h1> Chithi ( চিঠি ) </h1>
 </div>
 
 <div align='center'>
