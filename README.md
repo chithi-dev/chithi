@@ -14,7 +14,7 @@
 
 - User onboarding, authentication and JWT-based sessions
 - File upload and download with S3-compatible backend
-- Background cleanup tasks using Celery + Beat + Redis
+- Background cleanup tasks using Celery + Redis
 - Admin endpoints for managing users and files
 - Svelte frontend and a small CLI/TUI (in near future)
 
