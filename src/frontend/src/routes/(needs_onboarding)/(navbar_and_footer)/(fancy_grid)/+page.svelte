@@ -20,7 +20,7 @@
 	} from 'lucide-svelte';
 	import { formatFileSize } from '#functions/bytes';
 	import { formatSeconds } from '#functions/times';
-	import { createZipStream, createEncryptedStream } from '#functions/streams';
+	import { create7zBlob, createEncryptedStream } from '#functions/streams';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { v7 as uuidv7 } from 'uuid';
 	import { BACKEND_API } from '$lib/consts/backend';
@@ -60,7 +60,9 @@
 	let debugLoading = $state(false);
 	let folderName = $state(uuidv7());
 
-	// Encryption progress states
+	// Compression and Encryption progress states
+	let compressionProgress = $state('');
+	let isCompressing = $state(false);
 	let encryptionProgress = $state(0);
 	let isEncrypting = $state(false);
 	let renderedDetails = $derived(html_to_markdown(configData.data?.site_description ?? ''));
@@ -300,8 +302,20 @@
 			uploadingInProgress = true;
 			uploadProgress = 0;
 
-			// Create Zip Stream
-			const stream = createZipStream(files);
+			// Create 7z archive with password (if provided)
+			isCompressing = true;
+			compressionProgress = 'Starting compression...';
+			const compressedBlob = await create7zBlob(
+				files,
+				isPasswordProtected ? password : undefined,
+				(message) => {
+					compressionProgress = message;
+				}
+			);
+			isCompressing = false;
+
+			// Convert blob to stream for encryption
+			const compressedStream = compressedBlob.stream();
 
 			//  Encrypt
 			const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
@@ -309,9 +323,9 @@
 			isEncrypting = true;
 			encryptionProgress = 0;
 			const { stream: encryptedStream, keySecret } = await createEncryptedStream(
-				stream,
-				isPasswordProtected ? password : undefined,
-				currentTotalSize,
+				compressedStream,
+				undefined, // No password for encryption - password was used for 7z compression
+				compressedBlob.size,
 				(processed, total) => {
 					if (total && total > 0) {
 						encryptionProgress = Math.min(100, Math.round((processed / total) * 100));
@@ -411,9 +425,11 @@
 			// reset encryption state if error during encrypt
 			isEncrypting = false;
 			encryptionProgress = 0;
+			isCompressing = false;
 		} finally {
 			uploadingInProgress = false;
 			isEncrypting = false;
+			isCompressing = false;
 		}
 	};
 </script>
@@ -581,7 +597,13 @@
 						<p class="mb-8 text-muted-foreground">Please wait while we secure your files</p>
 
 						<div class="w-full max-w-md space-y-3">
-							{#if isEncrypting}
+							{#if isCompressing}
+								<Progress value={undefined} class="h-2" />
+								<div class="flex justify-between text-xs font-medium text-muted-foreground">
+									<span>Compressing: {compressionProgress}</span>
+									<span>{totalSize}</span>
+								</div>
+							{:else if isEncrypting}
 								<Progress value={encryptionProgress} class="h-2" />
 								<div class="flex justify-between text-xs font-medium text-muted-foreground">
 									<span>Encrypting {encryptionProgress}%</span>

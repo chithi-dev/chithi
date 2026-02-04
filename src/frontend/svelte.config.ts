@@ -31,6 +31,7 @@ export default {
 			'#workers/*': './src/lib/workers/*',
 			'#functions/*': './src/lib/functions/*',
 			'#logos/*': './src/lib/logos/*',
+			'#vendor/*': './src/lib/vendor/*',
 			'#queries/*': './src/lib/queries/*'
 		}
 	}

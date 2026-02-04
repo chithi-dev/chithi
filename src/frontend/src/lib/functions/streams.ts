@@ -1,5 +1,8 @@
 import DecryptWorker from '#workers/decrypt.worker?worker';
 import EncryptWorker from '#workers/encrypt.worker?worker';
+import JS7z from '../../vendor/js7z-mt-fs-ec/js7z.js';
+// Import URL for the JS7z module - needed for multi-threaded worker loading
+import js7zUrl from '../../vendor/js7z-mt-fs-ec/js7z.js?url';
 import {
 	CHUNK_SIZE,
 	argon2Derive,
@@ -12,209 +15,182 @@ import {
 	xorBytes,
 	type InnerEncryptionMeta
 } from './encryption';
-import {
-	crc32,
-	createCentralDirectoryHeader,
-	createDataDescriptor,
-	createEndOfCentralDirectory,
-	createLocalFileHeader,
-	type ZipFileEntry
-} from './zip';
 
 const CONCURRENCY = Math.max(1, navigator?.hardwareConcurrency * 2 || 4);
 
-export function createZipStream(files: File[]): ReadableStream<Uint8Array> {
-	let fileIndex = 0;
-	let currentFileReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
-	let fileBytesRead = 0;
-	let fileUncompressedSize = 0;
-	let fileCrc = 0;
-	let currentFileOffset = 0;
-	let totalOffset = 0;
-	let finishedStream = false;
-	let state: 'header' | 'content' | 'descriptor' | 'cd' | 'eocd' | 'done' = 'header';
+/**
+ * Compresses files using 7zip format with optional password protection.
+ * @param files - Array of files to compress
+ * @param password - Optional password for 7zip compression
+ * @param onProgress - Optional callback for compression progress
+ * @returns Promise<Blob> - The compressed 7z archive as a Blob
+ */
+export async function create7zBlob(
+	files: File[],
+	password?: string,
+	onProgress?: (message: string) => void
+): Promise<Blob> {
+	console.log('[7z] Starting compression for', files.length, 'files');
+	onProgress?.('Initializing 7z...');
 
-	const entries: ZipFileEntry[] = [];
-	let cdIndex = 0;
-	let cdStartOffset = 0;
+	// Prepare 7z command arguments
+	const args = ['a', '-t7z', '-mx=5'];
 
-	// Check for Deflate Raw support
-	let supportsDeflateRaw = false;
-	let supportsDeflate = false;
-	try {
-		new CompressionStream('deflate-raw');
-		supportsDeflateRaw = true;
-	} catch (e) {
-		try {
-			new CompressionStream('deflate');
-			supportsDeflate = true;
-		} catch (e2) {
-			// Ignore
-		}
+	if (password && password.length > 0) {
+		args.push(`-p${password}`);
+		args.push('-mhe=on'); // Encrypt headers
+		console.log('[7z] Password protection enabled');
 	}
 
-	return new ReadableStream({
-		async pull(controller) {
-			while (true) {
-				if (finishedStream) {
-					controller.close();
-					return;
+	args.push('/out/archive.7z');
+	args.push('/in/*');
+
+	console.log('[7z] Command args:', args);
+
+	// Prepare file data before initializing JS7z
+	const fileDataArray: { fileName: string; data: Uint8Array }[] = [];
+	for (let i = 0; i < files.length; i++) {
+		const file = files[i];
+		const fileName = (file as any).relativePath || file.name;
+		const fileData = new Uint8Array(await file.arrayBuffer());
+		fileDataArray.push({ fileName, data: fileData });
+		console.log(`[7z] Prepared file ${i + 1}/${files.length}: ${fileName}`);
+		onProgress?.(`Preparing ${fileName}...`);
+	}
+
+	// Return a promise that wraps the entire JS7z lifecycle
+	return new Promise((resolve, reject) => {
+		let completed = false;
+
+		// Set a timeout in case compression hangs
+		const timeout = setTimeout(() => {
+			if (!completed) {
+				console.error('[7z] Compression timeout after 2 minutes');
+				reject(new Error('7z compression timed out'));
+			}
+		}, 120000); // 2 minute timeout
+
+		// Initialize JS7z with all callbacks passed in the constructor
+		// This is the recommended approach per the JS7z documentation
+		JS7z({
+			// Provide the correct URL for the worker to load the module
+			// Without this, workers look for js7z.mjs which doesn't exist
+			mainScriptUrlOrBlob: js7zUrl,
+			print: (text: string) => {
+				console.log('[7z] stdout:', text);
+			},
+			printErr: (text: string) => {
+				console.log('[7z] stderr:', text);
+			},
+			onAbort: (reason: string) => {
+				if (!completed) {
+					completed = true;
+					clearTimeout(timeout);
+					console.error('[7z] Aborted:', reason);
+					reject(new Error(`7z aborted: ${reason}`));
 				}
+			},
+			onExit: (exitCode: number) => {
+				// This will be overwritten after initialization
+			}
+		})
+			.then((js7z) => {
+				const FS = js7z.FS;
 
-				if (state === 'header') {
-					if (fileIndex >= files.length) {
-						state = 'cd';
-						cdStartOffset = totalOffset;
-						continue;
-					}
+				console.log('[7z] Module initialized');
+				onProgress?.('Creating directories...');
 
-					const file = files[fileIndex];
-					const name = ((file as any).relativePath as string) || file.name;
-					const lastModified = new Date(file.lastModified);
+				// Create input and output directories
+				FS.mkdir('/in');
+				FS.mkdir('/out');
 
-					let compressionMethod = 0;
-					let stream = file.stream();
+				console.log('[7z] Writing files to virtual filesystem...');
+				onProgress?.('Preparing files...');
 
-					// CRC and Size tracking transformer
-					const crcTransformer = new TransformStream({
-						transform(chunk, controller) {
-							fileCrc = crc32(chunk, fileCrc);
-							fileUncompressedSize += chunk.byteLength;
-							controller.enqueue(chunk);
+				// Write all files to the virtual filesystem
+				for (const { fileName, data } of fileDataArray) {
+					// Create directory structure if needed
+					const parts = fileName.split('/');
+					if (parts.length > 1) {
+						let currentPath = '/in';
+						for (let j = 0; j < parts.length - 1; j++) {
+							currentPath += '/' + parts[j];
+							try {
+								FS.mkdir(currentPath);
+							} catch (e) {
+								// Directory might already exist
+							}
 						}
-					});
-
-					stream = stream.pipeThrough(crcTransformer);
-
-					if (supportsDeflateRaw) {
-						compressionMethod = 8;
-						stream = stream.pipeThrough(new CompressionStream('deflate-raw'));
-					} else if (supportsDeflate) {
-						compressionMethod = 8;
-						stream = stream.pipeThrough(new CompressionStream('deflate'));
-						stream = stream.pipeThrough(createDeflateStripper() as any);
 					}
 
-					const header = createLocalFileHeader(name, 0, lastModified, compressionMethod);
-
-					// Record entry start
-					currentFileOffset = totalOffset;
-
-					controller.enqueue(header);
-					totalOffset += header.length;
-
-					currentFileReader = stream.getReader();
-					fileBytesRead = 0;
-					fileUncompressedSize = 0;
-					fileCrc = 0;
-					state = 'content';
-					return; // Yield
+					FS.writeFile('/in/' + fileName, data);
 				}
 
-				if (state === 'content') {
-					const { done, value } = await currentFileReader!.read();
-					if (done) {
-						state = 'descriptor';
-						continue;
+				console.log('[7z] All files written to virtual filesystem');
+
+				// Check if files exist in /in directory
+				try {
+					const inFiles = FS.readdir('/in');
+					console.log('[7z] Files in /in directory:', inFiles);
+				} catch (e) {
+					console.error('[7z] Error reading /in directory:', e);
+				}
+
+				onProgress?.('Compressing...');
+
+				// Set up the exit callback - this is the key callback for completion
+				// Must be set BEFORE calling callMain
+				// Using 'as any' because onExit is a runtime property not in the TS definitions
+				(js7z as any).onExit = (exitCode: number) => {
+					if (completed) return; // Prevent double-completion
+					completed = true;
+					clearTimeout(timeout);
+
+					console.log('[7z] onExit triggered with exit code:', exitCode);
+
+					try {
+						if (exitCode !== 0) {
+							console.error('[7z] Compression failed with exit code:', exitCode);
+							reject(new Error(`7z compression failed with exit code ${exitCode}`));
+							return;
+						}
+
+						console.log('[7z] Reading compressed archive...');
+						onProgress?.('Reading archive...');
+
+						// Read the compressed archive
+						const archiveData = FS.readFile('/out/archive.7z', { encoding: 'binary' });
+
+						console.log('[7z] Archive size:', archiveData.length, 'bytes');
+
+						// Create blob
+						const blob = new Blob([archiveData], { type: 'application/x-7z-compressed' });
+
+						console.log('[7z] Compression successful!');
+						onProgress?.('Compression complete!');
+
+						resolve(blob);
+					} catch (err) {
+						console.error('[7z] Error in onExit callback:', err);
+						reject(err);
 					}
+				};
 
-					fileBytesRead += value.byteLength;
-					controller.enqueue(value);
-					totalOffset += value.byteLength;
-					return; // Yield
+				// Start the compression process
+				// In multi-threaded mode, callMain returns immediately
+				// and the work happens asynchronously
+				console.log('[7z] Starting callMain with args:', args);
+				js7z.callMain(args);
+				console.log('[7z] callMain returned, waiting for onExit...');
+			})
+			.catch((err) => {
+				if (!completed) {
+					completed = true;
+					clearTimeout(timeout);
+					console.error('[7z] JS7z initialization error:', err);
+					reject(err);
 				}
-
-				if (state === 'descriptor') {
-					const descriptor = createDataDescriptor(fileCrc, fileBytesRead, fileUncompressedSize);
-					controller.enqueue(descriptor);
-					totalOffset += descriptor.length;
-
-					const file = files[fileIndex];
-					const name = ((file as any).relativePath as string) || file.name;
-
-					entries.push({
-						name,
-						compressedSize: fileBytesRead,
-						uncompressedSize: fileUncompressedSize,
-						crc: fileCrc,
-						offset: currentFileOffset,
-						lastModified: new Date(file.lastModified),
-						compressionMethod: supportsDeflateRaw || supportsDeflate ? 8 : 0
-					});
-
-					fileIndex++;
-					currentFileReader = null;
-					state = 'header';
-					return; // Yield
-				}
-
-				if (state === 'cd') {
-					if (cdIndex >= entries.length) {
-						state = 'eocd';
-						continue;
-					}
-
-					const entry = entries[cdIndex];
-					const header = createCentralDirectoryHeader(entry);
-					controller.enqueue(header);
-					totalOffset += header.length;
-					cdIndex++;
-					return; // Yield
-				}
-
-				if (state === 'eocd') {
-					const cdSize = totalOffset - cdStartOffset;
-					const eocd = createEndOfCentralDirectory(entries.length, cdSize, cdStartOffset);
-					controller.enqueue(eocd);
-					finishedStream = true;
-					return; // Yield
-				}
-			}
-		}
-	});
-}
-
-function createDeflateStripper() {
-	let buffer = new Uint8Array(0);
-	let headerRemoved = false;
-
-	return new TransformStream<Uint8Array, Uint8Array>({
-		transform(chunk, controller) {
-			let data = chunk;
-
-			if (!headerRemoved) {
-				const newBuf = new Uint8Array(buffer.length + data.length);
-				newBuf.set(buffer);
-				newBuf.set(data, buffer.length);
-				buffer = newBuf;
-
-				if (buffer.length >= 2) {
-					// Strip header (2 bytes)
-					data = buffer.slice(2);
-					headerRemoved = true;
-					buffer = new Uint8Array(0);
-					// Continue to process data
-				} else {
-					// Wait for more data
-					return;
-				}
-			}
-
-			// Footer handling: keep last 4 bytes
-			const newBuf = new Uint8Array(buffer.length + data.length);
-			newBuf.set(buffer);
-			newBuf.set(data, buffer.length);
-			buffer = newBuf;
-
-			if (buffer.length > 4) {
-				const toEmit = buffer.slice(0, buffer.length - 4);
-				controller.enqueue(toEmit);
-				buffer = buffer.slice(buffer.length - 4);
-			}
-		},
-		flush(controller) {
-			// Discard buffer (Adler-32)
-		}
+			});
 	});
 }
 
