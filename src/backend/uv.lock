@@ -335,6 +335,18 @@ redis = [
 ]
 
 [[package]]
+name = "celery-aio-pool"
+version = "0.1.0rc8"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "celery" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/24/50/2d0962983fe1b21a4969454f804c12b5d10ad5ae335342b8520eed1d8899/celery_aio_pool-0.1.0rc8.tar.gz", hash = "sha256:47ffe9307a8be94eb39cc1c6607f49b18db2c797623fb6ea0825835dd50652f2", size = 24467, upload-time = "2024-12-09T15:31:13.997Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3f/ed/27407bd7aa280c9d6a3a33d541277bc35ad9a97d2eabac3c67e148da29fb/celery_aio_pool-0.1.0rc8-py3-none-any.whl", hash = "sha256:9a7631ea2759e6c8ae769fe668a3af34299a6ee730dabe57e36e66d66611b14a", size = 23305, upload-time = "2024-12-09T15:31:13.081Z" },
+]
+
+[[package]]
 name = "celery-types"
 version = "0.24.0"
 source = { registry = "https://pypi.org/simple" }
@@ -388,6 +400,7 @@ dependencies = [
     { name = "alembic" },
     { name = "anyio" },
     { name = "celery", extra = ["redis"] },
+    { name = "celery-aio-pool" },
     { name = "fastapi" },
     { name = "pwdlib", extra = ["argon2"] },
     { name = "pydantic-settings" },
@@ -417,6 +430,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.17.2" },
     { name = "anyio", specifier = ">=4.12.0" },
     { name = "celery", extras = ["redis"], specifier = ">=5.6.1" },
+    { name = "celery-aio-pool", specifier = ">=0.1.0rc8" },
     { name = "fastapi", specifier = ">=0.127.0" },
     { name = "pwdlib", extras = ["argon2"], specifier = ">=0.3.0" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },

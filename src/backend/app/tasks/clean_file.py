@@ -1,5 +1,4 @@
 from datetime import datetime, timezone
-from uuid import UUID
 
 from sqlmodel import or_, select
 
@@ -10,7 +9,8 @@ from app.models.files import File
 from app.settings import settings
 
 
-async def _delete_file(file_id: UUID):
+@celery.task
+async def delete_expired_file(file_id: str):
     async with AsyncSessionLocal() as session:
         now = datetime.now(timezone.utc)
 
@@ -46,10 +46,3 @@ async def _delete_file(file_id: UUID):
         # Commit all changes
         await session.commit()
         return f"Processed {len(files_to_delete)} deletions."
-
-
-@celery.task
-def delete_expired_file(file_id: str):
-    import anyio
-
-    anyio.run(_delete_file, UUID(file_id))

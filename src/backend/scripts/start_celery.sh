@@ -8,4 +8,5 @@ else
   CONCURRENCY=1
 fi
 
-exec celery -A app.celery worker --concurrency "$CONCURRENCY" --loglevel=info --max-memory-per-child=131072
+export CELERY_CUSTOM_WORKER_POOL='celery_aio_pool.pool:AsyncIOPool'
+exec celery -A app.celery worker --pool=custom --concurrency "$CONCURRENCY" --loglevel=info --max-memory-per-child=131072
