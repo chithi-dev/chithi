@@ -1,7 +1,8 @@
 <script lang="ts">
 	import '#css/tailwind.css';
+	import '#css/nprogress.scss';
 	import '#css/fonts.scss';
-  import { afterNavigate, beforeNavigate } from "$app/navigation";
+  	import { afterNavigate, beforeNavigate } from "$app/navigation";
 
 	import NProgress from 'nprogress';
 	import favicon from '$lib/assets/favicon.svg';
