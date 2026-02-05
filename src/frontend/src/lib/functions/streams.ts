@@ -18,14 +18,13 @@ configure({
 	maxWorkers: CONCURRENCY
 });
 
-// Deterministic derivation constants (since we removed metadata)
+// Deterministic derivation constants
 const HKDF_SALT_STR = 'chithi-salt-v1';
 const HKDF_IV_STR = 'chithi-iv-v1';
 
 async function deriveSecrets(ikm: Uint8Array, password?: string) {
-	// 1. Derive deterministic Salt from IKM
+	// Derive deterministic salt from IKM
 	const enc = new TextEncoder();
-	// Since IKM is random per file, this salt is effectively unique per file
 	const derivedSalt = await crypto.subtle.digest(
 		'SHA-256',
 		new Uint8Array([...ikm, ...enc.encode(HKDF_SALT_STR)])
@@ -33,26 +32,19 @@ async function deriveSecrets(ikm: Uint8Array, password?: string) {
 
 	let finalIKM = ikm;
 
-	// 2. Mix in Password if provided
+	// Mix in password if provided
 	if (password && password.length > 0) {
 		const saltBytes = new Uint8Array(derivedSalt).slice(0, 16);
-		// Argon2id
 		const passwordBytes = new TextEncoder().encode(password);
 		const pb = await argon2Derive(passwordBytes, saltBytes, 32, 16384, 32, 1);
 		finalIKM = xorBytes(ikm, pb);
 	}
 
-	// 3. Derive AES Key and Base IV
-	// Use HKDF-ish derivation logic by just hashing with context
-	// (or re-use deriveAESKeyFromIKM which uses Argon2, but that's slow for just key expansion if we already did argon above)
-	// We'll stick to the existing util which uses Argon2 with low internal cost
-
-	// Create a deterministic "HKDF Salt" for key derivation from IKM
+	// Derive AES key and base IV
 	const hkdfSalt = new Uint8Array(
 		await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode('aes-key')]))
 	).slice(0, 16);
 
-	// Create deterministic IV
 	const baseIv = new Uint8Array(
 		await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode(HKDF_IV_STR)]))
 	).slice(0, 12);
@@ -77,7 +69,7 @@ export async function createZipStream(
 		try {
 			for (const file of files) {
 				const filename = (file as any).relativePath || file.name;
-				return zipWriter.add(filename, file.stream(), {
+				await zipWriter.add(filename, file.stream(), {
 					password: password?.length ? password : undefined,
 					level: 9, // Maximum compression (0-9)
 					signal
@@ -103,13 +95,13 @@ export async function createEncryptedStream(
 	originalSize?: number,
 	onProgress?: (processed: number, total?: number) => void
 ) {
-	// 1. Generate IKM (The Source of Truth)
+	// Generate IKM
 	const ikm = crypto.getRandomValues(new Uint8Array(32));
 
-	// 2. Derive Keys (No metadata headers, everything derived from IKM + Password)
+	// Derive keys
 	const { aesKey, baseIv } = await deriveSecrets(ikm, password);
 
-	// 4. Create Transformer
+	// Create transformer for chunked encryption
 	let buffer = new Uint8Array(0);
 	let chunkIndex = 0;
 
@@ -135,7 +127,7 @@ export async function createEncryptedStream(
 	const transformer = new TransformStream<Uint8Array, Uint8Array>({
 		async start(controller) {
 			controllerRef = controller;
-			// No Header is written to stream.
+			// No header written to stream
 
 			// Setup worker pool
 			const concurrency = CONCURRENCY;
@@ -280,7 +272,7 @@ export async function createDecryptedStream(
 	keySecret: string,
 	password?: string
 ) {
-	// 1. Recover Secrets
+	// Recover secrets
 	const ikm = base64urlToBytes(keySecret);
 	const { aesKey, baseIv } = await deriveSecrets(ikm, password);
 
