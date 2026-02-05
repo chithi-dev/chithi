@@ -1,8 +1,7 @@
 <script lang="ts">
 	import './layout.css';
-	import 'nprogress/nprogress.css';
 	import NProgress from 'nprogress';
-	import { navigating } from '$app/stores';
+	import { navigating } from '$app/state';
 	import favicon from '$lib/assets/favicon.svg';
 	import { ModeWatcher } from 'mode-watcher';
 	import { QueryClientProvider } from '@tanstack/svelte-query';
@@ -12,7 +11,7 @@
 
 	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 	$effect(() => {
-		if ($navigating) {
+		if (navigating) {
 			NProgress.start();
 		} else {
 			NProgress.done();
