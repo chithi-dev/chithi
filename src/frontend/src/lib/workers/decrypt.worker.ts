@@ -52,11 +52,12 @@ self.addEventListener('message', async (ev: MessageEvent) => {
 				(self as any).postMessage({
 					type: 'error',
 					index: msg.index,
+					name: e?.name,
 					message: e?.message ?? String(e)
 				});
 			}
 		}
 	} catch (e: any) {
-		(self as any).postMessage({ type: 'error', message: e?.message ?? String(e) });
+		(self as any).postMessage({ type: 'error', name: e?.name, message: e?.message ?? String(e) });
 	}
 });
