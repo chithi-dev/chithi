@@ -83,9 +83,23 @@
 	];
 </script>
 
-<div class="flex min-h-svh min-w-screen flex-col bg-background text-foreground">
+<div class="relative flex min-h-svh min-w-screen flex-col overflow-hidden bg-background text-foreground">
+	<div class="pointer-events-none absolute inset-0 z-0">
+		<div
+			class="absolute -top-24 -left-24 h-125 w-125 rounded-full bg-blue-500/10 blur-[120px] dark:bg-primary/20"
+		></div>
+		<div
+			class="absolute -bottom-24 -right-24 h-125 w-125 rounded-full bg-indigo-500/10 blur-[120px] dark:bg-indigo-500/10"
+		></div>
+		<div
+			class="bg-size-[40px_40px] absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)]"
+		></div>
+	</div>
+
 	<!-- Top Bar -->
-	<header class="flex items-center justify-between border-b border-border p-4">
+	<header
+		class="sticky top-0 z-50 flex items-center justify-between border-b border-white/5 bg-white/5 p-4 backdrop-blur-md transition-colors duration-500 dark:border-white/5 dark:bg-black/5"
+	>
 		<a href="/" class="flex items-center" onclick={programmedNavigation}>
 			<Send class="h-6 w-6 text-primary" />
 			<h1 class="ml-2 text-2xl font-bold md:text-xl">Chithi</h1>
@@ -177,7 +191,9 @@
 	{/key}
 
 	<!-- Footer -->
-	<footer class="border-t border-border p-4">
+	<footer
+		class="border-t border-white/5 bg-white/5 p-4 backdrop-blur-md transition-colors duration-500 dark:border-white/5 dark:bg-black/5"
+	>
 		<div class="mx-auto w-full">
 			<nav
 				class="flex flex-row flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground md:gap-6"
