@@ -1,5 +1,9 @@
 <script lang="ts">
-	import './layout.css';
+	import '#css/tailwind.css';
+	import '#css/fonts.scss';
+	import '#css/nprogress.scss';
+
+
 	import NProgress from 'nprogress';
 	import { navigating } from '$app/state';
 	import favicon from '$lib/assets/favicon.svg';

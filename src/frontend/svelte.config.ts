@@ -31,7 +31,8 @@ export default {
 			'#workers/*': './src/lib/workers/*',
 			'#functions/*': './src/lib/functions/*',
 			'#logos/*': './src/lib/logos/*',
-			'#queries/*': './src/lib/queries/*'
+			'#queries/*': './src/lib/queries/*',
+			'#css/*': './src/css/*'
 		}
 	}
 } satisfies Config;
