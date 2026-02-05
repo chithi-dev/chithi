@@ -14,6 +14,9 @@ export default {
 	compilerOptions: {
 		fragments: 'tree',
 		modernAst: true,
+		experimental: {
+			async: true
+		}
 	},
 	preprocess: vitePreprocess(),
 	kit: {
