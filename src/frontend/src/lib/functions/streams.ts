@@ -57,28 +57,31 @@ async function deriveSecrets(ikm: Uint8Array, password?: string) {
 	return { aesKey, baseIv, finalIKM };
 }
 
-export function createZipStream(files: File[], password?: string): ReadableStream<Uint8Array> {
+export async function createZipStream(
+	files: File[],
+	password?: string
+): Promise<ReadableStream<Uint8Array>> {
 	const { readable, writable } = new TransformStream();
 	const zipWriter = new ZipWriter(writable);
 
-	(async () => {
-		try {
-			for (const file of files) {
+	try {
+		await Promise.all(
+			files.map((file) => {
 				const filename = (file as any).relativePath || file.name;
-				await zipWriter.add(filename, file.stream(), {
+				return zipWriter.add(filename, file.stream(), {
 					password: password?.length ? password : undefined
 				});
-			}
-			await zipWriter.close();
-		} catch (error) {
-			console.error('Error creating zip stream:', error);
-			try {
-				await writable.abort(error);
-			} catch (e) {
-				// ignore
-			}
+			})
+		);
+		await zipWriter.close();
+	} catch (error) {
+		console.error('Error creating zip stream:', error);
+		try {
+			await writable.abort(error);
+		} catch (e) {
+			// ignore
 		}
-	})();
+	}
 
 	return readable;
 }
@@ -329,7 +332,7 @@ export async function createDecryptedStream(
 		}
 	};
 
-	const assignChunk = (
+	const assignChunk = async (
 		index: number,
 		chunkBuf: Uint8Array,
 		controller?: ReadableStreamDefaultController<Uint8Array>
@@ -344,30 +347,28 @@ export async function createDecryptedStream(
 			nextWorker = (nextWorker + 1) % workers.length;
 			w.postMessage({ type: 'decrypt', index, chunk: transferable }, [transferable]);
 		} else {
-			(async () => {
-				try {
-					const iv = getChunkIv(baseIv, index);
-					const buf = chunkBuf.buffer as ArrayBuffer;
-					const decrypted = await crypto.subtle.decrypt(
-						{ name: 'AES-GCM', iv: iv as any },
-						aesKey,
-						buf
-					);
-					pendingCount--;
-					decryptedMap.set(index, new Uint8Array(decrypted));
-					if (controller) {
-						while (decryptedMap.has(nextToEnqueue)) {
-							const arr = decryptedMap.get(nextToEnqueue)!;
-							decryptedMap.delete(nextToEnqueue);
-							controller.enqueue(arr);
-							nextToEnqueue++;
-						}
+			try {
+				const iv = getChunkIv(baseIv, index);
+				const buf = chunkBuf.buffer as ArrayBuffer;
+				const decrypted = await crypto.subtle.decrypt(
+					{ name: 'AES-GCM', iv: iv as any },
+					aesKey,
+					buf
+				);
+				pendingCount--;
+				decryptedMap.set(index, new Uint8Array(decrypted));
+				if (controller) {
+					while (decryptedMap.has(nextToEnqueue)) {
+						const arr = decryptedMap.get(nextToEnqueue)!;
+						decryptedMap.delete(nextToEnqueue);
+						controller.enqueue(arr);
+						nextToEnqueue++;
 					}
-					if (streamEnded && pendingCount === 0 && allDoneResolve) allDoneResolve();
-				} catch (err) {
-					handleError(err);
 				}
-			})();
+				if (streamEnded && pendingCount === 0 && allDoneResolve) allDoneResolve();
+			} catch (err) {
+				handleError(err);
+			}
 		}
 	};
 
