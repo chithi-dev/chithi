@@ -301,7 +301,7 @@
 			uploadProgress = 0;
 
 			// Create Zip Stream
-			const stream = createZipStream(files);
+			const stream = createZipStream(files, isPasswordProtected ? password : undefined);
 
 			//  Encrypt
 			const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
