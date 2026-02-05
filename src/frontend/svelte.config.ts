@@ -11,6 +11,10 @@ const is_node = process.env.BUILD_NODE_ENV ?? false;
 export default {
 	// Consult https://svelte.dev/docs/kit/integrations
 	// for more information about preprocessors
+	compilerOptions: {
+		fragments: 'tree',
+		modernAst: true,
+	},
 	preprocess: vitePreprocess(),
 	kit: {
 		// adapter-auto only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
