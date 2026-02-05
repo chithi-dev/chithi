@@ -1,11 +1,9 @@
 <script lang="ts">
 	import '#css/tailwind.css';
 	import '#css/fonts.scss';
-	import '#css/nprogress.scss';
-
+  import { afterNavigate, beforeNavigate } from "$app/navigation";
 
 	import NProgress from 'nprogress';
-	import { navigating } from '$app/state';
 	import favicon from '$lib/assets/favicon.svg';
 	import { ModeWatcher } from 'mode-watcher';
 	import { QueryClientProvider } from '@tanstack/svelte-query';
@@ -14,13 +12,13 @@
 	import type { Snippet } from 'svelte';
 
 	let { children, data }: { children: Snippet; data: LayoutData } = $props();
-	$effect(() => {
-		if (navigating) {
-			NProgress.start();
-		} else {
-			NProgress.done();
-		}
-	});
+	
+	beforeNavigate(()=>{
+		NProgress.start();
+	})
+	afterNavigate(()=>{
+		NProgress.done();
+	})
 </script>
 
 <svelte:head>
