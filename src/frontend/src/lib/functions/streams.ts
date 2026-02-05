@@ -1,6 +1,6 @@
 import DecryptWorker from '#workers/decrypt.worker?worker';
 import EncryptWorker from '#workers/encrypt.worker?worker';
-import { ZipWriter } from '@zip.js/zip.js';
+import { ZipWriter, configure } from '@zip.js/zip.js';
 import {
 	CHUNK_SIZE,
 	argon2Derive,
@@ -12,6 +12,11 @@ import {
 } from './encryption';
 
 const CONCURRENCY = Math.max(1, navigator?.hardwareConcurrency * 2 || 4);
+
+configure({
+	useWebWorkers: true,
+	maxWorkers: CONCURRENCY
+});
 
 // Deterministic derivation constants (since we removed metadata)
 const HKDF_SALT_STR = 'chithi-salt-v1';
@@ -59,17 +64,23 @@ async function deriveSecrets(ikm: Uint8Array, password?: string) {
 
 export async function createZipStream(
 	files: File[],
-	password?: string
+	password?: string,
+	signal?: AbortSignal
 ): Promise<ReadableStream<Uint8Array>> {
 	const { readable, writable } = new TransformStream();
-	const zipWriter = new ZipWriter(writable);
+	const zipWriter = new ZipWriter(writable, {
+		bufferedWrite: true,
+		useCompressionStream: true
+	});
 
 	try {
 		await Promise.all(
 			files.map((file) => {
 				const filename = (file as any).relativePath || file.name;
 				return zipWriter.add(filename, file.stream(), {
-					password: password?.length ? password : undefined
+					password: password?.length ? password : undefined,
+					level: 9, // Maximum compression (0-9)
+					signal
 				});
 			})
 		);
