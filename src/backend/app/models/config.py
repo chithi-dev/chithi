@@ -1,10 +1,10 @@
 from datetime import timedelta
 from uuid import UUID
 
-from sqlalchemy import BigInteger, Connection, FromClause, Integer, String, event, text
+from sqlalchemy import Connection, FromClause, event
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapper
-from sqlmodel import Column, Field, SQLModel, select
+from sqlmodel import BigInteger, Column, Field, Integer, SQLModel, String, select, text
 
 from app.converter.bytes import ByteSize
 

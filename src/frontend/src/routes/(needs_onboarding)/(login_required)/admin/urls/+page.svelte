@@ -11,9 +11,9 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { page } from '$app/state';
 
-
 	const { files, revokeFile } = useFilesQuery();
 
+	const deviceTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 	let isRevoking = $state(false);
 	let isRevokeDialogOpen = $state(false);
 	let fileToRevoke = $state<string | null>(null);
@@ -40,10 +40,11 @@
 
 	function formatDate(dateStr?: string) {
 		if (!dateStr) return 'N/A';
-		return new Date(dateStr).toLocaleString(undefined, {
+		const date = new Date(dateStr).toLocaleString(undefined, {
 			dateStyle: 'medium',
 			timeStyle: 'short'
 		});
+		return date;
 	}
 </script>
 

@@ -21,7 +21,7 @@ CHUNK_SIZE = ByteSize(
 
 async def _get_current_storage_used(session: SessionDep, s3: S3Dep) -> int:
     """Sum the sizes (ContentLength) of currently active (non-expired) files."""
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     query = select(File).where(
         File.expires_at > now, File.download_count < File.expire_after_n_download
     )
@@ -140,7 +140,7 @@ async def upload_file(
             UploadId=upload_id,
         )
         raise
-    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    now = datetime.now(timezone.utc)
     file_obj = File(
         filename=str(filename),
         size=uploaded_size,
