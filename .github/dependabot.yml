@@ -5,6 +5,13 @@
 
 version: 2
 updates:
+    ## Github Actions
+    - package-ecosystem: 'github-actions' # See documentation for possible values
+      directory: '/' # Location of package manifests
+      open-pull-requests-limit: 100
+      schedule:
+          interval: 'daily'
+
     ## Frontend
 
     - package-ecosystem: 'npm' # See documentation for possible values
@@ -40,7 +47,7 @@ updates:
       open-pull-requests-limit: 100
       schedule:
           interval: 'daily'
-    
+
     ## CLI
 
     - package-ecosystem: 'uv' # See documentation for possible values
@@ -48,4 +55,3 @@ updates:
       open-pull-requests-limit: 100
       schedule:
           interval: 'daily'
-

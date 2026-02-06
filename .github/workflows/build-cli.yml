@@ -1,0 +1,34 @@
+name: Test CLI Build
+
+on:
+    push:
+        branches: ['main']
+        paths:
+            - 'src/cli/**'
+            - '.github/workflows/**'
+    pull_request:
+        branches: ['main']
+        paths:
+            - 'src/cli/**'
+            - '.github/workflows/**'
+    workflow_dispatch:
+
+jobs:
+    build-docker:
+        runs-on: ubuntu-latest
+        defaults:
+            run:
+                working-directory: ./src/cli
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4
+
+            - name: Install uv
+              uses: astral-sh/setup-uv@v7
+
+            - name: Install deps with uv
+              run: uv sync --frozen
+
+            - name: Build
+              run: uv run poe nuitka
