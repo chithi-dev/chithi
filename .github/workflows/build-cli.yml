@@ -14,7 +14,7 @@ on:
     workflow_dispatch:
 
 jobs:
-    build-docker:
+    build-linux:
         runs-on: ubuntu-latest
         defaults:
             run:
