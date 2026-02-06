@@ -14,7 +14,7 @@
 	import { formatSeconds, secondsToNumber, T_UNITS, type TimeUnit } from '#functions/times';
 	import { sanitizeExt } from '#functions/sanitize';
 	import { Separator } from '$lib/components/ui/separator';
-	import { html_to_markdown } from '#functions/markdown';
+	import { html_to_markdown } from '$lib/markdown/markdown';
 
 	// Query hook
 	const { config: configQuery, update_config } = useConfigQuery();
@@ -22,11 +22,8 @@
 	// Derived state
 	let configData = $derived(configQuery.data);
 	let descDraft = $state('');
-	let previewHtml = $derived(
-		descDraft
-			? String(html_to_markdown(descDraft))
-			: html_to_markdown(configData?.site_description ?? '')
-	);
+	let previewMarkdown = $derived(descDraft? String(descDraft): configData.site_description ?? "")
+
 
 	// UI state
 	let editing = $state<
@@ -652,7 +649,9 @@
 						in:fade
 						class="prose max-w-none p-8 text-sm leading-relaxed prose-zinc dark:prose-invert"
 					>
-						{@html previewHtml}
+						{#await html_to_markdown(previewMarkdown) then html}
+							{@html html}
+						{/await}
 					</div>
 				{/if}
 			</Card.Content>

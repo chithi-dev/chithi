@@ -32,7 +32,7 @@
 	import { cn } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
 	import { dev } from '$app/environment';
-	import { html_to_markdown } from '#functions/markdown';
+	import { html_to_markdown } from '$lib/markdown/markdown';
 
 	const { config: configData } = useConfigQuery();
 
@@ -63,7 +63,7 @@
 	// Encryption progress states
 	let encryptionProgress = $state(0);
 	let isEncrypting = $state(false);
-	let renderedDetails = $derived(html_to_markdown(configData.data?.site_description ?? ''));
+	let detailsMarkdown = $derived(configData.data?.site_description ?? '');
 
 	$effect(() => {
 		const total = files.reduce((sum, file) => sum + file.size, 0);
@@ -301,7 +301,7 @@
 			uploadProgress = 0;
 
 			// Create Zip Stream
-			const stream = createZipStream(files);
+			const stream = await createZipStream(files, isPasswordProtected ? password : undefined);
 
 			//  Encrypt
 			const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
@@ -869,7 +869,9 @@
 						<div
 							class="prose w-full max-w-none prose-zinc md:text-sm lg:text-lg lg:leading-relaxed dark:prose-invert"
 						>
-							{@html renderedDetails}
+						{#await html_to_markdown(detailsMarkdown) then html}
+							{@html html}
+						{/await}
 						</div>
 					</ScrollArea>
 				</div>

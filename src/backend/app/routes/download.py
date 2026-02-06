@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import StreamingResponse
@@ -53,11 +55,12 @@ async def download_files(
         finally:
             s3_response["Body"].close()
 
+    safe_filename = quote(file_record.filename)
     return StreamingResponse(
         stream_file(),
         status_code=200,
         media_type=s3_response.get("ContentType", "application/octet-stream"),
         headers={
-            "Content-Disposition": f'attachment; filename="{file_record.filename}"',
+            "Content-Disposition": f"attachment; filename*=UTF-8''{safe_filename}"
         },
     )

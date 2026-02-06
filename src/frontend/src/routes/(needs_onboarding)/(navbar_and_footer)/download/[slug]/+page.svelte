@@ -6,18 +6,19 @@
 	import { page } from '$app/state';
 	import { fly } from 'svelte/transition';
 	import { BACKEND_API } from '$lib/consts/backend';
-	import { createDecryptedStream, peekHeader } from '#functions/streams';
+	import { downloadAndDecryptFile, PasswordRequiredError } from '#functions/download';
 	import { formatFileSize } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';
 	import { Progress } from '$lib/components/ui/progress';
+	import CompleteSvg from '$lib/svgs/complete.svelte';
 
 	// Key is provided in the URL fragment (after '#') and must be present there
-	let key = $derived(page.url.hash ? page.url.hash.slice(1) : null);
+	let key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
 	let slug = $derived(page.params.slug);
 
-	let status = $state<'checking' | 'ready' | 'needs_password' | 'error' | 'downloading'>(
-		'checking'
-	);
+	let status = $state<
+		'checking' | 'ready' | 'needs_password' | 'error' | 'downloading' | 'completed'
+	>('checking');
 	let errorMsg = $state('');
 	let filename = $state('file');
 	let fileSize = $state(0);
@@ -25,7 +26,7 @@
 	let downloadProgress = $state(0);
 
 	async function startCheck() {
-		if (!key) {
+		if (!key || !slug) {
 			status = 'error';
 			errorMsg = 'Missing decryption key';
 			return;
@@ -64,129 +65,45 @@
 	}
 
 	async function handleDownload() {
-		if (!key) return;
+		if (!key || !slug) return;
 		const previousStatus = status;
 		status = 'downloading';
 		downloadProgress = 0;
 
 		try {
-			const res = await fetch(`${BACKEND_API}/download/${slug}`);
-			if (!res.ok) throw new Error('Download failed');
-			if (!res.body) throw new Error('No response body');
-
-			const totalSize = fileSize;
-			let loaded = 0;
-
-			const reader = res.body.getReader();
-			const streamWithProgress = new ReadableStream({
-				async pull(controller) {
-					try {
-						const { done, value } = await reader.read();
-						if (done) {
-							controller.close();
-							return;
-						}
-						loaded += value.byteLength;
-						if (totalSize > 0) {
-							downloadProgress = Math.round((loaded / totalSize) * 100);
-						}
-						controller.enqueue(value);
-					} catch (e) {
-						controller.error(e);
-						throw e;
-					}
-				},
-				cancel(reason) {
-					return reader.cancel(reason);
-				}
-			});
-
-			// Peek the header to see if a password is required without consuming the main download stream
-			let downloadStream = streamWithProgress;
-			try {
-				const [peekStream, passStream] = streamWithProgress.tee();
-				const headerInfo = await peekHeader(peekStream);
-				if (headerInfo?.needsPassword && !password) {
-					// Stop the active reader to avoid wasting bandwidth
-					await reader.cancel();
-					status = 'needs_password';
-					return;
-				}
-				downloadStream = passStream;
-			} catch (e) {
-				// If peeking fails, fall back to the full stream and let createDecryptedStream handle errors
-				console.warn('Header peek failed, proceeding with full download', e);
-			}
-
-			if ('showSaveFilePicker' in window) {
-				const handle = await (window as any).showSaveFilePicker({
-					suggestedName: `${filename}.zip`
-				});
-				const writable = await handle.createWritable();
-
-				const { stream: decryptedStream } = await createDecryptedStream(
-					downloadStream,
-					key,
-					password
-				);
-				await decryptedStream.pipeTo(writable);
-
-				status = 'ready';
-				toast.success('Download complete');
-			} else {
-				const { stream: decryptedStream } = await createDecryptedStream(
-					downloadStream,
-					key,
-					password
-				);
-				const chunks = [];
-				const reader = decryptedStream.getReader();
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) break;
-					chunks.push(value);
-				}
-				const blob = new Blob(chunks as any, { type: 'application/octet-stream' });
-				const url = window.URL.createObjectURL(blob);
-				const a = document.createElement('a');
-				a.href = url;
-				a.download = `${filename}.zip`;
-				a.classList.add('hidden');
-				document.body.appendChild(a);
-				a.click();
-				window.URL.revokeObjectURL(url);
-				document.body.removeChild(a);
-
-				status = 'ready';
-				toast.success('Download complete');
+			await downloadAndDecryptFile(
+				slug,
+				key,
+				password,
+				filename,
+				fileSize,
+				(p) => (downloadProgress = p)
+			);
+			status = 'completed';
+			toast.success('Download complete');
+			if (password) {
+				toast.info('Note: The downloaded zip file is also encrypted with your password.');
 			}
 		} catch (e: any) {
 			console.error(e);
-			if (e.message === 'Password required for decryption') {
+			if (e instanceof PasswordRequiredError) {
 				status = 'needs_password';
-				toast.info('Password required');
-				return;
-			}
-
-			if (e.name !== 'AbortError') {
-				// If we are in needs_password state, and we failed, it might be wrong password
-				if (previousStatus === 'needs_password' || password) {
-					toast.error('Download failed: Incorrect password or corrupted file');
-				} else if (e.name === 'OperationError') {
-					toast.error('Download failed: Mismatched key or corrupted file');
-					status = 'error';
-					errorMsg = 'Mismatched key or corrupted file';
-				} else {
-					toast.error('Download failed: ' + e.message);
-					status = 'error';
-					errorMsg = 'Download failed';
-				}
-			} else {
+				toast.info('Password required for decryption');
+			} else if (previousStatus === 'needs_password' && password) {
+				// Retrying with password failed generically? Assume wrong password
+				toast.error('Download failed: Incorrect password?');
+				status = 'needs_password';
+			} else if (e.name === 'AbortError') {
 				status = 'ready';
+			} else {
+				toast.error('Download failed: ' + e.message);
+				status = 'error';
+				errorMsg = 'Download failed';
 			}
 		}
 	}
 </script>
+
 
 <Card.Root class="relative z-10 mx-auto w-full max-w-5xl border-border bg-card">
 	<Card.Content class="p-6">
@@ -195,7 +112,7 @@
 				<Card.Header class="px-0 text-center">
 					<Card.Title class="text-2xl font-bold">Download files</Card.Title>
 					<Card.Description class="text-muted-foreground">
-						This file was shared via Send with end-to-end encryption and a link that automatically
+						This file was shared via Chithi with end-to-end encryption and a link that automatically
 						expires.
 					</Card.Description>
 				</Card.Header>
@@ -230,15 +147,32 @@
 							</div>
 						{/if}
 					{:else if status === 'needs_password'}
-						<div class="mx-auto flex w-full max-w-sm items-center py-8">
-							<Input
-								type="password"
-								placeholder="Password"
-								class="rounded-r-none focus-visible:z-10"
-								bind:value={password}
-								onkeydown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
-							/>
-							<Button class="rounded-l-none" onclick={handlePasswordSubmit}>Unlock</Button>
+						<div class="mx-auto flex w-full max-w-sm flex-col items-center gap-2 py-8">
+							<div class="flex w-full items-center">
+								<Input
+									type="password"
+									placeholder="Password"
+									class="rounded-r-none focus-visible:z-10"
+									bind:value={password}
+									onkeydown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+								/>
+								<Button class="rounded-l-none" onclick={handlePasswordSubmit}>Unlock</Button>
+							</div>
+							<p class="text-xs text-muted-foreground">Enter password to decrypt the download.</p>
+						</div>
+					{:else if status === 'completed'}
+						<div
+							in:fly={{ y: 10, duration: 400 }}
+							class="flex flex-col items-center justify-center py-4"
+						>
+							<div class="mb-6 flex flex-col items-center text-muted-foreground">
+								<CompleteSvg />
+							</div>
+
+							<div class="flex w-full gap-3 pt-2">
+								<Button variant="outline" class="flex-1" href="/">Go home</Button>
+								<Button class="flex-1" onclick={() => (status = 'ready')}>Download Again</Button>
+							</div>
 						</div>
 					{:else}
 						<div class="mb-6 flex items-center gap-4 rounded-lg border bg-background/50 p-4">

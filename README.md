@@ -1,5 +1,5 @@
 <div align='center'>
-    <h1> Chithi </h1>
+    <h1> Chithi ( চিঠি ) </h1>
 </div>
 
 <div align='center'>
@@ -8,13 +8,13 @@
     <img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/baseplate-admin/chithi?style=for-the-badge&color=FF7F50">
 </div>
 
-**Chithi** is an end-to-end file sharing application consisting of a FastAPI backend, a Svelte frontend, and a Celery worker with beat scheduler for background tasks. The project aims to provide secure file uploads, temporary links, and user management with a simple modern UI.
+**Chithi** is an end-to-end file sharing application consisting of a FastAPI backend, a Svelte frontend, and a Celery worker for background tasks. The project aims to provide secure file uploads, temporary links, and user management with a simple modern UI.
 
 ## Features
 
 - User onboarding, authentication and JWT-based sessions
 - File upload and download with S3-compatible backend
-- Background cleanup tasks using Celery + Beat + Redis
+- Background cleanup tasks using Celery + Redis
 - Admin endpoints for managing users and files
 - Svelte frontend and a small CLI/TUI (in near future)
 
@@ -101,4 +101,4 @@ This project is licensed under the Mozilla Public License 2.0. See `LICENSE.md` 
 
 ## Contact
 
-If you need help running the project or want to contribute, open an issue.
+If you need help running the project or want to contribute, open an issue or a discussion.

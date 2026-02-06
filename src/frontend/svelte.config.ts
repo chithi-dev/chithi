@@ -11,6 +11,12 @@ const is_node = process.env.BUILD_NODE_ENV ?? false;
 export default {
 	// Consult https://svelte.dev/docs/kit/integrations
 	// for more information about preprocessors
+	compilerOptions: {
+		modernAst: true,
+		experimental: {
+			async: true
+		}
+	},
 	preprocess: vitePreprocess(),
 	kit: {
 		// adapter-auto only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
@@ -31,7 +37,8 @@ export default {
 			'#workers/*': './src/lib/workers/*',
 			'#functions/*': './src/lib/functions/*',
 			'#logos/*': './src/lib/logos/*',
-			'#queries/*': './src/lib/queries/*'
+			'#queries/*': './src/lib/queries/*',
+			'#css/*': './src/css/*'
 		}
 	}
 } satisfies Config;
