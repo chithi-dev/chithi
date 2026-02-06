@@ -50,7 +50,7 @@
 		"lucide-svelte": "^0.563.0",
 		"mode-watcher": "^1.1.0",
 		"nprogress": "^0.2.0",
-		"playwright": "^1.58.1",
+		"playwright": "^1.58.2",
 		"prettier": "^3.8.1",
 		"prettier-plugin-organize-imports": "^4.3.0",
 		"prettier-plugin-packagejson": "^3.0.0",
