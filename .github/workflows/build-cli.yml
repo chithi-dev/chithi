@@ -14,7 +14,7 @@ on:
     workflow_dispatch:
 
 jobs:
-    build-docker:
+    build-linux:
         runs-on: ubuntu-latest
         defaults:
             run:
@@ -31,4 +31,62 @@ jobs:
               run: uv sync --frozen
 
             - name: Build
+              run: uv run poe nuitka-linux
+
+            - name: Show build outputs
+              run: ls -la
+
+            - name: Verify Linux artifact exists
+              run: |
+                  if ! ls ./app* >/dev/null 2>&1; then
+                    echo "No artifact found"; exit 1
+                  else
+                    echo "Found artifact(s):"; ls ./app*
+                  fi
+
+            - name: Upload Linux CLI artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: cli-linux
+                  path: ./src/cli/**/app*
+
+    build-windows:
+        runs-on: windows-latest
+        defaults:
+            run:
+                working-directory: ./src/cli
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Install uv
+              uses: astral-sh/setup-uv@v7
+
+            - name: Install deps with uv
+              run: uv sync --frozen
+
+            - name: Build (Windows) via poe
               run: uv run poe nuitka
+
+            - name: Show build outputs
+              run: |
+                  Get-ChildItem -Path . -Recurse -File | Select-Object FullName
+              shell: powershell
+
+            - name: Verify Windows artifact exists
+              run: |
+                  $files = Get-ChildItem -Path . -Filter 'app*.exe' -Recurse -File
+                  if ($files.Count -eq 0) {
+                    Write-Error 'No exe found'
+                    exit 1
+                  } else {
+                    $files | ForEach-Object { Write-Host "Found: $($_.FullName)" }
+                  }
+              shell: powershell
+
+            - name: Upload Windows CLI artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: cli-windows
+                  path: ./src/cli/**/app*.exe
