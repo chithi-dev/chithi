@@ -12,12 +12,12 @@ dependencies = [
     "uvloop>=0.22.1;sys_platform=='linux'",
     # Http Client
     "httpx[http2]>=0.28.1",
-    "py7zr>=1.1.2",
+    "py7zr>=1.1.0",
 ]
 
 
 [dependency-groups]
-build = ["nuitka>=2.8.9"]
+build = ["nuitka>=2.8.9", "zstandard>=0.25.0"]
 dev = ["poethepoet>=0.39.0"]
 
 [tool.poe.tasks]
