@@ -1,5 +1,6 @@
 import DecryptWorker from '#workers/decrypt.worker?worker';
 import EncryptWorker from '#workers/encrypt.worker?worker';
+import { WORKER_CONCURRENCY } from '$lib/consts/concurrency';
 import { ZipWriter, configure } from '@zip.js/zip.js';
 import {
 	CHUNK_SIZE,
@@ -11,11 +12,9 @@ import {
 	xorBytes
 } from './encryption';
 
-const CONCURRENCY = Math.max(1, navigator?.hardwareConcurrency * 2 || 4);
-
 configure({
 	useWebWorkers: true,
-	maxWorkers: CONCURRENCY
+	maxWorkers: WORKER_CONCURRENCY
 });
 
 // Deterministic derivation constants
@@ -395,7 +394,7 @@ export async function createEncryptedStream(
 				ctx.allDoneReject = rej;
 			});
 
-			await initializeEncryptionWorkers(ctx, aesKey, baseIv, CONCURRENCY);
+			await initializeEncryptionWorkers(ctx, aesKey, baseIv, WORKER_CONCURRENCY);
 		},
 		async transform(chunk, controller) {
 			const newBuffer = new Uint8Array(buffer.length + chunk.length);
@@ -473,7 +472,7 @@ export async function createDecryptedStream(
 	const stream = new ReadableStream<Uint8Array>({
 		async start(controller) {
 			ctx.controllerRef = controller;
-			await initializeDecryptionWorkers(ctx, aesKey, baseIv, CONCURRENCY);
+			await initializeDecryptionWorkers(ctx, aesKey, baseIv, WORKER_CONCURRENCY);
 		},
 		async pull(controller) {
 			while (buffer.length < ENC_CHUNK_SIZE) {
