@@ -31,4 +31,35 @@ jobs:
               run: uv sync --frozen
 
             - name: Build
+              run: uv run poe nuitka-linux
+
+            - name: Upload Linux CLI artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: cli-linux
+                  path: app.AppImage
+
+    build-windows:
+        runs-on: windows-latest
+        defaults:
+            run:
+                working-directory: ./src/cli
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v6
+
+            - name: Install uv
+              uses: astral-sh/setup-uv@v7
+
+            - name: Install deps with uv
+              run: uv sync --frozen
+
+            - name: Build (Windows) via poe
               run: uv run poe nuitka
+
+            - name: Upload Windows CLI artifact
+              uses: actions/upload-artifact@v4
+              with:
+                  name: cli-windows
+                  path: app.exe
