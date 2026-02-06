@@ -69,7 +69,7 @@ async function testDownload(baseUrl: string): Promise<number> {
 	const totalDuration = (performance.now() - startTime) / 1000;
 	const finalBps = (receivedLength * 8) / totalDuration;
 	const finalMbps = finalBps / 1_000_000;
-	
+
 	// Final update
 	self.postMessage({
 		type: 'progress',
@@ -77,23 +77,23 @@ async function testDownload(baseUrl: string): Promise<number> {
 		speed: finalMbps,
 		progress: 1
 	});
-	
+
 	return finalMbps;
 }
 
 async function testUpload(baseUrl: string): Promise<number> {
 	const size = 20 * 1024 * 1024; // 20MB
 	// Create a buffer of random-ish data (or just zeros, backend doesn't check)
-	const data = new Uint8Array(size); 
-    // Fill with some data to avoid potential compression/optimization issues in some network layers?
-    // os.urandom in backend implies we should probably be robust, but simple 0 is fine for speed.
-    // Let's fill first few bytes.
-    for(let i=0; i<1024; i++) data[i] = i % 255;
+	const data = new Uint8Array(size);
+	// Fill with some data to avoid potential compression/optimization issues in some network layers?
+	// os.urandom in backend implies we should probably be robust, but simple 0 is fine for speed.
+	// Let's fill first few bytes.
+	for (let i = 0; i < 1024; i++) data[i] = i % 255;
 
 	return new Promise((resolve, reject) => {
 		const xhr = new XMLHttpRequest();
 		xhr.open('POST', `${baseUrl}/speedtest/upload`);
-		
+
 		const startTime = performance.now();
 		let lastUpdate = 0;
 
@@ -118,20 +118,20 @@ async function testUpload(baseUrl: string): Promise<number> {
 		};
 
 		xhr.onload = () => {
-             const now = performance.now();
-             const duration = (now - startTime) / 1000;
-             const bps = (size * 8) / duration;
-             const mbps = bps / 1_000_000;
-             
-             // Final update
-             self.postMessage({
-                 type: 'progress',
-                 phase: 'upload',
-                 speed: mbps,
-                 progress: 1
-             });
-             
-			 resolve(mbps);
+			const now = performance.now();
+			const duration = (now - startTime) / 1000;
+			const bps = (size * 8) / duration;
+			const mbps = bps / 1_000_000;
+
+			// Final update
+			self.postMessage({
+				type: 'progress',
+				phase: 'upload',
+				speed: mbps,
+				progress: 1
+			});
+
+			resolve(mbps);
 		};
 
 		xhr.onerror = () => {
