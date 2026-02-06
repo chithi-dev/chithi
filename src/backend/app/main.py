@@ -65,3 +65,7 @@ app.include_router(information_router)
 from app.routes.onboarding import router as onboarding_router
 
 app.include_router(onboarding_router)
+
+from app.routes.speedtest import router as speedtest_router
+
+app.include_router(speedtest_router)
