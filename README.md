@@ -101,4 +101,4 @@ This project is licensed under the Mozilla Public License 2.0. See `LICENSE.md` 
 
 ## Contact
 
-If you need help running the project or want to contribute, open an issue.
+If you need help running the project or want to contribute, open an issue or a discussion.
