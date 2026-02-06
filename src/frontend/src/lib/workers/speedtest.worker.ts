@@ -1,5 +1,3 @@
-/// <reference lib="webworker" />
-
 self.onmessage = async (e: MessageEvent) => {
 	const { type, baseUrl } = e.data;
 	if (type === 'start') {
