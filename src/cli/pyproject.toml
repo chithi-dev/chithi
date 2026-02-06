@@ -3,22 +3,21 @@ name = "cli"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
     # CLI
     "typer>=0.21.0",
     "async-typer>=0.1.10",
     # Asnyc loop implementation
     "uvloop>=0.22.1;sys_platform=='linux'",
-    # Cryptography helper
-    "cryptography>=46.0.3",
     # Http Client
     "httpx[http2]>=0.28.1",
+    "py7zr>=1.1.0",
 ]
 
 
 [dependency-groups]
-build = ["nuitka>=2.8.9"]
+build = ["nuitka>=2.8.9", "zstandard>=0.25.0"]
 dev = ["poethepoet>=0.39.0"]
 
 [tool.poe.tasks]
