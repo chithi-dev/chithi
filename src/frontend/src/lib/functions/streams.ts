@@ -1,6 +1,6 @@
+import { WORKER_CONCURRENCY } from '#consts/concurrency';
 import DecryptWorker from '#workers/decrypt.worker?worker';
 import EncryptWorker from '#workers/encrypt.worker?worker';
-import { WORKER_CONCURRENCY } from '$lib/consts/concurrency';
 import { ZipWriter, configure } from '@zip.js/zip.js';
 import {
 	CHUNK_SIZE,

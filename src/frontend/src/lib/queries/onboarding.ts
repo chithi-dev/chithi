@@ -1,4 +1,4 @@
-import { ONBOARDING_URL } from '$lib/consts/backend';
+import { ONBOARDING_URL } from '#consts/backend';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 const queryKey = ['onboarding-status'];
