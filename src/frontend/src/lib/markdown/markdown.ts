@@ -5,7 +5,7 @@ import remarkRehype from 'remark-rehype';
 import { unified } from 'unified';
 import rehypeEmailMangle from './plugins/email-obfuscate';
 
-export async function html_to_markdown(markdown: string) {
+export async function markdown_to_html(markdown: string) {
 	const result = await unified()
 		.use(remarkParse)
 		.use(remarkRehype) // Markdown → HTML AST

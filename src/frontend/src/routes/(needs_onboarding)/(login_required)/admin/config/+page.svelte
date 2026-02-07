@@ -14,7 +14,7 @@
 	import { formatSeconds, secondsToNumber, T_UNITS, type TimeUnit } from '#functions/times';
 	import { sanitizeExt } from '#functions/sanitize';
 	import { Separator } from '$lib/components/ui/separator';
-	import { html_to_markdown } from '$lib/markdown/markdown';
+	import { markdown_to_html } from '$lib/markdown/markdown';
 
 	// Query hook
 	const { config: configQuery, update_config } = useConfigQuery();
@@ -649,7 +649,7 @@
 						in:fade
 						class="prose max-w-none p-8 text-sm leading-relaxed prose-zinc dark:prose-invert"
 					>
-						{#await html_to_markdown(previewMarkdown) then html}
+						{#await markdown_to_html(previewMarkdown) then html}
 							{@html html}
 						{/await}
 					</div>
