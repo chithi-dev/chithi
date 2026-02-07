@@ -1,9 +1,11 @@
 import os
+from typing import Annotated, AsyncIterator
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
 
 from app.schemas.speedtest import UploadPayload
+from app.settings import settings
 
 router = APIRouter()
 
@@ -14,26 +16,36 @@ RANDOM_BYTES = os.urandom(CHUNK_SIZE)
 
 @router.get("/speedtest/download", tags=["Speedtest"])
 async def speedtest_download(
-    size: int = Query(
-        default=10 * 1024 * 1024, alias="bytes", description="Size in bytes to download"
-    ),
-):
+    size: Annotated[
+        int,
+        Query(
+            alias="bytes",
+            description="Size in bytes to download",
+            ge=1,
+            le=settings.MAX_DOWNLOAD_SIZE,
+        ),
+    ] = settings.MAX_DOWNLOAD_SIZE,
+) -> StreamingResponse:
     """
     Download speedtest endpoint.
-    Streams a requested amount of random bytes.
+
+    Streams a requested amount of bytes to measure client download speed.
     """
 
-    async def iter_content():
-        bytes_remaining = size
+    async def iter_content() -> AsyncIterator[bytes]:
+        bytes_remaining: int = size
+
         while bytes_remaining > 0:
-            yield_bytes = min(CHUNK_SIZE, bytes_remaining)
-            if yield_bytes == CHUNK_SIZE:
+            yield_size: int = min(CHUNK_SIZE, bytes_remaining)
+
+            if yield_size == CHUNK_SIZE:
                 yield RANDOM_BYTES
             else:
-                yield RANDOM_BYTES[:yield_bytes]
-            bytes_remaining -= yield_bytes
+                yield RANDOM_BYTES[:yield_size]
 
-    headers = {
+            bytes_remaining -= yield_size
+
+    headers: dict[str, str] = {
         "Content-Length": str(size),
         "Cache-Control": "no-cache, no-store, must-revalidate",
         "Pragma": "no-cache",
@@ -41,7 +53,9 @@ async def speedtest_download(
     }
 
     return StreamingResponse(
-        iter_content(), media_type="application/octet-stream", headers=headers
+        iter_content(),
+        media_type="application/octet-stream",
+        headers=headers,
     )
 
 

@@ -1,8 +1,8 @@
 self.onmessage = async (e: MessageEvent) => {
-	const { type, baseUrl } = e.data;
+	const { type, baseUrl, duration = 10 } = e.data;
 	if (type === 'start') {
 		try {
-			await runSpeedTest(baseUrl);
+			await runSpeedTest(baseUrl, duration);
 		} catch (err: unknown) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			self.postMessage({ type: 'error', error: errorMessage });
@@ -10,10 +10,10 @@ self.onmessage = async (e: MessageEvent) => {
 	}
 };
 
-async function runSpeedTest(baseUrl: string) {
+async function runSpeedTest(baseUrl: string, duration: number) {
 	// 1. DOWNLOAD
 	self.postMessage({ type: 'phase', phase: 'download' });
-	const downloadSpeed = await testDownload(baseUrl);
+	const downloadSpeed = await testDownload(baseUrl, duration);
 	self.postMessage({ type: 'result', key: 'download', value: downloadSpeed });
 
 	// Short pause
@@ -21,51 +21,74 @@ async function runSpeedTest(baseUrl: string) {
 
 	// 2. UPLOAD
 	self.postMessage({ type: 'phase', phase: 'upload' });
-	const uploadSpeed = await testUpload(baseUrl);
+	const uploadSpeed = await testUpload(baseUrl, duration);
 	self.postMessage({ type: 'result', key: 'upload', value: uploadSpeed });
 
 	self.postMessage({ type: 'finish' });
 }
 
-async function testDownload(baseUrl: string): Promise<number> {
-	const size = 50 * 1024 * 1024; // 50MB
-	const response = await fetch(`${baseUrl}/speedtest/download?bytes=${size}`);
+async function testDownload(baseUrl: string, duration: number): Promise<number> {
+	// 50MB chunk size request
+	const size = 50 * 1024 * 1024;
+	const endpoint = `${baseUrl}/speedtest/download?bytes=${size}`;
 
-	if (!response.body) {
-		throw new Error('No response body');
-	}
-
-	const reader = response.body.getReader();
-	let receivedLength = 0;
+	let totalLoaded = 0;
 	const startTime = performance.now();
-	let lastUpdate = 0;
+	let lastUpdate = startTime;
 
-	while (true) {
-		const { done, value } = await reader.read();
-		if (done) break;
-		receivedLength += value.length;
+	// Loop until duration passed
+	while ((performance.now() - startTime) / 1000 < duration) {
+		const controller = new AbortController();
+		const signal = controller.signal;
 
-		const now = performance.now();
-		// Update every 100ms max to avoid spamming main thread
-		if (now - lastUpdate > 100) {
-			const duration = (now - startTime) / 1000;
-			// Avoid division by zero
-			if (duration > 0) {
-				const bps = (receivedLength * 8) / duration;
-				const mbps = bps / 1_000_000;
-				self.postMessage({
-					type: 'progress',
-					phase: 'download',
-					speed: mbps,
-					progress: receivedLength / size
-				});
+		try {
+			const response = await fetch(endpoint, { signal });
+			if (!response.body) throw new Error('No response body');
+
+			const reader = response.body.getReader();
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+
+				totalLoaded += value.length;
+				const now = performance.now();
+				const elapsedTotal = (now - startTime) / 1000;
+
+				// Check time limit
+				if (elapsedTotal >= duration) {
+					await reader.cancel();
+					controller.abort();
+					break;
+				}
+
+				// Update progress every 100ms
+				if (now - lastUpdate > 100) {
+					if (elapsedTotal > 0) {
+						const avgBps = (totalLoaded * 8) / elapsedTotal;
+						const avgMbps = avgBps / 1_000_000;
+
+						self.postMessage({
+							type: 'progress',
+							phase: 'download',
+							speed: avgMbps,
+							progress: Math.min(elapsedTotal / duration, 1)
+						});
+					}
+					lastUpdate = now;
+				}
 			}
-			lastUpdate = now;
+		} catch (e) {
+			// Ignore abort errors
+			if (e instanceof Error && e.name !== 'AbortError') {
+				// console.error(e);
+			}
 		}
 	}
 
-	const totalDuration = (performance.now() - startTime) / 1000;
-	const finalBps = (receivedLength * 8) / totalDuration;
+	const finalDuration = (performance.now() - startTime) / 1000;
+	// Calculate final speed
+	const finalBps = (totalLoaded * 8) / finalDuration;
 	const finalMbps = finalBps / 1_000_000;
 
 	// Final update
@@ -79,63 +102,82 @@ async function testDownload(baseUrl: string): Promise<number> {
 	return finalMbps;
 }
 
-async function testUpload(baseUrl: string): Promise<number> {
-	const size = 20 * 1024 * 1024; // 20MB
-	// Create a buffer of random-ish data (or just zeros, backend doesn't check)
+async function testUpload(baseUrl: string, duration: number): Promise<number> {
+	const size = 20 * 1024 * 1024; // 20MB chunks
 	const data = new Uint8Array(size);
-	// Fill with some data to avoid potential compression/optimization issues in some network layers?
-	// os.urandom in backend implies we should probably be robust, but simple 0 is fine for speed.
-	// Let's fill first few bytes.
+	// Fill slightly to avoid compression optimization
 	for (let i = 0; i < 1024; i++) data[i] = i % 255;
 
-	return new Promise((resolve, reject) => {
-		const xhr = new XMLHttpRequest();
-		xhr.open('POST', `${baseUrl}/speedtest/upload`);
+	let totalLoaded = 0;
+	const startTime = performance.now();
+	let lastUpdate = startTime;
 
-		const startTime = performance.now();
-		let lastUpdate = 0;
+	while ((performance.now() - startTime) / 1000 < duration) {
+		await new Promise<void>((resolve, reject) => {
+			const xhr = new XMLHttpRequest();
+			xhr.open('POST', `${baseUrl}/speedtest/upload`);
 
-		xhr.upload.onprogress = (e) => {
-			if (e.lengthComputable) {
-				const now = performance.now();
-				if (now - lastUpdate > 100) {
-					const duration = (now - startTime) / 1000;
-					if (duration > 0) {
-						const bps = (e.loaded * 8) / duration;
-						const mbps = bps / 1_000_000;
-						self.postMessage({
-							type: 'progress',
-							phase: 'upload',
-							speed: mbps,
-							progress: e.loaded / e.total
-						});
+			let currentRequestLoaded = 0;
+
+			xhr.upload.onprogress = (e) => {
+				if (e.lengthComputable) {
+					const now = performance.now();
+					currentRequestLoaded = e.loaded;
+
+					const elapsedTotal = (now - startTime) / 1000;
+
+					if (elapsedTotal >= duration) {
+						xhr.abort();
+						return;
 					}
-					lastUpdate = now;
+
+					if (now - lastUpdate > 100) {
+						if (elapsedTotal > 0) {
+							const currentTotal = totalLoaded + e.loaded;
+							const avgBps = (currentTotal * 8) / elapsedTotal;
+							const avgMbps = avgBps / 1_000_000;
+
+							self.postMessage({
+								type: 'progress',
+								phase: 'upload',
+								speed: avgMbps,
+								progress: Math.min(elapsedTotal / duration, 1)
+							});
+						}
+						lastUpdate = now;
+					}
 				}
-			}
-		};
+			};
 
-		xhr.onload = () => {
-			const now = performance.now();
-			const duration = (now - startTime) / 1000;
-			const bps = (size * 8) / duration;
-			const mbps = bps / 1_000_000;
+			xhr.onload = () => {
+				totalLoaded += size; // Add full size
+				resolve();
+			};
 
-			// Final update
-			self.postMessage({
-				type: 'progress',
-				phase: 'upload',
-				speed: mbps,
-				progress: 1
-			});
+			xhr.onerror = () => {
+				reject(new Error('Upload failed'));
+			};
 
-			resolve(mbps);
-		};
+			xhr.onabort = () => {
+				totalLoaded += currentRequestLoaded;
+				resolve();
+			};
 
-		xhr.onerror = () => {
-			reject(new Error('Upload failed'));
-		};
+			xhr.send(data);
+		});
+	}
 
-		xhr.send(data);
+	const finalDuration = (performance.now() - startTime) / 1000;
+	const finalBps = (totalLoaded * 8) / finalDuration;
+	const finalMbps = finalBps / 1_000_000;
+
+	// Final update
+	self.postMessage({
+		type: 'progress',
+		phase: 'upload',
+		speed: finalMbps,
+		progress: 1
 	});
+
+	return finalMbps;
 }

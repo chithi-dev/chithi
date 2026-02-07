@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,7 +9,6 @@ from app.settings import settings
 #     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 #     datefmt="%Y-%m-%d %H:%M:%S",
 # )
-logging.getLogger("sqlalchemy").setLevel(settings.SQLALCHEMY_LOG_TYPE)
 
 
 app = FastAPI(
