@@ -30,7 +30,13 @@
 	const isPasswordEmpty = $derived(password.length === 0);
 
 	// Next url
-	const nextUrl = $derived(page.url.searchParams.get('next') ?? '/');
+	const nextUrl = $derived.by(()=>{
+		const url =page.url.searchParams.get('next') ?? '/'; 
+		if (url.startsWith('/admin')){
+			return "/"
+		}
+		return url
+	});
 
 	// Auto-hide password text if the input is cleared
 	$effect(() => {
