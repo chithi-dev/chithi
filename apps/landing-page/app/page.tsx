@@ -19,6 +19,12 @@ import {
     Code,
     BookOpen,
     Gauge,
+    Activity,
+    ArrowDown,
+    ArrowUp,
+    Clock,
+    ChevronUp,
+    ChevronDown,
 } from 'lucide-react';
 
 const ecosystem = [
@@ -191,7 +197,7 @@ export default function Home() {
 
                         {/* --- TERMINAL PREVIEW --- */}
                         <div className="relative" data-aos="fade-left">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-purple-500/20 to-orange-500/20 blur-xl opacity-50"></div>
+                            <div className="absolute -inset-1 bg-linear-to-r from-purple-500/20 to-orange-500/20 blur-xl opacity-50"></div>
                             <div className="relative bg-[#0a0a0a] border border-zinc-800 rounded-md shadow-2xl overflow-hidden font-mono text-xs md:text-sm">
                                 <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
                                     <div className="flex gap-1.5">
@@ -298,7 +304,7 @@ export default function Home() {
 
                 {/* --- SPEEDTEST SECTION --- */}
                 <section className="py-24 px-6 border-b border-zinc-900 bg-[#050505]">
-                    <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-16">
+                    <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16">
                         <div className="flex-1">
                             <div className="w-12 h-12 bg-zinc-900/50 border border-zinc-800 rounded-lg flex items-center justify-center mb-6 text-zinc-400">
                                 <Gauge size={20} />
@@ -312,54 +318,145 @@ export default function Home() {
                                 to ensure optimal file transfer rates before you
                                 start.
                             </p>
-                            <div className="grid grid-cols-2 gap-4 max-w-sm">
-                                <div className="p-4 border border-zinc-800 rounded-sm bg-zinc-900/20">
-                                    <div className="text-zinc-500 text-[10px] uppercase tracking-wider mb-2">
-                                        Download
-                                    </div>
-                                    <div className="text-2xl font-bold text-white font-mono flex items-baseline gap-1">
-                                        2.5{' '}
-                                        <span className="text-sm text-zinc-600">
-                                            GB/s
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="p-4 border border-zinc-800 rounded-sm bg-zinc-900/20">
-                                    <div className="text-zinc-500 text-[10px] uppercase tracking-wider mb-2">
-                                        Upload
-                                    </div>
-                                    <div className="text-2xl font-bold text-white font-mono flex items-baseline gap-1">
-                                        1.2{' '}
-                                        <span className="text-sm text-zinc-600">
-                                            GB/s
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                         <div className="flex-1 w-full">
-                            <div className="border border-zinc-800 bg-[#080808] rounded-md p-6 md:p-10 relative overflow-hidden group">
-                                <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
-                                <div className="relative z-10">
-                                    <div className="flex justify-between items-center mb-8">
-                                        <div className="text-xs text-zinc-500 font-mono">
-                                            Network Activity
+                            <div className="border border-zinc-800 bg-[#090909] rounded-xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
+                                {/* Header */}
+                                <div className="flex justify-between items-start mb-8 relative z-10">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <Activity
+                                                className="text-zinc-400"
+                                                size={20}
+                                            />
+                                            <h3 className="text-lg font-bold text-white">
+                                                Speedtest
+                                            </h3>
                                         </div>
-                                        <div className="flex gap-1">
-                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                                        <p className="text-zinc-500 text-[10px] md:text-xs">
+                                            Check your internet connection speed
+                                            to the server.
+                                        </p>
+                                    </div>
+                                    <div className="text-[10px] font-bold text-zinc-600 tracking-widest animate-pulse">
+                                        UPLOADING...
+                                    </div>
+                                </div>
+
+                                {/* Gauges Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 relative z-10">
+                                    {/* Download Card */}
+                                    <div className="bg-[#111] rounded-lg p-6 border border-zinc-900/50 relative overflow-hidden flex flex-col items-center justify-center aspect-video group">
+                                        <div className="absolute top-4 text-[10px] font-bold text-cyan-400 flex items-center gap-1">
+                                            <ArrowDown size={12} /> Download
+                                            Speed
+                                        </div>
+                                        <div className="relative w-32 h-16 mt-4 mb-2">
+                                            <svg
+                                                viewBox="0 0 100 50"
+                                                className="w-full h-full transform overflow-visible"
+                                            >
+                                                <path
+                                                    d="M 10 50 A 40 40 0 0 1 90 50"
+                                                    fill="none"
+                                                    stroke="#27272a"
+                                                    strokeWidth="8"
+                                                    strokeLinecap="round"
+                                                />
+                                                <path
+                                                    d="M 10 50 A 40 40 0 0 1 90 50"
+                                                    fill="none"
+                                                    stroke="#22d3ee"
+                                                    strokeWidth="8"
+                                                    strokeLinecap="round"
+                                                    strokeDasharray="125.6"
+                                                    strokeDashoffset="30"
+                                                    className="drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]"
+                                                />
+                                            </svg>
+                                        </div>
+                                        <div className="text-center mt-[-10px]">
+                                            <div className="text-2xl font-bold text-white tracking-tight">
+                                                622.5
+                                            </div>
+                                            <div className="text-[10px] text-zinc-500 font-medium">
+                                                Mbps
+                                            </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-end justify-between gap-2 h-48">
-                                        {[
-                                            40, 65, 45, 80, 55, 90, 70, 85, 60,
-                                            95, 75, 50, 80, 65, 90,
-                                        ].map((h, i) => (
-                                            <div
-                                                key={i}
-                                                className="w-full bg-zinc-800 rounded-t-sm transition-all duration-500 group-hover:bg-zinc-700"
-                                                style={{ height: `${h}%` }}
-                                            ></div>
-                                        ))}
+
+                                    {/* Upload Card */}
+                                    <div className="bg-[#111] rounded-lg p-6 border border-zinc-900/50 relative overflow-hidden flex flex-col items-center justify-center aspect-video group">
+                                        <div className="absolute top-4 text-[10px] font-bold text-purple-500 flex items-center gap-1">
+                                            <ArrowUp size={12} /> Upload Speed
+                                        </div>
+                                        <div className="relative w-32 h-16 mt-4 mb-2">
+                                            <svg
+                                                viewBox="0 0 100 50"
+                                                className="w-full h-full transform overflow-visible"
+                                            >
+                                                <path
+                                                    d="M 10 50 A 40 40 0 0 1 90 50"
+                                                    fill="none"
+                                                    stroke="#27272a"
+                                                    strokeWidth="8"
+                                                    strokeLinecap="round"
+                                                />
+                                                <path
+                                                    d="M 10 50 A 40 40 0 0 1 90 50"
+                                                    fill="none"
+                                                    stroke="#a855f7"
+                                                    strokeWidth="8"
+                                                    strokeLinecap="round"
+                                                    strokeDasharray="125.6"
+                                                    strokeDashoffset="80"
+                                                    className="drop-shadow-[0_0_10px_rgba(168,85,247,0.5)]"
+                                                />
+                                            </svg>
+                                        </div>
+                                        <div className="text-center mt-[-10px]">
+                                            <div className="text-2xl font-bold text-white tracking-tight">
+                                                396.6
+                                            </div>
+                                            <div className="text-[10px] text-zinc-500 font-medium">
+                                                Mbps
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Progress */}
+                                <div className="mb-8 space-y-2 relative z-10">
+                                    <div className="flex justify-between text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                                        <span>Progress</span>
+                                        <span>21%</span>
+                                    </div>
+                                    <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div className="h-full bg-zinc-400 w-[21%] rounded-full"></div>
+                                    </div>
+                                </div>
+
+                                {/* Controls */}
+                                <div className="space-y-6 relative z-10">
+                                    <div className="flex flex-col gap-3">
+                                        <label className="text-[10px] font-bold text-zinc-500 flex items-center gap-2 uppercase tracking-wide">
+                                            <Clock size={12} /> Test Duration
+                                            (seconds)
+                                        </label>
+                                        <div className="h-10 bg-[#111] border border-zinc-800 rounded px-4 flex items-center justify-between text-zinc-400 text-xs font-mono">
+                                            10
+                                            <div className="flex flex-col gap-0.5 opacity-50">
+                                                <ChevronUp size={10} />
+                                                <ChevronDown size={10} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex justify-center">
+                                        <button className="h-10 px-6 bg-[#151515] border border-zinc-800 text-zinc-400 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-zinc-800 transition-colors">
+                                            <div className="w-3 h-3 border-2 border-zinc-600 border-t-zinc-300 rounded-full animate-spin"></div>{' '}
+                                            Testing...
+                                        </button>
                                     </div>
                                 </div>
                             </div>
