@@ -133,7 +133,6 @@
 					<div class="relative h-56 w-56">
 						<!-- Always render the gauge, just update the value -->
 						{@render RadialGauge(
-							'download',
 							downloadSpeed.current,
 							maxSpeed,
 							chartConfig.download.color
@@ -150,7 +149,7 @@
 						Upload Speed
 					</div>
 					<div class="relative h-56 w-56">
-						{@render RadialGauge('upload', uploadSpeed.current, maxSpeed, chartConfig.upload.color)}
+						{@render RadialGauge( uploadSpeed.current, maxSpeed, chartConfig.upload.color)}
 					</div>
 				</div>
 			</div>
@@ -226,7 +225,7 @@
 	</Card>
 </div>
 
-{#snippet RadialGauge(id: string, value: number, max: number, activeColor: string)}
+{#snippet RadialGauge( value: number, max: number, activeColor: string)}
 	<Chart.Container config={chartConfig} class="mx-auto aspect-square w-full">
 		<PieChart
 			data={[

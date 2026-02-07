@@ -32,7 +32,7 @@
 	import { cn } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
 	import { dev } from '$app/environment';
-	import { html_to_markdown } from '$lib/markdown/markdown';
+	import { markdown_to_html } from '$lib/markdown/markdown';
 	import { cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
 
@@ -871,7 +871,7 @@
 						<div
 							class="prose w-full max-w-none prose-zinc md:text-sm lg:text-lg lg:leading-relaxed dark:prose-invert"
 						>
-						{#await html_to_markdown(detailsMarkdown) then html}
+						{#await markdown_to_html(detailsMarkdown) then html}
 							{@html html}
 						{/await}
 						</div>
