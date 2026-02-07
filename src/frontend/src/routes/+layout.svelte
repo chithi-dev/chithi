@@ -6,7 +6,6 @@
   	import { afterNavigate, beforeNavigate } from "$app/navigation";
   	import { page } from '$app/state';
 	import NProgress from 'nprogress';
-	import favicon from '$lib/assets/favicon.svg';
 	import { ModeWatcher } from 'mode-watcher';
 	import { QueryClientProvider } from '@tanstack/svelte-query';
 	import { Toaster } from '$lib/components/ui/sonner/index.js';
@@ -30,6 +29,7 @@
 
 
 <MetaTags {...metaTags} />
+
 <Toaster />
 
 <ModeWatcher />
