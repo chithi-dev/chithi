@@ -33,6 +33,8 @@
 	import { toast } from 'svelte-sonner';
 	import { dev } from '$app/environment';
 	import { html_to_markdown } from '$lib/markdown/markdown';
+	import { cubicOut } from 'svelte/easing';
+	import { Tween } from 'svelte/motion';
 
 	const { config: configData } = useConfigQuery();
 
@@ -52,7 +54,7 @@
 	let isPasswordProtected = $state(false);
 	let password = $state('');
 	let showPassword = $state(false);
-	let uploadProgress = $state(0);
+	let uploadProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 	let uploadingInProgress = $state(false);
 	let isUploadComplete = $state(false);
 	let finalLink = $state('');
@@ -61,7 +63,7 @@
 	let folderName = $state(uuidv7());
 
 	// Encryption progress states
-	let encryptionProgress = $state(0);
+	let encryptionProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 	let isEncrypting = $state(false);
 	let detailsMarkdown = $derived(configData.data?.site_description ?? '');
 
@@ -298,7 +300,7 @@
 		// isUploading is already true
 		try {
 			uploadingInProgress = true;
-			uploadProgress = 0;
+			uploadProgress = new Tween(0, { duration: 500, easing: cubicOut });
 
 			// Create Zip Stream
 			const stream = await createZipStream(files, isPasswordProtected ? password : undefined);
@@ -307,16 +309,16 @@
 			const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
 			// start encryption progress reporting
 			isEncrypting = true;
-			encryptionProgress = 0;
+			encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
 			const { stream: encryptedStream, keySecret } = await createEncryptedStream(
 				stream,
 				isPasswordProtected ? password : undefined,
 				currentTotalSize,
 				(processed, total) => {
 					if (total && total > 0) {
-						encryptionProgress = Math.min(100, Math.round((processed / total) * 100));
+						encryptionProgress.target = Math.min(100, Math.round((processed / total) * 100));
 					} else {
-						encryptionProgress = 0;
+						encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
 					}
 				}
 			);
@@ -328,7 +330,7 @@
 			const encryptedBlob = await new Response(encryptedStream).blob();
 			// ensure encryption progress completes
 			isEncrypting = false;
-			encryptionProgress = 100;
+			encryptionProgress.target = 100;
 
 			const formData = new FormData();
 			formData.append('filename', readableFilename);
@@ -345,10 +347,10 @@
 
 				xhr.upload.onprogress = (e) => {
 					if (e.lengthComputable) {
-						uploadProgress = Math.round((e.loaded / e.total) * 100);
+						uploadProgress.target = Math.round((e.loaded / e.total) * 100);
 					} else {
 						// fallback to visible progress when total is unknown
-						uploadProgress = Math.min(99, uploadProgress + 1);
+						uploadProgress.target = Math.min(99, uploadProgress.target + 1);
 					}
 				};
 
@@ -370,7 +372,7 @@
 				xhr.send(formData);
 			});
 
-			uploadProgress = 100;
+			uploadProgress.target = 100;
 
 			const serverPath =
 				data && (data.id || data.path || data.key) ? data.id || data.path || data.key : null;
@@ -407,10 +409,10 @@
 			toast.error('Upload failed: ' + (err?.message ?? err));
 			// keep files so user can retry; reset upload progress and flags
 			uploadingInProgress = false;
-			uploadProgress = 0;
+			uploadProgress = new Tween(0, { duration: 500, easing: cubicOut });
 			// reset encryption state if error during encrypt
 			isEncrypting = false;
-			encryptionProgress = 0;
+			encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
 		} finally {
 			uploadingInProgress = false;
 			isEncrypting = false;
@@ -582,15 +584,15 @@
 
 						<div class="w-full max-w-md space-y-3">
 							{#if isEncrypting}
-								<Progress value={encryptionProgress} class="h-2" />
+								<Progress value={encryptionProgress.current} class="h-2" />
 								<div class="flex justify-between text-xs font-medium text-muted-foreground">
-									<span>Encrypting {encryptionProgress}%</span>
+									<span>Encrypting {Math.round(encryptionProgress.current)}%</span>
 									<span>{totalSize}</span>
 								</div>
 							{:else}
-								<Progress value={uploadProgress} class="h-2" />
+								<Progress value={uploadProgress.current} class="h-2" />
 								<div class="flex justify-between text-xs font-medium text-muted-foreground">
-									<span>{uploadProgress}%</span>
+									<span>{Math.round(uploadProgress.current)}%</span>
 									<span>{totalSize}</span>
 								</div>
 							{/if}

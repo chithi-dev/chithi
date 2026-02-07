@@ -7,8 +7,9 @@
 		UserCog,
 		SlidersVertical,
 		Link,
-		Globe2,
-		BookOpenText
+		Earth,
+		BookOpenText,
+		Gauge
 	} from 'lucide-svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { toggleMode } from 'mode-watcher';
@@ -73,12 +74,17 @@
 		{
 			href: 'https://public.chithi.dev',
 			name: 'Public Instances',
-			icon: Globe2
+			icon: Earth
 		},
 		{
 			href: 'https://github.com/chithi-dev/chithi',
 			name: 'Source',
 			icon: GithubIcon
+		},
+		{
+			href:'/speedtest',
+			name:"Speedtest",
+			icon:Gauge
 		}
 	];
 </script>

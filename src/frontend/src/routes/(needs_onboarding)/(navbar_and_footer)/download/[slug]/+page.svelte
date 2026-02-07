@@ -11,6 +11,8 @@
 	import { toast } from 'svelte-sonner';
 	import { Progress } from '$lib/components/ui/progress';
 	import CompleteSvg from '$lib/svgs/complete.svelte';
+	import { cubicOut } from 'svelte/easing';
+	import { Tween } from 'svelte/motion';
 
 	// Key is provided in the URL fragment (after '#') and must be present there
 	let key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
@@ -23,7 +25,7 @@
 	let filename = $state('file');
 	let fileSize = $state(0);
 	let password = $state('');
-	let downloadProgress = $state(0);
+	let downloadProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 
 	async function startCheck() {
 		if (!key || !slug) {
@@ -68,7 +70,7 @@
 		if (!key || !slug) return;
 		const previousStatus = status;
 		status = 'downloading';
-		downloadProgress = 0;
+		downloadProgress = new Tween(0, { duration: 500, easing: cubicOut });
 
 		try {
 			await downloadAndDecryptFile(
@@ -77,7 +79,7 @@
 				password,
 				filename,
 				fileSize,
-				(p) => (downloadProgress = p)
+				(p) => (downloadProgress.target = p)
 			);
 			status = 'completed';
 			toast.success('Download complete');
@@ -192,9 +194,9 @@
 						<Card.Footer class="flex w-full flex-col gap-6 px-0">
 							{#if status === 'downloading'}
 								<div class="w-full space-y-2">
-									<Progress value={downloadProgress} class="h-2" />
+									<Progress value={downloadProgress.current} class="h-2" />
 									<div class="flex justify-between text-xs text-muted-foreground">
-										<span>{downloadProgress}%</span>
+										<span>{Math.round(downloadProgress.current)}%</span>
 										<span class="flex items-center">
 											<Download class="mr-2 h-3 w-3 animate-bounce" />
 											Decrypting & Downloading...

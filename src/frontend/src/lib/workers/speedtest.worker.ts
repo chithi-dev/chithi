@@ -11,7 +11,7 @@ self.onmessage = async (e: MessageEvent) => {
 };
 
 async function runSpeedTest(baseUrl: string, duration: number) {
-	// 1. DOWNLOAD
+	//  DOWNLOAD
 	self.postMessage({ type: 'phase', phase: 'download' });
 	const downloadSpeed = await testDownload(baseUrl, duration);
 	self.postMessage({ type: 'result', key: 'download', value: downloadSpeed });
@@ -19,7 +19,7 @@ async function runSpeedTest(baseUrl: string, duration: number) {
 	// Short pause
 	await new Promise((resolve) => setTimeout(resolve, 1000));
 
-	// 2. UPLOAD
+	//  UPLOAD
 	self.postMessage({ type: 'phase', phase: 'upload' });
 	const uploadSpeed = await testUpload(baseUrl, duration);
 	self.postMessage({ type: 'result', key: 'upload', value: uploadSpeed });
