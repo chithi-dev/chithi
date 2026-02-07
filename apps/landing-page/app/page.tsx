@@ -18,6 +18,7 @@ import {
     Settings,
     Code,
     BookOpen,
+    Gauge,
 } from 'lucide-react';
 
 const ecosystem = [
@@ -40,6 +41,33 @@ const ecosystem = [
         path: 'src/frontend',
     },
 ];
+const data = [
+    {
+        title: 'Quick Start',
+        desc: 'Deploy via Docker Compose in seconds.',
+        icon: Zap,
+        href: 'https://docs.chithi.dev/deployments/docker/basic/traefik/',
+    },
+    // {
+    //     title: 'Configuration',
+    //     desc: 'Environment variables & database setup.',
+    //     icon: Settings,
+    //     href: '#',
+    // },
+    {
+        title: 'API Reference',
+        desc: 'OpenAPI/Swagger documentation.',
+        icon: Code,
+        href: 'https://prod.chithi.dev/docs',
+    },
+    {
+        title: 'Architecture',
+        desc: 'Deep dive into Chithi.',
+        icon: Cpu,
+        href: 'https://docs.chithi.dev/architecture/',
+    },
+];
+const PROD_URL = 'https://chithi.dev';
 
 export default function Home() {
     const [release, setRelease] = useState<any>(null);
@@ -145,7 +173,7 @@ export default function Home() {
 
                             <div className="flex gap-4">
                                 <a
-                                    href="https://chithi.dev"
+                                    href={PROD_URL}
                                     className="h-12 px-6 bg-white text-black font-bold flex items-center gap-2 hover:bg-zinc-200 transition-colors rounded-sm text-sm"
                                 >
                                     <Zap size={16} />
@@ -268,6 +296,77 @@ export default function Home() {
                     </div>
                 </section>
 
+                {/* --- SPEEDTEST SECTION --- */}
+                <section className="py-24 px-6 border-b border-zinc-900 bg-[#050505]">
+                    <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center gap-16">
+                        <div className="flex-1">
+                            <div className="w-12 h-12 bg-zinc-900/50 border border-zinc-800 rounded-lg flex items-center justify-center mb-6 text-zinc-400">
+                                <Gauge size={20} />
+                            </div>
+                            <h2 className="text-3xl font-bold text-white mb-6">
+                                BUILT-IN SPEEDTEST
+                            </h2>
+                            <p className="text-zinc-500 text-lg leading-relaxed mb-8">
+                                Diagnose your network capabilities directly from
+                                the interface. Measure throughput to the server
+                                to ensure optimal file transfer rates before you
+                                start.
+                            </p>
+                            <div className="grid grid-cols-2 gap-4 max-w-sm">
+                                <div className="p-4 border border-zinc-800 rounded-sm bg-zinc-900/20">
+                                    <div className="text-zinc-500 text-[10px] uppercase tracking-wider mb-2">
+                                        Download
+                                    </div>
+                                    <div className="text-2xl font-bold text-white font-mono flex items-baseline gap-1">
+                                        2.5{' '}
+                                        <span className="text-sm text-zinc-600">
+                                            GB/s
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="p-4 border border-zinc-800 rounded-sm bg-zinc-900/20">
+                                    <div className="text-zinc-500 text-[10px] uppercase tracking-wider mb-2">
+                                        Upload
+                                    </div>
+                                    <div className="text-2xl font-bold text-white font-mono flex items-baseline gap-1">
+                                        1.2{' '}
+                                        <span className="text-sm text-zinc-600">
+                                            GB/s
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex-1 w-full">
+                            <div className="border border-zinc-800 bg-[#080808] rounded-md p-6 md:p-10 relative overflow-hidden group">
+                                <div className="absolute inset-0 bg-gradient-to-tr from-purple-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                                <div className="relative z-10">
+                                    <div className="flex justify-between items-center mb-8">
+                                        <div className="text-xs text-zinc-500 font-mono">
+                                            Network Activity
+                                        </div>
+                                        <div className="flex gap-1">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-end justify-between gap-2 h-48">
+                                        {[
+                                            40, 65, 45, 80, 55, 90, 70, 85, 60,
+                                            95, 75, 50, 80, 65, 90,
+                                        ].map((h, i) => (
+                                            <div
+                                                key={i}
+                                                className="w-full bg-zinc-800 rounded-t-sm transition-all duration-500 group-hover:bg-zinc-700"
+                                                style={{ height: `${h}%` }}
+                                            ></div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
                 {/* --- ARCHITECTURE --- */}
                 <section className="py-24 px-6 border-b border-zinc-900 bg-[#080808]">
                     <div className="max-w-7xl mx-auto">
@@ -325,32 +424,7 @@ export default function Home() {
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                            {[
-                                {
-                                    title: 'Quick Start',
-                                    desc: 'Deploy via Docker Compose in seconds.',
-                                    icon: Zap,
-                                    href: '#',
-                                },
-                                {
-                                    title: 'Configuration',
-                                    desc: 'Environment variables & database setup.',
-                                    icon: Settings,
-                                    href: '#',
-                                },
-                                {
-                                    title: 'API Reference',
-                                    desc: 'OpenAPI/Swagger documentation.',
-                                    icon: Code,
-                                    href: '#',
-                                },
-                                {
-                                    title: 'Architecture',
-                                    desc: 'Deep dive into RustFS & internals.',
-                                    icon: Cpu,
-                                    href: '#',
-                                },
-                            ].map((doc, i) => (
+                            {data.map((doc, i) => (
                                 <a
                                     key={i}
                                     href={doc.href}
@@ -394,7 +468,7 @@ export default function Home() {
                         </p>
 
                         <a
-                            href="https://chithi.dev"
+                            href={PROD_URL}
                             className="inline-block relative group"
                         >
                             <div className="relative bg-black border border-zinc-800 rounded p-1">
