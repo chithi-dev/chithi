@@ -317,6 +317,8 @@ async function writeZipFiles(
 			const filename = (file as any).relativePath || file.name;
 			await zipWriter.add(filename, file.stream(), {
 				password: password?.length ? password : undefined,
+				// prefer strongest WinZip AES (1..3 => 128,192,256). Use 3 for AES-256 compatibility.
+				encryptionStrength: password?.length ? 3 : undefined,
 				level: 9,
 				signal
 			});
