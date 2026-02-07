@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+@theme {
+  --font-mono: var(--font-jetbrains-mono);
+  --font-sans: var(--font-inter);
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -16,7 +21,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter);
   overflow-x: hidden;
 }
 

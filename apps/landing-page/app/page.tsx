@@ -15,7 +15,9 @@ import {
     Check,
     Zap,
     Cpu,
-    ExternalLink,
+    Settings,
+    Code,
+    BookOpen,
 } from 'lucide-react';
 
 const ecosystem = [
@@ -88,10 +90,10 @@ export default function Home() {
 
                     <div className="flex items-center gap-6 text-xs font-medium tracking-wide">
                         <a
-                            href="https://chithi.dev"
+                            href="https://public.chithi.dev"
                             className="hover:text-white transition-colors"
                         >
-                            PUBLIC_INSTANCE
+                            PUBLIC_INSTANCES
                         </a>
                         <a
                             href="#docs"
@@ -221,7 +223,7 @@ export default function Home() {
                                             </span>{' '}
                                             Local:{' '}
                                             <span className="text-white underline">
-                                                http://localhost:3000
+                                                http://localhost:5173
                                             </span>
                                         </div>
                                     </div>
@@ -289,7 +291,7 @@ export default function Home() {
                                             size={24}
                                             className="text-zinc-400 group-hover:text-white transition-colors"
                                         />
-                                        <span className="text-[10px] text-zinc-600 border border-zinc-800 px-2 py-1 rounded-sm">
+                                        <span className="font-mono text-[10px] text-zinc-600 border border-zinc-800 px-2 py-1 rounded-sm">
                                             {item.path}
                                         </span>
                                     </div>
@@ -305,6 +307,81 @@ export default function Home() {
                     </div>
                 </section>
 
+                {/* --- DOCUMENTATION --- */}
+                <section
+                    id="docs"
+                    className="py-24 px-6 border-b border-zinc-900 bg-[#050505]"
+                >
+                    <div className="max-w-7xl mx-auto">
+                        <div className="mb-16">
+                            <h2 className="text-3xl font-bold text-white mb-6">
+                                DOCUMENTATION
+                            </h2>
+                            <p className="text-zinc-500 max-w-2xl">
+                                Detailed guides for administrators, developers,
+                                and integrators. Everything you need to get
+                                Chithi up and running.
+                            </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {[
+                                {
+                                    title: 'Quick Start',
+                                    desc: 'Deploy via Docker Compose in seconds.',
+                                    icon: Zap,
+                                    href: '#',
+                                },
+                                {
+                                    title: 'Configuration',
+                                    desc: 'Environment variables & database setup.',
+                                    icon: Settings,
+                                    href: '#',
+                                },
+                                {
+                                    title: 'API Reference',
+                                    desc: 'OpenAPI/Swagger documentation.',
+                                    icon: Code,
+                                    href: '#',
+                                },
+                                {
+                                    title: 'Architecture',
+                                    desc: 'Deep dive into RustFS & internals.',
+                                    icon: Cpu,
+                                    href: '#',
+                                },
+                            ].map((doc, i) => (
+                                <a
+                                    key={i}
+                                    href={doc.href}
+                                    className="group p-6 border border-zinc-800 hover:bg-zinc-900/40 transition-all rounded-sm block"
+                                >
+                                    <div className="flex justify-between items-start mb-4">
+                                        <doc.icon
+                                            className="text-zinc-600 group-hover:text-white transition-colors"
+                                            size={24}
+                                        />
+                                        <BookOpen
+                                            size={14}
+                                            className="text-zinc-700 group-hover:text-purple-400 transition-colors"
+                                        />
+                                    </div>
+                                    <h3 className="text-white font-bold mb-2 flex items-center gap-2">
+                                        {doc.title}
+                                        <ArrowRight
+                                            size={14}
+                                            className="opacity-0 -ml-2 group-hover:opacity-100 group-hover:ml-0 transition-all text-purple-400"
+                                        />
+                                    </h3>
+                                    <p className="text-zinc-500 text-xs leading-relaxed">
+                                        {doc.desc}
+                                    </p>
+                                </a>
+                            ))}
+                        </div>
+                    </div>
+                </section>
+
                 {/* --- PUBLIC INSTANCE --- */}
                 <section id="public" className="py-24 px-6">
                     <div className="max-w-5xl mx-auto text-center">
@@ -313,15 +390,13 @@ export default function Home() {
                         </h2>
                         <p className="text-zinc-500 mb-10 max-w-2xl mx-auto">
                             We maintain a public instance for demonstration
-                            purposes. It runs the `main` branch and resets data
-                            periodically.
+                            purposes. It runs the `main` branch.
                         </p>
 
                         <a
                             href="https://chithi.dev"
                             className="inline-block relative group"
                         >
-                            <div className="absolute -inset-1 bg-gradient-to-r from-purple-500 to-orange-500 rounded blur opacity-20 group-hover:opacity-40 transition-opacity"></div>
                             <div className="relative bg-black border border-zinc-800 rounded p-1">
                                 <img
                                     src="https://github.com/chithi-dev/chithi/raw/main/assets/chithi-dev.avif"
