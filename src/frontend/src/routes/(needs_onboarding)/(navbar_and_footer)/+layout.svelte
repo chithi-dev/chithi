@@ -32,12 +32,7 @@
 	let initials = $derived(kebab_to_initials(userData.data?.username ?? ''));
 
 	let flagForRestart = $state(false);
-	let hashedAvatar = $state<null | string>(null);
-	$effect(() => {
-		(async () => {
-			hashedAvatar = await make_libravatar_url(userData.data?.email ?? '');
-		})();
-	});
+	let hashedAvatar = $derived(await make_libravatar_url(userData.data?.email ?? ''))
 
 	function programmedNavigation(event: Event) {
 		const anchorElement = event.currentTarget as HTMLAnchorElement;
@@ -67,6 +62,11 @@
 	];
 	const footerLinks = [
 		{
+			href:'/speedtest',
+			name:"Speedtest",
+			icon:Gauge
+		},
+		{
 			href: 'https://docs.chithi.dev',
 			name: 'Documentation',
 			icon: BookOpenText
@@ -80,11 +80,6 @@
 			href: 'https://github.com/chithi-dev/chithi',
 			name: 'Source',
 			icon: GithubIcon
-		},
-		{
-			href:'/speedtest',
-			name:"Speedtest",
-			icon:Gauge
 		}
 	];
 </script>
