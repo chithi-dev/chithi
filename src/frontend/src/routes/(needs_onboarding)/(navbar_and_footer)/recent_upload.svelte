@@ -12,7 +12,7 @@
 	} from '$lib/database';
 	import { formatFileSize } from '#functions/bytes';
 	import { get } from 'svelte/store';
-	import { FILE_INFO_URL } from '$lib/consts/backend';
+	import { FILE_INFO_URL } from '#consts/backend';
 
 	let open = $state(false);
 	let copiedId = $state<string | null>(null);

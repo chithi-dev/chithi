@@ -5,7 +5,7 @@
 	import { FileText, CircleAlert, LoaderCircle, Download, KeyRound } from 'lucide-svelte';
 	import { page } from '$app/state';
 	import { fly } from 'svelte/transition';
-	import { BACKEND_API } from '$lib/consts/backend';
+	import { BACKEND_API } from '#consts/backend';
 	import { downloadAndDecryptFile, PasswordRequiredError } from '#functions/download';
 	import { formatFileSize } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';

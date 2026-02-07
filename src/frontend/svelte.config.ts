@@ -38,6 +38,8 @@ export default {
 			'#functions/*': './src/lib/functions/*',
 			'#logos/*': './src/lib/logos/*',
 			'#queries/*': './src/lib/queries/*',
+			'#markdown/*': './src/lib/markdown/*',
+			'#consts/*': './src/lib/consts/*',
 			'#css/*': './src/css/*'
 		}
 	}

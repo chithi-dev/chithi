@@ -1,4 +1,4 @@
-import { ADMIN_CONFIG_URL, CONFIG_URL } from '$lib/consts/backend';
+import { ADMIN_CONFIG_URL, CONFIG_URL } from '#consts/backend';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 const queryKey = ['config'];
