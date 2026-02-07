@@ -96,7 +96,7 @@ export default function Home() {
                             PUBLIC_INSTANCES
                         </a>
                         <a
-                            href="#docs"
+                            href="https://docs.chithi.dev"
                             className="hover:text-white transition-colors"
                         >
                             DOCS
@@ -234,37 +234,37 @@ export default function Home() {
                 </section>
 
                 {/* --- FEATURES GRID --- */}
-                <section className="grid grid-cols-1 md:grid-cols-3 border-b border-zinc-900">
-                    <div className="p-12 border-b md:border-b-0 md:border-r border-zinc-900 hover:bg-zinc-900/20 transition-colors">
-                        <Shield className="text-white mb-6" size={32} />
-                        <h3 className="text-lg font-bold text-white mb-2">
-                            ZERO KNOWLEDGE
-                        </h3>
-                        <p className="text-zinc-500 text-sm leading-relaxed">
-                            Files are encrypted client-side using AES-256-GCM
-                            before transmission. The server never sees your raw
-                            data.
-                        </p>
-                    </div>
-                    <div className="p-12 border-b md:border-b-0 md:border-r border-zinc-900 hover:bg-zinc-900/20 transition-colors">
-                        <Cpu className="text-white mb-6" size={32} />
-                        <h3 className="text-lg font-bold text-white mb-2">
-                            RUST PERFORMANCE
-                        </h3>
-                        <p className="text-zinc-500 text-sm leading-relaxed">
-                            Storage backend implemented in Rust handles
-                            high-throughput I/O with minimal memory footprint.
-                        </p>
-                    </div>
-                    <div className="p-12 hover:bg-zinc-900/20 transition-colors">
-                        <Github className="text-white mb-6" size={32} />
-                        <h3 className="text-lg font-bold text-white mb-2">
-                            OPEN SOURCE
-                        </h3>
-                        <p className="text-zinc-500 text-sm leading-relaxed">
-                            Auditable code licensed under MPL-2.0. No tracking,
-                            no analytics, complete data sovereignty.
-                        </p>
+                <section className="py-24 px-6 border-b border-zinc-900">
+                    <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">
+                        {[
+                            {
+                                title: 'ZERO KNOWLEDGE',
+                                desc: 'Files are encrypted client-side using AES-256-GCM before transmission. The server never sees your raw data.',
+                                icon: Shield,
+                            },
+                            {
+                                title: 'RUST PERFORMANCE',
+                                desc: 'Storage backend implemented in Rust handles high-throughput I/O with minimal memory footprint.',
+                                icon: Cpu,
+                            },
+                            {
+                                title: 'OPEN SOURCE',
+                                desc: 'Auditable code licensed under MPL-2.0. No tracking, no analytics, complete data sovereignty.',
+                                icon: Github,
+                            },
+                        ].map((feat, i) => (
+                            <div key={i} className="group">
+                                <div className="w-12 h-12 bg-zinc-900/50 border border-zinc-800 rounded-lg flex items-center justify-center mb-6 text-zinc-400 group-hover:bg-white group-hover:border-white group-hover:text-black transition-all duration-300">
+                                    <feat.icon size={20} />
+                                </div>
+                                <h3 className="text-lg font-bold text-white mb-3 group-hover:text-purple-400 transition-colors">
+                                    {feat.title}
+                                </h3>
+                                <p className="text-zinc-500 text-sm leading-relaxed">
+                                    {feat.desc}
+                                </p>
+                            </div>
+                        ))}
                     </div>
                 </section>
 
