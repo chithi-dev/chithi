@@ -85,7 +85,7 @@
 	const chartConfig = {
 		download: { label: 'Download', color: 'var(--color-cyan-400)' },
 		upload: { label: 'Upload', color: 'var(--color-purple-500)' },
-		remaining: { label: 'Remaining', color: 'black' }
+		remaining: { label: 'Remaining', color: 'rgb(0 0 0 / 0.1)' }
 	} satisfies Chart.ChartConfig;
 </script>
 
