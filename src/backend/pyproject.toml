@@ -28,7 +28,8 @@ dependencies = [
     # Rustfs Upload
     "aioboto3>=15.5.0",
     # Task queue
-    "celery[redis]>=5.6.1",
+    "celery>=5.6.1",
+    # Redis for caching
     "redis[hiredis]>=6.4.0",
     # Mandatory type
     "types-aiobotocore-s3>=2.25.2",
