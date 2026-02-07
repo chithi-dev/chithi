@@ -1,4 +1,4 @@
-import { ADMIN_FILES_URL } from '$lib/consts/backend';
+import { ADMIN_FILES_URL } from '#consts/backend';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 export type FileInfo = {

@@ -1,4 +1,4 @@
-import { BACKEND_API } from '$lib/consts/backend';
+import { BACKEND_API } from '#consts/backend';
 import { createDecryptedStream } from './streams';
 
 export class PasswordRequiredError extends Error {
