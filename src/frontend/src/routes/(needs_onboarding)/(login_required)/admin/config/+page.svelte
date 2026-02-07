@@ -22,8 +22,7 @@
 	// Derived state
 	let configData = $derived(configQuery.data);
 	let descDraft = $state('');
-	let previewMarkdown = $derived(descDraft? String(descDraft): configData.site_description ?? "")
-
+	let previewMarkdown = $derived(descDraft ? String(descDraft) : configData?.site_description ?? "");
 
 	// UI state
 	let editing = $state<
@@ -35,7 +34,8 @@
 		dl: 0,
 		time: 0,
 		timeUnit: 'Hours' as TimeUnit,
-		str: ''
+		allowedStr: '',
+		bannedStr: ''
 	});
 
 	// Preset limits
@@ -83,22 +83,21 @@
 	}
 </script>
 
-<div class="flex items-center justify-between border-b border-border px-6 py-4">
+<div class="flex items-center justify-between space-y-2 pb-6">
 	<div>
-		<h1 class="text-lg font-semibold">Instance Information</h1>
-		<p class="text-sm text-muted-foreground">
+		<h2 class="text-3xl font-bold tracking-tight">Settings</h2>
+		<p class="text-muted-foreground">
 			Manage your <code>{page.url.origin}</code> chithi instance.
 		</p>
 	</div>
 </div>
 
-<Separator class="mb-10" />
 <div class="space-y-6">
 	<!-- Syncing Indicator positioned absolutely or just floating -->
 	{#if configQuery.isFetching}
 		<div
 			in:fade
-			class="fixed top-24 right-10 z-50 flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase backdrop-blur-sm"
+			class="fixed top-24 right-10 z-50 flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase backdrop-blur-sm shadow-sm"
 		>
 			<LoaderCircle class="size-3.5 animate-spin" /> Syncing
 		</div>
@@ -118,11 +117,11 @@
 		</div>
 	{:else if configData}
 		<!-- Storage & Files Section -->
-		<Card.Root class="border shadow-sm">
-			<Card.Header class="border-b bg-muted/20 px-6 py-4">
+		<Card.Root class="bg-background border">
+			<Card.Header class="px-6 py-4">
 				<Card.Title class="text-base font-medium">Storage & Files</Card.Title>
 			</Card.Header>
-			<Card.Content class="space-y-8 p-6">
+			<Card.Content class="space-y-8 p-6 pt-0">
 				<!-- Storage Limit -->
 				<div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
 					<div class="space-y-1 md:w-1/2">
@@ -164,7 +163,7 @@
 						{:else}
 							{@const f = formatBytes(configData.total_storage_limit)}
 							<div
-								class="flex w-full items-center justify-between rounded-md border bg-muted/40 px-3 py-2 text-sm"
+								class="flex w-full items-center justify-between rounded-md border bg-muted/20 px-3 py-2 text-sm"
 							>
 								<span class="font-mono font-medium">{f.val} {f.unit}</span>
 							</div>
@@ -173,7 +172,7 @@
 					</div>
 				</div>
 
-				<div class="h-px bg-border/50"></div>
+				<div class="h-px bg-border"></div>
 				<!-- Separator -->
 
 				<!-- File Ceiling -->
@@ -216,7 +215,7 @@
 						{:else}
 							{@const f = formatBytes(configData.max_file_size_limit)}
 							<div
-								class="flex w-full items-center justify-between rounded-md border bg-muted/40 px-3 py-2 text-sm"
+								class="flex w-full items-center justify-between rounded-md border bg-muted/20 px-3 py-2 text-sm"
 							>
 								<span class="font-mono font-medium">{f.val} {f.unit}</span>
 							</div>
@@ -228,11 +227,11 @@
 		</Card.Root>
 
 		<!-- Retention Section -->
-		<Card.Root class="border shadow-sm">
-			<Card.Header class="border-b bg-muted/20 px-6 py-4">
+		<Card.Root class="bg-background border">
+			<Card.Header class="px-6 py-4">
 				<Card.Title class="text-base font-medium">Retention Policy</Card.Title>
 			</Card.Header>
-			<Card.Content class="space-y-8 p-6">
+			<Card.Content class="space-y-8 p-6 pt-0">
 				<!-- Default Expiry -->
 				<div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
 					<div class="space-y-1 md:w-1/2">
@@ -263,7 +262,7 @@
 					</div>
 				</div>
 
-				<div class="h-px bg-border/50"></div>
+				<div class="h-px bg-border"></div>
 
 				<!-- Default Downloads -->
 				<div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -291,7 +290,7 @@
 					</div>
 				</div>
 
-				<div class="h-px bg-border/50"></div>
+				<div class="h-px bg-border"></div>
 
 				<!-- Expiry Presets -->
 				<div class="flex flex-col gap-4">
@@ -315,7 +314,7 @@
 						</Button>
 					</div>
 
-					<div class="flex min-h-16 flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-4">
+					<div class="flex min-h-16 flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-4">
 						{#each configData.time_configs as t, i}
 							{@const f = formatSeconds(t)}
 							<Badge
@@ -333,7 +332,7 @@
 													(_: any, idx: number) => idx !== i
 												)
 											})}
-										class="text-muted-foreground hover:text-foreground"
+										class="text-muted-foreground hover:text-foreground cursor-pointer"
 									>
 										<X class="size-3" />
 									</button>
@@ -345,11 +344,11 @@
 								<Input
 									type="number"
 									bind:value={tempInput.time}
-									class="h-8 w-20 bg-background"
+									class="h-8 w-20 bg-background border-border"
 									min="1"
 								/>
 								<Select.Root type="single" bind:value={tempInput.timeUnit}>
-									<Select.Trigger class="h-8 w-25 bg-background"
+									<Select.Trigger class="h-8 w-25 bg-background border-border"
 										>{tempInput.timeUnit}</Select.Trigger
 									>
 									<Select.Content>
@@ -391,7 +390,7 @@
 						</Button>
 					</div>
 
-					<div class="flex min-h-16 flex-wrap items-center gap-2 rounded-lg border bg-muted/40 p-4">
+					<div class="flex min-h-16 flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-4">
 						{#each configData.download_configs as dl, i}
 							<Badge
 								variant="secondary"
@@ -407,7 +406,7 @@
 													(_: any, idx: number) => idx !== i
 												)
 											})}
-										class="text-muted-foreground hover:text-foreground"
+										class="text-muted-foreground hover:text-foreground cursor-pointer"
 									>
 										<X class="size-3" />
 									</button>
@@ -419,7 +418,7 @@
 								<Input
 									type="number"
 									bind:value={tempInput.dl}
-									class="h-8 w-20 bg-background"
+									class="h-8 w-20 bg-background border-border"
 									min="1"
 								/>
 								<Button
@@ -440,11 +439,11 @@
 		</Card.Root>
 
 		<!-- File Security -->
-		<Card.Root class="border shadow-sm">
-			<Card.Header class="border-b bg-muted/20 px-6 py-4">
+		<Card.Root class="bg-background border">
+			<Card.Header class="px-6 py-4">
 				<Card.Title class="text-base font-medium">File Security</Card.Title>
 			</Card.Header>
-			<Card.Content class="grid gap-10 p-6 md:grid-cols-2">
+			<Card.Content class="grid gap-10 p-6 pt-0 md:grid-cols-2">
 				<!-- Allowed -->
 				<div class="space-y-4">
 					<div class="flex items-center justify-between">
@@ -456,34 +455,34 @@
 					<div class="flex gap-2">
 						<Input
 							placeholder="Add extension (e.g. pdf)..."
-							bind:value={tempInput.str}
+							bind:value={tempInput.allowedStr}
 							onkeydown={(e: any) => {
 								if (editing === 'allowed' && e.key === 'Enter') {
-									const ext = sanitizeExt(tempInput.str);
+									const ext = sanitizeExt(tempInput.allowedStr);
 									if (ext)
 										save({
 											allowed_file_types: [
 												...new Set([...(configData.allowed_file_types || []), ext])
 											]
 										});
-									tempInput.str = '';
+									tempInput.allowedStr = '';
 								}
 							}}
 							onfocus={() => (editing = 'allowed')}
 							class="bg-background"
 						/>
-						{#if editing === 'allowed' && tempInput.str}
+						{#if editing === 'allowed' && tempInput.allowedStr}
 							<Button
 								size="sm"
 								onclick={() => {
-									const ext = sanitizeExt(tempInput.str);
+									const ext = sanitizeExt(tempInput.allowedStr);
 									if (ext)
 										save({
 											allowed_file_types: [
 												...new Set([...(configData.allowed_file_types || []), ext])
 											]
 										});
-									tempInput.str = '';
+									tempInput.allowedStr = '';
 								}}>Add</Button
 							>
 						{/if}
@@ -507,7 +506,7 @@
 													(t: any) => t !== type
 												)
 											})}
-										class="rounded-full p-0.5 hover:bg-emerald-500/20"
+										class="rounded-full p-0.5 hover:bg-emerald-500/20 cursor-pointer"
 									>
 										<X class="size-3" />
 									</button>
@@ -528,35 +527,34 @@
 					<div class="flex gap-2">
 						<Input
 							placeholder="Add extension (e.g. exe)..."
-							bind:value={tempInput.str}
+							bind:value={tempInput.bannedStr}
 							onkeydown={(e: any) => {
-								/* Logic needs to know which input we are in. Since I use tempInput.str for both, I must ensure 'editing' state is correct or split the state */
 								if (editing === 'banned' && e.key === 'Enter') {
-									const ext = sanitizeExt(tempInput.str);
+									const ext = sanitizeExt(tempInput.bannedStr);
 									if (ext)
 										save({
 											banned_file_types: [
 												...new Set([...(configData.banned_file_types || []), ext])
 											]
 										});
-									tempInput.str = '';
+									tempInput.bannedStr = '';
 								}
 							}}
 							onfocus={() => (editing = 'banned')}
 							class="bg-background"
 						/>
-						{#if editing === 'banned' && tempInput.str}
+						{#if editing === 'banned' && tempInput.bannedStr}
 							<Button
 								size="sm"
 								onclick={() => {
-									const ext = sanitizeExt(tempInput.str);
+									const ext = sanitizeExt(tempInput.bannedStr);
 									if (ext)
 										save({
 											banned_file_types: [
 												...new Set([...(configData.banned_file_types || []), ext])
 											]
 										});
-									tempInput.str = '';
+									tempInput.bannedStr = '';
 								}}>Add</Button
 							>
 						{/if}
@@ -579,7 +577,7 @@
 													(t: any) => t !== type
 												)
 											})}
-										class="rounded-full p-0.5 hover:bg-destructive/20"
+										class="rounded-full p-0.5 hover:bg-destructive/20 cursor-pointer"
 									>
 										<X class="size-3" />
 									</button>
@@ -592,9 +590,9 @@
 		</Card.Root>
 
 		<!-- Site Description -->
-		<Card.Root class="border shadow-sm">
+		<Card.Root class="bg-background border">
 			<Card.Header
-				class="flex flex-row items-center justify-between border-b bg-muted/20 px-6 py-4"
+				class="flex flex-row items-center justify-between px-6 py-4"
 			>
 				<div>
 					<Card.Title class="text-base font-medium">Site Description</Card.Title>

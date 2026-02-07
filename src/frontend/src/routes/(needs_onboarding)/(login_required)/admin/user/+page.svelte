@@ -95,7 +95,7 @@
 <Separator class="mb-10" />
 
 <div class="min-h-svh w-full bg-background">
-	<Card.Root class=" h-full w-full  border shadow-sm">
+	<Card.Root class="h-full w-full bg-background border">
 		<Card.Content class="h-full p-0">
 			<div class="flex h-full flex-col px-6 py-4">
 				<form onsubmit={handleSubmit} class="flex-1 space-y-6">
@@ -107,7 +107,7 @@
 								Your profile picture. Provided by Libravatar.
 							</p>
 						</div>
-						<div class="flex w-full justify-start md:w-2/3 md:justify-start">
+						<div class="flex w-full justify-center md:w-2/3 md:justify-start">
 							{#if isAvatarLoading}
 								<Skeleton class="h-16 w-16 rounded-full" />
 							{:else}

@@ -60,7 +60,7 @@
 <Separator class="mb-10" />
 
 <div class="space-y-6">
-	<Card.Root class="border shadow-sm">
+	<Card.Root class="bg-background border">
 		<Card.Content class="p-0">
 			<Table.Root>
 				<Table.Header>
@@ -158,7 +158,7 @@
 									<Button
 										variant="ghost"
 										size="icon"
-										class="h-8 w-8 text-muted-foreground opacity-0 transition-all group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive"
+										class="h-8 w-8 text-muted-foreground opacity-100 transition-all hover:bg-destructive/10 hover:text-destructive lg:opacity-0 lg:group-hover:opacity-100"
 										onclick={() => openRevokeDialog(file.id)}
 										disabled={isRevoking}
 										title="Revoke URL"
