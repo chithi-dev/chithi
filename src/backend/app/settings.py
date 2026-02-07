@@ -2,10 +2,9 @@ import secrets
 from typing import Literal
 
 from pydantic import PostgresDsn, computed_field
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from app.parser.log import parse_string_to_log
+from app.converter.bytes import ByteSize
 
 LOG_TYPES = Literal["warning", "info", "critical", "error", "debug"]
 
@@ -67,23 +66,9 @@ class Settings(BaseSettings):
 
     REDIS_ENDPOINT: str = "redis://localhost:6379/1"
 
-    # Debugging Flags
+    # Speedtest
 
-    # SqlAlchemy
-    SQLALCHEMY_LOG: LOG_TYPES = "error"
-
-    @computed_field
-    @property
-    def SQLALCHEMY_LOG_TYPE(
-        self,
-    ) -> int:
-        log_type = self.SQLALCHEMY_LOG
-        if log_type:
-            return parse_string_to_log(log_type)
-        else:
-            raise ValueError(
-                f"`SQLALCHEMY_LOG` must be set to string, currently it is {log_type}"
-            )
+    MAX_DOWNLOAD_SIZE: int = ByteSize(gb=30).total_bytes()
 
 
 settings = Settings()  # type: ignore

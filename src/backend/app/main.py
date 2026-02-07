@@ -1,5 +1,3 @@
-import logging
-
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,7 +9,6 @@ from app.settings import settings
 #     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 #     datefmt="%Y-%m-%d %H:%M:%S",
 # )
-logging.getLogger("sqlalchemy").setLevel(settings.SQLALCHEMY_LOG_TYPE)
 
 
 app = FastAPI(
@@ -65,3 +62,7 @@ app.include_router(information_router)
 from app.routes.onboarding import router as onboarding_router
 
 app.include_router(onboarding_router)
+
+from app.routes.speedtest import router as speedtest_router
+
+app.include_router(speedtest_router)
