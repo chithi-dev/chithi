@@ -85,7 +85,7 @@
 	const chartConfig = {
 		download: { label: 'Download', color: 'var(--color-cyan-400)' },
 		upload: { label: 'Upload', color: 'var(--color-purple-500)' },
-		remaining: { label: 'Remaining', color: 'hsl(var(--muted))' }
+		remaining: { label: 'Remaining', color: 'black' }
 	} satisfies Chart.ChartConfig;
 </script>
 
@@ -227,7 +227,7 @@
 </div>
 
 {#snippet RadialGauge(id: string, value: number, max: number, activeColor: string)}
-	<Chart.Container config={chartConfig} class="aspect-square w-full">
+	<Chart.Container config={chartConfig} class="mx-auto aspect-square w-full">
 		<PieChart
 			data={[
 				{ key: 'value', value: value, color: activeColor },
@@ -244,7 +244,7 @@
 			padding={0}
 			range={[-90, 90]}
 			props={{ pie: { sort: null } }}
-			cornerRadius={4}
+			cornerRadius={10}
 		>
 			{#snippet aboveMarks()}
 				<Text
