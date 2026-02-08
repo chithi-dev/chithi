@@ -79,6 +79,19 @@ const _PROD_URL = 'https://chithi.dev';
 export default function Home() {
     const [release, setRelease] = useState<{tag_name:string}|null>(null);
     const [copied, setCopied] = useState(false);
+    const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+    const images = [
+        '/images/chithi-dev.avif',
+        '/images/chithi-(dev).avif',
+    ];
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentImageIndex((prev) => (prev + 1) % images.length);
+        }, 3000);
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         AOS.init({
@@ -568,16 +581,25 @@ export default function Home() {
 
                         <a
                             href="https://public.chithi.dev"
-                            className="group relative inline-block"
+                            className="group relative inline-block w-full max-w-250"
                         >
-                            <div className="relative rounded border border-zinc-800 bg-black p-1">
-                                <Image
-                                    src="https://github.com/chithi-dev/chithi/raw/main/assets/chithi-dev.avif"
-                                    alt="Chithi Interface"
-                                    width={1000}
-                                    height={600}
-                                    className="rounded opacity-80 grayscale transition-opacity duration-500 group-hover:opacity-100 group-hover:grayscale-0"
-                                />
+                            <div className="relative aspect-3750/2004 w-full overflow-hidden rounded bg-black">
+                                <div className="relative h-full w-full overflow-hidden rounded">
+                                    {images.map((src, index) => (
+                                        <Image
+                                            key={src}
+                                            src={src}
+                                            alt="Chithi Interface"
+                                            fill
+                                            sizes="(max-width: 1000px) 100vw, 1000px"
+                                            className={`object-contain transition-all duration-1000 ${
+                                                index === currentImageIndex
+                                                    ? 'z-10 opacity-80 grayscale group-hover:opacity-100 group-hover:grayscale-0'
+                                                    : 'z-0 opacity-0'
+                                            }`}
+                                        />
+                                    ))}
+                                </div>
                             </div>
                             <div className="mt-4 flex items-center justify-center gap-2 font-bold text-sm text-white transition-colors group-hover:text-purple-400">
                                 BROWSE INSTANCES <ArrowRight size={16} />
