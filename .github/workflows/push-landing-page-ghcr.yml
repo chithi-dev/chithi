@@ -11,6 +11,9 @@ jobs:
   build-and-push:
     name: Build & Push Docker image
     runs-on: ubuntu-latest
+    defaults:
+        run:
+            working-directory: ./app/landing-page
 
     steps:
       - name: Checkout repository
