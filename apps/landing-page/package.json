@@ -21,7 +21,7 @@
         "@biomejs/biome": "2.3.14",
         "@scalar/api-reference-react": "^0.8.52",
         "@tailwindcss/postcss": "^4",
-        "@types/node": "^20",
+        "@types/node": "^24.0.0",
         "@types/react": "^19",
         "@types/react-dom": "^19",
         "babel-plugin-react-compiler": "^1.0.0",
