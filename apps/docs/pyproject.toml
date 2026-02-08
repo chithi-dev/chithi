@@ -1,0 +1,17 @@
+[project]
+name = "docs"
+version = "0.0.1"
+description = "Documentation for the next generation encrypted file sharing project"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = ["zensical>=0.0.17"]
+
+[dependency-groups]
+dev = ["poethepoet>=0.40.0"]
+
+[tool.uv]
+default-groups = "all"
+
+[tool.poe.tasks]
+dev = "zensical serve"
+build = 'zensical build --clean'
