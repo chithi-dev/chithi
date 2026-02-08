@@ -19,7 +19,7 @@
 	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.2",
-		"@eslint/js": "^9.39.2",
+		"@eslint/js": "^10.0.0",
 		"@internationalized/date": "^3.11.0",
 		"@lucide/svelte": "^0.563.1",
 		"@sveltejs/adapter-auto": "^7.0.0",
@@ -40,7 +40,7 @@
 		"bits-ui": "^2.15.5",
 		"clsx": "^2.1.1",
 		"cross-env": "^10.1.0",
-		"eslint": "^9.39.2",
+		"eslint": "^10.0.0",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.14.0",
 		"globals": "^17.3.0",
