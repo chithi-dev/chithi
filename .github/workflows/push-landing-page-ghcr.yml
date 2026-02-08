@@ -1,7 +1,12 @@
 name: Build and Push Landing Page Docker Image to GHCR
 
 on:
-    push: {}
+    push:
+        branches: ['main']
+        paths:
+            - 'apps/landing-page/**'
+            - '.github/workflows/push-landing-page-ghcr.yml'
+    workflow_dispatch:
 
 permissions:
   contents: read
