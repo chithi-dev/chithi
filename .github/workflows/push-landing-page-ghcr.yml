@@ -1,7 +1,12 @@
 name: Build and Push Landing Page Docker Image to GHCR
 
 on:
-  push: {}
+    push:
+        branches: ['main']
+        paths:
+            - 'apps/landing-page/**'
+            - '.github/workflows/push-landing-page-ghcr.yml'
+    workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,11 +18,11 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
         run:
-            working-directory: ./app/landing-page
+            working-directory: ./apps/landing-page
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -30,7 +35,7 @@ jobs:
             password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: ./apps/landing-page
           file: ./apps/landing-page/Dockerfile
