@@ -4,7 +4,7 @@
     "private": true,
     "scripts": {
         "dev": "next dev",
-        "build": "next build",
+        "build": "next build --webpack",
         "start": "next start",
         "lint": "biome lint",
         "format": "biome check --write --unsafe ."
@@ -19,6 +19,7 @@
     },
     "devDependencies": {
         "@biomejs/biome": "2.3.14",
+        "@scalar/api-reference-react": "^0.8.52",
         "@tailwindcss/postcss": "^4",
         "@types/node": "^20",
         "@types/react": "^19",

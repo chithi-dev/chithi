@@ -65,7 +65,7 @@ const data = [
         title: 'API Reference',
         desc: 'OpenAPI/Swagger documentation.',
         icon: Code,
-        href: 'https://prod.chithi.dev/docs',
+        href: '/scalar',
     },
     {
         title: 'Architecture',
