@@ -1,31 +1,32 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import AOS from 'aos';
+import { useEffect, useState } from 'react';
 import 'aos/dist/aos.css';
 import {
-    Server,
-    Terminal,
-    Layout,
-    ArrowRight,
-    Github,
-    Shield,
-    Lock,
-    Copy,
-    Check,
-    Zap,
-    Cpu,
-    Settings,
-    Code,
-    BookOpen,
-    Gauge,
     Activity,
     ArrowDown,
+    ArrowRight,
     ArrowUp,
-    Clock,
-    ChevronUp,
+    BookOpen,
+    Check,
     ChevronDown,
+    ChevronUp,
+    Clock,
+    Code,
+    Copy,
+    Cpu,
+    Gauge,
+    Github,
+    Globe,
+    Layout,
+    Lock,
+    Server,
+    Shield,
+    Terminal,
+    Zap,
 } from 'lucide-react';
+import Image from 'next/image';
 
 const ecosystem = [
     {
@@ -73,7 +74,7 @@ const data = [
         href: 'https://docs.chithi.dev/architecture/',
     },
 ];
-const PROD_URL = 'https://chithi.dev';
+const _PROD_URL = 'https://chithi.dev';
 
 export default function Home() {
     const [release, setRelease] = useState<any>(null);
@@ -99,10 +100,10 @@ export default function Home() {
     };
 
     return (
-        <div className="min-h-screen bg-[#050505] text-zinc-300 font-mono selection:bg-white selection:text-black overflow-x-hidden">
+        <div className="min-h-screen overflow-x-hidden bg-[#050505] font-mono text-zinc-300 selection:bg-white selection:text-black">
             {/* --- GRID BACKGROUND --- */}
             <div
-                className="fixed inset-0 z-0 pointer-events-none opacity-[0.03]"
+                className="pointer-events-none fixed inset-0 z-0 opacity-[0.03]"
                 style={{
                     backgroundImage:
                         'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
@@ -111,33 +112,33 @@ export default function Home() {
             ></div>
 
             {/* --- NAV --- */}
-            <nav className="relative z-50 border-b border-zinc-900 bg-[#050505]/80 backdrop-blur-sm">
-                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+            <nav className="relative z-50 border-zinc-900 border-b bg-[#050505]/80 backdrop-blur-sm">
+                <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
                     <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-white text-black flex items-center justify-center font-bold rounded-sm">
+                        <div className="flex h-8 w-8 items-center justify-center rounded-sm bg-white font-bold text-black">
                             <Lock size={16} />
                         </div>
-                        <span className="font-bold tracking-tighter text-white">
+                        <span className="font-bold text-white tracking-tighter">
                             CHITHI
                         </span>
                     </div>
 
-                    <div className="flex items-center gap-6 text-xs font-medium tracking-wide">
+                    <div className="flex items-center gap-6 font-medium text-xs tracking-wide">
                         <a
                             href="https://public.chithi.dev"
-                            className="hover:text-white transition-colors"
+                            className="transition-colors hover:text-white"
                         >
                             PUBLIC_INSTANCES
                         </a>
                         <a
                             href="https://docs.chithi.dev"
-                            className="hover:text-white transition-colors"
+                            className="transition-colors hover:text-white"
                         >
                             DOCS
                         </a>
                         <a
                             href="https://github.com/chithi-dev/chithi"
-                            className="text-white flex items-center gap-2"
+                            className="flex items-center gap-2 text-white"
                         >
                             <Github size={14} />
                             GITHUB{' '}
@@ -153,15 +154,15 @@ export default function Home() {
 
             <main className="relative z-10">
                 {/* --- HERO SECTION --- */}
-                <section className="pt-24 pb-20 px-6 border-b border-zinc-900">
-                    <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                <section className="border-zinc-900 border-b px-6 pt-24 pb-20">
+                    <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 lg:grid-cols-2">
                         <div data-aos="fade-right">
-                            <div className="flex items-center gap-2 mb-8 text-xs text-purple-400 uppercase tracking-widest">
-                                <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                            <div className="mb-8 flex items-center gap-2 text-purple-400 text-xs uppercase tracking-widest">
+                                <div className="h-2 w-2 animate-pulse rounded-full bg-purple-500"></div>
                                 End-to-End Encryption
                             </div>
 
-                            <h1 className="text-5xl md:text-7xl font-bold text-white tracking-tight mb-8 leading-[0.9]">
+                            <h1 className="mb-8 font-bold text-5xl text-white leading-[0.9] tracking-tight md:text-7xl">
                                 SECURE
                                 <br />
                                 FILE SHARING
@@ -171,7 +172,7 @@ export default function Home() {
                                 </span>
                             </h1>
 
-                            <p className="text-lg text-zinc-500 mb-10 max-w-md leading-relaxed">
+                            <p className="mb-10 max-w-md text-lg text-zinc-500 leading-relaxed">
                                 Self-hostable, open-source, and encrypted by
                                 default. Built with RustFS for speed and FastAPI
                                 for reliability.
@@ -179,15 +180,15 @@ export default function Home() {
 
                             <div className="flex gap-4">
                                 <a
-                                    href={PROD_URL}
-                                    className="h-12 px-6 bg-white text-black font-bold flex items-center gap-2 hover:bg-zinc-200 transition-colors rounded-sm text-sm"
+                                    href="https://public.chithi.dev"
+                                    className="flex h-12 items-center gap-2 rounded-sm bg-white px-6 font-bold text-black text-sm transition-colors hover:bg-zinc-200"
                                 >
-                                    <Zap size={16} />
-                                    TRY LIVE DEMO
+                                    <Globe size={16} />
+                                    PUBLIC INSTANCES
                                 </a>
                                 <a
                                     href="https://github.com/chithi-dev/chithi"
-                                    className="h-12 px-6 border border-zinc-800 text-white flex items-center gap-2 hover:bg-zinc-900 transition-colors rounded-sm text-sm"
+                                    className="flex h-12 items-center gap-2 rounded-sm border border-zinc-800 px-6 text-sm text-white transition-colors hover:bg-zinc-900"
                                 >
                                     <Github size={16} />
                                     SOURCE CODE
@@ -197,20 +198,20 @@ export default function Home() {
 
                         {/* --- TERMINAL PREVIEW --- */}
                         <div className="relative" data-aos="fade-left">
-                            <div className="absolute -inset-1 bg-linear-to-r from-purple-500/20 to-orange-500/20 blur-xl opacity-50"></div>
-                            <div className="relative bg-[#0a0a0a] border border-zinc-800 rounded-md shadow-2xl overflow-hidden font-mono text-xs md:text-sm">
-                                <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
+                            <div className="absolute -inset-1 bg-linear-to-r from-purple-500/20 to-orange-500/20 opacity-50 blur-xl"></div>
+                            <div className="relative overflow-hidden rounded-md border border-zinc-800 bg-[#0a0a0a] font-mono text-xs shadow-2xl md:text-sm">
+                                <div className="flex items-center justify-between border-zinc-800 border-b bg-zinc-900/50 px-4 py-2">
                                     <div className="flex gap-1.5">
-                                        <div className="w-3 h-3 rounded-full bg-zinc-700"></div>
-                                        <div className="w-3 h-3 rounded-full bg-zinc-700"></div>
-                                        <div className="w-3 h-3 rounded-full bg-zinc-700"></div>
+                                        <div className="h-3 w-3 rounded-full bg-zinc-700"></div>
+                                        <div className="h-3 w-3 rounded-full bg-zinc-700"></div>
+                                        <div className="h-3 w-3 rounded-full bg-zinc-700"></div>
                                     </div>
-                                    <div className="text-zinc-500 text-[10px]">
+                                    <div className="text-[10px] text-zinc-500">
                                         user@server:~
                                     </div>
                                 </div>
-                                <div className="p-6 space-y-4">
-                                    <div className="flex justify-between items-center group">
+                                <div className="space-y-4 p-6">
+                                    <div className="group flex items-center justify-between">
                                         <code className="text-zinc-400">
                                             <span className="text-purple-400">
                                                 $
@@ -219,7 +220,7 @@ export default function Home() {
                                         </code>
                                         <button
                                             onClick={copyCommand}
-                                            className="text-zinc-600 hover:text-white transition-colors"
+                                            className="text-zinc-600 transition-colors hover:text-white"
                                         >
                                             {copied ? (
                                                 <Check size={14} />
@@ -250,7 +251,7 @@ export default function Home() {
                                             ✔ Container chithi-web Started
                                         </div>
                                     </div>
-                                    <div className="pt-2 border-t border-zinc-800/50">
+                                    <div className="border-zinc-800/50 border-t pt-2">
                                         <div className="text-white">
                                             <span className="text-blue-400">
                                                 ➜
@@ -268,8 +269,8 @@ export default function Home() {
                 </section>
 
                 {/* --- FEATURES GRID --- */}
-                <section className="py-24 px-6 border-b border-zinc-900">
-                    <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12">
+                <section className="border-zinc-900 border-b px-6 py-24">
+                    <div className="mx-auto grid max-w-7xl grid-cols-1 gap-12 md:grid-cols-3">
                         {[
                             {
                                 title: 'ZERO KNOWLEDGE',
@@ -288,13 +289,13 @@ export default function Home() {
                             },
                         ].map((feat, i) => (
                             <div key={i} className="group">
-                                <div className="w-12 h-12 bg-zinc-900/50 border border-zinc-800 rounded-lg flex items-center justify-center mb-6 text-zinc-400 group-hover:bg-white group-hover:border-white group-hover:text-black transition-all duration-300">
+                                <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900/50 text-zinc-400 transition-all duration-300 group-hover:border-white group-hover:bg-white group-hover:text-black">
                                     <feat.icon size={20} />
                                 </div>
-                                <h3 className="text-lg font-bold text-white mb-3 group-hover:text-purple-400 transition-colors">
+                                <h3 className="mb-3 font-bold text-lg text-white transition-colors group-hover:text-purple-400">
                                     {feat.title}
                                 </h3>
-                                <p className="text-zinc-500 text-sm leading-relaxed">
+                                <p className="text-sm text-zinc-500 leading-relaxed">
                                     {feat.desc}
                                 </p>
                             </div>
@@ -303,58 +304,58 @@ export default function Home() {
                 </section>
 
                 {/* --- SPEEDTEST SECTION --- */}
-                <section className="py-24 px-6 border-b border-zinc-900 bg-[#050505]">
-                    <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-16">
+                <section className="border-zinc-900 border-b bg-[#050505] px-6 py-24">
+                    <div className="mx-auto flex max-w-7xl flex-col items-center gap-16 lg:flex-row">
                         <div className="flex-1">
-                            <div className="w-12 h-12 bg-zinc-900/50 border border-zinc-800 rounded-lg flex items-center justify-center mb-6 text-zinc-400">
+                            <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900/50 text-zinc-400">
                                 <Gauge size={20} />
                             </div>
-                            <h2 className="text-3xl font-bold text-white mb-6">
+                            <h2 className="mb-6 font-bold text-3xl text-white">
                                 BUILT-IN SPEEDTEST
                             </h2>
-                            <p className="text-zinc-500 text-lg leading-relaxed mb-8">
+                            <p className="mb-8 text-lg text-zinc-500 leading-relaxed">
                                 Diagnose your network capabilities directly from
                                 the interface. Measure throughput to the server
                                 to ensure optimal file transfer rates before you
                                 start.
                             </p>
                         </div>
-                        <div className="flex-1 w-full">
-                            <div className="border border-zinc-800 bg-[#090909] rounded-xl p-6 md:p-8 shadow-2xl relative overflow-hidden">
+                        <div className="w-full flex-1">
+                            <div className="relative overflow-hidden rounded-xl border border-zinc-800 bg-[#090909] p-6 shadow-2xl md:p-8">
                                 {/* Header */}
-                                <div className="flex justify-between items-start mb-8 relative z-10">
+                                <div className="relative z-10 mb-8 flex items-start justify-between">
                                     <div>
-                                        <div className="flex items-center gap-2 mb-1">
+                                        <div className="mb-1 flex items-center gap-2">
                                             <Activity
                                                 className="text-zinc-400"
                                                 size={20}
                                             />
-                                            <h3 className="text-lg font-bold text-white">
+                                            <h3 className="font-bold text-lg text-white">
                                                 Speedtest
                                             </h3>
                                         </div>
-                                        <p className="text-zinc-500 text-[10px] md:text-xs">
+                                        <p className="text-[10px] text-zinc-500 md:text-xs">
                                             Check your internet connection speed
                                             to the server.
                                         </p>
                                     </div>
-                                    <div className="text-[10px] font-bold text-zinc-600 tracking-widest animate-pulse">
+                                    <div className="animate-pulse font-bold text-[10px] text-zinc-600 tracking-widest">
                                         UPLOADING...
                                     </div>
                                 </div>
 
                                 {/* Gauges Grid */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8 relative z-10">
+                                <div className="relative z-10 mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
                                     {/* Download Card */}
-                                    <div className="bg-[#111] rounded-lg p-6 border border-zinc-900/50 relative overflow-hidden flex flex-col items-center justify-center aspect-video group">
-                                        <div className="absolute top-4 text-[10px] font-bold text-cyan-400 flex items-center gap-1">
+                                    <div className="group relative flex aspect-video flex-col items-center justify-center overflow-hidden rounded-lg border border-zinc-900/50 bg-[#111] p-6">
+                                        <div className="absolute top-4 flex items-center gap-1 font-bold text-[10px] text-cyan-400">
                                             <ArrowDown size={12} /> Download
                                             Speed
                                         </div>
-                                        <div className="relative w-32 h-16 mt-4 mb-2">
+                                        <div className="relative mt-4 mb-2 h-16 w-32">
                                             <svg
                                                 viewBox="0 0 100 50"
-                                                className="w-full h-full transform overflow-visible"
+                                                className="h-full w-full transform overflow-visible"
                                             >
                                                 <path
                                                     d="M 10 50 A 40 40 0 0 1 90 50"
@@ -375,25 +376,25 @@ export default function Home() {
                                                 />
                                             </svg>
                                         </div>
-                                        <div className="text-center mt-[-10px]">
-                                            <div className="text-2xl font-bold text-white tracking-tight">
+                                        <div className="-mt-2.5 text-center">
+                                            <div className="font-bold text-2xl text-white tracking-tight">
                                                 622.5
                                             </div>
-                                            <div className="text-[10px] text-zinc-500 font-medium">
+                                            <div className="font-medium text-[10px] text-zinc-500">
                                                 Mbps
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Upload Card */}
-                                    <div className="bg-[#111] rounded-lg p-6 border border-zinc-900/50 relative overflow-hidden flex flex-col items-center justify-center aspect-video group">
-                                        <div className="absolute top-4 text-[10px] font-bold text-purple-500 flex items-center gap-1">
+                                    <div className="group relative flex aspect-video flex-col items-center justify-center overflow-hidden rounded-lg border border-zinc-900/50 bg-[#111] p-6">
+                                        <div className="absolute top-4 flex items-center gap-1 font-bold text-[10px] text-purple-500">
                                             <ArrowUp size={12} /> Upload Speed
                                         </div>
-                                        <div className="relative w-32 h-16 mt-4 mb-2">
+                                        <div className="relative mt-4 mb-2 h-16 w-32">
                                             <svg
                                                 viewBox="0 0 100 50"
-                                                className="w-full h-full transform overflow-visible"
+                                                className="h-full w-full transform overflow-visible"
                                             >
                                                 <path
                                                     d="M 10 50 A 40 40 0 0 1 90 50"
@@ -414,11 +415,11 @@ export default function Home() {
                                                 />
                                             </svg>
                                         </div>
-                                        <div className="text-center mt-[-10px]">
-                                            <div className="text-2xl font-bold text-white tracking-tight">
+                                        <div className="-mt-2.5 text-center">
+                                            <div className="font-bold text-2xl text-white tracking-tight">
                                                 396.6
                                             </div>
-                                            <div className="text-[10px] text-zinc-500 font-medium">
+                                            <div className="font-medium text-[10px] text-zinc-500">
                                                 Mbps
                                             </div>
                                         </div>
@@ -426,24 +427,24 @@ export default function Home() {
                                 </div>
 
                                 {/* Progress */}
-                                <div className="mb-8 space-y-2 relative z-10">
-                                    <div className="flex justify-between text-[10px] text-zinc-500 font-bold uppercase tracking-wider">
+                                <div className="relative z-10 mb-8 space-y-2">
+                                    <div className="flex justify-between font-bold text-[10px] text-zinc-500 uppercase tracking-wider">
                                         <span>Progress</span>
                                         <span>21%</span>
                                     </div>
-                                    <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                                        <div className="h-full bg-zinc-400 w-[21%] rounded-full"></div>
+                                    <div className="h-1.5 overflow-hidden rounded-full bg-zinc-800">
+                                        <div className="h-full w-[21%] rounded-full bg-zinc-400"></div>
                                     </div>
                                 </div>
 
                                 {/* Controls */}
-                                <div className="space-y-6 relative z-10">
+                                <div className="relative z-10 space-y-6">
                                     <div className="flex flex-col gap-3">
-                                        <label className="text-[10px] font-bold text-zinc-500 flex items-center gap-2 uppercase tracking-wide">
+                                        <label className="flex items-center gap-2 font-bold text-[10px] text-zinc-500 uppercase tracking-wide">
                                             <Clock size={12} /> Test Duration
                                             (seconds)
                                         </label>
-                                        <div className="h-10 bg-[#111] border border-zinc-800 rounded px-4 flex items-center justify-between text-zinc-400 text-xs font-mono">
+                                        <div className="flex h-10 items-center justify-between rounded border border-zinc-800 bg-[#111] px-4 font-mono text-xs text-zinc-400">
                                             10
                                             <div className="flex flex-col gap-0.5 opacity-50">
                                                 <ChevronUp size={10} />
@@ -453,8 +454,8 @@ export default function Home() {
                                     </div>
 
                                     <div className="flex justify-center">
-                                        <button className="h-10 px-6 bg-[#151515] border border-zinc-800 text-zinc-400 rounded-full text-xs font-bold flex items-center gap-2 hover:bg-zinc-800 transition-colors">
-                                            <div className="w-3 h-3 border-2 border-zinc-600 border-t-zinc-300 rounded-full animate-spin"></div>{' '}
+                                        <button className="flex h-10 items-center gap-2 rounded-full border border-zinc-800 bg-[#151515] px-6 font-bold text-xs text-zinc-400 transition-colors hover:bg-zinc-800">
+                                            <div className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-300"></div>{' '}
                                             Testing...
                                         </button>
                                     </div>
@@ -465,10 +466,10 @@ export default function Home() {
                 </section>
 
                 {/* --- ARCHITECTURE --- */}
-                <section className="py-24 px-6 border-b border-zinc-900 bg-[#080808]">
-                    <div className="max-w-7xl mx-auto">
-                        <div className="flex items-end justify-between mb-12">
-                            <h2 className="text-2xl font-bold text-white">
+                <section className="border-zinc-900 border-b bg-[#080808] px-6 py-24">
+                    <div className="mx-auto max-w-7xl">
+                        <div className="mb-12 flex items-end justify-between">
+                            <h2 className="font-bold text-2xl text-white">
                                 SYSTEM ARCHITECTURE
                             </h2>
                             <span className="text-xs text-zinc-600">
@@ -476,25 +477,25 @@ export default function Home() {
                             </span>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-1">
+                        <div className="grid grid-cols-1 gap-1 md:grid-cols-3">
                             {ecosystem.map((item, i) => (
                                 <div
                                     key={i}
-                                    className="group border border-zinc-800 bg-[#050505] p-6 hover:border-zinc-600 transition-colors"
+                                    className="group border border-zinc-800 bg-[#050505] p-6 transition-colors hover:border-zinc-600"
                                 >
-                                    <div className="flex justify-between items-start mb-8">
+                                    <div className="mb-8 flex items-start justify-between">
                                         <item.icon
                                             size={24}
-                                            className="text-zinc-400 group-hover:text-white transition-colors"
+                                            className="text-zinc-400 transition-colors group-hover:text-white"
                                         />
-                                        <span className="font-mono text-[10px] text-zinc-600 border border-zinc-800 px-2 py-1 rounded-sm">
+                                        <span className="rounded-sm border border-zinc-800 px-2 py-1 font-mono text-[10px] text-zinc-600">
                                             {item.path}
                                         </span>
                                     </div>
-                                    <h3 className="text-white font-bold mb-2">
+                                    <h3 className="mb-2 font-bold text-white">
                                         {item.title}
                                     </h3>
-                                    <p className="text-zinc-500 text-xs">
+                                    <p className="text-xs text-zinc-500">
                                         {item.description}
                                     </p>
                                 </div>
@@ -506,45 +507,45 @@ export default function Home() {
                 {/* --- DOCUMENTATION --- */}
                 <section
                     id="docs"
-                    className="py-24 px-6 border-b border-zinc-900 bg-[#050505]"
+                    className="border-zinc-900 border-b bg-[#050505] px-6 py-24"
                 >
-                    <div className="max-w-7xl mx-auto">
+                    <div className="mx-auto max-w-7xl">
                         <div className="mb-16">
-                            <h2 className="text-3xl font-bold text-white mb-6">
+                            <h2 className="mb-6 font-bold text-3xl text-white">
                                 DOCUMENTATION
                             </h2>
-                            <p className="text-zinc-500 max-w-2xl">
+                            <p className="max-w-2xl text-zinc-500">
                                 Detailed guides for administrators, developers,
                                 and integrators. Everything you need to get
                                 Chithi up and running.
                             </p>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                             {data.map((doc, i) => (
                                 <a
                                     key={i}
                                     href={doc.href}
-                                    className="group p-6 border border-zinc-800 hover:bg-zinc-900/40 transition-all rounded-sm block"
+                                    className="group block rounded-sm border border-zinc-800 p-6 transition-all hover:bg-zinc-900/40"
                                 >
-                                    <div className="flex justify-between items-start mb-4">
+                                    <div className="mb-4 flex items-start justify-between">
                                         <doc.icon
-                                            className="text-zinc-600 group-hover:text-white transition-colors"
+                                            className="text-zinc-600 transition-colors group-hover:text-white"
                                             size={24}
                                         />
                                         <BookOpen
                                             size={14}
-                                            className="text-zinc-700 group-hover:text-purple-400 transition-colors"
+                                            className="text-zinc-700 transition-colors group-hover:text-purple-400"
                                         />
                                     </div>
-                                    <h3 className="text-white font-bold mb-2 flex items-center gap-2">
+                                    <h3 className="mb-2 flex items-center gap-2 font-bold text-white">
                                         {doc.title}
                                         <ArrowRight
                                             size={14}
-                                            className="opacity-0 -ml-2 group-hover:opacity-100 group-hover:ml-0 transition-all text-purple-400"
+                                            className="-ml-2 text-purple-400 opacity-0 transition-all group-hover:ml-0 group-hover:opacity-100"
                                         />
                                     </h3>
-                                    <p className="text-zinc-500 text-xs leading-relaxed">
+                                    <p className="text-xs text-zinc-500 leading-relaxed">
                                         {doc.desc}
                                     </p>
                                 </a>
@@ -554,58 +555,55 @@ export default function Home() {
                 </section>
 
                 {/* --- PUBLIC INSTANCE --- */}
-                <section id="public" className="py-24 px-6">
-                    <div className="max-w-5xl mx-auto text-center">
-                        <h2 className="text-3xl font-bold text-white mb-6">
-                            READY FOR PRODUCTION
+                <section id="public" className="px-6 py-24">
+                    <div className="mx-auto max-w-5xl text-center">
+                        <h2 className="mb-6 font-bold text-3xl text-white">
+                            GLOBAL NETWORK
                         </h2>
-                        <p className="text-zinc-500 mb-10 max-w-2xl mx-auto">
-                            We maintain a public instance for demonstration
-                            purposes. It runs the `main` branch.
+                        <p className="mx-auto mb-10 max-w-2xl text-zinc-500">
+                            Choose from a variety of community-hosted public
+                            instances to start sharing files securely. Find the
+                            server closest to you for optimal performance.
                         </p>
 
                         <a
-                            href={PROD_URL}
-                            className="inline-block relative group"
+                            href="https://public.chithi.dev"
+                            className="group relative inline-block"
                         >
-                            <div className="relative bg-black border border-zinc-800 rounded p-1">
-                                <img
+                            <div className="relative rounded border border-zinc-800 bg-black p-1">
+                                <Image
                                     src="https://github.com/chithi-dev/chithi/raw/main/assets/chithi-dev.avif"
                                     alt="Chithi Interface"
-                                    className="rounded opacity-80 group-hover:opacity-100 transition-opacity grayscale group-hover:grayscale-0 duration-500"
+                                    width={1000}
+                                    height={600}
+                                    className="rounded opacity-80 grayscale transition-opacity duration-500 group-hover:opacity-100 group-hover:grayscale-0"
                                 />
                             </div>
-                            <div className="mt-4 flex items-center justify-center gap-2 text-white text-sm font-bold group-hover:text-purple-400 transition-colors">
-                                LAUNCH CHITHI.DEV <ArrowRight size={16} />
+                            <div className="mt-4 flex items-center justify-center gap-2 font-bold text-sm text-white transition-colors group-hover:text-purple-400">
+                                BROWSE INSTANCES <ArrowRight size={16} />
                             </div>
                         </a>
                     </div>
                 </section>
 
                 {/* --- FOOTER --- */}
-                <footer className="py-12 px-6 border-t border-zinc-900 bg-[#050505] text-xs">
-                    <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+                <footer className="border-zinc-900 border-t bg-[#050505] px-6 py-12 text-xs">
+                    <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 md:flex-row">
                         <div className="font-bold text-white">
                             CHITHI PROJECT
                         </div>
                         <div className="flex gap-8 text-zinc-600">
                             <a
                                 href="#"
-                                className="hover:text-white transition-colors"
+                                className="transition-colors hover:text-white"
                             >
                                 PRIVACY
                             </a>
                             <a
                                 href="#"
-                                className="hover:text-white transition-colors"
+                                className="transition-colors hover:text-white"
                             >
                                 SECURITY
-                            </a>
-                            <a
-                                href="https://github.com/chithi-dev/chithi"
-                                className="hover:text-white transition-colors"
-                            >
-                                GITHUB
                             </a>
                         </div>
                     </div>
