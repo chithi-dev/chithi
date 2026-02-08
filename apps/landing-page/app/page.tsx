@@ -77,7 +77,7 @@ const data = [
 const _PROD_URL = 'https://chithi.dev';
 
 export default function Home() {
-    const [release, setRelease] = useState<any>(null);
+    const [release, setRelease] = useState<{tag_name:string}|null>(null);
     const [copied, setCopied] = useState(false);
 
     useEffect(() => {
