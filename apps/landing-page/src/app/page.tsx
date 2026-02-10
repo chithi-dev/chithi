@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { PUBLIC_INSTANCE_URL } from '@/consts/urls';
 
 const ecosystem = [
     {
@@ -179,7 +180,7 @@ export default function Home() {
 
                             <div className="flex gap-4">
                                 <a
-                                    href="https://public.chithi.dev"
+                                    href={PUBLIC_INSTANCE_URL}
                                     className="flex h-12 items-center gap-2 rounded-sm bg-white px-6 font-bold text-black text-sm transition-colors hover:bg-zinc-200"
                                 >
                                     <Globe size={16} />
@@ -565,8 +566,8 @@ export default function Home() {
                             server closest to you for optimal performance.
                         </p>
 
-                        <a
-                            href="https://public.chithi.dev"
+                        <Link
+                            href={PUBLIC_INSTANCE_URL}
                             className="group relative inline-block w-full max-w-250"
                         >
                             <div className="relative aspect-3750/2004 w-full overflow-hidden rounded bg-black">
@@ -590,7 +591,7 @@ export default function Home() {
                             <div className="mt-4 flex items-center justify-center gap-2 font-bold text-sm text-white transition-colors group-hover:text-purple-400">
                                 BROWSE INSTANCES <ArrowRight size={16} />
                             </div>
-                        </a>
+                        </Link>
                     </div>
                 </section>
 
@@ -601,18 +602,18 @@ export default function Home() {
                             CHITHI PROJECT
                         </div>
                         <div className="flex gap-8 text-zinc-600">
-                            <a
+                            <Link
                                 href="#"
                                 className="transition-colors hover:text-white"
                             >
                                 PRIVACY
-                            </a>
-                            <a
+                            </Link>
+                            <Link
                                 href="#"
                                 className="transition-colors hover:text-white"
                             >
                                 SECURITY
-                            </a>
+                            </Link>
                         </div>
                     </div>
                 </footer>
