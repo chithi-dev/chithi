@@ -36,4 +36,4 @@ The key features:
 - **Fast**: Chithi is built for low end device, it squeezes every bit of performance from python (thanks to [FastApi](https://fastapi.tiangolo.com/)) and Node.js(thanks to [polka.js](https://github.com/lukeed/polka)) to deliver the most optimal solution.
 - **Extensible**: Chithi is meant to have multiple ways(CLI,TUI) of accessing it.
 - **Self Hostable**: Chithi is meant to be self hosted by the community
-- **Public Instances Monitoring**: Public chithi instances can be monitored at [public.chithi.dev](https://public.chithi.dev)
+- **Public Instances Monitoring**: Public chithi instances can be monitored at [public.chithi.dev](https://public.chithi.dev/status/public)
