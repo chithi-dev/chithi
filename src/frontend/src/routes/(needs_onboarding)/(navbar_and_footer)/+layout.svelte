@@ -21,11 +21,10 @@
 	import { kebab_to_initials } from '#functions/string-conversion';
 	import { make_libravatar_url } from '#functions/libravatar';
 	import { page } from '$app/state';
-	import GithubIcon from '#logos/github.svelte';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import favicon from '$lib/assets/logo.svg';
 	import { PUBLIC_INSTANCE_URL } from '#consts/urls';
-
+    import { SiGithub } from "@icons-pack/svelte-simple-icons";
 	const { isAuthenticated, user: userData } = useAuth();
 
 	let { children } = $props();
