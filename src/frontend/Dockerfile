@@ -1,7 +1,7 @@
 FROM node:25-alpine AS builder
 WORKDIR /app
 COPY package*.json .
-RUN npm ci
+RUN npm i
 COPY . .
 RUN npm run build:node
 RUN npm prune --production
