@@ -43,6 +43,7 @@
 		"eslint": "^9.39.2",
 		"eslint-config-prettier": "^10.1.8",
 		"eslint-plugin-svelte": "^3.14.0",
+		"formsnap": "^2.0.1",
 		"globals": "^17.3.0",
 		"hash-wasm": "^4.12.0",
 		"idb": "^8.0.3",
@@ -63,9 +64,11 @@
 		"remark-parse": "^11.0.0",
 		"remark-rehype": "^11.1.2",
 		"sass": "^1.97.3",
+		"superforms": "^0.0.1",
 		"svelte": "^5.49.2",
 		"svelte-check": "^4.3.6",
 		"svelte-sonner": "^1.0.7",
+		"sveltekit-superforms": "^2.29.1",
 		"tailwind-merge": "^3.4.0",
 		"tailwind-variants": "^3.2.2",
 		"tailwindcss": "^4.1.18",
@@ -76,6 +79,7 @@
 		"unified": "^11.0.5",
 		"uuid": "^13.0.0",
 		"vite": "^7.3.1",
-		"vitest": "^4.0.18"
+		"vitest": "^4.0.18",
+		"zod": "^4.3.6"
 	}
 }

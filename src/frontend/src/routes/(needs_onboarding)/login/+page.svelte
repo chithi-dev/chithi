@@ -1,3 +1,11 @@
+<script lang="ts" module>
+  import { z } from "zod/v4";
+ 
+  const formSchema = z.object({
+    username: z.string().min(2).max(50)
+  });
+</script>
+
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -19,7 +27,9 @@
 	import { useAuth } from '#queries/auth';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
-
+	  import { zod4 } from "sveltekit-superforms/adapters";
+  import * as Form from "$lib/components/ui/form/index.js";
+    import { defaults, superForm } from "sveltekit-superforms";
 	// States
 	let isLoading = $state(false);
 	let showPassword = $state(false);
@@ -58,6 +68,21 @@
 			}
 		}
 	}
+
+	
+  const form = superForm(defaults(zod4(formSchema)), {
+    validators: zod4(formSchema),
+    SPA: true,
+    onUpdate: ({ form: f }) => {
+      if (f.valid) {
+        toast.success(`You submitted ${JSON.stringify(f.data, null, 2)}`);
+      } else {
+        toast.error("Please fix the errors in the form.");
+      }
+    }
+  });
+ 
+  const { form: formData, enhance } = form;
 </script>
 
 <div
@@ -108,7 +133,7 @@
 			</Card.Header>
 
 			<Card.Content>
-				<form onsubmit={handleSubmit} class="grid gap-6">
+				<form {form} onsubmit={handleSubmit} class="grid gap-6">
 					<Field.Set>
 						<Field.Group>
 							<Field.Field>
