@@ -2,14 +2,16 @@
   import { z } from "zod/v4";
  
   const formSchema = z.object({
-    username: z.string().min(2).max(50)
+    email: z.string().min(1, "Email or Username is required"),
+    password: z.string().min(1, "Password is required")
   });
+  
+  export type FormSchema = typeof formSchema;
 </script>
 
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import * as Field from '$lib/components/ui/field';
 	import * as Card from '$lib/components/ui/card';
 	import { page } from '$app/state';
 	import {
@@ -27,18 +29,13 @@
 	import { useAuth } from '#queries/auth';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
-	  import { zod4 } from "sveltekit-superforms/adapters";
-  import * as Form from "$lib/components/ui/form/index.js";
-    import { defaults, superForm } from "sveltekit-superforms";
+	import { zod4 } from "sveltekit-superforms/adapters";
+	import * as Form from "$lib/components/ui/form/index.js";
+	import { defaults, superForm } from "sveltekit-superforms";
+
 	// States
-	let isLoading = $state(false);
 	let showPassword = $state(false);
-	let email = $state('');
-	let password = $state('');
-
-	const { login } = useAuth();
-	const isPasswordEmpty = $derived(password.length === 0);
-
+	
 	// Next url
 	const nextUrl = $derived.by(()=>{
 		const url =page.url.searchParams.get('next') ?? '/'; 
@@ -48,41 +45,40 @@
 		return url
 	});
 
+	const { login } = useAuth();
+	
+	const form = superForm(defaults(zod4(formSchema)), {
+		validators: zod4(formSchema),
+		SPA: true,
+		onUpdate: async ({ form: f }) => {
+			if (f.valid) {
+				try {
+					const token = await login(f.data.email, f.data.password);
+					if (token) {
+						goto(nextUrl);
+					}
+				} catch (e) {
+					if (e instanceof Error) {
+						toast.error(e.message);
+					}
+				}
+			} else {
+				toast.error("Please fix the errors in the form.");
+			}
+		}
+	});
+
+	const { form: formData, enhance, submitting } = form;
+
+	const isPasswordEmpty = $derived($formData.password.length === 0);
+
+
 	// Auto-hide password text if the input is cleared
 	$effect(() => {
 		if (isPasswordEmpty) {
 			showPassword = false;
 		}
 	});
-
-	async function handleSubmit(e: SubmitEvent) {
-		e.preventDefault();
-		try {
-			const token = await login(email, password);
-			if (token) {
-				goto(nextUrl);
-			}
-		} catch (e) {
-			if (e instanceof Error) {
-				toast.error(e.message);
-			}
-		}
-	}
-
-	
-  const form = superForm(defaults(zod4(formSchema)), {
-    validators: zod4(formSchema),
-    SPA: true,
-    onUpdate: ({ form: f }) => {
-      if (f.valid) {
-        toast.success(`You submitted ${JSON.stringify(f.data, null, 2)}`);
-      } else {
-        toast.error("Please fix the errors in the form.");
-      }
-    }
-  });
- 
-  const { form: formData, enhance } = form;
 </script>
 
 <div
@@ -133,82 +129,72 @@
 			</Card.Header>
 
 			<Card.Content>
-				<form {form} onsubmit={handleSubmit} class="grid gap-6">
-					<Field.Set>
-						<Field.Group>
-							<Field.Field>
-								<Field.Label
-									for="email"
-									class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400"
-									>Email or Username</Field.Label
+				<form use:enhance class="grid gap-6">
+					<Form.Field {form} name="email">
+						<Form.Control >
+							<Form.Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400">Email or Username</Form.Label>
+							<div class="group relative">
+								<div
+									class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"
 								>
-								<div class="group relative">
-									<div
-										class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"
-									>
-										<Mail class="size-4" />
-									</div>
-									<Input
-										id="email"
-										bind:value={email}
-										placeholder="name@example.com"
-										class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50"
-										required
-									/>
+									<Mail class="size-4" />
 								</div>
-							</Field.Field>
+								<Input
+									bind:value={$formData.email}
+									placeholder="name@example.com"
+									class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50"
+								/>
+							</div>
+						</Form.Control>
+						<Form.FieldErrors />
+					</Form.Field>
 
-							<Field.Field>
-								<Field.Label
-									for="password"
-									class="text-sm font-medium text-slate-700 dark:text-zinc-400"
-									>Password</Field.Label
+					<Form.Field {form} name="password">
+						<Form.Control>
+							<Form.Label class="text-sm font-medium text-slate-700 dark:text-zinc-400">Password</Form.Label>
+							<div class="group relative">
+								<div
+									class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"
 								>
-								<div class="group relative">
-									<div
-										class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"
-									>
-										<Lock class="size-4" />
-									</div>
-									<Input
-										id="password"
-										type={showPassword ? 'text' : 'password'}
-										bind:value={password}
-										placeholder="••••••••"
-										class="h-12 border-slate-200 bg-white/50 px-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50"
-										required
-									/>
-
-									<Button
-										variant="ghost"
-										size="icon"
-										type="button"
-										onclick={() => (showPassword = !showPassword)}
-										disabled={isPasswordEmpty}
-										class={cn(
-											'absolute top-1 right-1 h-10 w-10 text-slate-400 transition-all duration-200 dark:text-zinc-500',
-											isPasswordEmpty && 'pointer-events-none scale-90 opacity-0',
-											!isPasswordEmpty &&
-												'scale-100 opacity-100 hover:bg-transparent hover:text-slate-900 dark:hover:text-white'
-										)}
-									>
-										{#if showPassword}
-											<EyeOff class="size-4" />
-										{:else}
-											<Eye class="size-4" />
-										{/if}
-									</Button>
+									<Lock class="size-4" />
 								</div>
-							</Field.Field>
-						</Field.Group>
-					</Field.Set>
+								<Input
+									type={showPassword ? 'text' : 'password'}
+									bind:value={$formData.password}
+									placeholder="••••••••"
+									class="h-12 border-slate-200 bg-white/50 px-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50"
+								/>
+
+								<Button
+									variant="ghost"
+									size="icon"
+									type="button"
+									onclick={() => (showPassword = !showPassword)}
+									disabled={isPasswordEmpty}
+									class={cn(
+										'absolute top-1 right-1 h-10 w-10 text-slate-400 transition-all duration-200 dark:text-zinc-500',
+										isPasswordEmpty && 'pointer-events-none scale-90 opacity-0',
+										!isPasswordEmpty &&
+											'scale-100 opacity-100 hover:bg-transparent hover:text-slate-900 dark:hover:text-white'
+									)}
+								>
+									{#if showPassword}
+										<EyeOff class="size-4" />
+									{:else}
+										<Eye class="size-4" />
+									{/if}
+								</Button>
+							</div>
+						</Form.Control>
+						<Form.FieldErrors />
+					</Form.Field>
 
 					<Button
 						type="submit"
-						disabled={isLoading}
+						disabled={$submitting}
 						class="h-12 w-full font-semibold shadow-lg shadow-primary/20 transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-70"
 					>
-						{#if isLoading}
+						{#if $submitting}
 							<LoaderCircle class="mr-2 size-5 animate-spin" />
 							Authenticating
 						{:else}
