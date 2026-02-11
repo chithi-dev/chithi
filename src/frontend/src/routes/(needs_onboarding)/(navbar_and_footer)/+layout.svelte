@@ -80,7 +80,7 @@
 		{
 			href: 'https://github.com/chithi-dev/chithi',
 			name: 'Source',
-			icon: GithubIcon
+			icon: SiGithub
 		}
 	];
 </script>
