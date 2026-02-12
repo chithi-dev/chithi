@@ -12,7 +12,6 @@
 		Eye,
 		File,
 		Folder,
-		ArrowLeft,
 		ExternalLink,
 		Image as ImageIcon,
 		FileCode,
@@ -30,23 +29,15 @@
 	import { Progress } from '$lib/components/ui/progress';
 	import { cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
-	import { ZipReader, BlobReader, TextWriter, BlobWriter, type Entry } from '@zip.js/zip.js';
+	import { ZipReader, BlobReader, BlobWriter, type Entry } from '@zip.js/zip.js';
 
-	// Key is provided in the URL fragment (after '#') and must be present there
 	let key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
 	let slug = $derived(page.params.slug);
 
 	let status = $state<
-		| 'checking'
-		| 'ready'
-		| 'needs_password'
-		| 'error'
-		| 'downloading'
-		| 'unzipping'
-		| 'listing'
-		| 'viewing'
+		'checking' | 'ready' | 'needs_password' | 'error' | 'downloading' | 'unzipping' | 'listing'
 	>('checking');
-	
+
 	let errorMsg = $state('');
 	let filename = $state('file');
 	let fileSize = $state(0);
@@ -54,11 +45,36 @@
 	let downloadProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 
 	let zipEntries = $state<Entry[]>([]);
-	let selectedEntry = $state<Entry | null>(null);
-	let viewingContent = $state<string | null>(null);
-	let viewingType = $state<'text' | 'image' | 'pdf' | 'audio' | 'video' | 'unsupported'>('text');
-	let viewingUrl = $state<string | null>(null); // For object URLs
 	let decryptedBlob = $state<Blob | null>(null);
+
+	const MIME_MAP: Record<string, string> = {
+		png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+		webp: 'image/webp', svg: 'image/svg+xml', bmp: 'image/bmp', ico: 'image/x-icon',
+		avif: 'image/avif', pdf: 'application/pdf', mp4: 'video/mp4', webm: 'video/webm',
+		ogv: 'video/ogg', mov: 'video/quicktime', mp3: 'audio/mpeg', wav: 'audio/wav',
+		ogg: 'audio/ogg', m4a: 'audio/mp4', aac: 'audio/aac', flac: 'audio/flac',
+		txt: 'text/plain', md: 'text/plain', json: 'application/json', js: 'text/javascript',
+		ts: 'text/plain', html: 'text/html', htm: 'text/html', css: 'text/css',
+		xml: 'text/xml', csv: 'text/csv', log: 'text/plain', yaml: 'text/plain',
+		yml: 'text/plain', sql: 'text/plain', py: 'text/plain', java: 'text/plain',
+		c: 'text/plain', cpp: 'text/plain', h: 'text/plain', go: 'text/plain',
+		rs: 'text/plain', php: 'text/plain', rb: 'text/plain', sh: 'text/plain',
+		svelte: 'text/plain', scss: 'text/plain'
+	};
+
+	function getMime(name: string): string {
+		const ext = name.split('.').pop()?.toLowerCase() || '';
+		return MIME_MAP[ext] || 'application/octet-stream';
+	}
+
+	function getFileIcon(name: string) {
+		const n = name.toLowerCase();
+		if (n.match(/\.(png|jpg|jpeg|gif|webp|svg|ico|bmp|avif)$/)) return ImageIcon;
+		if (n.match(/\.(mp4|webm|ogv|mov|mkv)$/)) return FilePlay;
+		if (n.match(/\.(mp3|wav|ogg|m4a|aac|flac)$/)) return FileHeadphone;
+		if (n.match(/\.(txt|md|json|js|ts|svelte|html|css|scss|xml|log|csv|sh|yaml|yml|sql|py|java|c|cpp|h|go|rs|php|rb)$/)) return FileCode;
+		return File;
+	}
 
 	async function startCheck() {
 		if (!key || !slug) {
@@ -74,7 +90,6 @@
 				if (res.status === 410) throw new Error('File expired or limit reached');
 				throw new Error('Failed to get file info');
 			}
-
 			const info = await res.json();
 			filename = info.filename;
 			fileSize = info.size;
@@ -91,11 +106,7 @@
 
 	async function handlePasswordSubmit() {
 		if (!key) return;
-		try {
-			await fetchAndUnzip();
-		} catch (e) {
-			// handled in function
-		}
+		await fetchAndUnzip();
 	}
 
 	async function fetchAndUnzip() {
@@ -107,13 +118,12 @@
 		try {
 			const blob = await downloadFileBlob(slug, key, password, fileSize, (p) => (downloadProgress.target = p));
 			decryptedBlob = blob;
-			
+
 			status = 'unzipping';
 			const reader = new ZipReader(new BlobReader(blob));
 			zipEntries = await reader.getEntries();
 			status = 'listing';
 			toast.success('Files extracted successfully');
-
 		} catch (e: any) {
 			console.error(e);
 			if (e instanceof PasswordRequiredError) {
@@ -147,36 +157,19 @@
 		const reader = res.body.getReader();
 		const streamWithProgress = new ReadableStream({
 			async pull(controller) {
-				try {
-					const { done, value } = await reader.read();
-					if (done) {
-						controller.close();
-						return;
-					}
-					loaded += value.byteLength;
-					if (totalSize > 0) {
-						onProgress(Math.round((loaded / totalSize) * 100));
-					}
-					controller.enqueue(value);
-				} catch (e) {
-					controller.error(e);
-					throw e;
-				}
+				const { done, value } = await reader.read();
+				if (done) { controller.close(); return; }
+				loaded += value.byteLength;
+				if (totalSize > 0) onProgress(Math.round((loaded / totalSize) * 100));
+				controller.enqueue(value);
 			},
-			cancel(reason) {
-				return reader.cancel(reason);
-			}
+			cancel(reason) { return reader.cancel(reason); }
 		});
 
-		const { stream: decryptedStream } = await createDecryptedStream(
-			streamWithProgress,
-			key,
-			password
-		);
-
+		const { stream: decryptedStream } = await createDecryptedStream(streamWithProgress, key, password);
 		const decReader = decryptedStream.getReader();
 		let firstChunk: Uint8Array | undefined;
-		
+
 		try {
 			const { done, value } = await decReader.read();
 			if (!done) firstChunk = value;
@@ -190,7 +183,6 @@
 
 		const chunks: Uint8Array[] = [];
 		if (firstChunk) chunks.push(firstChunk);
-		
 		while (true) {
 			const { done, value } = await decReader.read();
 			if (done) break;
@@ -200,91 +192,27 @@
 		return new Blob(chunks as BlobPart[], { type: 'application/zip' });
 	}
 
-	async function getEntryBlob(entry: Entry): Promise<{ blob: Blob | null, content: string | null, type: string }> {
-		const name = entry.filename.toLowerCase();
-		let blob: Blob | null = null;
-		let content: string | null = null;
-		let type = 'unsupported';
-
-		if (name.match(/\.(pdf)$/)) {
-			type = 'pdf';
-			if ((entry as any).getData) blob = await (entry as any).getData(new BlobWriter('application/pdf'));
-		} else if (name.match(/\.(mp4|webm|ogv|mov|mkv)$/)) {
-			type = 'video';
-			let mime = 'video/mp4';
-			if (name.endsWith('.webm')) mime = 'video/webm';
-			if (name.endsWith('.ogv')) mime = 'video/ogg';
-			if (name.endsWith('.mov')) mime = 'video/quicktime';
-			if (name.endsWith('.mkv')) mime = 'video/x-matroska';
-			if ((entry as any).getData) blob = await (entry as any).getData(new BlobWriter(mime));
-		} else if (name.match(/\.(mp3|wav|ogg|m4a|aac|flac)$/)) {
-			type = 'audio';
-			let mime = 'audio/mpeg';
-			if (name.endsWith('.wav')) mime = 'audio/wav';
-			if (name.endsWith('.ogg')) mime = 'audio/ogg';
-			if (name.endsWith('.m4a') || name.endsWith('.aac')) mime = 'audio/mp4';
-			if (name.endsWith('.flac')) mime = 'audio/flac';
-			if ((entry as any).getData) blob = await (entry as any).getData(new BlobWriter(mime));
-		} else if (name.match(/\.(png|jpg|jpeg|gif|webp|svg|bmp|ico|avif)$/)) {
-			type = 'image';
-			if ((entry as any).getData) blob = await (entry as any).getData(new BlobWriter());
-		} else if (
-			name.match(
-				/\.(txt|md|json|js|ts|svelte|html|css|scss|xml|log|csv|sh|yaml|yml|ini|conf|sql|py|java|c|cpp|h|cs|go|rs|php|rb|lua|r|bat|ps1|properties|env)$/
-			)
-		) {
-			type = 'text';
-			if ((entry as any).getData) content = await (entry as any).getData(new TextWriter());
-		}
-
-		return { blob, content, type };
+	async function openEntry(entry: Entry) {
+		if (entry.directory || !entry.getData) return;
+		const mime = getMime(entry.filename);
+		const blob = await entry.getData(new BlobWriter(mime));
+		const url = URL.createObjectURL(blob);
+		window.open(url, '_blank');
+		setTimeout(() => URL.revokeObjectURL(url), 60000);
 	}
 
-	async function viewEntry(entry: Entry) {
-		if (entry.directory) return;
-		selectedEntry = entry;
-		viewingUrl = null;
-		viewingContent = null;
-		
-		const { blob, content, type } = await getEntryBlob(entry);
-		viewingType = type as any;
-		viewingContent = content;
-
-		if (blob) {
-			viewingUrl = URL.createObjectURL(blob);
-		}
-		status = 'viewing';
-	}
-
-	async function openInNewTab(entry: Entry) {
-		if (entry.directory) return;
-		
-		const { blob, content, type } = await getEntryBlob(entry);
-		
-		if (type === 'text' && content) {
-			const newWindow = window.open('', '_blank');
-			if (newWindow) {
-				newWindow.document.write(`<pre style="font-family: monospace; white-space: pre-wrap;">${content}</pre>`);
-				newWindow.document.title = entry.filename;
-				newWindow.document.close();
-			}
-		} else if (blob) {
-			const url = URL.createObjectURL(blob);
-			window.open(url, '_blank');
-			// increased timeout to allow browser to register the blob url in the new tab
-			setTimeout(() => URL.revokeObjectURL(url), 60000); 
-		} else {
-			toast.error('Cannot open this file type in a new tab');
-		}
-	}
-
-	function closeView() {
-		status = 'listing';
-		selectedEntry = null;
-		if (viewingUrl) {
-			URL.revokeObjectURL(viewingUrl);
-			viewingUrl = null;
-		}
+	async function saveEntry(entry: Entry) {
+		if (entry.directory || !entry.getData) return;
+		const blob = await entry.getData(new BlobWriter());
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = entry.filename.split('/').pop() || 'file';
+		a.style.display = 'none';
+		document.body.appendChild(a);
+		a.click();
+		URL.revokeObjectURL(url);
+		document.body.removeChild(a);
 	}
 
 	function handleDownloadOriginal() {
@@ -305,7 +233,7 @@
 <Card.Root class="relative z-10 mx-auto w-full max-w-5xl border-border bg-card">
 	<Card.Content class="p-6">
 		<div class="flex min-h-150 flex-col items-center justify-center">
-			
+
 			{#if status === 'checking'}
 				<div class="flex flex-col items-center justify-center py-8">
 					<LoaderCircle class="mb-4 h-8 w-8 animate-spin text-primary" />
@@ -418,7 +346,7 @@
 							Download Original
 						</Button>
 					</div>
-					
+
 					<div class="rounded-md border">
 						<ScrollArea class="h-125">
 							<div class="p-2">
@@ -426,24 +354,17 @@
 									<div
 										class="group flex w-full items-center gap-3 rounded-md p-2 hover:bg-muted/50 transition-colors"
 									>
-										<button 
-											class="flex-1 flex items-center gap-3 text-left overflow-hidden cursor-pointer bg-transparent border-0 p-0" 
-											onclick={() => viewEntry(entry)}
+										<button
+											class="flex-1 flex items-center gap-3 text-left overflow-hidden cursor-pointer bg-transparent border-0 p-0"
+											onclick={() => openEntry(entry)}
 										>
 											{#if entry.directory}
 												<Folder class="h-5 w-5 text-primary shrink-0" />
-											{:else if entry.filename.match(/\.(png|jpg|jpeg|gif|webp|svg|ico|bmp|avif)$/i)}
-												<ImageIcon class="h-5 w-5 text-primary shrink-0" />
-											{:else if entry.filename.match(/\.(mp4|webm|ogv|mov|mkv)$/i)}
-												<FilePlay class="h-5 w-5 text-primary shrink-0" />
-											{:else if entry.filename.match(/\.(mp3|wav|ogg|m4a|aac|flac)$/i)}
-												<FileHeadphone class="h-5 w-5 text-primary shrink-0" />
-											{:else if entry.filename.match(/\.(txt|md|json|js|ts|svelte|html|css|scss|xml|log|csv|sh|yaml|yml|ini|conf|sql|py|java|c|cpp|h|cs|go|rs|php|rb|lua|r|bat|ps1|properties|env)$/i)}
-												<FileCode class="h-5 w-5 text-primary shrink-0" />
 											{:else}
-												<File class="h-5 w-5 text-muted-foreground shrink-0" />
+											{@const Icon = getFileIcon(entry.filename)}
+											<Icon class="h-5 w-5 text-primary shrink-0" />
 											{/if}
-											
+
 											<div class="flex-1 overflow-hidden">
 												<p class="truncate text-sm font-medium">{entry.filename}</p>
 												{#if !entry.directory}
@@ -454,11 +375,11 @@
 
 										{#if !entry.directory}
 											<div class="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-												<Button variant="ghost" size="icon" class="h-8 w-8" title="View Here" onclick={() => viewEntry(entry)}>
-													<Eye class="h-4 w-4" />
-												</Button>
-												<Button variant="ghost" size="icon" class="h-8 w-8" title="Open in New Tab" onclick={() => openInNewTab(entry)}>
+												<Button variant="ghost" size="icon" class="h-8 w-8" title="Open in New Tab" onclick={() => openEntry(entry)}>
 													<ExternalLink class="h-4 w-4" />
+												</Button>
+												<Button variant="ghost" size="icon" class="h-8 w-8" title="Save File" onclick={() => saveEntry(entry)}>
+													<Download class="h-4 w-4" />
 												</Button>
 											</div>
 										{/if}
@@ -471,48 +392,6 @@
 								{/if}
 							</div>
 						</ScrollArea>
-					</div>
-				</div>
-			{/if}
-
-			{#if status === 'viewing' && selectedEntry}
-				<div class="w-full h-full flex flex-col" in:fade={{ duration: 300 }}>
-					<div class="mb-4 flex items-center gap-2">
-						<Button variant="ghost" size="icon" onclick={closeView}>
-							<ArrowLeft class="h-5 w-5" />
-						</Button>
-						<h2 class="text-lg font-semibold truncate">{selectedEntry.filename}</h2>
-					</div>
-
-					<div class="flex-1 rounded-md border min-h-100 bg-background/50 overflow-hidden relative">
-						{#if viewingType === 'text'}
-							<pre class="p-4 text-sm font-mono overflow-auto h-150 w-full">{viewingContent}</pre>
-						{:else if viewingType === 'image' && viewingUrl}
-							<div class="flex items-center justify-center p-4 h-150">
-								<img src={viewingUrl} alt={selectedEntry.filename} class="max-w-full max-h-full object-contain" />
-							</div>
-						{:else if viewingType === 'pdf' && viewingUrl}
-							<iframe src={viewingUrl} title={selectedEntry.filename} class="w-full h-150 border-0"></iframe>
-						{:else if viewingType === 'video' && viewingUrl}
-							<div class="flex items-center justify-center p-4 h-150 bg-black">
-								<!-- svelte-ignore a11y_media_has_caption -->
-								<video src={viewingUrl} controls class="max-w-full max-h-full"></video>
-							</div>
-						{:else if viewingType === 'audio' && viewingUrl}
-							<div class="flex flex-col items-center justify-center p-4 h-150">
-								<div class="mb-8 p-6 rounded-full bg-primary/10">
-									<FileHeadphone class="h-16 w-16 text-primary" />
-								</div>
-								<h3 class="mb-4 text-lg font-medium">{selectedEntry.filename}</h3>
-								<audio src={viewingUrl} controls class="w-full max-w-md"></audio>
-							</div>
-						{:else}
-							<div class="flex flex-col items-center justify-center h-100 text-muted-foreground">
-								<FileText class="h-16 w-16 mb-4 opacity-20" />
-								<p>Preview not available for this file type.</p>
-								<p class="text-sm mt-2">({selectedEntry.filename})</p>
-							</div>
-						{/if}
 					</div>
 				</div>
 			{/if}
