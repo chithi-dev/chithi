@@ -12,7 +12,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import * as Card from '$lib/components/ui/card';
+	import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '$lib/components/ui/card';
 	import { page } from '$app/state';
 	import {
 		ShieldCheck,
@@ -82,14 +82,14 @@
 </script>
 
 <div
-	class="relative flex min-h-svh items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-zinc-950"
+	class="relative flex min-h-svh items-center justify-center overflow-hidden bg-card p-4 transition-colors duration-500"
 >
 	<div class="absolute inset-0 z-0">
 		<div
-			class="absolute -top-24 -left-24 h-125 w-125 rounded-full bg-blue-500/10 blur-[120px] dark:bg-primary/20"
+			class="absolute -top-24 -left-24 h-125 w-125 rounded-full bg-primary/10 blur-[120px]"
 		></div>
 		<div
-			class="absolute -right-24 -bottom-24 h-125 w-125 rounded-full bg-indigo-500/10 blur-[120px] dark:bg-indigo-500/10"
+			class="absolute -right-24 -bottom-24 h-125 w-125 rounded-full bg-primary/10 blur-[120px]"
 		></div>
 		<div
 			class="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] mask-[radial-gradient(ellipse_at_center,black,transparent_90%)] bg-size-[40px_40px] dark:bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)]"
@@ -98,51 +98,51 @@
 
 	<a
 		href={nextUrl}
-		class="group absolute top-8 left-8 z-20 flex items-center gap-2 rounded-full border border-slate-200 bg-white/50 px-5 py-2 text-xs font-medium text-slate-500 backdrop-blur-md transition-all hover:border-primary/50 hover:bg-white hover:text-slate-900 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-400 dark:hover:bg-zinc-900/80 dark:hover:text-white"
+		class="group absolute top-8 left-8 z-20 flex items-center gap-2 rounded-full border border-border bg-background/50 px-5 py-2 text-xs font-medium text-muted-foreground backdrop-blur-md transition-all hover:border-primary/50 hover:bg-background hover:text-foreground"
 	>
 		<ChevronLeft class="size-4 transition-transform group-hover:-translate-x-1" />
 		Back to {nextUrl}
 	</a>
 
 	<div in:fly={{ y: 20, duration: 800 }} class="z-10 w-full max-w-100">
-		<Card.Root
-			class="relative overflow-hidden border-slate-200/60 bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl dark:border-zinc-800/50 dark:bg-zinc-900/50"
+		<Card
+			class="relative overflow-hidden border-border/60 bg-card/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl"
 		>
 			<div
 				class="absolute top-0 left-0 h-px w-full bg-linear-to-r from-transparent via-primary/40 to-transparent"
 			></div>
 
-			<Card.Header class="space-y-3 pt-10 pb-8 text-center">
+			<CardHeader class="space-y-3 pt-10 pb-8 text-center">
 				<div
-					class="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-primary shadow-sm ring-1 ring-blue-200 dark:border-primary/20 dark:bg-primary/10 dark:ring-primary/20"
+					class="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20"
 				>
 					<ShieldCheck class="size-8" />
 				</div>
 				<div class="space-y-1">
-					<Card.Title class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white"
-						>Admin Portal</Card.Title
+					<CardTitle class="text-2xl font-semibold tracking-tight text-foreground"
+						>Admin Portal</CardTitle
 					>
-					<Card.Description class="text-sm text-slate-500 dark:text-zinc-400">
+					<CardDescription class="text-sm text-muted-foreground">
 						Enter your credentials to continue
-					</Card.Description>
+					</CardDescription>
 				</div>
-			</Card.Header>
+			</CardHeader>
 
-			<Card.Content>
+			<CardContent>
 				<form use:enhance class="grid gap-6">
 					<Form.Field {form} name="email">
 						<Form.Control >
-							<Form.Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400">Email or Username</Form.Label>
+							<Form.Label class="ml-1 text-sm font-medium text-foreground">Email or Username</Form.Label>
 							<div class="group relative">
 								<div
-									class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"
+									class="absolute inset-y-0 left-3.5 flex items-center text-muted-foreground transition-colors group-focus-within:text-primary"
 								>
 									<Mail class="size-4" />
 								</div>
 								<Input
 									bind:value={$formData.email}
 									placeholder="name@example.com"
-									class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50"
+									class="h-12 border-border bg-background/50 pl-11 transition-all focus-visible:ring-primary/40"
 								/>
 							</div>
 						</Form.Control>
@@ -151,10 +151,10 @@
 
 					<Form.Field {form} name="password">
 						<Form.Control>
-							<Form.Label class="text-sm font-medium text-slate-700 dark:text-zinc-400">Password</Form.Label>
+							<Form.Label class="text-sm font-medium text-foreground">Password</Form.Label>
 							<div class="group relative">
 								<div
-									class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"
+									class="absolute inset-y-0 left-3.5 flex items-center text-muted-foreground transition-colors group-focus-within:text-primary"
 								>
 									<Lock class="size-4" />
 								</div>
@@ -162,7 +162,7 @@
 									type={showPassword ? 'text' : 'password'}
 									bind:value={$formData.password}
 									placeholder="••••••••"
-									class="h-12 border-slate-200 bg-white/50 px-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50"
+									class="h-12 border-border bg-background/50 px-11 transition-all focus-visible:ring-primary/40"
 								/>
 
 								<Button
@@ -172,10 +172,10 @@
 									onclick={() => (showPassword = !showPassword)}
 									disabled={isPasswordEmpty}
 									class={cn(
-										'absolute top-1 right-1 h-10 w-10 text-slate-400 transition-all duration-200 dark:text-zinc-500',
+										'absolute top-1 right-1 h-10 w-10 text-muted-foreground transition-all duration-200',
 										isPasswordEmpty && 'pointer-events-none scale-90 opacity-0',
 										!isPasswordEmpty &&
-											'scale-100 opacity-100 hover:bg-transparent hover:text-slate-900 dark:hover:text-white'
+											'scale-100 opacity-100 hover:bg-transparent hover:text-foreground'
 									)}
 								>
 									{#if showPassword}
@@ -203,21 +203,21 @@
 						{/if}
 					</Button>
 				</form>
-			</Card.Content>
+			</CardContent>
 
-			<Card.Footer
-				class="flex items-center justify-center border-t border-slate-100 bg-slate-50/50 py-6 dark:border-zinc-800/50 dark:bg-zinc-950/40"
+			<CardFooter
+				class="flex items-center justify-center border-t border-border/50 bg-muted/50 py-6"
 			>
-				<p class="text-sm text-slate-500 dark:text-zinc-500">
+				<p class="text-sm text-muted-foreground">
 					Don't have an account?
 					<a
 						href="/signup"
-						class="ml-1 font-semibold text-slate-900 transition-colors hover:text-primary dark:text-white dark:hover:text-primary"
+						class="ml-1 font-semibold text-foreground transition-colors hover:text-primary"
 					>
 						Create an account
 					</a>
 				</p>
-			</Card.Footer>
-		</Card.Root>
+			</CardFooter>
+		</Card>
 	</div>
 </div>
