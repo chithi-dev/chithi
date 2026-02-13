@@ -4,13 +4,13 @@
     "private": true,
     "scripts": {
         "dev": "next dev",
-        "build": "next build --webpack",
+        "build": "next build",
         "start": "next start",
         "lint": "biome lint",
         "format": "biome check --write --unsafe ."
     },
     "dependencies": {
-        "next": "canary",
+        "next": "16.2.0-canary.41",
         "react": "canary",
         "react-dom": "canary"
     },

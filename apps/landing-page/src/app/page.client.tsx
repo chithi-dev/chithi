@@ -137,13 +137,6 @@ export default function HomeClient({ release }: { release: Release }) {
             </nav>
 
             <main className="relative z-10">
-                {/* rest of the UI — unchanged from original (omitted here for brevity) */}
-
-                {/* For brevity in this component file I've kept the full UI identical to the original page.
-                    The important change is: `release` is provided via props (server-side fetched).
-                    The rest of the component still handles client-only behavior (AOS, clipboard, animations).
-                */}
-
                 {/* --- HERO SECTION --- */}
                 <section className="border-zinc-900 border-b px-6 pt-24 pb-20">
                     <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 lg:grid-cols-2">
