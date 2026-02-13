@@ -1,21 +1,11 @@
 from async_typer import AsyncTyper
-import py7zr
 
-app = AsyncTyper()
+from app.commands.download import app as download_app
+from app.commands.upload import app as upload_app
 
+app = AsyncTyper(help="Upload & download encrypted files via Chithi.")
 
-@app.async_command()
-async def hello(name: str):
-    filters = [
-        {
-            "id": py7zr.FILTER_LZMA2,
-            "preset": 9,
-            "dict_size": 1024 * 1024 * 512,
-        }
-    ]
-    with py7zr.SevenZipFile(
-        "Archive.7z",
-        "w",
-        filters=filters,
-    ) as archive:
-        archive.writeall("test/")
+app.add_typer(download_app)
+app.add_typer(upload_app)
+
+__all__ = ["app"]

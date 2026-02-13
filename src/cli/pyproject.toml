@@ -12,7 +12,15 @@ dependencies = [
     "uvloop>=0.22.1;sys_platform=='linux'",
     # Http Client
     "httpx[http2]>=0.28.1",
-    "py7zr>=1.1.0",
+    # Encryption (AES-256-GCM + Argon2id KDF)
+    "cryptography>=44.0.0",
+    # ZIP with WinZip AES-256 support (matches web front-end)
+    "pyzipper>=0.3.6",
+    # Progress bars
+    "tqdm>=4.67.0",
+    # Terminal QR-code rendering
+    "segno>=1.5.1",
+    "pydantic-settings>=2.12.0",
 ]
 
 
@@ -21,7 +29,6 @@ build = ["nuitka>=2.8.9", "zstandard>=0.25.0"]
 dev = ["poethepoet>=0.39.0"]
 
 [tool.poe.tasks]
-# Is not possible to build due to type hint error
 nuitka = "nuitka --standalone --onefile --clang --lto=yes --python-flag=-m --python-flag=-OO --disable-bytecode-cache --assume-yes-for-downloads ./app"
 nuitka-linux = "nuitka --standalone --onefile --clang --lto=yes --python-flag=-m --python-flag=-OO --disable-bytecode-cache --assume-yes-for-downloads ./app"
 nuitka-debug = "nuitka --standalone --onefile --clang --lto=yes --debug --python-flag=-m --python-flag=-OO --disable-bytecode-cache --assume-yes-for-downloads ./app"
