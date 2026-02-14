@@ -6,6 +6,7 @@ from typing import BinaryIO, cast, Optional
 import httpx
 from tqdm import tqdm
 
+from app.settings import settings
 from app.builder.urls import UrlBuilder
 
 # Stream in 8 MiB chunks (matches S3 multipart minimum)
@@ -68,14 +69,27 @@ class Client:
         self,
         file_path: Path,
         filename: str | None = None,
-        expire_after_n_download: int = 1,
-        expire_after: int = 86400,
+        expire_after_n_download: int | None = None,
+        expire_after: int | None = None,
         timeout: Optional[httpx.Timeout] = None,
     ) -> dict:
         """
         Stream-upload *file_path* to ``POST /upload`` on the backend.
         Returns the JSON response (contains the download key).
         """
+        if expire_after_n_download is None:
+            expire_after_n_download = settings.EXPIRE_AFTER_N_DOWNLOAD
+
+        if expire_after is None:
+            expire_after = settings.EXPIRE_AFTER
+
+        if expire_after_n_download is None or expire_after is None:
+            config = await self.get_config()
+            if expire_after_n_download is None:
+                expire_after_n_download = config["default_number_of_downloads"]
+            if expire_after is None:
+                expire_after = config["default_expiry"]
+
         upload_url = self.urls.upload_url()
         display_name = filename or file_path.name
         file_size = file_path.stat().st_size
