@@ -19,7 +19,7 @@ jobs:
                     - os: windows-latest
                       target: windows
                       asset_name: chithi-cli-windows-amd64.exe
-                      build_cmd: nuitka
+                      build_cmd: nuitka-windows
 
         runs-on: ${{ matrix.os }}
 

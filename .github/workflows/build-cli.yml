@@ -67,7 +67,7 @@ jobs:
               run: uv sync --frozen
 
             - name: Build (Windows) via poe
-              run: uv run poe nuitka
+              run: uv run poe nuitka-windows
 
             - name: Show build outputs
               run: |
