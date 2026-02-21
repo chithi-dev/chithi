@@ -24,7 +24,9 @@
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import favicon from '$lib/assets/logo.svg';
 	import { PUBLIC_INSTANCE_URL } from '#consts/urls';
-    import { SiGithub } from "@icons-pack/svelte-simple-icons";
+    import { SiGithub,SiBuymeacoffee,SiLiberapay,SiKofi, SiPatreon } from "@icons-pack/svelte-simple-icons";
+	import { env } from '$env/dynamic/public';
+
 	const { isAuthenticated, user: userData } = useAuth();
 
 	let { children } = $props();
@@ -61,7 +63,8 @@
 			icon: Link
 		}
 	];
-	const footerLinks = [
+	let footerLinks = $state(
+		[
 		{
 			href:'/speedtest',
 			name:"Speedtest",
@@ -82,7 +85,33 @@
 			name: 'Source',
 			icon: SiGithub
 		}
-	];
+	]
+	);
+
+	$effect(()=>{
+		type DonationKey = 'PUBLIC_BUY_ME_A_COFFEE' | 'PUBLIC_LIBERAPAY' | 'PUBLIC_KO_FI' | 'PUBLIC_PATREON';
+
+		interface DonationPlatform {
+			key: DonationKey;
+			name: string;
+			icon: any;
+		}
+
+		const donationPlatforms: DonationPlatform[] = [
+			{ key: 'PUBLIC_BUY_ME_A_COFFEE', name: "Support by buying a coffee", icon: SiBuymeacoffee },
+			{ key: 'PUBLIC_LIBERAPAY',       name: "Support by Liberapay",        icon: SiLiberapay },
+			{ key: 'PUBLIC_KO_FI',           name: "Support by Ko-Fi",            icon: SiKofi },
+			{ key: 'PUBLIC_PATREON',         name: "Support by Patreon",          icon: SiPatreon }
+		];
+		donationPlatforms.forEach(({ key, name, icon }) => {
+			// Cast key to ensure TS knows it exists on the env object
+			const href = (env as Record<string, string | undefined>)[key];
+			
+			if (href) {
+				footerLinks.push({ href, name, icon });
+			}
+		});
+	})
 </script>
 
 <div class="relative flex min-h-svh min-w-screen flex-col overflow-hidden bg-background text-foreground">
