@@ -4,7 +4,6 @@ Dockerfile
 .gitignore
 .gitattributes
 README.md
-.npmrc
 .prettierrc
 .eslintrc.cjs
 .graphqlrc
