@@ -48,19 +48,23 @@
 
 	const adminLinks = [
 		{
-			href: '/admin/user',
-			name: 'Customize User',
-			icon: UserCog
-		},
-		{
 			href: '/admin/config',
 			name: 'Config',
-			icon: SlidersVertical
+			icon: SlidersVertical,
+			order:2
 		},
+		{
+			href: '/admin/user',
+			name: 'Customize User',
+			icon: UserCog,
+			order:1
+		},
+	
 		{
 			href: '/admin/urls',
 			name: 'Outstanding URLs',
-			icon: Link
+			icon: Link,
+			order:3
 		}
 	];
 	let footerLinks = $state(
@@ -68,22 +72,26 @@
 		{
 			href:'/speedtest',
 			name:"Speedtest",
-			icon:Gauge
+			icon:Gauge,
+			order:4,
 		},
 		{
 			href: 'https://docs.chithi.dev',
 			name: 'Documentation',
-			icon: BookOpenText
+			icon: BookOpenText,
+					order:3,
 		},
 		{
 			href: PUBLIC_INSTANCE_URL,
 			name: 'Public Instances',
-			icon: Earth
+			icon: Earth,
+						order:2,
 		},
 		{
 			href: 'https://github.com/chithi-dev/chithi',
 			name: 'Source',
-			icon: SiGithub
+			icon: SiGithub,
+						order:1,
 		}
 	]
 	);
@@ -103,12 +111,14 @@
 			{ key: 'PUBLIC_KO_FI',           name: "Support by Ko-Fi",            icon: SiKofi },
 			{ key: 'PUBLIC_PATREON',         name: "Support by Patreon",          icon: SiPatreon }
 		];
+		// Get the current largest order in footerLinks
+		let maxOrder = footerLinks.reduce((max, link) => Math.max(max, link.order ?? 0), 0);
+
 		donationPlatforms.forEach(({ key, name, icon }) => {
-			// Cast key to ensure TS knows it exists on the env object
 			const href = (env as Record<string, string | undefined>)[key];
-			
 			if (href) {
-				footerLinks.push({ href, name, icon });
+			maxOrder += 1; // increment for each new donation link
+			footerLinks.push({ href, name, icon, order: maxOrder });
 			}
 		});
 	})
@@ -164,7 +174,7 @@
 								<Dropdown.DropdownMenuSubContent>
 									{#each adminLinks as item}
 										<Dropdown.DropdownMenuItem>
-											<a href={item.href} class="flex w-full items-center gap-2">
+											<a href={item.href} class="flex w-full items-center gap-2" style="order:{item.order}">
 												<item.icon />
 												{item.name}
 											</a>
@@ -220,22 +230,24 @@
 				class="flex flex-row flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground md:gap-6"
 			>
 				{#each footerLinks as footer_item}
-					<Tooltip.Provider>
-						<Tooltip.Root>
-							<Tooltip.Trigger
-								><Button
-									variant="ghost"
-									size="icon"
-									aria-label={footer_item.name}
-									class="transition-colors hover:text-foreground"
-									href={footer_item.href}
+					<div style='order:{footer_item.order}'>
+						<Tooltip.Provider delayDuration={100}>
+							<Tooltip.Root>
+								<Tooltip.Trigger
+									><Button
+										variant="ghost"
+										size="icon"
+										aria-label={footer_item.name}
+										class="transition-colors hover:text-foreground"
+										href={footer_item.href}
+									>
+										<footer_item.icon />
+									</Button></Tooltip.Trigger
 								>
-									<footer_item.icon />
-								</Button></Tooltip.Trigger
-							>
-							<Tooltip.Content>{footer_item.name}</Tooltip.Content>
-						</Tooltip.Root>
-					</Tooltip.Provider>
+								<Tooltip.Content>{footer_item.name}</Tooltip.Content>
+							</Tooltip.Root>
+						</Tooltip.Provider>
+					</div>
 				{/each}
 			</nav>
 		</div>
