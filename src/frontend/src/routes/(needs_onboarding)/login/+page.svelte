@@ -30,7 +30,7 @@
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import { zod4 } from "sveltekit-superforms/adapters";
-	import * as Form from "$lib/components/ui/form/index.js";
+	import * as Form from "$lib/components/ui/form/index";
 	import { defaults, superForm } from "sveltekit-superforms";
 
 	// States

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+	import * as Sidebar from '$lib/components/ui/sidebar/index';
 	import { Settings, UserPen, Link } from '@lucide/svelte';
 	const items = [
 		{

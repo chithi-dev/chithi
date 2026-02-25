@@ -21,7 +21,7 @@
 	import { formatFileSize } from '#functions/bytes';
 	import { formatSeconds } from '#functions/times';
 	import { createZipStream, createEncryptedStream } from '#functions/streams';
-	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index';
 	import { v7 as uuidv7 } from 'uuid';
 	import { BACKEND_API } from '#consts/backend';
 	import { Progress } from '$lib/components/ui/progress';

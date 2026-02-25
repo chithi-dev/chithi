@@ -10,7 +10,7 @@
 	import { fade } from 'svelte/transition';
 	import { kebab_to_initials } from '#functions/string-conversion';
 	import { make_libravatar_url } from '#functions/libravatar';
-	import { Separator } from '$lib/components/ui/separator/index.js';
+	import { Separator } from '$lib/components/ui/separator/index';
 	const { user, updateUser } = useAuth();
 
 	let username = $state('');

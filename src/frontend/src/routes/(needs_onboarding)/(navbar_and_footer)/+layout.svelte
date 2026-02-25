@@ -6,7 +6,6 @@
 		UserCog,
 		SlidersVertical,
 		Link,
-		Earth,
 		BookOpenText,
 		Gauge
 	} from 'lucide-svelte';
@@ -16,15 +15,15 @@
 	import * as Dropdown from '$lib/components/ui/dropdown-menu';
 	import { useAuth } from '#queries/auth';
 	import { mode } from 'mode-watcher';
-	import { Label } from '$lib/components/ui/label/index.js';
-	import { Switch } from '$lib/components/ui/switch/index.js';
+	import { Label } from '$lib/components/ui/label/index';
+	import { Switch } from '$lib/components/ui/switch/index';
 	import { kebab_to_initials } from '#functions/string-conversion';
 	import { make_libravatar_url } from '#functions/libravatar';
 	import { page } from '$app/state';
-	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index';
 	import favicon from '$lib/assets/logo.svg';
 	import { PUBLIC_INSTANCE_URL } from '#consts/urls';
-    import { SiGithub,SiBuymeacoffee,SiLiberapay,SiKofi, SiPatreon } from "@icons-pack/svelte-simple-icons";
+    import { SiGithub,SiBuymeacoffee,SiLiberapay,SiKofi, SiPatreon,SiUptimekuma } from "@icons-pack/svelte-simple-icons";
 	import { env } from '$env/dynamic/public';
 
 	const { isAuthenticated, user: userData } = useAuth();
@@ -84,8 +83,8 @@
 		{
 			href: PUBLIC_INSTANCE_URL,
 			name: 'Public Instances',
-			icon: Earth,
-						order:2,
+			icon: SiUptimekuma,
+			order:2,
 		},
 		{
 			href: 'https://github.com/chithi-dev/chithi',

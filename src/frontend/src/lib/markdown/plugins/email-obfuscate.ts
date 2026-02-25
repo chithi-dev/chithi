@@ -1,4 +1,4 @@
-// Inspired by : https://github.com/markedjs/marked-mangle/blob/9484ff1fe551b8b8bef497a360890225943ace82/src/index.js
+// Inspired by : https://github.com/markedjs/marked-mangle/blob/9484ff1fe551b8b8bef497a360890225943ace82/src/index
 import type { Element, Root, Text } from 'hast';
 import type { Plugin } from 'unified';
 import { visit } from 'unist-util-visit';
