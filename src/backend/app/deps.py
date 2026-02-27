@@ -4,7 +4,7 @@ import aioboto3
 import jwt
 import redis.asyncio as redis
 from botocore.exceptions import ClientError
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt import InvalidTokenError
 from pydantic import ValidationError
@@ -21,13 +21,31 @@ from app.settings import settings
 bearer_scheme = HTTPBearer(auto_error=True)
 
 
+async def get_token_from_cookie_or_header(
+    request: Request, credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)
+) -> HTTPAuthorizationCredentials:
+    token = request.cookies.get("access_token")
+    if token:
+        return HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
+
+    # Fallback to Authorization header
+    if credentials:
+        return credentials
+
+    # If no token found
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="Could not validate credentials",
+    )
+
+
 async def get_current_user(session: SessionDep, token: TokenDep) -> User:
     try:
         payload = jwt.decode(
             token.credentials, settings.SECRET_KEY, algorithms=[security.ALGORITHM]
         )
         token_data = TokenPayload(**payload)
-    except (InvalidTokenError, ValidationError):
+    except InvalidTokenError, ValidationError:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Could not validate credentials",
@@ -69,7 +87,7 @@ async def get_redis():
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 TokenDep = Annotated[
     HTTPAuthorizationCredentials,
-    Depends(bearer_scheme),
+    Depends(get_token_from_cookie_or_header),
 ]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 S3Dep = Annotated[S3Client, Depends(get_s3_client)]
