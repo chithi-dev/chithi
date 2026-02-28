@@ -17,15 +17,8 @@ export const useFilesQuery = () => {
 	const query = createQuery(() => ({
 		queryKey: ['admin-files'],
 		queryFn: async () => {
-			const token = localStorage.getItem('auth_token');
-			if (!token) {
-				throw new Error('Not authenticated');
-			}
-
 			const res = await fetch(ADMIN_FILES_URL, {
-				headers: {
-					Authorization: `Bearer ${token}`
-				}
+				credentials: 'include'
 			});
 
 			if (!res.ok) {
@@ -41,14 +34,9 @@ export const useFilesQuery = () => {
 	}));
 
 	const revokeFile = async (id: string) => {
-		const token = localStorage.getItem('auth_token');
-		if (!token) throw new Error('Not authenticated');
-
 		const res = await fetch(`${ADMIN_FILES_URL}/${id}`, {
 			method: 'DELETE',
-			headers: {
-				Authorization: `Bearer ${token}`
-			}
+			credentials: 'include'
 		});
 
 		if (res.ok) {

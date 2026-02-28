@@ -7,7 +7,9 @@ const fetchConfig = async ({
 }: {
 	fetch?: typeof globalThis.window.fetch;
 }) => {
-	const res = await fetch(CONFIG_URL);
+	const res = await fetch(CONFIG_URL, {
+		credentials: 'include'
+	});
 
 	return res.json();
 };
