@@ -10,6 +10,7 @@
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { useAuth } from '#queries/auth';
+	import { toast } from 'svelte-sonner';
 
 	let showPassword = $state(false);
 	const { login } = useAuth();
@@ -22,10 +23,19 @@
 		{
 			validators: zod4Client(schema),
 			onUpdated: async ({ form }) => {
-				if (form.valid && form.message) {
-					await login(form.data.email, form.data.password);
-
-					goto(next_url);
+				if (form.valid) {
+					try {
+						const token = await login(form.data.email, form.data.password);
+						if (token) {
+							goto(next_url);
+						}
+					} catch (e) {
+						if (e instanceof Error) {
+							toast.error(e.message);
+						}
+					}
+				} else {
+					toast.error('Please fix the errors in the form.');
 				}
 			}
 		}
