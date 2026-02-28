@@ -1,3 +1,4 @@
+import { LOGIN_URL } from '#consts/backend';
 import { fail } from '@sveltejs/kit';
 import { message, superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
@@ -10,7 +11,22 @@ export const actions = {
 		if (!form.valid) {
 			return fail(400, { form });
 		}
-		const token = 'your_jwt_here';
+
+		const form_data = new FormData();
+		form_data.append('username', form.data.email);
+		form_data.append('password', form.data.password);
+
+		const res = await fetch(LOGIN_URL, {
+			method: 'POST',
+			body: form_data
+		});
+
+		if (!res.ok) {
+			throw new Error('Invalid username or password');
+		}
+
+		const data = await res.json();
+		const token = data.access_token;
 
 		// Set HttpOnly cookie
 		cookies.set('access_token', token, {

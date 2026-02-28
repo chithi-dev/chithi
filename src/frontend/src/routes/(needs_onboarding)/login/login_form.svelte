@@ -13,7 +13,6 @@
 	import { toast } from 'svelte-sonner';
 
 	let showPassword = $state(false);
-	const { login } = useAuth();
 
 	let { data, next_url }: { data: { form: SuperValidated<Infer<FormSchema>> }; next_url: string } =
 		$props();
@@ -24,16 +23,7 @@
 			validators: zod4Client(schema),
 			onUpdated: async ({ form }) => {
 				if (form.valid) {
-					try {
-						const token = await login(form.data.email, form.data.password);
-						if (token) {
-							goto(next_url);
-						}
-					} catch (e) {
-						if (e instanceof Error) {
-							toast.error(e.message);
-						}
-					}
+					goto(next_url);
 				} else {
 					toast.error('Please fix the errors in the form.');
 				}

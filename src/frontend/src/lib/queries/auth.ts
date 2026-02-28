@@ -10,7 +10,9 @@ const fetchUser = async ({
 	fetch?: typeof globalThis.window.fetch;
 }) => {
 	if (!browser) return null;
-	const res = await fetch(USER_URL);
+	const res = await fetch(USER_URL, {
+		credentials: 'include'
+	});
 
 	if (!res.ok || res.status === 401) {
 		return null;
@@ -65,7 +67,6 @@ export const useAuth = () => {
 
 	return {
 		user: query,
-		login,
 		logout,
 		updateUser
 	};
