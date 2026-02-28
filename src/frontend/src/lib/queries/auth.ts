@@ -1,7 +1,8 @@
 import { ADMIN_USER_UPDATE_URL, USER_URL } from '#consts/backend';
 import { browser } from '$app/environment';
+import { user_store } from '$lib/store/user.svelte';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
-
+const { is_authenticated } = user_store();
 const queryKey = ['auth-user'];
 
 const fetchUser = async ({
@@ -9,7 +10,7 @@ const fetchUser = async ({
 }: {
 	fetch?: typeof globalThis.window.fetch;
 }) => {
-	if (!browser) return null;
+	if (!is_authenticated) return null;
 	const res = await fetch(USER_URL, {
 		credentials: 'include'
 	});

@@ -1,6 +1,6 @@
 import { LOGIN_URL } from '#consts/backend';
 import { fail } from '@sveltejs/kit';
-import { message, superValidate } from 'sveltekit-superforms';
+import { message, setError, superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { schema } from './schema';
 
@@ -22,7 +22,7 @@ export const actions = {
 		});
 
 		if (!res.ok) {
-			throw new Error('Invalid username or password');
+			return setError(form, '', 'Invalid username or password');
 		}
 
 		const data = await res.json();

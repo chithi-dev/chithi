@@ -9,7 +9,6 @@
 	import { Button } from '$lib/components/ui/button';
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { useAuth } from '#queries/auth';
 	import { toast } from 'svelte-sonner';
 
 	let showPassword = $state(false);
@@ -25,7 +24,13 @@
 				if (form.valid) {
 					goto(next_url);
 				} else {
-					toast.error('Please fix the errors in the form.');
+					const globalErrors = form.errors._errors;
+
+					if (globalErrors && globalErrors.length > 0) {
+						toast.error(globalErrors[0]);
+					} else {
+						toast.error('Please check your credentials.');
+					}
 				}
 			}
 		}
