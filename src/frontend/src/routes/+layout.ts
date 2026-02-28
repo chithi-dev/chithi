@@ -3,6 +3,8 @@ import { QueryClient } from '@tanstack/svelte-query';
 import { defineBaseMetaTags } from 'svelte-meta-tags';
 import type { LayoutLoad } from './$types';
 
+export const trailingSlash = 'always';
+
 export const load: LayoutLoad = async ({ url }) => {
 	const queryClient = new QueryClient({
 		defaultOptions: {
@@ -25,7 +27,14 @@ export const load: LayoutLoad = async ({ url }) => {
 			description:
 				'Encrypt and send files with a link that automatically expires to ensure your important documents don’t stay online forever.',
 			siteName: 'Chithi Dev',
-			images: []
+			images: [
+				{
+					url: '/opengraph.png',
+					width: 800,
+					height: 600,
+					alt: 'Chithi | Encrypted File Sharing'
+				}
+			]
 		}
 	});
 
