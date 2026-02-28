@@ -61,9 +61,9 @@ export const useConfigQuery = () => {
 		const res = await fetch(ADMIN_CONFIG_URL, {
 			method: 'PATCH',
 			headers: {
-				'Content-Type': 'application/json',
-				Authorization: `Bearer ${token}`
+				'Content-Type': 'application/json'
 			},
+			credentials: 'include',
 			body: JSON.stringify(data)
 		});
 
