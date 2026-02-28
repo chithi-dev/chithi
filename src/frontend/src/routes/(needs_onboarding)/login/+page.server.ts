@@ -32,7 +32,7 @@ export const actions = {
 		cookies.set('access_token', token, {
 			httpOnly: true, // cannot be read by client
 			secure: true, // only HTTPS in prod
-			sameSite: 'strict',
+			sameSite: 'lax',
 			path: '/',
 			maxAge: 60 * 60 * 24 // 1 day
 		});

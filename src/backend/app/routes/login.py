@@ -7,7 +7,7 @@ from sqlmodel import or_, select
 
 from app import security
 from app.decorators.rate_limit import rate_limit
-from app.deps import SessionDep
+from app.deps import CurrentUser, SessionDep
 from app.models import User
 from app.schemas.token import Token
 from app.settings import settings
@@ -49,3 +49,5 @@ async def login_endpoint(
     )
 
     return Token(access_token=token_string, token_type="bearer")
+
+

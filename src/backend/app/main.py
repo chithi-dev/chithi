@@ -21,6 +21,7 @@ app.add_middleware(
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
+    allow_credentials=True,
 )
 
 from app.routes.admin.config import router as admin_config_router
@@ -66,3 +67,7 @@ app.include_router(onboarding_router)
 from app.routes.speedtest import router as speedtest_router
 
 app.include_router(speedtest_router)
+
+from app.routes.token import router as token_router
+
+app.include_router(token_router)

@@ -18,7 +18,7 @@ from app.models import User
 from app.schemas.token import TokenPayload
 from app.settings import settings
 
-bearer_scheme = HTTPBearer(auto_error=True)
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_token_from_cookie_or_header(

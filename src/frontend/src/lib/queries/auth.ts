@@ -38,13 +38,6 @@ export const useAuth = () => {
 		staleTime: Infinity,
 		retry: false
 	}));
-
-	const logout = () => {
-		if (!browser) return null;
-		queryClient.setQueryData(queryKey, null);
-		queryClient.clear();
-	};
-
 	const updateUser = async (data: { username?: string; email?: string | null }) => {
 		if (!browser) return;
 
@@ -67,7 +60,6 @@ export const useAuth = () => {
 
 	return {
 		user: query,
-		logout,
 		updateUser
 	};
 };
