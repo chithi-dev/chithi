@@ -12,6 +12,7 @@
 	import { onMount } from 'svelte';
 	import type { LayoutData } from './$types';
 	import type { Snippet } from 'svelte';
+  	import { MetaTags, deepMerge } from 'svelte-meta-tags';
 
 	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 
@@ -24,12 +25,16 @@
 	afterNavigate(() => {
 		NProgress.done();
 	});
+	let metaTags = $derived(deepMerge(data.baseMetaTags, page.data.pageMetaTags));
 </script>
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
 	<title>Chithi</title>
+
 </svelte:head>
+
+<MetaTags {...metaTags} />
 
 <Toaster />
 
