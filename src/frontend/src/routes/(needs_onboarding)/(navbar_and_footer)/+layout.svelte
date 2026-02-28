@@ -106,7 +106,9 @@
 			const href = (env as Record<string, string | undefined>)[key];
 
 			if (href && !footerLinks.some((link) => link.href === href)) {
-				const module = await import(`@icons-pack/svelte-simple-icons/icons/${path}.svelte`);
+				const module = await import(
+					`@icons-pack/svelte-simple-icons/icons/${path}.svelte` /* @vite-ignore */
+				);
 
 				footerLinks.push({
 					href,
