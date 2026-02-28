@@ -5,7 +5,7 @@ import { defineBaseMetaTags } from 'svelte-meta-tags';
 import type { LayoutLoad } from './$types';
 export const trailingSlash = 'always';
 
-export const load: LayoutLoad = async ({ url }) => {
+export const load: LayoutLoad = async ({ data, url }) => {
 	const queryClient = new QueryClient({
 		defaultOptions: {
 			queries: {
@@ -38,5 +38,5 @@ export const load: LayoutLoad = async ({ url }) => {
 		}
 	});
 
-	return { queryClient, ...baseTags };
+	return { queryClient, ...baseTags, ...data };
 };

@@ -13,7 +13,7 @@
 
 	const { files, revokeFile } = useFilesQuery();
 
-	const deviceTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+	// States
 	let isRevoking = $state(false);
 	let isRevokeDialogOpen = $state(false);
 	let fileToRevoke = $state<string | null>(null);

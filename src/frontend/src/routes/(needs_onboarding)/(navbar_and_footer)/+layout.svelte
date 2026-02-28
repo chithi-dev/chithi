@@ -25,8 +25,10 @@
 	import { PUBLIC_INSTANCE_URL } from '#consts/urls';
 	import { env } from '$env/dynamic/public';
 	import { SiGithub, SiUptimekuma } from '@icons-pack/svelte-simple-icons';
-	const { isAuthenticated, user: userData } = useAuth();
+	import { user_store } from '$lib/store/user.svelte';
+	const { user: userData } = useAuth();
 
+	const { is_authenticated } = user_store();
 	let { children } = $props();
 
 	let initials = $derived(kebab_to_initials(userData.data?.username ?? ''));
@@ -130,7 +132,7 @@
 		</a>
 
 		<div class="flex items-center gap-2">
-			{#if isAuthenticated()}
+			{#if is_authenticated}
 				<Dropdown.Root>
 					<Dropdown.Trigger>
 						<div class="my-0.5">

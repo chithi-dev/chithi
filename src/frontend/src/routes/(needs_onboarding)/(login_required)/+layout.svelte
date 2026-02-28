@@ -5,13 +5,14 @@
 	import * as Empty from '$lib/components/ui/empty/index';
 	import { LoaderCircle, Lock } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
+	import { user_store } from '$lib/store/user.svelte';
 
-	const { isAuthenticated, user: userData } = useAuth();
-
+	const { user: userData } = useAuth();
+	const { is_authenticated } = user_store();
 	let { children } = $props();
 
 	$effect(() => {
-		if (!isAuthenticated()) {
+		if (!is_authenticated) {
 			goto(`/login?next=${page.url.pathname}`);
 		}
 	});

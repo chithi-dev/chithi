@@ -13,7 +13,6 @@
 	import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '#functions/bytes';
 	import { formatSeconds, secondsToNumber, T_UNITS, type TimeUnit } from '#functions/times';
 	import { sanitizeExt } from '#functions/sanitize';
-	import { Separator } from '$lib/components/ui/separator';
 	import { markdown_to_html } from '$lib/markdown/markdown';
 
 	// Query hook
