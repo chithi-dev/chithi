@@ -1,13 +1,8 @@
 import { definePageMetaTags } from 'svelte-meta-tags';
 import { superValidate } from 'sveltekit-superforms';
-import { zod } from 'sveltekit-superforms/adapters';
-import { z } from 'zod/v3';
+import { zod4 } from 'sveltekit-superforms/adapters';
 import type { PageLoad } from './$types';
-
-const schema = z.object({
-	email: z.string().min(1, 'Email or Username is required'),
-	password: z.string().min(1, 'Password is required')
-});
+import { schema } from './schema';
 
 export const load: PageLoad = async () => {
 	const pageTags = definePageMetaTags({
@@ -18,7 +13,7 @@ export const load: PageLoad = async () => {
 			description: 'Login to your chithi instance.'
 		}
 	});
-	const form = await superValidate(zod(schema));
+	const form = await superValidate(zod4(schema));
 
 	return { form, ...pageTags };
 };
