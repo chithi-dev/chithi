@@ -7,7 +7,7 @@
 	import { BACKEND_API } from '#consts/backend';
 	import { PasswordRequiredError } from '#functions/download';
 	import { createDecryptedStream } from '#functions/streams';
-	import { BlobWriter, Uint8ArrayReader, Uint8ArrayWriter, ZipReader } from '@zip.js/zip.js';
+	import { BlobWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
 	import { getMimeType } from '#functions/mime';
 
 	let key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
