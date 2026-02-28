@@ -8,14 +8,26 @@
 	import { ArrowRight, Mail, Lock, LoaderCircle, Eye, EyeOff } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { untrack } from 'svelte';
-	let showPassword = $state(false);
+	import { goto } from '$app/navigation';
+	import { useAuth } from '#queries/auth';
 
-	let { data }: { data: { form: SuperValidated<Infer<FormSchema>> } } = $props();
+	let showPassword = $state(false);
+	const { login } = useAuth();
+
+	let { data, next_url }: { data: { form: SuperValidated<Infer<FormSchema>> }; next_url: string } =
+		$props();
 
 	const form = superForm(
 		untrack(() => data.form),
 		{
-			validators: zod4Client(schema)
+			validators: zod4Client(schema),
+			onUpdated: async ({ form }) => {
+				if (form.valid && form.message) {
+					await login(form.data.email, form.data.password);
+
+					goto(next_url);
+				}
+			}
 		}
 	);
 

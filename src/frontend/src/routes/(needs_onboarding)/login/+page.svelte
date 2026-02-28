@@ -73,7 +73,7 @@
 			</CardHeader>
 
 			<CardContent>
-				<LoginForm {data} />
+				<LoginForm {data} next_url={nextUrl} />
 			</CardContent>
 
 			<CardFooter
