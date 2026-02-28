@@ -55,9 +55,6 @@ export const useConfigQuery = () => {
 	}));
 
 	const update_config = async (data: Partial<ConfigIn>) => {
-		const token = localStorage.getItem('auth_token');
-		if (!token) return null;
-
 		const res = await fetch(ADMIN_CONFIG_URL, {
 			method: 'PATCH',
 			headers: {
@@ -66,8 +63,9 @@ export const useConfigQuery = () => {
 			credentials: 'include',
 			body: JSON.stringify(data)
 		});
-
-		if (res.ok) await queryClient.invalidateQueries({ queryKey: ['config'] });
+		if (res.ok) {
+			await queryClient.invalidateQueries({ queryKey: ['config'] });
+		}
 	};
 
 	return {
