@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
 	import { BACKEND_API } from '#consts/backend';
@@ -81,7 +81,7 @@
 		if (worker) worker.terminate();
 	});
 
-	// Chart Config - using shadcn CSS variables
+	// Chart Config
 	const chartConfig = {
 		download: { label: 'Download', color: 'var(--color-cyan-400)' },
 		upload: { label: 'Upload', color: 'var(--color-purple-500)' },

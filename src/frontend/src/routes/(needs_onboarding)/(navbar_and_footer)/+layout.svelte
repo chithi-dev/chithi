@@ -23,16 +23,8 @@
 	import * as Tooltip from '$lib/components/ui/tooltip/index';
 	import favicon from '$lib/assets/logo.svg';
 	import { PUBLIC_INSTANCE_URL } from '#consts/urls';
-	import {
-		SiGithub,
-		SiBuymeacoffee,
-		SiLiberapay,
-		SiKofi,
-		SiPatreon,
-		SiUptimekuma
-	} from '@icons-pack/svelte-simple-icons';
 	import { env } from '$env/dynamic/public';
-
+	import { SiGithub, SiUptimekuma } from '@icons-pack/svelte-simple-icons';
 	const { isAuthenticated, user: userData } = useAuth();
 
 	let { children } = $props();
@@ -100,33 +92,26 @@
 		}
 	]);
 
-	$effect(() => {
-		type DonationKey =
-			| 'PUBLIC_BUY_ME_A_COFFEE'
-			| 'PUBLIC_LIBERAPAY'
-			| 'PUBLIC_KO_FI'
-			| 'PUBLIC_PATREON';
-
-		interface DonationPlatform {
-			key: DonationKey;
-			name: string;
-			icon: any;
-		}
-
-		const donationPlatforms: DonationPlatform[] = [
-			{ key: 'PUBLIC_BUY_ME_A_COFFEE', name: 'Support by buying a coffee', icon: SiBuymeacoffee },
-			{ key: 'PUBLIC_LIBERAPAY', name: 'Support by Liberapay', icon: SiLiberapay },
-			{ key: 'PUBLIC_KO_FI', name: 'Support by Ko-Fi', icon: SiKofi },
-			{ key: 'PUBLIC_PATREON', name: 'Support by Patreon', icon: SiPatreon }
+	$effect.pre(() => {
+		const donationPlatforms = [
+			{ key: 'PUBLIC_BUY_ME_A_COFFEE', name: 'Buy Me A Coffee', path: 'SiBuymeacoffee' },
+			{ key: 'PUBLIC_LIBERAPAY', name: 'Liberapay', path: 'SiLiberapay' },
+			{ key: 'PUBLIC_KO_FI', name: 'Ko-Fi', path: 'SiKofi' },
+			{ key: 'PUBLIC_PATREON', name: 'Patreon', path: 'SiPatreon' }
 		];
-		// Get the current largest order in footerLinks
-		let maxOrder = footerLinks.reduce((max, link) => Math.max(max, link.order ?? 0), 0);
 
-		donationPlatforms.forEach(({ key, name, icon }) => {
+		donationPlatforms.forEach(async ({ key, name, path }) => {
 			const href = (env as Record<string, string | undefined>)[key];
-			if (href) {
-				maxOrder += 1; // increment for each new donation link
-				footerLinks.push({ href, name, icon, order: maxOrder });
+
+			if (href && !footerLinks.some((link) => link.href === href)) {
+				const module = await import(`@icons-pack/svelte-simple-icons/icons/${path}.svelte`);
+
+				footerLinks.push({
+					href,
+					name,
+					icon: module.default,
+					order: footerLinks.length + 1
+				});
 			}
 		});
 	});
