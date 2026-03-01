@@ -6,7 +6,9 @@
   "packageRules": [
     {
       "groupName": "all dependencies",
-      "matchPackagePatterns": ["*"],
+      "matchPackageNames": [
+        "*"
+      ]
     }
   ]
 }
