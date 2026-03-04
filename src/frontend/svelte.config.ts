@@ -3,9 +3,10 @@ import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 import node_adapter from '@sveltejs/adapter-node';
 
+const is_production = process.env.NODE_ENV === 'production';
 const is_node = process.env.BUILD_NODE_ENV ?? false;
 
-if (!is_node) {
+if (!is_node && is_production) {
 	throw new Error('Chithi only supports Node.js environment');
 }
 
