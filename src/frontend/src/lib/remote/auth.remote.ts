@@ -41,3 +41,9 @@ export const login = command(loginSchema, async ({ username, password }) => {
 
 	return { success: true };
 });
+
+export const logout = command(async () => {
+	const { cookies } = getRequestEvent();
+	cookies.delete('access_token', { path: '/' });
+	return { success: true };
+});

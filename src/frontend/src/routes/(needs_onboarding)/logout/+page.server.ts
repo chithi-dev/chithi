@@ -1,7 +1,8 @@
 import { redirect } from '@sveltejs/kit';
+import { logout } from '$lib/remote/auth.remote';
 
 export const load = async ({ cookies, url }) => {
-	cookies.delete('access_token', { path: '/' });
+	await logout();
 
 	let next = url.searchParams.get('next') ?? '/';
 	if (next.startsWith('/admin')) {
