@@ -10,7 +10,7 @@
   <span> · </span>
   <a href="https://landing.chithi.dev">Landing Page</a>
   <span> · </span>
-  <a href="https://public.chithi.dev/status/public">Public Instances</a>
+  <a href="https://public.chithi.dev/">Public Instances</a>
 </h3>
 
 

@@ -24,7 +24,7 @@
 	import favicon from '$lib/assets/logo.svg';
 	import { PUBLIC_INSTANCE_URL } from '#consts/urls';
 	import { env } from '$env/dynamic/public';
-	import { SiGithub, SiUptimekuma } from '@icons-pack/svelte-simple-icons';
+	import { SiGithub, SiUpptime } from '@icons-pack/svelte-simple-icons';
 	import { user_store } from '$lib/store/user.svelte';
 	const { user: userData } = useAuth();
 
@@ -83,7 +83,7 @@
 		{
 			href: PUBLIC_INSTANCE_URL,
 			name: 'Public Instances',
-			icon: SiUptimekuma,
+			icon: SiUpptime,
 			order: 2
 		},
 		{
@@ -94,26 +94,40 @@
 		}
 	]);
 
-	$effect.pre(() => {
-		const donationPlatforms = [
-			{ key: 'PUBLIC_BUY_ME_A_COFFEE', name: 'Buy Me A Coffee', path: 'SiBuymeacoffee' },
-			{ key: 'PUBLIC_LIBERAPAY', name: 'Liberapay', path: 'SiLiberapay' },
-			{ key: 'PUBLIC_KO_FI', name: 'Ko-Fi', path: 'SiKofi' },
-			{ key: 'PUBLIC_PATREON', name: 'Patreon', path: 'SiPatreon' }
-		];
+	const donationPlatforms = [
+		{
+			key: 'PUBLIC_BUY_ME_A_COFFEE',
+			name: 'Buy Me A Coffee',
+			iconModule: await import('@icons-pack/svelte-simple-icons/icons/SiBuymeacoffee')
+		},
+		{
+			key: 'PUBLIC_LIBERAPAY',
+			name: 'Liberapay',
+			iconModule: await import('@icons-pack/svelte-simple-icons/icons/SiLiberapay')
+		},
+		{
+			key: 'PUBLIC_KO_FI',
+			name: 'Ko-Fi',
+			iconModule: await import('@icons-pack/svelte-simple-icons/icons/SiKofi')
+		},
+		{
+			key: 'PUBLIC_PATREON',
+			name: 'Patreon',
+			iconModule: await import('@icons-pack/svelte-simple-icons/icons/SiPatreon')
+		}
+	];
 
-		donationPlatforms.forEach(async ({ key, name, path }) => {
+	$effect.pre(() => {
+		donationPlatforms.forEach(({ key, name, iconModule }) => {
 			const href = (env as Record<string, string | undefined>)[key];
 
+			// Check if the environment variable exists and isn't already in the list
 			if (href && !footerLinks.some((link) => link.href === href)) {
-				const module = await import(
-					`@icons-pack/svelte-simple-icons/icons/${path}.svelte` /* @vite-ignore */
-				);
-
 				footerLinks.push({
 					href,
 					name,
-					icon: module.default,
+					// Use the .default property from the awaited import
+					icon: iconModule.default,
 					order: footerLinks.length + 1
 				});
 			}
