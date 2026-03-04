@@ -1,4 +1,3 @@
-import { LOGIN_URL } from '#consts/backend';
 import { fail } from '@sveltejs/kit';
 import { message, setError, superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
@@ -16,28 +15,17 @@ export const actions = {
 		form_data.append('username', form.data.email);
 		form_data.append('password', form.data.password);
 
-		const res = await fetch(LOGIN_URL, {
+		const res = await fetch('/api/login', {
 			method: 'POST',
+			credentials: 'include',
 			body: form_data
 		});
 
+		const data = await res.json().catch(() => ({}));
 		if (!res.ok) {
-			return setError(form, '', 'Invalid username or password');
+			return setError(form, '', data?.message || 'Invalid username or password');
 		}
 
-		const data = await res.json();
-		const token = data.access_token;
-
-		// Set HttpOnly cookie
-		cookies.set('access_token', token, {
-			httpOnly: true, // cannot be read by client
-			secure: true, // only HTTPS in prod
-			sameSite: 'lax',
-			path: '/',
-			maxAge: 60 * 60 * 24 // 1 day
-		});
-
-		// Return the form with a status message
-		return message(form, 'Form posted successfully!');
+		return message(form, 'Logged in successfully');
 	}
 };

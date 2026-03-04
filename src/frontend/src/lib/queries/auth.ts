@@ -1,17 +1,20 @@
-import { ADMIN_USER_UPDATE_URL, USER_URL } from '#consts/backend';
+import { ADMIN_USER_UPDATE_URL, LOGIN_URL, USER_URL } from '#consts/backend';
 import { browser } from '$app/environment';
 import { user_store } from '$lib/store/user.svelte';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
-const { is_authenticated } = user_store();
+const { is_authenticated, authenticate, unauthenticate } = user_store();
 const queryKey = ['auth-user'];
 
+const resolveFetch = (fetch?: typeof globalThis.fetch) => fetch ?? globalThis.fetch;
+
 const fetchUser = async ({
-	fetch = globalThis.window.fetch
+	fetch
 }: {
-	fetch?: typeof globalThis.window.fetch;
+	fetch?: typeof globalThis.fetch;
 }) => {
 	if (!is_authenticated) return null;
-	const res = await fetch(USER_URL, {
+	const runtimeFetch = resolveFetch(fetch);
+	const res = await runtimeFetch(USER_URL, {
 		credentials: 'include'
 	});
 
@@ -39,14 +42,40 @@ export const useAuth = () => {
 		staleTime: Infinity,
 		retry: false
 	}));
+
+	const login = async (username: string, password: string) => {
+		if (!browser) return;
+		const runtimeFetch = resolveFetch();
+		const form_data = new FormData();
+		form_data.append('username', username);
+		form_data.append('password', password);
+
+		const res = await runtimeFetch('/api/login', {
+			method: 'POST',
+			credentials: 'include',
+			body: form_data
+		});
+
+		const data = await res.json().catch(() => ({}));
+		if (!res.ok) {
+			unauthenticate();
+			throw new Error(data?.message || 'Invalid username or password');
+		}
+
+		authenticate();
+		await queryClient.invalidateQueries({ queryKey });
+	};
+
 	const updateUser = async (data: { username?: string; email?: string | null }) => {
 		if (!browser) return;
+		const runtimeFetch = resolveFetch();
 
-		const res = await fetch(ADMIN_USER_UPDATE_URL, {
+		const res = await runtimeFetch(ADMIN_USER_UPDATE_URL, {
 			method: 'PATCH',
 			headers: {
 				'Content-Type': 'application/json'
 			},
+			credentials: 'include',
 			body: JSON.stringify(data)
 		});
 
@@ -61,6 +90,7 @@ export const useAuth = () => {
 
 	return {
 		user: query,
+		login,
 		updateUser
 	};
 };

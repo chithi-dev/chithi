@@ -2,12 +2,11 @@ import { ADMIN_CONFIG_URL, CONFIG_URL } from '#consts/backend';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 const queryKey = ['config'];
-const fetchConfig = async ({
-	fetch = globalThis.window.fetch
-}: {
-	fetch?: typeof globalThis.window.fetch;
-}) => {
-	const res = await fetch(CONFIG_URL, {
+const resolveFetch = (fetch?: typeof globalThis.fetch) => fetch ?? globalThis.fetch;
+
+const fetchConfig = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
+	const runtimeFetch = resolveFetch(fetch);
+	const res = await runtimeFetch(CONFIG_URL, {
 		credentials: 'include'
 	});
 
