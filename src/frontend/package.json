@@ -4,9 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"build": "vite build",
 		"build:node": "cross-env BUILD_NODE_ENV=node vite build",
-		"build:static": "cross-env BUILD_STATIC_ENV=static vite build",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"dev": "vite dev",
