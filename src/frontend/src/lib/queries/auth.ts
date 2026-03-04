@@ -1,5 +1,6 @@
 import { ADMIN_USER_UPDATE_URL, USER_URL } from '#consts/backend';
 import { browser } from '$app/environment';
+import { login as loginRemote } from '$lib/remote/auth.remote';
 import { user_store } from '$lib/store/user.svelte';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 const { is_authenticated, authenticate, unauthenticate } = user_store();
@@ -41,25 +42,14 @@ export const useAuth = () => {
 
 	const login = async (username: string, password: string) => {
 		if (!browser) return;
-		const runtimeFetch = resolveFetch();
-		const form_data = new FormData();
-		form_data.append('username', username);
-		form_data.append('password', password);
-
-		const res = await runtimeFetch('/api/login', {
-			method: 'POST',
-			credentials: 'include',
-			body: form_data
-		});
-
-		const data = await res.json().catch(() => ({}));
-		if (!res.ok) {
+		try {
+			await loginRemote({ username, password });
+			authenticate();
+			await queryClient.invalidateQueries({ queryKey });
+		} catch (error: any) {
 			unauthenticate();
-			throw new Error(data?.message || 'Invalid username or password');
+			throw new Error(error?.message || 'Invalid username or password');
 		}
-
-		authenticate();
-		await queryClient.invalidateQueries({ queryKey });
 	};
 
 	const updateUser = async (data: { username?: string; email?: string | null }) => {
