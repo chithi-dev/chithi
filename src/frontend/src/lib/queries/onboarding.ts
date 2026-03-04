@@ -3,12 +3,11 @@ import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 const queryKey = ['onboarding-status'];
 
-const fetchOnboarding = async ({
-	fetch = globalThis.window.fetch
-}: {
-	fetch?: typeof globalThis.window.fetch;
-}) => {
-	const res = await fetch(ONBOARDING_URL);
+const resolveFetch = (fetch?: typeof globalThis.fetch) => fetch ?? globalThis.fetch;
+
+const fetchOnboarding = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
+	const runtimeFetch = resolveFetch(fetch);
+	const res = await runtimeFetch(ONBOARDING_URL, { credentials: 'include' });
 	if (!res.ok) {
 		throw new Error('Failed to fetch onboarding status');
 	}
