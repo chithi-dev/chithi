@@ -1,17 +1,78 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card';
+	import * as Item from '$lib/components/ui/item';
 	import * as Table from '$lib/components/ui/table';
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { useFilesQuery } from '#queries/files';
+	import { useFilesQuery, type FileInfo } from '#queries/files';
 	import { Trash2, FileIcon, FolderIcon, Download, Clock, CalendarClock } from 'lucide-svelte';
 	import { formatFileSize } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';
-	import { Separator } from '$lib/components/ui/separator';
 	import { page } from '$app/state';
 
 	const { files, revokeFile } = useFilesQuery();
+
+	let filesData = $derived(files.data ?? []);
+	let totalUrls = $derived(filesData.length);
+	let totalBytes = $derived(filesData.reduce((sum, file) => sum + (file.size ?? 0), 0));
+
+	function isExpired(file: FileInfo) {
+		const expiredByDate = file.expires_at
+			? new Date(file.expires_at).getTime() <= Date.now()
+			: false;
+		const expiredByDownloads =
+			file.expire_after_n_download !== undefined &&
+			file.download_count !== undefined &&
+			file.download_count >= file.expire_after_n_download;
+		return expiredByDate || expiredByDownloads;
+	}
+
+	let activeUrls = $derived(filesData.filter((file) => !isExpired(file)).length);
+	let linksWithDownloadCaps = $derived(
+		filesData.filter((file) => file.expire_after_n_download !== undefined).length
+	);
+
+	let expiringSoon = $derived(
+		filesData.filter((file) => {
+			if (!file.expires_at || isExpired(file)) return false;
+			const msRemaining = new Date(file.expires_at).getTime() - Date.now();
+			return msRemaining > 0 && msRemaining <= 24 * 60 * 60 * 1000;
+		}).length
+	);
+
+	let latestExpiryMs = $derived(
+		filesData.reduce((latest, file) => {
+			if (isExpired(file) || !file.expires_at) return latest;
+			const expiresAtMs = new Date(file.expires_at).getTime();
+			return Number.isFinite(expiresAtMs) ? Math.max(latest, expiresAtMs) : latest;
+		}, 0)
+	);
+
+	let hasIndefiniteActiveUrls = $derived(
+		filesData.some(
+			(file) => !isExpired(file) && !file.expires_at && file.expire_after_n_download === undefined
+		)
+	);
+
+	function formatDuration(ms: number) {
+		if (ms <= 0) return 'Now';
+		const totalMinutes = Math.ceil(ms / 60000);
+		const days = Math.floor(totalMinutes / (60 * 24));
+		const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+		const minutes = totalMinutes % 60;
+
+		if (days > 0) return `${days}d ${hours}h`;
+		if (hours > 0) return `${hours}h ${minutes}m`;
+		return `${minutes}m`;
+	}
+
+	let timeToClearLabel = $derived.by(() => {
+		if (activeUrls === 0) return 'Cleared';
+		if (hasIndefiniteActiveUrls) return 'Indefinite';
+		if (!latestExpiryMs) return 'Unknown';
+		return formatDuration(latestExpiryMs - Date.now());
+	});
 
 	// States
 	let isRevoking = $state(false);
@@ -48,19 +109,55 @@
 	}
 </script>
 
-<div class="flex items-center justify-between border-b border-border px-6 py-4">
+<div class="flex items-center justify-between space-y-2 pb-6">
 	<div>
-		<h1 class="text-lg font-semibold">Public Urls Information</h1>
-		<p class="text-sm text-muted-foreground">
+		<h2 class="text-3xl font-bold tracking-tight">Settings</h2>
+		<p class="text-muted-foreground">
 			Manage your <code>{page.url.origin}</code> chithi instance's uploads.
 		</p>
 	</div>
 </div>
 
-<Separator class="mb-10" />
-
 <div class="space-y-6">
 	<Card.Root class="border bg-background">
+		<Card.Content class="p-6">
+			<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+				<Item.Root variant="outline" class="gap-3">
+					<Item.Content class="gap-0.5">
+						<Item.Description class="line-clamp-none">Total URLs</Item.Description>
+						<Item.Title class="text-xl">{totalUrls}</Item.Title>
+					</Item.Content>
+				</Item.Root>
+				<Item.Root variant="outline" class="gap-3">
+					<Item.Content class="gap-0.5">
+						<Item.Description class="line-clamp-none">Time to Instance Clear</Item.Description>
+						<Item.Title class="text-xl">{timeToClearLabel}</Item.Title>
+					</Item.Content>
+				</Item.Root>
+				<Item.Root variant="outline" class="gap-3">
+					<Item.Content class="gap-0.5">
+						<Item.Description class="line-clamp-none">Total Size</Item.Description>
+						<Item.Title class="text-xl">{formatFileSize(totalBytes)}</Item.Title>
+					</Item.Content>
+				</Item.Root>
+				<Item.Root variant="outline" class="gap-3">
+					<Item.Content class="gap-0.5">
+						<Item.Description class="line-clamp-none">Links With Download Caps</Item.Description>
+						<Item.Title class="text-xl">{linksWithDownloadCaps}</Item.Title>
+						<Item.Description class="line-clamp-none text-xs">
+							{expiringSoon} expiring in the next 24h
+						</Item.Description>
+					</Item.Content>
+				</Item.Root>
+			</div>
+		</Card.Content>
+	</Card.Root>
+
+	<Card.Root class="border bg-background">
+		<Card.Header class="px-6 py-4">
+			<Card.Title class="text-base font-medium">Outstanding URLs</Card.Title>
+			<Card.Description>Review active file links and revoke them when needed.</Card.Description>
+		</Card.Header>
 		<Card.Content class="p-0">
 			<Table.Root>
 				<Table.Header>

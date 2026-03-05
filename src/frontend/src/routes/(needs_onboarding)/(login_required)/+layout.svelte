@@ -3,7 +3,7 @@
 	import { useAuth } from '#queries/auth';
 	import { page } from '$app/state';
 	import * as Empty from '$lib/components/ui/empty/index';
-	import { LoaderCircle, Lock } from '@lucide/svelte';
+	import { Lock } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { user_store } from '$lib/store/user.svelte';
 
