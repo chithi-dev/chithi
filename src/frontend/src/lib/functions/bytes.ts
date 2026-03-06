@@ -5,7 +5,9 @@ export const B_VALS = {
 	GB: 1024 ** 3,
 	TB: 1024 ** 4
 } as const;
+
 export type ByteUnit = keyof typeof B_VALS;
+
 export function formatBytes(bytes: number): { val: number; unit: ByteUnit } {
 	if (!bytes || bytes === 0) return { val: 0, unit: 'MB' };
 	const units: ByteUnit[] = ['Bytes', 'KB', 'MB', 'GB', 'TB'];

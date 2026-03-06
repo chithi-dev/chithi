@@ -89,6 +89,46 @@
 	} satisfies Chart.ChartConfig;
 </script>
 
+{#snippet RadialGauge(id: string, value: number, max: number, activeColor: string)}
+	<Chart.Container config={chartConfig} class="mx-auto aspect-square w-full">
+		<PieChart
+			data={[
+				{ key: 'value', value: value, color: activeColor },
+				{
+					key: 'remaining',
+					value: Math.max(0, max - value),
+					color: chartConfig.remaining.color
+				}
+			]}
+			key="key"
+			value="value"
+			c="color"
+			innerRadius={0.75}
+			padding={0}
+			range={[-90, 90]}
+			props={{ pie: { sort: null } }}
+			cornerRadius={10}
+		>
+			{#snippet aboveMarks()}
+				<Text
+					value={String(value.toFixed(1))}
+					textAnchor="middle"
+					verticalAnchor="middle"
+					class="fill-foreground text-4xl font-bold"
+					dy={-20}
+				/>
+				<Text
+					value="Mbps"
+					textAnchor="middle"
+					verticalAnchor="middle"
+					class="fill-muted-foreground text-sm font-medium"
+					dy={15}
+				/>
+			{/snippet}
+		</PieChart>
+	</Chart.Container>
+{/snippet}
+
 <div class="flex h-full w-full flex-col justify-center">
 	<Card class="mx-auto w-full border-border bg-card transition-all duration-200">
 		<CardHeader>
@@ -133,7 +173,6 @@
 						Download Speed
 					</div>
 					<div class="relative h-56 w-56">
-						<!-- Always render the gauge, just update the value -->
 						{@render RadialGauge(
 							'download',
 							downloadSpeed.current,
@@ -157,7 +196,7 @@
 				</div>
 			</div>
 
-			<!-- Status Area (Fixed Height to prevent layout shift) -->
+			<!-- Status Area -->
 			<div class="relative h-14 w-full">
 				<!-- Progress Bar -->
 				<div
@@ -227,43 +266,3 @@
 		</CardFooter>
 	</Card>
 </div>
-
-{#snippet RadialGauge(id: string, value: number, max: number, activeColor: string)}
-	<Chart.Container config={chartConfig} class="mx-auto aspect-square w-full">
-		<PieChart
-			data={[
-				{ key: 'value', value: value, color: activeColor },
-				{
-					key: 'remaining',
-					value: Math.max(0, max - value),
-					color: chartConfig.remaining.color
-				}
-			]}
-			key="key"
-			value="value"
-			c="color"
-			innerRadius={0.75}
-			padding={0}
-			range={[-90, 90]}
-			props={{ pie: { sort: null } }}
-			cornerRadius={10}
-		>
-			{#snippet aboveMarks()}
-				<Text
-					value={String(value.toFixed(1))}
-					textAnchor="middle"
-					verticalAnchor="middle"
-					class="fill-foreground text-4xl font-bold"
-					dy={-20}
-				/>
-				<Text
-					value="Mbps"
-					textAnchor="middle"
-					verticalAnchor="middle"
-					class="fill-muted-foreground text-sm font-medium"
-					dy={15}
-				/>
-			{/snippet}
-		</PieChart>
-	</Chart.Container>
-{/snippet}
