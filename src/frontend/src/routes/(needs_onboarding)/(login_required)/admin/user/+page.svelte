@@ -1,15 +1,10 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card';
-	import * as Item from '$lib/components/ui/item';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Avatar from '$lib/components/ui/avatar';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { LoaderCircle } from 'lucide-svelte';
 	import { useAuth } from '#queries/auth';
-	import { fade } from 'svelte/transition';
 	import { kebab_to_initials } from '#functions/string-conversion';
 	import { make_libravatar_url } from '#functions/libravatar';
+	import ProfileFieldsGroup from './profile_fields_group.svelte';
+	import ProfileSubmitSection from './profile_submit_section.svelte';
 
 	const { user, updateUser } = useAuth();
 
@@ -99,84 +94,9 @@
 	</Card.Header>
 	<Card.Content class="p-0">
 		<form onsubmit={handleSubmit} class="space-y-0">
-			<Item.Group>
-				<Item.Root>
-					<Item.Content>
-						<Item.Title>Avatar</Item.Title>
-						<Item.Description class="line-clamp-none">
-							Your profile picture, fetched from Libravatar using your email.
-						</Item.Description>
-					</Item.Content>
-					<Item.Actions class="w-full justify-start md:w-auto md:min-w-75 md:justify-end">
-						{#if isAvatarLoading}
-							<Skeleton class="h-16 w-16 rounded-full" />
-						{:else}
-							<Avatar.Root class="h-16 w-16 border bg-muted">
-								<Avatar.Image src={avatarBlobUrl} alt="@{username}" />
-								<Avatar.Fallback class="text-lg">{initials}</Avatar.Fallback>
-							</Avatar.Root>
-						{/if}
-					</Item.Actions>
-				</Item.Root>
+			<ProfileFieldsGroup bind:username bind:email {avatarBlobUrl} {initials} {isAvatarLoading} />
 
-				<Item.Separator />
-
-				<Item.Root>
-					<Item.Content>
-						<Item.Title>Username</Item.Title>
-						<Item.Description class="line-clamp-none"
-							>This is your public display name.</Item.Description
-						>
-					</Item.Content>
-					<Item.Actions class="w-full md:min-w-75">
-						<Input id="username" bind:value={username} class="w-full bg-background" required />
-					</Item.Actions>
-				</Item.Root>
-
-				<Item.Separator />
-
-				<Item.Root>
-					<Item.Content>
-						<Item.Title>Email Address</Item.Title>
-						<Item.Description class="line-clamp-none"
-							>Used for avatar and notifications.</Item.Description
-						>
-					</Item.Content>
-					<Item.Actions class="w-full md:min-w-75">
-						<Input
-							id="email"
-							type="email"
-							bind:value={email}
-							class="w-full bg-background"
-							placeholder="email@example.com"
-						/>
-					</Item.Actions>
-				</Item.Root>
-			</Item.Group>
-
-			<div class="space-y-3 border-t p-4 md:p-6">
-				{#if error}
-					<div in:fade class="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-						{error}
-					</div>
-				{/if}
-				{#if success}
-					<div in:fade class="rounded-md bg-emerald-500/10 p-3 text-sm text-emerald-600">
-						{success}
-					</div>
-				{/if}
-
-				<div class="flex justify-end">
-					<Button type="submit" disabled={loading}>
-						{#if loading}
-							<LoaderCircle class="mr-2 size-4 animate-spin" />
-							Saving...
-						{:else}
-							Save Changes
-						{/if}
-					</Button>
-				</div>
-			</div>
+			<ProfileSubmitSection {error} {success} {loading} />
 		</form>
 	</Card.Content>
 </Card.Root>
