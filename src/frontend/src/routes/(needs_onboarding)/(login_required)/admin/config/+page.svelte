@@ -81,7 +81,7 @@
 	<div>
 		<h2 class="text-3xl font-bold tracking-tight">Settings</h2>
 		<p class="text-muted-foreground">
-			Manage y	our <code>{page.url.origin}</code> chithi instance.
+			Manage your <code>{page.url.origin}</code> chithi instance.
 		</p>
 	</div>
 </div>
