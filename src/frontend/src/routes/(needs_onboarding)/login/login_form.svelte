@@ -22,7 +22,7 @@
 			validators: zod4Client(schema),
 			onUpdated: async ({ form }) => {
 				if (form.valid) {
-					goto(next_url);
+					goto(next_url, { replaceState: true });
 				} else {
 					const globalErrors = form.errors._errors;
 
