@@ -100,6 +100,12 @@
 
 				if (fileEntries.length === 0) throw new Error('Archive is empty');
 
+				if (fileEntries.length > 1) {
+					throw new Error(
+						'View Once only supports a single file. Please use the upload page and select "View Once" with one file.'
+					);
+				}
+
 				const entry = fileEntries[0];
 				if (!entry.getData) throw new Error('Cannot read file from archive');
 

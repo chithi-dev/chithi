@@ -16,7 +16,8 @@
 		Copy,
 		Lock,
 		Upload,
-		Download
+		Download,
+		ScanEye
 	} from 'lucide-svelte';
 	import { formatFileSize } from '#functions/bytes';
 	import { formatSeconds } from '#functions/times';
@@ -62,6 +63,8 @@
 	let isCopied = $state(false);
 	let debugLoading = $state(false);
 	let folderName = $state(uuidv7());
+	let isViewOnce = $state(false);
+	let viewOnceLink = $state('');
 
 	// Encryption progress states
 	let encryptionProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
@@ -286,6 +289,8 @@
 		isUploading = false;
 		isUploadComplete = false;
 		finalLink = '';
+		viewOnceLink = '';
+		isViewOnce = false;
 		folderName = uuidv7();
 	};
 
@@ -296,8 +301,13 @@
 		setTimeout(() => (isCopied = false), 2000);
 	};
 
-	const handleUpload = async () => {
+	const handleUpload = async (viewOnce = false) => {
 		if (files.length === 0) return;
+		if (viewOnce && files.length !== 1) {
+			toast.error('View Once only supports a single file');
+			return;
+		}
+		isViewOnce = viewOnce;
 		// isUploading is already true
 		try {
 			uploadingInProgress = true;
@@ -335,7 +345,7 @@
 
 			const formData = new FormData();
 			formData.append('filename', readableFilename);
-			formData.append('expire_after_n_download', downloadLimit);
+			formData.append('expire_after_n_download', viewOnce ? '1' : downloadLimit);
 			formData.append('expire_after', timeLimit);
 			formData.append('file', encryptedBlob, blobFilename);
 			if (files.length > 1) {
@@ -383,6 +393,9 @@
 			// Store the key in the URL fragment so it is never sent to the server
 			const downloadPath = `/download/${serverPath}#${keySecret}`;
 			finalLink = `${window.location.origin}${downloadPath}`;
+			if (viewOnce) {
+				viewOnceLink = `${window.location.origin}/once/${serverPath}#${keySecret}`;
+			}
 			isUploadComplete = true;
 			isUploading = false;
 
@@ -393,18 +406,18 @@
 			addHistoryEntry({
 				id: serverPath,
 				name: entryName,
-				link: finalLink,
+				link: viewOnce ? viewOnceLink : finalLink,
 				expiry: expiryTime,
-				downloadLimit: downloadLimit,
+				downloadLimit: viewOnce ? '1' : downloadLimit,
 				createdAt: Date.now(),
 				size: totalSize
 			});
 
 			// copy link and show success toast
-			navigator.clipboard.writeText(finalLink);
+			navigator.clipboard.writeText(viewOnce ? viewOnceLink : finalLink);
 			isCopied = true;
 			setTimeout(() => (isCopied = false), 2000);
-			toast.success('Upload complete');
+			toast.success(viewOnce ? 'View Once link created' : 'Upload complete');
 		} catch (err: any) {
 			console.error('Upload failed', err);
 			toast.error('Upload failed: ' + (err?.message ?? err));
@@ -551,17 +564,32 @@
 						<Lock class="h-10 w-10 text-green-500" />
 					</div>
 					<h2 class="mb-2 text-3xl font-bold tracking-tight">
-						Your file is encrypted and ready to send
+						{isViewOnce
+							? 'Your view-once link is ready'
+							: 'Your file is encrypted and ready to send'}
 					</h2>
-					<p class="mb-8 text-muted-foreground">Copy the link to share your file:</p>
+					<p class="mb-8 text-muted-foreground">
+						{isViewOnce
+							? 'This link can only be viewed once:'
+							: 'Copy the link to share your file:'}
+					</p>
 
 					<div class="mb-8 flex w-full max-w-md items-center gap-2">
-						<Input readonly value={finalLink} class="font-mono text-sm" />
+						<Input
+							readonly
+							value={isViewOnce ? viewOnceLink : finalLink}
+							class="font-mono text-sm"
+						/>
 					</div>
 
 					<div class="mb-8 flex flex-col items-center gap-4">
 						<div class="rounded-lg border bg-white p-2 dark:bg-white">
-							<QRCode value={finalLink} size={180} color="#000000" backgroundColor="#ffffff" />
+							<QRCode
+								value={isViewOnce ? viewOnceLink : finalLink}
+								size={180}
+								color="#000000"
+								backgroundColor="#ffffff"
+							/>
 						</div>
 					</div>
 					<ButtonGroup.Root>
@@ -582,34 +610,49 @@
 							</Tooltip.Provider>
 						</ButtonGroup.Root>
 
-						<ButtonGroup.Root>
-							<Button variant="outline" size="icon-sm" href={finalLink} aria-label="Download">
-								<Tooltip.Provider>
-									<Tooltip.Root>
-										<Tooltip.Trigger>
-											<Download class="size-4" />
-										</Tooltip.Trigger>
-										<Tooltip.Content>Download file</Tooltip.Content>
-									</Tooltip.Root>
-								</Tooltip.Provider>
-							</Button>
+						{#if isViewOnce}
+							<ButtonGroup.Root>
+								<Button variant="outline" size="icon-sm" href={viewOnceLink} aria-label="View once">
+									<Tooltip.Provider>
+										<Tooltip.Root>
+											<Tooltip.Trigger>
+												<ScanEye class="size-4" />
+											</Tooltip.Trigger>
+											<Tooltip.Content>View once in browser</Tooltip.Content>
+										</Tooltip.Root>
+									</Tooltip.Provider>
+								</Button>
+							</ButtonGroup.Root>
+						{:else}
+							<ButtonGroup.Root>
+								<Button variant="outline" size="icon-sm" href={finalLink} aria-label="Download">
+									<Tooltip.Provider>
+										<Tooltip.Root>
+											<Tooltip.Trigger>
+												<Download class="size-4" />
+											</Tooltip.Trigger>
+											<Tooltip.Content>Download file</Tooltip.Content>
+										</Tooltip.Root>
+									</Tooltip.Provider>
+								</Button>
 
-							<Button
-								variant="outline"
-								size="icon-sm"
-								href={finalLink.replace('/download/', '/view/')}
-								aria-label="View"
-							>
-								<Tooltip.Provider>
-									<Tooltip.Root>
-										<Tooltip.Trigger>
-											<Eye class="size-4" />
-										</Tooltip.Trigger>
-										<Tooltip.Content>View file in browser</Tooltip.Content>
-									</Tooltip.Root>
-								</Tooltip.Provider>
-							</Button>
-						</ButtonGroup.Root>
+								<Button
+									variant="outline"
+									size="icon-sm"
+									href={finalLink.replace('/download/', '/view/')}
+									aria-label="View"
+								>
+									<Tooltip.Provider>
+										<Tooltip.Root>
+											<Tooltip.Trigger>
+												<Eye class="size-4" />
+											</Tooltip.Trigger>
+											<Tooltip.Content>View file in browser</Tooltip.Content>
+										</Tooltip.Root>
+									</Tooltip.Provider>
+								</Button>
+							</ButtonGroup.Root>
+						{/if}
 					</ButtonGroup.Root>
 				</div>
 			{:else if isUploading}
@@ -797,9 +840,28 @@
 
 						<Button
 							class="w-full cursor-pointer"
-							onclick={handleUpload}
+							onclick={() => handleUpload(false)}
 							disabled={files.length === 0 || uploadingInProgress}>Upload</Button
 						>
+						<Tooltip.Provider>
+							<Tooltip.Root>
+								<Tooltip.Trigger>
+									<Button
+										variant="outline"
+										class="w-full cursor-pointer"
+										onclick={() => handleUpload(true)}
+										disabled={files.length !== 1 || uploadingInProgress}
+									>
+										<Eye class="mr-2 size-4" /> View Once
+									</Button>
+								</Tooltip.Trigger>
+								<Tooltip.Content>
+									{files.length !== 1
+										? 'View Once requires exactly one file'
+										: 'Create a link that can only be viewed once in the browser'}
+								</Tooltip.Content>
+							</Tooltip.Root>
+						</Tooltip.Provider>
 					</div>
 				{/if}
 			{:else}
