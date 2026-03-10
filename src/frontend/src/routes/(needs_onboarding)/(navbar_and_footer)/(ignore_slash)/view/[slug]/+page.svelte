@@ -20,6 +20,7 @@
 		FileHeadphone
 	} from 'lucide-svelte';
 	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { fly, fade } from 'svelte/transition';
 	import { BACKEND_API } from '#consts/backend';
 	import { PasswordRequiredError } from '#functions/download';
@@ -31,9 +32,12 @@
 	import { Tween } from 'svelte/motion';
 	import { ZipReader, BlobReader, BlobWriter, type Entry } from '@zip.js/zip.js';
 	import { getMimeType } from '#functions/mime';
+	import { createViewableText } from '$lib/functions/viewer';
+	import FileViewerOverlay from './FileViewerOverlay.svelte';
 
 	let key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
 	let slug = $derived(page.params.slug);
+	let fileParam = $derived(page.url.searchParams.get('file'));
 
 	let status = $state<
 		'checking' | 'ready' | 'needs_password' | 'error' | 'downloading' | 'unzipping' | 'listing'
@@ -47,6 +51,11 @@
 
 	let zipEntries = $state<Entry[]>([]);
 	let decryptedBlob = $state<Blob | null>(null);
+
+	// Viewer state
+	let viewingFile = $state<{ text: string | null; url: string | null; filename: string } | null>(
+		null
+	);
 
 	function getFileIcon(name: string) {
 		const n = name.toLowerCase();
@@ -116,6 +125,12 @@
 			zipEntries = await reader.getEntries();
 			status = 'listing';
 			toast.success('Files extracted successfully');
+
+			// Auto-open file from URL param if present
+			if (fileParam) {
+				const match = zipEntries.find((e) => e.filename === fileParam);
+				if (match) openEntry(match);
+			}
 		} catch (e: any) {
 			console.error(e);
 			if (e instanceof PasswordRequiredError) {
@@ -193,13 +208,44 @@
 		return new Blob(chunks as BlobPart[], { type: 'application/zip' });
 	}
 
+	function setFileParam(name: string | null) {
+		const url = new URL(page.url);
+		if (name) {
+			url.searchParams.set('file', name);
+		} else {
+			url.searchParams.delete('file');
+		}
+		goto(url.toString(), { replaceState: true, keepFocus: true, noScroll: true });
+	}
+
 	async function openEntry(entry: Entry) {
 		if (entry.directory || !entry.getData) return;
 		const mime = getMimeType(entry.filename);
-		const blob = await entry.getData(new BlobWriter(mime));
-		const url = URL.createObjectURL(blob);
-		window.open(url, '_blank');
-		setTimeout(() => URL.revokeObjectURL(url), 60000);
+		const rawBlob = await entry.getData(new BlobWriter(mime));
+
+		const text = await createViewableText(rawBlob, entry.filename);
+		if (text !== null) {
+			viewingFile = { text, url: null, filename: entry.filename };
+			setFileParam(entry.filename);
+			return;
+		}
+
+		const url = URL.createObjectURL(rawBlob);
+		viewingFile = { text: null, url, filename: entry.filename };
+		setFileParam(entry.filename);
+	}
+
+	function closeViewer() {
+		if (viewingFile?.url) URL.revokeObjectURL(viewingFile.url);
+		viewingFile = null;
+		setFileParam(null);
+	}
+
+	function copyViewerLink() {
+		if (!viewingFile) return;
+		const url = new URL(page.url);
+		url.searchParams.set('file', viewingFile.filename);
+		navigator.clipboard.writeText(url.toString());
 	}
 
 	async function saveEntry(entry: Entry) {
@@ -337,79 +383,107 @@
 			{/if}
 
 			{#if status === 'listing'}
-				<div class="w-full" in:fade={{ duration: 300 }}>
-					<div class="mb-4 flex items-center justify-between">
-						<div>
-							<h2 class="text-xl font-bold">Contents of {filename}</h2>
-							<p class="text-sm text-muted-foreground">{zipEntries.length} items found</p>
-						</div>
-						<Button variant="outline" onclick={handleDownloadOriginal}>
-							<Download class="mr-2 h-4 w-4" />
-							Download Original
-						</Button>
+				{#if viewingFile}
+					<div class="w-full" in:fade={{ duration: 200 }}>
+						<FileViewerOverlay
+							filename={viewingFile.filename}
+							contentText={viewingFile.text}
+							contentUrl={viewingFile.url}
+							onclose={closeViewer}
+							oncopylink={copyViewerLink}
+							ondownload={() => {
+								if (!viewingFile) return;
+								const blobUrl =
+									viewingFile.url ||
+									URL.createObjectURL(new Blob([viewingFile.text!], { type: 'text/plain' }));
+								const a = document.createElement('a');
+								a.href = blobUrl;
+								a.download = viewingFile.filename.split('/').pop() || 'file';
+								a.style.display = 'none';
+								document.body.appendChild(a);
+								a.click();
+								document.body.removeChild(a);
+								if (!viewingFile.url) URL.revokeObjectURL(blobUrl);
+							}}
+						/>
 					</div>
-
-					<div class="rounded-md border">
-						<ScrollArea class="h-125">
-							<div class="p-2">
-								{#each zipEntries as entry}
-									<div
-										class="group flex w-full items-center gap-3 rounded-md p-2 transition-colors hover:bg-muted/50"
-									>
-										<button
-											class="flex flex-1 cursor-pointer items-center gap-3 overflow-hidden border-0 bg-transparent p-0 text-left"
-											onclick={() => openEntry(entry)}
-										>
-											{#if entry.directory}
-												<Folder class="h-5 w-5 shrink-0 text-primary" />
-											{:else}
-												{@const Icon = getFileIcon(entry.filename)}
-												<Icon class="h-5 w-5 shrink-0 text-primary" />
-											{/if}
-
-											<div class="flex-1 overflow-hidden">
-												<p class="truncate text-sm font-medium">{entry.filename}</p>
-												{#if !entry.directory}
-													<p class="text-xs text-muted-foreground">
-														{formatFileSize(entry.uncompressedSize)}
-													</p>
-												{/if}
-											</div>
-										</button>
-
-										{#if !entry.directory}
-											<div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-												<Button
-													variant="ghost"
-													size="icon"
-													class="h-8 w-8"
-													title="Open in New Tab"
-													onclick={() => openEntry(entry)}
-												>
-													<ExternalLink class="h-4 w-4" />
-												</Button>
-												<Button
-													variant="ghost"
-													size="icon"
-													class="h-8 w-8"
-													title="Save File"
-													onclick={() => saveEntry(entry)}
-												>
-													<Download class="h-4 w-4" />
-												</Button>
-											</div>
-										{/if}
-									</div>
-								{/each}
-								{#if zipEntries.length === 0}
-									<div class="p-8 text-center text-muted-foreground">
-										No files found in this archive.
-									</div>
-								{/if}
+				{:else}
+					<div class="w-full" in:fade={{ duration: 300 }}>
+						<div class="mb-4 flex items-center justify-between">
+							<div>
+								<h2 class="text-xl font-bold">Contents of {filename}</h2>
+								<p class="text-sm text-muted-foreground">{zipEntries.length} items found</p>
 							</div>
-						</ScrollArea>
+							<Button variant="outline" onclick={handleDownloadOriginal}>
+								<Download class="mr-2 h-4 w-4" />
+								Download Original
+							</Button>
+						</div>
+
+						<div class="rounded-md border">
+							<ScrollArea class="h-125">
+								<div class="p-2">
+									{#each zipEntries as entry}
+										<div
+											class="group flex w-full items-center gap-3 rounded-md p-2 transition-colors hover:bg-muted/50"
+										>
+											<button
+												class="flex flex-1 cursor-pointer items-center gap-3 overflow-hidden border-0 bg-transparent p-0 text-left"
+												onclick={() => openEntry(entry)}
+											>
+												{#if entry.directory}
+													<Folder class="h-5 w-5 shrink-0 text-primary" />
+												{:else}
+													{@const Icon = getFileIcon(entry.filename)}
+													<Icon class="h-5 w-5 shrink-0 text-primary" />
+												{/if}
+
+												<div class="flex-1 overflow-hidden">
+													<p class="truncate text-sm font-medium">{entry.filename}</p>
+													{#if !entry.directory}
+														<p class="text-xs text-muted-foreground">
+															{formatFileSize(entry.uncompressedSize)}
+														</p>
+													{/if}
+												</div>
+											</button>
+
+											{#if !entry.directory}
+												<div
+													class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100"
+												>
+													<Button
+														variant="ghost"
+														size="icon"
+														class="h-8 w-8"
+														title="View File"
+														onclick={() => openEntry(entry)}
+													>
+														<ExternalLink class="h-4 w-4" />
+													</Button>
+													<Button
+														variant="ghost"
+														size="icon"
+														class="h-8 w-8"
+														title="Save File"
+														onclick={() => saveEntry(entry)}
+													>
+														<Download class="h-4 w-4" />
+													</Button>
+												</div>
+											{/if}
+										</div>
+									{/each}
+									{#if zipEntries.length === 0}
+										<div class="p-8 text-center text-muted-foreground">
+											No files found in this archive.
+										</div>
+									{/if}
+								</div>
+							</ScrollArea>
+						</div>
 					</div>
-				</div>
+				{/if}
 			{/if}
 		</div>
 	</Card.Content>

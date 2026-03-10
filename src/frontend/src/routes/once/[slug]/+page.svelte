@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { CircleAlert, LoaderCircle, Download, KeyRound } from 'lucide-svelte';
+	import { CircleAlert, LoaderCircle, KeyRound } from 'lucide-svelte';
 	import { page } from '$app/state';
-	import { fade } from 'svelte/transition';
 	import { BACKEND_API } from '#consts/backend';
 	import { PasswordRequiredError } from '#functions/download';
 	import { createDecryptedStream } from '#functions/streams';
 	import { BlobWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
 	import { getMimeType } from '#functions/mime';
+	import { createViewableText } from '$lib/functions/viewer';
+	import FileViewerOverlay from '../../(needs_onboarding)/(navbar_and_footer)/(ignore_slash)/view/[slug]/FileViewerOverlay.svelte';
 
 	let key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
 	let slug = $derived(page.params.slug);
@@ -17,6 +18,7 @@
 	let errorMsg = $state('');
 	let password = $state('');
 	let contentUrl = $state<string | null>(null);
+	let contentText = $state<string | null>(null);
 	let entryFilename = $state('');
 
 	async function fetchDecryptAndShow() {
@@ -104,8 +106,15 @@
 				entryFilename = entry.filename.split('/').pop() || 'file';
 				const mime = getMimeType(entryFilename);
 
-				const blob = await entry.getData(new BlobWriter(mime));
-				contentUrl = URL.createObjectURL(blob);
+				const rawBlob = await entry.getData(new BlobWriter(mime));
+				const text = await createViewableText(rawBlob, entryFilename);
+
+				if (text !== null) {
+					contentText = text;
+				} else {
+					contentUrl = URL.createObjectURL(rawBlob);
+				}
+
 				status = 'viewing';
 			} finally {
 				await zipReader.close();
@@ -127,14 +136,17 @@
 	}
 
 	function handleDownloadFile() {
-		if (!contentUrl) return;
+		const url = contentUrl;
+		if (!url && contentText === null) return;
+		const blobUrl = url || URL.createObjectURL(new Blob([contentText!], { type: 'text/plain' }));
 		const a = document.createElement('a');
-		a.href = contentUrl;
+		a.href = blobUrl;
 		a.download = entryFilename;
 		a.style.display = 'none';
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);
+		if (!url) URL.revokeObjectURL(blobUrl);
 	}
 
 	// Auto-start on mount
@@ -143,32 +155,13 @@
 	});
 </script>
 
-{#if status === 'viewing' && contentUrl}
-	<!-- Full-page iframe-style viewer -->
-	<div class="fixed inset-0 z-50 flex flex-col bg-background" in:fade={{ duration: 200 }}>
-		<!-- Minimal toolbar -->
-		<div class="flex h-10 shrink-0 items-center justify-between border-b bg-muted/50 px-3 text-sm">
-			<span class="truncate font-medium text-foreground/80">{entryFilename}</span>
-			<div class="flex items-center gap-1">
-				<Button
-					variant="ghost"
-					size="sm"
-					class="h-7 gap-1.5 px-2 text-xs"
-					onclick={handleDownloadFile}
-				>
-					<Download class="h-3.5 w-3.5" />
-					Save
-				</Button>
-			</div>
-		</div>
-		<!-- Content fills remaining space -->
-		<iframe
-			src={contentUrl}
-			title={entryFilename}
-			class="flex-1 border-0"
-			sandbox="allow-same-origin allow-scripts"
-		></iframe>
-	</div>
+{#if status === 'viewing'}
+	<FileViewerOverlay
+		filename={entryFilename}
+		{contentText}
+		{contentUrl}
+		ondownload={handleDownloadFile}
+	/>
 {:else if status === 'needs_password'}
 	<div class="flex min-h-screen items-center justify-center p-4">
 		<div class="w-full max-w-sm space-y-4 text-center">

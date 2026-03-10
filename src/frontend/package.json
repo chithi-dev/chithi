@@ -81,5 +81,13 @@
 		"vite": "^8.0.0-beta.15",
 		"vitest": "^4.0.18",
 		"zod": "^4.3.6"
+	},
+	"dependencies": {
+		"@codemirror/commands": "^6.10.2",
+		"@codemirror/language": "^6.12.2",
+		"@codemirror/language-data": "^6.5.2",
+		"@codemirror/state": "^6.5.4",
+		"@codemirror/view": "^6.39.16",
+		"codemirror": "^6.0.2"
 	}
 }
