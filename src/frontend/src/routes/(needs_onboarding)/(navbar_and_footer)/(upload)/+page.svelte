@@ -843,25 +843,27 @@
 							onclick={() => handleUpload(false)}
 							disabled={files.length === 0 || uploadingInProgress}>Upload</Button
 						>
-						<Tooltip.Provider>
-							<Tooltip.Root>
-								<Tooltip.Trigger>
-									<Button
-										variant="outline"
-										class="w-full cursor-pointer"
-										onclick={() => handleUpload(true)}
-										disabled={files.length !== 1 || uploadingInProgress}
-									>
-										<Eye class="mr-2 size-4" /> View Once
-									</Button>
-								</Tooltip.Trigger>
-								<Tooltip.Content>
-									{files.length !== 1
-										? 'View Once requires exactly one file'
-										: 'Create a link that can only be viewed once in the browser'}
-								</Tooltip.Content>
-							</Tooltip.Root>
-						</Tooltip.Provider>
+						{#if files.length === 1}
+							<Button
+								variant="outline"
+								class="w-full cursor-pointer"
+								onclick={() => handleUpload(true)}
+								disabled={uploadingInProgress}
+							>
+								<Eye class="mr-2 size-4" /> View Once
+							</Button>
+						{:else}
+							<Tooltip.Provider>
+								<Tooltip.Root>
+									<Tooltip.Trigger>
+										<Button variant="outline" class="w-full" disabled>
+											<Eye class="mr-2 size-4" /> View Once
+										</Button>
+									</Tooltip.Trigger>
+									<Tooltip.Content>View Once requires exactly one file</Tooltip.Content>
+								</Tooltip.Root>
+							</Tooltip.Provider>
+						{/if}
 					</div>
 				{/if}
 			{:else}
