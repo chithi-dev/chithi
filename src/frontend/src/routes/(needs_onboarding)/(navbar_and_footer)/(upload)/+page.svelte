@@ -56,7 +56,6 @@
 	let isPasswordProtected = $state(false);
 	let password = $state('');
 	let showPassword = $state(false);
-	let uploadProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 	let uploadingInProgress = $state(false);
 	let isUploadComplete = $state(false);
 	let finalLink = $state('');
@@ -66,10 +65,12 @@
 	let isViewOnce = $state(false);
 	let viewOnceLink = $state('');
 
-	// Encryption progress states
-	let encryptionProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 	let isEncrypting = $state(false);
 	let detailsMarkdown = $derived(configData.data?.site_description ?? '');
+
+	// Encryption progress states
+	let encryptionProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
+	let uploadProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 
 	$effect(() => {
 		const total = files.reduce((sum, file) => sum + file.size, 0);
@@ -301,6 +302,26 @@
 		setTimeout(() => (isCopied = false), 2000);
 	};
 
+	const handlePaste = (e: ClipboardEvent) => {
+		if (uploadingInProgress || isUploadComplete) return;
+
+		const items = e.clipboardData?.items;
+		if (!items) return;
+
+		const pastedFiles: File[] = [];
+		for (let i = 0; i < items.length; i++) {
+			if (items[i].kind === 'file') {
+				const file = items[i].getAsFile();
+				if (file) pastedFiles.push(file);
+			}
+		}
+
+		if (pastedFiles.length > 0) {
+			e.preventDefault();
+			addFiles(pastedFiles);
+		}
+	};
+
 	const handleUpload = async (viewOnce = false) => {
 		if (files.length === 0) return;
 		if (viewOnce && files.length !== 1) {
@@ -439,6 +460,7 @@
 	ondragover={handleWindowDragOver}
 	ondragleave={handleWindowDragLeave}
 	ondrop={handleWindowDrop}
+	onpaste={handlePaste}
 />
 
 {#snippet fileItem(file: File)}
