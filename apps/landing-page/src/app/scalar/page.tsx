@@ -1,5 +1,5 @@
 import { ApiReferenceReact } from '@scalar/api-reference-react';
-import { OPENAPI_URL } from '@/consts/urls';
+import { OPENAPI_URL, OPENAPI_SERVER } from '@/consts/urls';
 import '@scalar/api-reference-react/style.css';
 
 export default async function References() {
@@ -15,6 +15,12 @@ export default async function References() {
         <ApiReferenceReact
             configuration={{
                 content: contents,
+                servers: [
+                    {
+                        url: OPENAPI_SERVER,
+                        description: 'Production Server',
+                    },
+                ],
             }}
         />
     );
