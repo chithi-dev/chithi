@@ -9,7 +9,7 @@
 	import { BlobWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
 	import { getMimeType } from '#functions/mime';
 	import { createViewableText } from '$lib/functions/viewer';
-	import FileViewerOverlay from '$lib/components/FileViewerOverlay';
+	import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
 
 	let key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
 	let slug = $derived(page.params.slug);

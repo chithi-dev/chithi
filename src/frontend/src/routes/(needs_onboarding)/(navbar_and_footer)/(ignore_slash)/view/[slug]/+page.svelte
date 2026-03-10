@@ -33,7 +33,7 @@
 	import { ZipReader, BlobReader, BlobWriter, type Entry } from '@zip.js/zip.js';
 	import { getMimeType } from '#functions/mime';
 	import { createViewableText } from '$lib/functions/viewer';
-	import FileViewerOverlay from '$lib/components/FileViewerOverlay';
+	import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
 
 	let key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
 	let slug = $derived(page.params.slug);
@@ -126,7 +126,7 @@
 			status = 'listing';
 			toast.success('Files extracted successfully');
 
-			// Auto-open file from URL param if present
+			// Auto-open file from URL param if it exactly matches an entry
 			if (fileParam) {
 				const match = zipEntries.find((e) => e.filename === fileParam);
 				if (match) openEntry(match);
