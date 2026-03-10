@@ -302,23 +302,41 @@
 		setTimeout(() => (isCopied = false), 2000);
 	};
 
-	const handlePaste = (e: ClipboardEvent) => {
+	const handlePaste = async (e: ClipboardEvent) => {
 		if (uploadingInProgress || isUploadComplete) return;
 
 		const items = e.clipboardData?.items;
 		if (!items) return;
 
-		const pastedFiles: File[] = [];
+		let hasFiles = false;
 		for (let i = 0; i < items.length; i++) {
 			if (items[i].kind === 'file') {
-				const file = items[i].getAsFile();
-				if (file) pastedFiles.push(file);
+				hasFiles = true;
+				break;
+			}
+		}
+		if (!hasFiles) return;
+
+		e.preventDefault();
+
+		const promises: Promise<File[]>[] = [];
+		for (let i = 0; i < items.length; i++) {
+			const item = items[i];
+			if (item.kind !== 'file') continue;
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
+			if (entry) {
+				promises.push(traverseFileTree(entry));
+			} else {
+				const file = item.getAsFile();
+				if (file) promises.push(Promise.resolve([file]));
 			}
 		}
 
-		if (pastedFiles.length > 0) {
-			e.preventDefault();
-			addFiles(pastedFiles);
+		const fileArrays = await Promise.all(promises);
+		const newFiles = fileArrays.flat();
+		if (newFiles.length > 0) {
+			addFiles(newFiles);
 		}
 	};
 
