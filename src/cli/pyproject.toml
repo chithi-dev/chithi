@@ -21,6 +21,10 @@ dependencies = [
     # Terminal QR-code rendering
     "segno>=1.5.1",
     "pydantic-settings>=2.12.0",
+    "resvg-py>=0.2.6",
+    "pillow>=12.1.1",
+    "rich>=14.3.2",
+    "rich-pixels>=3.0.1",
 ]
 
 
