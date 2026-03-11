@@ -1,9 +1,11 @@
 from pathlib import Path
 from typing import Annotated
+import io
 import tempfile
 import os
 from rich.console import Console
 
+import resvg_py
 import segno
 import typer
 from app import archive, client, crypto
@@ -15,7 +17,7 @@ from PIL import Image
 app = typer.Typer(help="Upload & download encrypted files via Chithi.")
 console = Console()
 
-_LOGO_PATH = Path(__file__).parent.parent.parent / "assets" / "logo.ico"
+_LOGO_SVG = Path(__file__).parent.parent / "data" / "logo.svg"
 
 
 @app.command()
@@ -131,14 +133,12 @@ def upload(
             finally:
                 cleanup(tmp_zip, tmp_enc)
 
-        # Generate QR — use "H" error correction so the logo doesn't break it
-        qr = segno.make(download_url, error="H")
-        fd_qr, tmp_qr_str = tempfile.mkstemp(suffix=".png", prefix="chithi_qr_")
+        # Build QR + logo as AVIF, then render to terminal
+        fd_qr, tmp_qr_str = tempfile.mkstemp(suffix=".avif", prefix="chithi_qr_")
         os.close(fd_qr)
         tmp_qr = Path(tmp_qr_str)
         try:
-            qr.save(str(tmp_qr), scale=10)
-            _embed_logo(tmp_qr)
+            _make_qr_avif(download_url, tmp_qr)
             pixels = Pixels.from_image_path(str(tmp_qr))
         finally:
             tmp_qr.unlink(missing_ok=True)
@@ -157,18 +157,26 @@ def upload(
         raise typer.Exit(code=1)
 
 
-def _embed_logo(qr_path: Path) -> None:
-    """Overlay logo.ico centered on the QR code image, in-place."""
-    if not _LOGO_PATH.exists():
-        return
+def _make_qr_avif(url: str, dest: Path) -> None:
+    """Generate a QR code for *url*, overlay logo.svg in the center, save as AVIF."""
+    # Render QR to an in-memory PNG (scale=10 → ~10px per module)
+    qr = segno.make(url, error="H")
+    buf = io.BytesIO()
+    qr.save(buf, kind="png", scale=10)
+    buf.seek(0)
+    qr_img = Image.open(buf).convert("RGBA")
 
-    qr_img = Image.open(qr_path).convert("RGBA")
-    logo = Image.open(_LOGO_PATH).convert("RGBA")
+    # Overlay the SVG logo if available
+    if _LOGO_SVG.exists():
+        logo_size = qr_img.width // 4
+        svg_bytes = resvg_py.svg_to_bytes(
+            svg_path=str(_LOGO_SVG),
+            width=logo_size,
+            height=logo_size,
+        )
+        logo = Image.open(io.BytesIO(svg_bytes)).convert("RGBA")
+        pos = ((qr_img.width - logo_size) // 2, (qr_img.height - logo_size) // 2)
+        qr_img.paste(logo, pos, logo)
 
-    # Scale logo to ~25 % of the QR width
-    logo_size = qr_img.width // 4
-    logo = logo.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
-
-    pos = ((qr_img.width - logo_size) // 2, (qr_img.height - logo_size) // 2)
-    qr_img.paste(logo, pos, logo)
-    qr_img.save(str(qr_path))
+    # Save as AVIF
+    qr_img.convert("RGB").save(str(dest), format="AVIF")
