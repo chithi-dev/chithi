@@ -1,9 +1,9 @@
-"""Async HTTP client for communicating with the Chithi backend."""
+"""HTTP client for communicating with the Chithi backend."""
 
 from pathlib import Path
-from typing import BinaryIO, cast, Optional
+from typing import BinaryIO, cast
 
-import httpx
+import requests
 from tqdm import tqdm
 
 from app.settings import settings
@@ -32,7 +32,6 @@ class _ProgressReader:
     def tell(self) -> int:
         return self._fp.tell()
 
-    # httpx also checks for these
     def __getattr__(self, name):
         return getattr(self._fp, name)
 
@@ -44,20 +43,22 @@ class Client:
             if isinstance(instance_url, UrlBuilder)
             else UrlBuilder(instance_url)
         )
-        headers = {
-            "Origin": self.urls.instance_url,
-            "Referer": self.urls.instance_url,
-        }
-        self._client = httpx.AsyncClient(follow_redirects=True, headers=headers)
+        self._session = requests.Session()
+        self._session.headers.update(
+            {
+                "Origin": self.urls.instance_url,
+                "Referer": self.urls.instance_url,
+            }
+        )
 
-    async def __aenter__(self):
+    def __enter__(self):
         return self
 
-    async def __aexit__(self, exc_type, exc_value, traceback):
-        await self.close()
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
 
-    async def close(self):
-        await self._client.aclose()
+    def close(self):
+        self._session.close()
 
     @classmethod
     def resolve(cls, instance_url: str | None = None) -> "Client":
@@ -65,13 +66,12 @@ class Client:
         urls = UrlBuilder.resolve(instance_url)
         return cls(urls)
 
-    async def upload_file(
+    def upload_file(
         self,
         file_path: Path,
         filename: str | None = None,
         expire_after_n_download: int | None = None,
         expire_after: int | None = None,
-        timeout: Optional[httpx.Timeout] = None,
     ) -> dict:
         """
         Stream-upload *file_path* to ``POST /upload`` on the backend.
@@ -84,7 +84,7 @@ class Client:
             expire_after = settings.EXPIRE_AFTER
 
         if expire_after_n_download is None or expire_after is None:
-            config = await self.get_config()
+            config = self.get_config()
             if expire_after_n_download is None:
                 expire_after_n_download = config["default_number_of_downloads"]
             if expire_after is None:
@@ -113,39 +113,31 @@ class Client:
                 "expire_after": str(expire_after),
             }
 
-            response = await self._client.post(
+            response = self._session.post(
                 upload_url,
                 data=data,
                 files=files,
-                timeout=timeout,
+                timeout=(30, None),
             )
             response.raise_for_status()
             return response.json()
 
-    async def get_config(self) -> dict:
+    def get_config(self) -> dict:
         """Fetch the server configuration."""
         url = self.urls.config_url()
-        response = await self._client.get(url)
+        response = self._session.get(url, timeout=30)
         response.raise_for_status()
         return response.json()
 
-    async def download_to_file(
-        self,
-        key: str,
-        dest: Path,
-        timeout: Optional[httpx.Timeout] = None,
-    ) -> Path:
+    def download_to_file(self, key: str, dest: Path) -> Path:
         """
         Stream-download a file and write it to *dest* with a progress bar.
         Returns *dest*.
         """
-        # The URL pattern for download relies on the key being appended
         download_url = f"{self.urls.download_url()}{key}"
 
-        async with self._client.stream(
-            "GET",
-            download_url,
-            timeout=timeout,
+        with self._session.get(
+            download_url, stream=True, timeout=(30, None)
         ) as response:
             response.raise_for_status()
             total = int(response.headers.get("content-length", 0)) or None
@@ -159,7 +151,7 @@ class Client:
                     leave=False,
                 ) as pbar,
             ):
-                async for chunk in response.aiter_bytes(STREAM_CHUNK_SIZE):
+                for chunk in response.iter_content(STREAM_CHUNK_SIZE):
                     f.write(chunk)
                     pbar.update(len(chunk))
         return dest

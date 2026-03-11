@@ -6,18 +6,20 @@ from rich.console import Console
 
 import segno
 import typer
-from async_typer import AsyncTyper
 from app import archive, client, crypto
 from app.builder.urls import UrlBuilder
 from app.helpers.file import cleanup
 from rich_pixels import Pixels
+from PIL import Image
 
-app = AsyncTyper(help="Upload & download encrypted files via Chithi.")
+app = typer.Typer(help="Upload & download encrypted files via Chithi.")
 console = Console()
 
+_LOGO_PATH = Path(__file__).parent.parent.parent / "assets" / "logo.ico"
 
-@app.async_command()
-async def upload(
+
+@app.command()
+def upload(
     path: Annotated[
         Path,
         typer.Argument(
@@ -57,9 +59,9 @@ async def upload(
         # Resolve the URL early (side effect: might prompt user)
         urls = UrlBuilder.resolve(instance_url)
 
-        async with client.Client(urls) as c:
+        with client.Client(urls) as c:
             # Fetch config
-            config = await c.get_config()
+            config = c.get_config()
             if expire_seconds is None:
                 expire_seconds = config.get("default_expiry", 86400)
 
@@ -112,7 +114,7 @@ async def upload(
                     int(expire_seconds) if expire_seconds is not None else 86400
                 )
 
-                result = await c.upload_file(
+                result = c.upload_file(
                     tmp_enc,
                     filename=display_name,
                     expire_after_n_download=final_downloads,
@@ -129,9 +131,17 @@ async def upload(
             finally:
                 cleanup(tmp_zip, tmp_enc)
 
-        qr = segno.make(download_url, error="L")
-        qr.save("test.png")
-        pixels = Pixels.from_image_path("test.png")
+        # Generate QR — use "H" error correction so the logo doesn't break it
+        qr = segno.make(download_url, error="H")
+        fd_qr, tmp_qr_str = tempfile.mkstemp(suffix=".png", prefix="chithi_qr_")
+        os.close(fd_qr)
+        tmp_qr = Path(tmp_qr_str)
+        try:
+            qr.save(str(tmp_qr), scale=10)
+            _embed_logo(tmp_qr)
+            pixels = Pixels.from_image_path(str(tmp_qr))
+        finally:
+            tmp_qr.unlink(missing_ok=True)
 
         typer.echo("✓ Upload complete!")
         console.print(pixels)
@@ -145,3 +155,20 @@ async def upload(
     except Exception as exc:
         typer.echo(f"✗ Upload failed: {exc}", err=True)
         raise typer.Exit(code=1)
+
+
+def _embed_logo(qr_path: Path) -> None:
+    """Overlay logo.ico centered on the QR code image, in-place."""
+    if not _LOGO_PATH.exists():
+        return
+
+    qr_img = Image.open(qr_path).convert("RGBA")
+    logo = Image.open(_LOGO_PATH).convert("RGBA")
+
+    # Scale logo to ~25 % of the QR width
+    logo_size = qr_img.width // 4
+    logo = logo.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
+
+    pos = ((qr_img.width - logo_size) // 2, (qr_img.height - logo_size) // 2)
+    qr_img.paste(logo, pos, logo)
+    qr_img.save(str(qr_path))
