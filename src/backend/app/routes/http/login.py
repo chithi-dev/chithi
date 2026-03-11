@@ -7,7 +7,7 @@ from sqlmodel import or_, select
 
 from app import security
 from app.decorators.rate_limit import rate_limit
-from app.deps import CurrentUser, SessionDep
+from app.deps import SessionDep
 from app.models import User
 from app.schemas.token import Token
 from app.settings import settings
@@ -28,7 +28,7 @@ async def login_endpoint(
     user = result.first()
 
     # Validate user and password
-    print(user)
+
     if not user or not security.verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
