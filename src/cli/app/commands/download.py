@@ -1,22 +1,19 @@
-"""CLI for uploading/downloading files via Chithi."""
-
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import urlparse
 import tempfile
 import os
 import typer
-from async_typer import AsyncTyper
 
 from app import archive, client, crypto
 from app.builder.urls import UrlBuilder
 from app.helpers.file import cleanup
 
-app = AsyncTyper(help="Upload & download encrypted files via Chithi.")
+app = typer.Typer(help="Upload & download encrypted files via Chithi.")
 
 
-@app.async_command()
-async def download(
+@app.command()
+def download(
     link: Annotated[
         str,
         typer.Argument(
@@ -91,8 +88,8 @@ async def download(
 
     try:
         # Download
-        async with client.Client(urls) as c:
-            await c.download_to_file(slug, tmp_dl)
+        with client.Client(urls) as c:
+            c.download_to_file(slug, tmp_dl)
 
         # Decrypt
         ikm = crypto.base64url_to_ikm(key_secret)
