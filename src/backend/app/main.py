@@ -5,9 +5,9 @@ from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.guards.rate_limit import rate_limiter_guard
+from app.managers import WebSocketManager
 from app.settings import settings
 from app.states.app import AppState, GlobalState
-from app.ws import WebSocketManager
 
 
 @asynccontextmanager
