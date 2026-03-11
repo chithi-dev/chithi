@@ -2,7 +2,14 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Form, HTTPException, UploadFile, status
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Form,
+    HTTPException,
+    UploadFile,
+    status,
+)
 from sqlmodel import select
 
 from app.converter.bytes import ByteSize
@@ -10,6 +17,7 @@ from app.deps import S3Dep, SessionDep
 from app.models.config import Config
 from app.models.files import File, FileOut
 from app.settings import settings
+from app.states.app import UploadProgress
 from app.tasks.clean_file import delete_expired_file
 
 router = APIRouter()
@@ -54,6 +62,8 @@ async def upload_file(
         filename = uuid.uuid7()  # type: ignore
 
     key = uuid.uuid7()
+
+    await UploadProgress.start(upload_key=str(key), filename=str(filename))
 
     # Load the singleton config and determine current usage
     config_q = select(Config)
@@ -126,12 +136,18 @@ async def upload_file(
             part_number += 1
             uploaded_size += len(chunk)
 
+            # Update upload progress in global state
+            await UploadProgress.update(
+                upload_key=str(key), uploaded_bytes=uploaded_size
+            )
+
         await s3.complete_multipart_upload(
             Bucket=settings.RUSTFS_BUCKET_NAME,
             Key=str(key),
             UploadId=upload_id,
             MultipartUpload={"Parts": parts},
         )
+        await UploadProgress.finish(upload_key=str(key), final_size=uploaded_size)
 
     except Exception:
         await s3.abort_multipart_upload(
@@ -139,6 +155,8 @@ async def upload_file(
             Key=str(key),
             UploadId=upload_id,
         )
+        # Remove this upload from state on failure/disconnect
+        await UploadProgress.cancel(upload_key=str(key))
         raise
     now = datetime.now(timezone.utc)
     file_obj = File(

@@ -56,11 +56,11 @@ services:
       start_period: 40s
 
   redis:
-    image: redis:8-alpine
+    image: redis/redis-stack-server:latest
     container_name: redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "6379:6379"  
     volumes:
       - redis_data:/data
     healthcheck:
@@ -68,7 +68,6 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-
 
 volumes:
   postgres_data:

@@ -70,5 +70,10 @@ class Settings(BaseSettings):
 
     MAX_DOWNLOAD_SIZE: int = ByteSize(gb=30).total_bytes()
 
+    # State management
+
+    STATE_REDIS_KEY: str = "chithi:global_state"
+    STATE_CHANNEL: str = "chithi:state_changed"
+
 
 settings = Settings()  # type: ignore

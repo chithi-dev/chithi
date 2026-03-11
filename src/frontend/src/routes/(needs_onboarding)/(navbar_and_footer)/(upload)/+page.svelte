@@ -29,6 +29,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import QRCode from '$lib/components/QRCode.svelte';
 	import RecentUpload from './recent_upload.svelte';
+	import UploadShowcase from './upload_showcase.svelte';
 	import { addHistoryEntry } from '$lib/database';
 	import { cn } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
@@ -1028,6 +1029,10 @@
 		</div>
 	</CardContent>
 </Card>
+
+<UploadShowcase
+	localUploadSize={isUploading && !isUploadComplete ? files.reduce((s, f) => s + f.size, 0) : 0}
+/>
 
 {#if dev}
 	<div class="fixed bottom-4 left-4 z-50">

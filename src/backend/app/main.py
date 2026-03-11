@@ -1,20 +1,44 @@
+from contextlib import asynccontextmanager
+
+import redis.asyncio as redis
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.guards.rate_limit import rate_limiter_guard
 from app.settings import settings
+from app.states.app import AppState, GlobalState
+from app.ws import WebSocketManager
 
-# logging.basicConfig(
-#     level=logging.INFO,
-#     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-#     datefmt="%Y-%m-%d %H:%M:%S",
-# )
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    redis_client = redis.from_url(
+        settings.REDIS_ENDPOINT,
+        encoding="utf-8",
+        decode_responses=True,
+    )
+
+    # Initialise shared Redis client and ensure state doc exists
+    GlobalState.init_redis(redis_client)
+    await AppState.ensure_created()
+
+    # Start WebSocket manager pub/sub listener
+    ws_manager = WebSocketManager()
+    await ws_manager.start(redis_client)
+    app.state.ws_manager = ws_manager
+
+    yield
+
+    # Shutdown
+    await ws_manager.stop()
+    await redis_client.aclose()
 
 
 app = FastAPI(
     root_path=settings.ROOT_PATH,
     openapi_url="/openapi.json",
     dependencies=[Depends(rate_limiter_guard)],
+    lifespan=lifespan,
 )
 app.add_middleware(
     CORSMiddleware,
@@ -71,3 +95,7 @@ app.include_router(speedtest_router)
 from app.routes.token import router as token_router
 
 app.include_router(token_router)
+
+from app.routes.ws import router as ws_router
+
+app.include_router(ws_router)
