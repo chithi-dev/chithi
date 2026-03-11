@@ -11,12 +11,13 @@ from types_aiobotocore_s3.type_defs import CompletedPartTypeDef
 
 from app.converter.bytes import ByteSize
 from app.deps import S3Dep, SessionDep
+from app.models.config import Config
 from app.models.files import File
 from app.schemas.reverse import (
     AddHostOut,
-    RoomCreate,
     RoomCreateOut,
     RoomFileEntry,
+    RoomIn,
     RoomOut,
 )
 from app.settings import settings
@@ -30,8 +31,28 @@ CHUNK_SIZE = ByteSize(mb=8).total_bytes()
 
 
 @router.post("/rooms", status_code=status.HTTP_201_CREATED)
-async def create_room(body: RoomCreate) -> RoomCreateOut:
-    return await RoomState.create(name=body.name, expire_after=body.expire_after)
+async def create_room(body: RoomIn, session: SessionDep) -> RoomCreateOut:
+    # Determine default number_of_downloads from config if not provided
+    config_q = select(Config)
+    config_result = await session.exec(config_q)
+    config = config_result.first()
+    if not config:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Configuration not found",
+        )
+
+    number_of_downloads = (
+        body.number_of_downloads
+        if body.number_of_downloads is not None
+        else config.default_number_of_downloads
+    )
+
+    return await RoomState.create(
+        name=body.name,
+        expire_after=body.expire_after,
+        number_of_downloads=number_of_downloads,
+    )
 
 
 @router.get("/rooms/{room_id}")
@@ -193,13 +214,26 @@ async def upload_file_to_room(
     now = datetime.now(timezone.utc)
 
     # Persist File record + schedule cleanup in background (non-blocking)
+    # Use the room's configured number_of_downloads if set, otherwise fall back to global config
+    number_of_downloads = getattr(room, "number_of_downloads", None)
+    if number_of_downloads is None:
+        config_q = select(Config)
+        config_result = await session.exec(config_q)
+        config = config_result.first()
+        if not config:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Configuration not found",
+            )
+        number_of_downloads = config.default_number_of_downloads
+
     file_record = File(
         key=file_key,
         filename=filename,
         size=uploaded_size,
         created_at=now,
         expires_at=room.expires_at,
-        expire_after_n_download=2**63 - 1,
+        expire_after_n_download=number_of_downloads,
         download_count=0,
     )
 

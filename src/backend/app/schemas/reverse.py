@@ -18,6 +18,7 @@ class RoomOut(BaseModel):
     expires_at: datetime
     files: list[RoomFileEntry] = []
     host_count: int = 1
+    number_of_downloads: int | None
 
 
 class RoomCreateOut(RoomOut):
@@ -29,6 +30,12 @@ class RoomCreateOut(RoomOut):
 class RoomCreate(BaseModel):
     name: str
     expire_after: int  # seconds from now
+
+
+class RoomIn(BaseModel):
+    name: str
+    expire_after: int  # seconds from now
+    number_of_downloads: int | None = None
 
 
 class AddHostOut(BaseModel):

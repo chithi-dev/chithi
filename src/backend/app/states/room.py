@@ -48,7 +48,9 @@ class RoomState(GlobalState):
     """Manage rooms stored in Redis."""
 
     @classmethod
-    async def create(cls, name: str, expire_after: int) -> RoomCreateOut:
+    async def create(
+        cls, name: str, expire_after: int, number_of_downloads: int
+    ) -> RoomCreateOut:
         room_id = str(uuid.uuid7())
         now = datetime.now(timezone.utc)
 
@@ -66,6 +68,7 @@ class RoomState(GlobalState):
             "expires_at": (now + timedelta(seconds=expire_after)).isoformat(),
             "files": [],
             "host_token_hashes": [token_hash],
+            "number_of_downloads": number_of_downloads,
         }
         key = _room_key(room_id)
         await cls._json_set(key, payload)
@@ -78,6 +81,7 @@ class RoomState(GlobalState):
             expires_at=now + timedelta(seconds=expire_after),
             files=[],
             host_token=host_token,
+            number_of_downloads=number_of_downloads,
         )
 
     @classmethod
@@ -89,6 +93,9 @@ class RoomState(GlobalState):
         hashes = data.pop("host_token_hashes", [])
         data.pop("host_token_hash", None)  # compat with old format
         data["host_count"] = len(hashes) if isinstance(hashes, list) else 1
+        # Ensure a default for number_of_downloads for backward compatibility
+        if "number_of_downloads" not in data:
+            data["number_of_downloads"] = None
         return RoomOut.model_validate(data)
 
     @classmethod

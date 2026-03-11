@@ -15,14 +15,27 @@
 	import { Label } from '$lib/components/ui/label';
 	import { Upload, Download, ArrowLeft, LoaderCircle } from 'lucide-svelte';
 	import { REVERSE_ROOMS_URL } from '#consts/backend';
+	import { useConfigQuery } from '#queries/config';
 
 	type LandingView = 'main' | 'create' | 'join';
 	let landingView = $state<LandingView>('main');
 
 	let roomName = $state('');
 	let expireAfter = $state(3600);
+	// null means "use server default"
+	let numberOfDownloads = $state<number | null>(null);
 	let joinId = $state('');
 	let isCreating = $state(false);
+
+	const { config: configData } = useConfigQuery();
+	let defaultDownloadLimitSet = $state(false);
+
+	$effect(() => {
+		if (configData.data?.default_number_of_downloads && !defaultDownloadLimitSet) {
+			numberOfDownloads = configData.data.default_number_of_downloads;
+			defaultDownloadLimitSet = true;
+		}
+	});
 
 	$effect(() => {
 		const prefilledId = page.url.searchParams.get('join');
@@ -42,7 +55,11 @@
 			const res = await fetch(REVERSE_ROOMS_URL, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ name: roomName.trim(), expire_after: expireAfter }),
+				body: JSON.stringify({
+					name: roomName.trim(),
+					expire_after: expireAfter,
+					number_of_downloads: numberOfDownloads
+				}),
 				credentials: 'include'
 			});
 			if (!res.ok) {
@@ -127,6 +144,28 @@
 							bind:value={roomName}
 							onkeydown={(e) => e.key === 'Enter' && createRoom()}
 						/>
+					</div>
+					<div class="space-y-2">
+						<Label for="downloads">Number of downloads</Label>
+						<select
+							id="downloads"
+							class="w-full rounded-md border bg-background px-3 py-2"
+							onchange={(e) => {
+								const v = (e.currentTarget as HTMLSelectElement).value;
+								numberOfDownloads = v === '' ? null : Number(v);
+							}}
+							value={numberOfDownloads ?? ''}
+						>
+							<option value="">Use default</option>
+							<option value="1">1 download</option>
+							<option value="5">5 downloads</option>
+							<option value="10">10 downloads</option>
+							<option value="25">25 downloads</option>
+							<option value="100">100 downloads</option>
+						</select>
+						<p class="text-xs text-muted-foreground">
+							Leave as "Use default" to apply server default.
+						</p>
 					</div>
 					<div class="space-y-2">
 						<Label for="expire">Expires after (seconds)</Label>
