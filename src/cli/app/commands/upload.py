@@ -2,16 +2,18 @@ from pathlib import Path
 from typing import Annotated
 import tempfile
 import os
+from rich.console import Console
 
 import segno
 import typer
 from async_typer import AsyncTyper
-
 from app import archive, client, crypto
 from app.builder.urls import UrlBuilder
 from app.helpers.file import cleanup
+from rich_pixels import Pixels
 
 app = AsyncTyper(help="Upload & download encrypted files via Chithi.")
+console = Console()
 
 
 @app.async_command()
@@ -127,10 +129,12 @@ async def upload(
             finally:
                 cleanup(tmp_zip, tmp_enc)
 
-        qr = segno.make(download_url)
+        qr = segno.make(download_url, error="L")
+        qr.save("test.png")
+        pixels = Pixels.from_image_path("test.png")
 
-        typer.echo("\n✓ Upload complete!")
-        typer.echo(qr.terminal(compact=True))
+        typer.echo("✓ Upload complete!")
+        console.print(pixels)
         typer.echo(f"  Download URL : {download_url}")
 
         if password:
