@@ -6,6 +6,7 @@ from fastapi import (
     APIRouter,
     BackgroundTasks,
     Form,
+    Request,
     HTTPException,
     UploadFile,
     status,
@@ -53,6 +54,7 @@ async def upload_file(
     filename: Annotated[str | None, Form()],
     expire_after_n_download: Annotated[int, Form()],
     expire_after: Annotated[int, Form()],
+    request: Request,
     # Dependency Injection
     s3: S3Dep,
     session: SessionDep,
@@ -140,6 +142,16 @@ async def upload_file(
             await UploadProgress.update(
                 upload_key=str(key), uploaded_bytes=uploaded_size
             )
+
+            # If the client disconnected mid-upload, abort and evict
+            if await request.is_disconnected():
+                await s3.abort_multipart_upload(
+                    Bucket=settings.RUSTFS_BUCKET_NAME,
+                    Key=str(key),
+                    UploadId=upload_id,
+                )
+                await UploadProgress.cancel(upload_key=str(key))
+                raise HTTPException(status_code=499, detail="Client disconnected")
 
         await s3.complete_multipart_upload(
             Bucket=settings.RUSTFS_BUCKET_NAME,

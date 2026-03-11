@@ -13,7 +13,7 @@ from app.tasks.clean_file import delete_expired_file
 router = APIRouter()
 
 
-@router.get("/download/{key}")
+@router.get("/download/{key:path}")
 async def download_files(
     key: str,
     session: SessionDep,

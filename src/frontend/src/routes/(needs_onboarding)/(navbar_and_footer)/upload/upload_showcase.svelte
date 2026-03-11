@@ -267,7 +267,7 @@
 						</Tooltip.Root>
 					{/if}
 
-					<!-- Diagonal stripe overlay on active uploads (non-interactive) -->
+					<!-- Diagonal stripe overlay on active uploads -->
 					{#if uploadPcts.length > 0}
 						{@const activeStartPct =
 							finishedPct.current > 0 ? Math.max(finishedPct.current, MIN_SEGMENT_PCT) : 0}
@@ -285,7 +285,7 @@
 						></div>
 					{/if}
 
-					<!-- Remaining space tooltip (covers unfilled area) -->
+					<!-- Remaining space tooltip  -->
 					{#if appState.current.total_available_space}
 						{@const filledPct =
 							(finishedPct.current > 0 ? Math.max(finishedPct.current, MIN_SEGMENT_PCT) : 0) +

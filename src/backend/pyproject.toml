@@ -7,13 +7,13 @@ requires-python = ">=3.14"
 dependencies = [
     # Fastapi
     "fastapi>=0.127.0",
-    "python-multipart>=0.0.21",
     # Faster Loops
     "uvloop>=0.22.1; sys_platform == 'linux'",
     # ASGI server
     "uvicorn>=0.40.0",
     "websockets>=15.0.1",
-    # Password Hashinh
+    "python-multipart>=0.0.21",
+    # Password Hashing
     "pwdlib[argon2]>=0.3.0",
     # Pydantic based settings manager
     "pydantic-settings>=2.12.0",
@@ -32,17 +32,17 @@ dependencies = [
     "celery>=5.6.1", 
     "celery-aio-pool>=0.1.0rc8",
     # Redis for caching
+    "celery-types>=0.24.0",
     "redis[hiredis]>=6.4.0",
     # Mandatory type
     "types-aiobotocore-s3>=2.25.2",
+    "types-aioboto3>=15.5.0",
 ]
 
 [dependency-groups]
 dev = [
-    "celery-types>=0.24.0",
     "fastapi-cli>=0.0.16",
     "ruff>=0.14.10",
-    "types-aioboto3>=15.5.0",
     # Task runner
     "poethepoet>=0.39.0",
 ]

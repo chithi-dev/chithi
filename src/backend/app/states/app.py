@@ -1,4 +1,5 @@
 from typing import Any
+from datetime import datetime, timezone
 
 import redis.asyncio as redis
 from pydantic import BaseModel
@@ -14,46 +15,68 @@ class UploadProgress(GlobalState, BaseModel):
     filename: str
     uploaded_bytes: int = 0
     done: bool = False
+    last_updated: datetime | None = None
 
     @classmethod
-    async def start(cls, upload_key: str, filename: str) -> AppState:
-        """Register a new in-flight upload."""
+    async def start(cls, upload_key: str, filename: str) -> "AppState":
+        """Register a new in-flight upload and set last_updated."""
         current = await AppState.get()
-        current.active_uploads.append(cls(upload_key=upload_key, filename=filename))
+        now = datetime.now(timezone.utc)
+        current.active_uploads.append(
+            cls(upload_key=upload_key, filename=filename, last_updated=now)
+        )
         await AppState.set(current)
         return current
 
     @classmethod
-    async def update(cls, upload_key: str, uploaded_bytes: int) -> AppState:
-        """Update the byte count for an in-flight upload."""
+    async def update(cls, upload_key: str, uploaded_bytes: int) -> "AppState":
+        """Update the byte count and touch last_updated for an in-flight upload."""
         current = await AppState.get()
+        now = datetime.now(timezone.utc)
         for upload in current.active_uploads:
             if upload.upload_key == upload_key:
+                # Add the delta to total_space_used so partial uploads are accounted
+                delta = uploaded_bytes - (upload.uploaded_bytes or 0)
+                if delta > 0:
+                    current.total_space_used += delta
                 upload.uploaded_bytes = uploaded_bytes
+                upload.last_updated = now
                 break
         await AppState.set(current)
         return current
 
     @classmethod
-    async def finish(cls, upload_key: str, final_size: int) -> AppState:
-        """Mark an upload as done and add its size to total_space_used."""
+    async def finish(cls, upload_key: str, final_size: int) -> "AppState":
+        """Mark an upload as done, touch last_updated, and add its size to total_space_used."""
         current = await AppState.get()
+        now = datetime.now(timezone.utc)
         for upload in current.active_uploads:
             if upload.upload_key == upload_key:
+                # If we tracked partial bytes earlier, only add the remaining delta
+                delta = final_size - (upload.uploaded_bytes or 0)
+                if delta > 0:
+                    current.total_space_used += delta
                 upload.done = True
                 upload.uploaded_bytes = final_size
+                upload.last_updated = now
                 break
-        current.total_space_used += final_size
         await AppState.set(current)
         return current
 
     @classmethod
-    async def cancel(cls, upload_key: str) -> AppState:
-        """Remove a failed/disconnected upload from the active list."""
+    async def cancel(cls, upload_key: str) -> "AppState":
+        """Remove a failed/disconnected upload from the active list without adjusting totals."""
         current = await AppState.get()
-        current.active_uploads = [
-            u for u in current.active_uploads if u.upload_key != upload_key
-        ]
+        # Subtract any tracked uploaded bytes from totals when cancelling
+        remaining = []
+        freed = 0
+        for u in current.active_uploads:
+            if u.upload_key == upload_key:
+                freed += u.uploaded_bytes or 0
+            else:
+                remaining.append(u)
+        current.active_uploads = remaining
+        current.total_space_used = max(0, current.total_space_used - freed)
         await AppState.set(current)
         return current
 
