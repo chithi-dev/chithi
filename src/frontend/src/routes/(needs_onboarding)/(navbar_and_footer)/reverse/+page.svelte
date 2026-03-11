@@ -12,6 +12,7 @@
 	} from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
+	import * as Select from '$lib/components/ui/select';
 	import { Label } from '$lib/components/ui/label';
 	import { Upload, Download, ArrowLeft, LoaderCircle } from 'lucide-svelte';
 	import { REVERSE_ROOMS_URL } from '#consts/backend';
@@ -22,8 +23,8 @@
 
 	let roomName = $state('');
 	let expireAfter = $state(3600);
-	// null means "use server default"
-	let numberOfDownloads = $state<number | null>(null);
+	// empty string means "use server default"
+	let numberOfDownloads = $state('');
 	let joinId = $state('');
 	let isCreating = $state(false);
 
@@ -32,7 +33,7 @@
 
 	$effect(() => {
 		if (configData.data?.default_number_of_downloads && !defaultDownloadLimitSet) {
-			numberOfDownloads = configData.data.default_number_of_downloads;
+			numberOfDownloads = configData.data.default_number_of_downloads.toString();
 			defaultDownloadLimitSet = true;
 		}
 	});
@@ -58,7 +59,7 @@
 				body: JSON.stringify({
 					name: roomName.trim(),
 					expire_after: expireAfter,
-					number_of_downloads: numberOfDownloads
+					number_of_downloads: numberOfDownloads === '' ? null : Number(numberOfDownloads)
 				}),
 				credentials: 'include'
 			});
@@ -147,22 +148,25 @@
 					</div>
 					<div class="space-y-2">
 						<Label for="downloads">Number of downloads</Label>
-						<select
-							id="downloads"
-							class="w-full rounded-md border bg-background px-3 py-2"
-							onchange={(e) => {
-								const v = (e.currentTarget as HTMLSelectElement).value;
-								numberOfDownloads = v === '' ? null : Number(v);
-							}}
-							value={numberOfDownloads ?? ''}
-						>
-							<option value="">Use default</option>
-							<option value="1">1 download</option>
-							<option value="5">5 downloads</option>
-							<option value="10">10 downloads</option>
-							<option value="25">25 downloads</option>
-							<option value="100">100 downloads</option>
-						</select>
+						<Select.Root type="single" bind:value={numberOfDownloads}>
+							<Select.Trigger class="w-full">
+								{numberOfDownloads === ''
+									? 'Use default'
+									: `${numberOfDownloads} ${numberOfDownloads === '1' ? 'download' : 'downloads'}`}
+							</Select.Trigger>
+							<Select.Content>
+								<Select.Item value="">Use default</Select.Item>
+								{#if configData.data?.download_configs}
+									{#each configData.data.download_configs as limit}
+										<Select.Item value={limit.toString()}
+											>{limit} {limit === 1 ? 'download' : 'downloads'}</Select.Item
+										>
+									{/each}
+								{:else}
+									<Select.Item value="1">1 download</Select.Item>
+								{/if}
+							</Select.Content>
+						</Select.Root>
 						<p class="text-xs text-muted-foreground">
 							Leave as "Use default" to apply server default.
 						</p>
