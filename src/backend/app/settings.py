@@ -74,6 +74,8 @@ class Settings(BaseSettings):
 
     STATE_REDIS_KEY: str = "chithi:global_state"
     STATE_CHANNEL: str = "chithi:state_changed"
+    # Upload cleanup: stale in-flight uploads older than this (seconds) are cleared
+    UPLOAD_STALE_SECONDS: int = 600
 
 
 settings = Settings()  # type: ignore

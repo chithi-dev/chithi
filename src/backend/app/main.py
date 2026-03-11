@@ -99,3 +99,11 @@ app.include_router(token_router)
 from app.routes.ws.state import router as ws_router
 
 app.include_router(ws_router)
+
+from app.routes.http.reverse import router as reverse_router
+
+app.include_router(reverse_router)
+
+from app.routes.ws.reverse import router as ws_reverse_router
+
+app.include_router(ws_reverse_router)

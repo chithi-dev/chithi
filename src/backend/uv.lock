@@ -395,6 +395,7 @@ dependencies = [
     { name = "alembic" },
     { name = "celery" },
     { name = "celery-aio-pool" },
+    { name = "celery-types" },
     { name = "fastapi" },
     { name = "pwdlib", extra = ["argon2"] },
     { name = "pydantic-settings" },
@@ -404,6 +405,7 @@ dependencies = [
     { name = "sqlalchemy", extra = ["postgresql-asyncpg"] },
     { name = "sqlmodel" },
     { name = "typer" },
+    { name = "types-aioboto3" },
     { name = "types-aiobotocore-s3" },
     { name = "uvicorn" },
     { name = "uvloop", marker = "sys_platform == 'linux'" },
@@ -412,11 +414,9 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "celery-types" },
     { name = "fastapi-cli" },
     { name = "poethepoet" },
     { name = "ruff" },
-    { name = "types-aioboto3" },
 ]
 
 [package.metadata]
@@ -425,6 +425,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.17.2" },
     { name = "celery", specifier = ">=5.6.1" },
     { name = "celery-aio-pool", specifier = ">=0.1.0rc8" },
+    { name = "celery-types", specifier = ">=0.24.0" },
     { name = "fastapi", specifier = ">=0.127.0" },
     { name = "pwdlib", extras = ["argon2"], specifier = ">=0.3.0" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },
@@ -434,6 +435,7 @@ requires-dist = [
     { name = "sqlalchemy", extras = ["postgresql-asyncpg"], specifier = ">=2.0.45" },
     { name = "sqlmodel", specifier = ">=0.0.27" },
     { name = "typer", specifier = ">=0.20.1" },
+    { name = "types-aioboto3", specifier = ">=15.5.0" },
     { name = "types-aiobotocore-s3", specifier = ">=2.25.2" },
     { name = "uvicorn", specifier = ">=0.40.0" },
     { name = "uvloop", marker = "sys_platform == 'linux'", specifier = ">=0.22.1" },
@@ -442,11 +444,9 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "celery-types", specifier = ">=0.24.0" },
     { name = "fastapi-cli", specifier = ">=0.0.16" },
     { name = "poethepoet", specifier = ">=0.39.0" },
     { name = "ruff", specifier = ">=0.14.10" },
-    { name = "types-aioboto3", specifier = ">=15.5.0" },
 ]
 
 [[package]]

@@ -7,14 +7,14 @@ from fastapi.responses import StreamingResponse
 from app.schemas.speedtest import UploadPayload
 from app.settings import settings
 
-router = APIRouter()
+router = APIRouter(prefix="/speedtest")
 
 # 1 MB chunk of random data
 CHUNK_SIZE = 1024 * 1024
 RANDOM_BYTES = os.urandom(CHUNK_SIZE)
 
 
-@router.get("/speedtest/download", tags=["Speedtest"])
+@router.get("/download", tags=["Speedtest"])
 async def speedtest_download(
     size: Annotated[
         int,
@@ -59,7 +59,7 @@ async def speedtest_download(
     )
 
 
-@router.post("/speedtest/upload", tags=["Speedtest"])
+@router.post("/upload", tags=["Speedtest"])
 async def speedtest_upload(request: Request):
     """
     Upload speedtest endpoint.
