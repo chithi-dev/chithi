@@ -29,15 +29,12 @@
 
 		isLoading = true;
 		try {
-			// 1. Complete Onboarding
 			await completeOnboarding({ username, email, password });
 			toast.success('Admin account created successfully');
 
-			// 2. Auto Login
 			await login(username, password);
 			toast.success('Logged in successfully');
 
-			// 3. Move to next step
 			onNext();
 		} catch (error: any) {
 			toast.error(error.message || 'Something went wrong');
