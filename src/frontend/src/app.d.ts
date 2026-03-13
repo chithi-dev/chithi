@@ -11,6 +11,10 @@ declare global {
 		// interface PageState {}
 		// interface Platform {}
 	}
+
+	// Build-time globals (available at runtime via Vite define)
+	declare const __APP_VERSION__: string;
+	declare const __COMMIT_SHA__: string;
 }
 
 export {};
