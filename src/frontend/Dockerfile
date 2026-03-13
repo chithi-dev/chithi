@@ -4,6 +4,10 @@ COPY package*.json .
 COPY .npmrc .
 RUN npm i
 COPY . .
+# Read version from GIT
+RUN apk add git
+RUN rm -rf .git
+
 RUN npm run build:node
 RUN npm prune --production
 
