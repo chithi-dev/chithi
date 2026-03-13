@@ -1,7 +1,15 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
-	import { Info, GitCommit, Tag, BookOpen, ExternalLink, ShieldCheck, House } from 'lucide-svelte';
+	import {
+		Info,
+		GitCommitHorizontal,
+		Tag,
+		BookOpen,
+		ExternalLink,
+		ShieldCheck,
+		House
+	} from 'lucide-svelte';
 	import favicon from '$lib/assets/logo.svg';
 	import AnimatedGrid from '$lib/components/AnimatedGrid.svelte';
 
@@ -121,7 +129,7 @@
 						<div
 							class="flex items-center gap-2 text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase dark:text-zinc-500"
 						>
-							<GitCommit class="h-3 w-3" />
+							<GitCommitHorizontal class="h-3 w-3" />
 							Source Index
 						</div>
 						<a
