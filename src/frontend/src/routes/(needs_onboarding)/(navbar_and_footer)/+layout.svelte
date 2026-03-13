@@ -66,7 +66,7 @@
 			order: 3
 		}
 	];
-	let footerLinks = $state([
+	let rightFooterLinks = $state([
 		{
 			href: '/speedtest',
 			name: 'Speedtest',
@@ -117,20 +117,30 @@
 	];
 
 	$effect.pre(() => {
-		donationPlatforms.forEach(({ key, name, iconModule }) => {
+		const seen = new Set(rightFooterLinks.map((l) => l.href));
+		const additions = donationPlatforms.flatMap(({ key, name, iconModule }) => {
 			const href = (env as Record<string, string | undefined>)[key];
+			if (!href || seen.has(href)) return [];
 
-			// Check if the environment variable exists and isn't already in the list
-			if (href && !footerLinks.some((link) => link.href === href)) {
-				footerLinks.push({
+			return [
+				{
 					href,
 					name,
-					// Use the .default property from the awaited import
 					icon: iconModule.default,
-					order: footerLinks.length + 1
-				});
-			}
+					order: rightFooterLinks.length + 1
+				}
+			];
 		});
+
+		if (additions.length > 0) {
+			rightFooterLinks = [
+				...rightFooterLinks,
+				...additions.map((item, i) => ({
+					...item,
+					order: rightFooterLinks.length + i + 1
+				}))
+			];
+		}
 	});
 </script>
 
@@ -240,29 +250,30 @@
 	<!-- Footer -->
 	<footer class="bg-transparent p-4 backdrop-blur-md transition-colors duration-500">
 		<div class="mx-auto w-full">
-			<nav
-				class="flex flex-row flex-wrap items-center justify-end gap-2 text-sm text-muted-foreground md:gap-6"
-			>
-				{#each footerLinks as footer_item}
-					<div style="order:{footer_item.order}">
-						<Tooltip.Provider delayDuration={100}>
-							<Tooltip.Root>
-								<Tooltip.Trigger
-									><Button
-										variant="ghost"
-										size="icon"
-										aria-label={footer_item.name}
-										class="transition-colors hover:text-foreground"
-										href={footer_item.href}
+			<nav class="flex flex-row items-center justify-between text-sm text-muted-foreground">
+				<div class="flex flex-wrap items-center gap-2 md:gap-6"></div>
+				<div class="flex flex-wrap items-center gap-2 md:gap-6">
+					{#each rightFooterLinks as footer_item}
+						<div style="order:{footer_item.order}">
+							<Tooltip.Provider delayDuration={100}>
+								<Tooltip.Root>
+									<Tooltip.Trigger
+										><Button
+											variant="ghost"
+											size="icon"
+											aria-label={footer_item.name}
+											class="transition-colors hover:text-foreground"
+											href={footer_item.href}
+										>
+											<footer_item.icon />
+										</Button></Tooltip.Trigger
 									>
-										<footer_item.icon />
-									</Button></Tooltip.Trigger
-								>
-								<Tooltip.Content>{footer_item.name}</Tooltip.Content>
-							</Tooltip.Root>
-						</Tooltip.Provider>
-					</div>
-				{/each}
+									<Tooltip.Content>{footer_item.name}</Tooltip.Content>
+								</Tooltip.Root>
+							</Tooltip.Provider>
+						</div>
+					{/each}
+				</div>
 			</nav>
 		</div>
 	</footer>
