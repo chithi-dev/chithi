@@ -14,7 +14,7 @@
 	import type { Snippet } from 'svelte';
 	import { MetaTags, deepMerge } from 'svelte-meta-tags';
 	import { user_store } from '$lib/store/user.svelte';
-
+	import { SvelteQueryDevtools } from '@tanstack/svelte-query-devtools';
 	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 
 	$effect.pre(() => {
@@ -50,7 +50,7 @@
 
 <ModeWatcher />
 <QueryClientProvider client={data.queryClient}>
-	<!-- <SvelteQueryDevtools buttonPosition="top-left" /> -->
+	<SvelteQueryDevtools buttonPosition="top-left" />
 
 	{@render children()}
 </QueryClientProvider>
