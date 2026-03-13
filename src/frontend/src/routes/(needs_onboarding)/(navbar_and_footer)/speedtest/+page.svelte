@@ -84,8 +84,7 @@
 	// Chart Config
 	const chartConfig = {
 		download: { label: 'Download', color: 'var(--color-cyan-400)' },
-		upload: { label: 'Upload', color: 'var(--color-purple-500)' },
-		remaining: { label: 'Remaining', color: 'rgb(0 0 0 / 0.1)' }
+		upload: { label: 'Upload', color: 'var(--color-purple-500)' }
 	} satisfies Chart.ChartConfig;
 </script>
 
@@ -97,7 +96,7 @@
 				{
 					key: 'remaining',
 					value: Math.max(0, max - value),
-					color: chartConfig.remaining.color
+					color: `color-mix(in srgb, ${activeColor} 35%, white)`
 				}
 			]}
 			key="key"
