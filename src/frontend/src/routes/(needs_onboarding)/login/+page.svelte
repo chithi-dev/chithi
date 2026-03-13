@@ -12,6 +12,7 @@
 	import { fly } from 'svelte/transition';
 
 	import LoginForm from './login_form.svelte';
+	import AnimatedGrid from '$lib/components/AnimatedGrid.svelte';
 
 	// Next url
 	const nextUrl = $derived.by(() => {
@@ -28,17 +29,7 @@
 <div
 	class="relative flex min-h-svh items-center justify-center overflow-hidden bg-card p-4 transition-colors duration-500"
 >
-	<div class="absolute inset-0 z-0">
-		<div
-			class="absolute -top-24 -left-24 h-125 w-125 rounded-full bg-primary/10 blur-[120px]"
-		></div>
-		<div
-			class="absolute -right-24 -bottom-24 h-125 w-125 rounded-full bg-primary/10 blur-[120px]"
-		></div>
-		<div
-			class="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] mask-[radial-gradient(ellipse_at_center,black,transparent_90%)] bg-size-[40px_40px] dark:bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)]"
-		></div>
-	</div>
+	<AnimatedGrid />
 
 	<a
 		href={nextUrl}
