@@ -1,21 +1,21 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import tailwindcss from '@tailwindcss/vite';
 import { playwright } from '@vitest/browser-playwright';
-import { execSync } from 'child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
-function git(cmd: string) {
-	return execSync(cmd).toString().trim();
+const buildInfoPath = path.resolve('src/frontend/build-info.json');
+let buildInfo = { version: 'v0.0.0', commit: 'unknown' };
+
+if (fs.existsSync(buildInfoPath)) {
+	buildInfo = JSON.parse(fs.readFileSync(buildInfoPath, 'utf-8'));
 }
-
-const commit = git('git rev-parse --short HEAD');
-
-const version = process.env.GITHUB_ACTIONS ? process.env.GITHUB_REF_NAME : `v0.0.0-${commit}`;
 
 export default defineConfig({
 	define: {
-		__APP_VERSION__: JSON.stringify(version),
-		__COMMIT_SHA__: JSON.stringify(commit)
+		__APP_VERSION__: JSON.stringify(buildInfo.version),
+		__COMMIT_SHA__: JSON.stringify(buildInfo.commit)
 	},
 	plugins: [tailwindcss(), sveltekit()],
 	worker: {
