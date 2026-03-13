@@ -67,7 +67,7 @@
 		"remark": "^15.0.1",
 		"remark-parse": "^11.0.0",
 		"remark-rehype": "^11.1.2",
-		"sass": "^1.97.3",
+		"sass-embedded": "^1.98.0",
 		"superforms": "^0.0.1",
 		"svelte": "^5.53.11",
 		"svelte-check": "^4.4.5",
