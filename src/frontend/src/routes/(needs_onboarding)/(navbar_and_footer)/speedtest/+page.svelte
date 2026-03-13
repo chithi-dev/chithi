@@ -3,7 +3,14 @@
 	import { cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
 	import { BACKEND_API } from '#consts/backend';
-	import * as Card from '$lib/components/ui/card';
+	import {
+		Card,
+		CardContent,
+		CardDescription,
+		CardFooter,
+		CardHeader,
+		CardTitle
+	} from '$lib/components/ui/card';
 	import * as Chart from '$lib/components/ui/chart';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
@@ -76,45 +83,46 @@
 
 	// Chart Config
 	const chartConfig = {
-		download: { label: 'Download', color: 'var(--chart-1)' },
-		upload: { label: 'Upload', color: 'var(--chart-2)' }
+		download: { label: 'Download', color: 'var(--color-cyan-400)' },
+		upload: { label: 'Upload', color: 'var(--color-purple-500)' },
+		remaining: { label: 'Remaining', color: 'rgb(0 0 0 / 0.1)' }
 	} satisfies Chart.ChartConfig;
 </script>
 
 {#snippet RadialGauge(id: string, value: number, max: number, activeColor: string)}
-	<Chart.Container config={chartConfig} class="mx-auto aspect-square w-full max-h-62.5">
+	<Chart.Container config={chartConfig} class="mx-auto aspect-square w-full">
 		<PieChart
 			data={[
 				{ key: 'value', value: value, color: activeColor },
 				{
 					key: 'remaining',
 					value: Math.max(0, max - value),
-					color: 'var(--muted)'
+					color: chartConfig.remaining.color
 				}
 			]}
 			key="key"
 			value="value"
 			c="color"
-			innerRadius={76}
-			padding={29}
+			innerRadius={0.75}
+			padding={0}
 			range={[-90, 90]}
 			props={{ pie: { sort: null } }}
-			cornerRadius={4}
+			cornerRadius={10}
 		>
 			{#snippet aboveMarks()}
 				<Text
 					value={String(value.toFixed(1))}
 					textAnchor="middle"
 					verticalAnchor="middle"
-					class="fill-foreground text-2xl! font-bold"
-					dy={-24}
+					class="fill-foreground text-4xl font-bold"
+					dy={-20}
 				/>
 				<Text
 					value="Mbps"
 					textAnchor="middle"
 					verticalAnchor="middle"
-					class="fill-muted-foreground! text-muted-foreground"
-					dy={-4}
+					class="fill-muted-foreground text-sm font-medium"
+					dy={15}
 				/>
 			{/snippet}
 		</PieChart>
@@ -122,14 +130,14 @@
 {/snippet}
 
 <div class="flex h-full w-full flex-col justify-center">
-	<Card.Root class="mx-auto w-full border-border bg-card transition-all duration-200">
-		<Card.Header>
+	<Card class="mx-auto w-full border-border bg-card transition-all duration-200">
+		<CardHeader>
 			<div class="flex items-center justify-between">
 				<div>
-					<Card.Title class="flex items-center gap-2 text-2xl">
+					<CardTitle class="flex items-center gap-2 text-2xl">
 						<Activity class="h-6 w-6 text-primary" /> Speedtest
-					</Card.Title>
-					<Card.Description>Check your internet connection speed to the server.</Card.Description>
+					</CardTitle>
+					<CardDescription>Check your internet connection speed to the server.</CardDescription>
 				</div>
 				<div class="flex h-6 flex-col justify-center">
 					<div
@@ -152,8 +160,8 @@
 					</div>
 				</div>
 			</div>
-		</Card.Header>
-		<Card.Content class="space-y-8 py-4">
+		</CardHeader>
+		<CardContent class="space-y-8 py-4">
 			<!-- Gauges Container -->
 			<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
 				<!-- Download Gauge -->
@@ -161,7 +169,7 @@
 					class="flex flex-col items-center justify-center gap-4 rounded-xl border bg-muted/30 p-6 transition-colors"
 				>
 					<div class="flex items-center gap-2 font-semibold text-foreground">
-						<ArrowDown class="h-4 w-4 text-chart-1" />
+						<ArrowDown class="h-4 w-4 text-cyan-400" />
 						Download Speed
 					</div>
 					<div class="relative h-56 w-56">
@@ -179,7 +187,7 @@
 					class="flex flex-col items-center justify-center gap-4 rounded-xl border bg-muted/30 p-6 transition-colors"
 				>
 					<div class="flex items-center gap-2 font-semibold text-foreground">
-						<ArrowUp class="h-4 w-4 text-chart-2" />
+						<ArrowUp class="h-4 w-4 text-purple-500" />
 						Upload Speed
 					</div>
 					<div class="relative h-56 w-56">
@@ -240,8 +248,8 @@
 					</div>
 				</div>
 			</div>
-		</Card.Content>
-		<Card.Footer class="flex justify-center pt-4 pb-8">
+		</CardContent>
+		<CardFooter class="flex justify-center pt-4 pb-8">
 			{#if status === 'idle' || status === 'finished' || status === 'error'}
 				<Button
 					size="lg"
@@ -255,6 +263,6 @@
 					<RotateCw class="h-5 w-5 animate-spin" /> Testing...
 				</Button>
 			{/if}
-		</Card.Footer>
-	</Card.Root>
+		</CardFooter>
+	</Card>
 </div>
