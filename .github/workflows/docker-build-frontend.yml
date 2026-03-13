@@ -26,9 +26,10 @@ jobs:
 
             - name: Set up Python
               uses: actions/setup-python@v4
-              
+
             - name: Inject Version
-              run: python3 scripts/inject_version.py
+              working-directory: ./src/frontend
+              run: python scripts/inject_version.py
 
             - name: Build Docker image
               uses: docker/build-push-action@v7
