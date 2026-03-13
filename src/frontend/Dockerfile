@@ -8,7 +8,7 @@ COPY . .
 RUN apk add git
 RUN npm run build:node
 RUN npm prune --production
-
+# Remove git
 RUN rm -rf .git
 
 
