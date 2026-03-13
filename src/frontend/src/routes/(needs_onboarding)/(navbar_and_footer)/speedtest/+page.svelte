@@ -18,7 +18,7 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { PieChart, Text } from 'layerchart';
 	import { Play, RotateCw, Activity, ArrowDown, ArrowUp, Timer } from 'lucide-svelte';
-	import SpeedtestWorker from '$lib/workers/speedtest.worker?worker';
+	import SpeedtestWorker from './speedtest.worker?worker';
 	import { cn } from '$lib/utils';
 	import { Progress } from '$lib/components/ui/progress';
 
