@@ -6,10 +6,11 @@ RUN npm i
 COPY . .
 # Read version from GIT
 RUN apk add git
-RUN rm -rf .git
-
 RUN npm run build:node
 RUN npm prune --production
+
+RUN rm -rf .git
+
 
 FROM node:25-alpine
 WORKDIR /app
