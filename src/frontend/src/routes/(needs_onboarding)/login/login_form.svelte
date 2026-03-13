@@ -10,18 +10,26 @@
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
+	import { QueryClient } from '@tanstack/svelte-query';
+	import { queryKey as authQueryKey } from '#queries/auth';
 
 	let showPassword = $state(false);
 
 	let { data, next_url }: { data: { form: SuperValidated<Infer<FormSchema>> }; next_url: string } =
 		$props();
 
+	const queryClient = new QueryClient();
 	const form = superForm(
 		untrack(() => data.form),
 		{
 			validators: zod4Client(schema),
 			onUpdated: async ({ form }) => {
 				if (form.valid) {
+					queryClient.invalidateQueries({
+						queryKey: [authQueryKey],
+						exact: true,
+						refetchType: 'all'
+					});
 					goto(next_url, { replaceState: true });
 				} else {
 					const globalErrors = form.errors._errors;

@@ -4,7 +4,7 @@ import { login as loginRemote } from '$lib/remote/auth.remote';
 import { user_store } from '$lib/store/user.svelte';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
-const queryKey = ['auth-user'];
+export const queryKey = ['auth-user'];
 
 const resolveFetch = (fetch?: typeof globalThis.fetch) => fetch ?? globalThis.fetch;
 
