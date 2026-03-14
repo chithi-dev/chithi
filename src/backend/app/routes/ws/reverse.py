@@ -3,38 +3,37 @@ import json
 import logging
 from contextlib import suppress
 
-import aioboto3
 import redis.asyncio as aioredis
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.deps import S3Dep
 from app.schemas.reverse import RoomFileEntry, RoomFileEvent
 from app.settings import settings
 from app.states.room import RoomState
+from app.converter.bytes import ByteSize
 
 logger = logging.getLogger(__name__)
-
 router = APIRouter()
 
+MAX_CONCURRENT_STREAMS = 4  # files streamed in parallel per connection
+S3_CHUNK_SIZE = ByteSize(kb=256).total_bytes()  # 256 KB read chunks
 
-async def _stream_file_to_ws(ws: WebSocket, entry: RoomFileEntry) -> None:
-    """Fetch a file from RustFS and relay every chunk to *ws*.
 
-    Mirrors the streaming pattern in ``download.py`` - the client receives raw
-    bytes without ever knowing about the backing S3 store.
-    """
-    session = aioboto3.Session()
-    async with session.client(
-        "s3",
-        endpoint_url=settings.RUSTFS_ENDPOINT_URL,
-        aws_access_key_id=settings.RUSTFS_ACCESS_KEY,
-        aws_secret_access_key=settings.RUSTFS_SECRET_ACCESS_KEY,
-    ) as s3:
-        try:
-            s3_response = await s3.get_object(
-                Bucket=settings.RUSTFS_BUCKET_NAME, Key=entry.key
-            )
-        except ClientError:
+async def _stream_file_to_ws(
+    ws: WebSocket,
+    entry: RoomFileEntry,
+    s3_client,
+    send_lock: asyncio.Lock,
+) -> None:
+    """Fetch one file from RustFS and relay every chunk to *ws*."""
+    try:
+        s3_response = await s3_client.get_object(
+            Bucket=settings.RUSTFS_BUCKET_NAME,
+            Key=entry.key,
+        )
+    except ClientError:
+        async with send_lock:
             await ws.send_text(
                 json.dumps(
                     {
@@ -44,9 +43,9 @@ async def _stream_file_to_ws(ws: WebSocket, entry: RoomFileEntry) -> None:
                     }
                 )
             )
-            return
+        return
 
-        #  tells the client which file is coming and how large it is
+    async with send_lock:
         await ws.send_text(
             json.dumps(
                 {
@@ -58,27 +57,30 @@ async def _stream_file_to_ws(ws: WebSocket, entry: RoomFileEntry) -> None:
             )
         )
 
-        # Binary chunks
-        try:
-            async for chunk in s3_response["Body"]:
+    body = s3_response["Body"]
+    try:
+        async for chunk in body.iter_chunks(S3_CHUNK_SIZE):
+            async with send_lock:
                 await ws.send_bytes(chunk)
-        finally:
-            s3_response["Body"].close()
+    finally:
+        body.close()
 
-        # signals the client that this file is complete
+    async with send_lock:
         await ws.send_text(json.dumps({"type": "file_end", "key": entry.key}))
 
 
 @router.websocket("/ws/reverse/rooms/{room_id}")
-async def room_ws(ws: WebSocket, room_id: str, host_token: str | None = None):
-    # Quick existence check before accepting the connection
+async def room_ws(
+    ws: WebSocket,
+    room_id: str,
+    s3_client: S3Dep,
+    host_token: str | None = None,
+):
     room = await RoomState.get(room_id)
     if room is None:
         await ws.close(code=4004, reason="Room not found or expired")
         return
 
-    # Determine if this connection is the host
-    is_host = False
     if host_token is not None:
         is_host = await RoomState.verify_host(room_id, host_token)
         if not is_host:
@@ -87,20 +89,18 @@ async def room_ws(ws: WebSocket, room_id: str, host_token: str | None = None):
 
     await ws.accept()
 
-    # subscribe FIRST so no events are lost between snapshot and listen
-    sub_client = aioredis.from_url(
+    redis_client = aioredis.from_url(
         settings.REDIS_ENDPOINT, encoding="utf-8", decode_responses=True
     )
-    pubsub = sub_client.pubsub()
+    pubsub = redis_client.pubsub()
     channel = RoomState.channel_for(room_id)
     await pubsub.subscribe(channel)
 
-    # snapshot (re-read after subscribe to guarantee consistency)
     room = await RoomState.get(room_id)
     if room is None:
         await pubsub.unsubscribe(channel)
         await pubsub.aclose()
-        await sub_client.aclose()
+        await redis_client.aclose()
         await ws.close(code=4004, reason="Room expired")
         return
 
@@ -108,45 +108,44 @@ async def room_ws(ws: WebSocket, room_id: str, host_token: str | None = None):
         json.dumps({"type": "snapshot", "room": room.model_dump(mode="json")})
     )
 
-    # Queue that serialises all file streams (catch-up + real-time).
-    # Existing files from the snapshot are enqueued first; new events
-    # arriving through pub/sub are appended in order.
-    file_queue: asyncio.Queue[RoomFileEntry | None] = asyncio.Queue()
-    seen_keys: set[str] = set()
+    sem = asyncio.Semaphore(MAX_CONCURRENT_STREAMS)
+    send_lock = asyncio.Lock()
+    done_event = asyncio.Event()
 
-    # Enqueue existing files so late clients get them streamed
-    for entry in room.files:
-        seen_keys.add(entry.key)
-        file_queue.put_nowait(entry)
+    async def _dispatch_file(entry: RoomFileEntry) -> None:
+        async with sem:
+            await _stream_file_to_ws(ws, entry, s3_client, send_lock)
 
-    async def _listen_events() -> None:
-        """Read room events from Redis pub/sub and either queue file
-        streams or forward lightweight notifications.
+    async def _listen_and_stream() -> None:
+        seen_keys: set[str] = {e.key for e in room.files}
 
-        Events for files already in the snapshot are deduplicated via
-        ``seen_keys`` so late clients don't receive the same file twice.
-        """
-        try:
+        async with asyncio.TaskGroup() as tg:
+            # catch-up: files already in the snapshot
+            for entry in room.files:
+                tg.create_task(_dispatch_file(entry))
+
+            # real-time: events arriving while connected
             async for message in pubsub.listen():
                 if message["type"] != "message":
                     continue
 
-                raw = message["data"]
                 try:
-                    data = json.loads(raw)
+                    data = json.loads(message["data"])
                 except Exception:
                     continue
 
-                # Host destroyed the room - notify client and close
-                if data.get("type") == "room_destroyed":
-                    await ws.send_text(json.dumps({"type": "room_destroyed"}))
-                    file_queue.put_nowait(None)
+                msg_type = data.get("type")
+
+                if msg_type == "room_destroyed":
+                    async with send_lock:
+                        await ws.send_text(json.dumps({"type": "room_destroyed"}))
                     await ws.close(code=4001, reason="Room destroyed by host")
+                    done_event.set()
                     return
 
-                # Host count changed - forward directly
-                if data.get("type") == "host_count":
-                    await ws.send_text(json.dumps(data))
+                if msg_type == "host_count":
+                    async with send_lock:
+                        await ws.send_text(json.dumps(data))
                     continue
 
                 try:
@@ -157,51 +156,35 @@ async def room_ws(ws: WebSocket, room_id: str, host_token: str | None = None):
 
                 if event.event == "file_added":
                     if event.file.key in seen_keys:
-                        # Already queued from the snapshot - skip duplicate
                         continue
                     seen_keys.add(event.file.key)
-                    file_queue.put_nowait(event.file)
+                    tg.create_task(_dispatch_file(event.file))
+
                 elif event.event == "file_removed":
-                    await ws.send_text(
-                        json.dumps(
-                            {
-                                "type": "file_removed",
-                                "key": event.file.key,
-                                "filename": event.file.filename,
-                            }
+                    async with send_lock:
+                        await ws.send_text(
+                            json.dumps(
+                                {
+                                    "type": "file_removed",
+                                    "key": event.file.key,
+                                    "filename": event.file.filename,
+                                }
+                            )
                         )
-                    )
-        except WebSocketDisconnect, asyncio.CancelledError:
-            pass
 
-    # pulls from queue and streams one file at a time
-    async def _stream_queued_files() -> None:
-        try:
-            while True:
-                entry = await file_queue.get()
-                if entry is None:
-                    break
-                await _stream_file_to_ws(ws, entry)
-        except WebSocketDisconnect, asyncio.CancelledError:
-            pass
-
-    listen_task = asyncio.create_task(_listen_events())
-    stream_task = asyncio.create_task(_stream_queued_files())
+    listen_task = asyncio.create_task(_listen_and_stream())
 
     try:
-        # Keep alive - read (and discard) client pings / messages
         while True:
             await ws.receive_text()
     except WebSocketDisconnect:
         pass
     finally:
         listen_task.cancel()
-        file_queue.put_nowait(None)  # unblock streamer
-        stream_task.cancel()
-        with suppress(asyncio.CancelledError):
+        done_event.set()
+        with suppress(asyncio.CancelledError, ExceptionGroup):
             await listen_task
-        with suppress(asyncio.CancelledError):
-            await stream_task
+
         await pubsub.unsubscribe(channel)
         await pubsub.aclose()
-        await sub_client.aclose()
+        await redis_client.aclose()
