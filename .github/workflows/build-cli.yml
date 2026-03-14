@@ -47,10 +47,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v7
 
       - name: Install dependencies
         run: uv sync --frozen
@@ -74,7 +74,7 @@ jobs:
           else { throw "Artifact not found" }
 
       - name: Upload CI Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cli-${{ matrix.target }}
           path: src/cli/${{ matrix.asset_name }}
