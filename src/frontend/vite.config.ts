@@ -25,7 +25,6 @@ export default defineConfig({
 		sourcemap: true,
 		rolldownOptions: {
 			output: {
-				hashCharacters: 'hex',
 				minify: true
 			}
 		}
