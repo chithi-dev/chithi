@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { defineConfig } from 'vitest/config';
 
-const buildInfoPath = path.resolve('src/frontend/build-info.json');
+const buildInfoPath = path.resolve('./build-info.json');
 let buildInfo = { version: 'v0.0.0', commit: 'unknown' };
 
 if (fs.existsSync(buildInfoPath)) {
