@@ -45,4 +45,5 @@ build_data = {"version": version, "commit": commit, "is_release": gh_ref_type ==
 with open(out_path, "w") as f:
     json.dump(build_data, f, indent=2)
 
+print(f"Build info JSON created at: {out_path}")
 print(f"Injected version: {version}, commit: {commit}")
