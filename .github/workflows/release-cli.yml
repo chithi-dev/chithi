@@ -12,13 +12,26 @@ jobs:
         strategy:
             matrix:
                 include:
+                    # Linux
                     - os: ubuntu-latest
-                      target: linux
+                      target: linux-amd64
                       asset_name: chithi-cli-linux-amd64
                       build_cmd: nuitka-linux
+                    
+                    - os: ubuntu-24.04-arm
+                      target: linux-arm64
+                      asset_name: chithi-cli-linux-arm64
+                      build_cmd: nuitka-linux
+
+                    # Windows 
                     - os: windows-latest
-                      target: windows
+                      target: windows-amd64
                       asset_name: chithi-cli-windows-amd64.exe
+                      build_cmd: nuitka-windows
+
+                    - os: windows-11-arm
+                      target: windows-arm64
+                      asset_name: chithi-cli-windows-arm64.exe
                       build_cmd: nuitka-windows
 
         runs-on: ${{ matrix.os }}

@@ -10,7 +10,7 @@ dependencies = [
     # Http Client
     "requests>=2.32.0",
     # Encryption (AES-256-GCM + Argon2id KDF)
-    "cryptography>=44.0.0",
+    "cryptography==46.0.3",
     # ZIP with WinZip AES-256 support (matches web front-end)
     "pyzipper>=0.3.6",
     # Progress bars
