@@ -86,15 +86,9 @@
 	$effect(() => {
 		const hash = $page.url.hash.slice(1);
 		if (hash) {
-			// This could be a host token or a room key
+			// This could be a host token or a room key. Accept any non-empty hash as the key.
 			const parts = hash.split(':');
-			if (parts.length > 1) {
-				// It's a host joining, key is the second part
-				roomKey = parts[1];
-			} else if (parts[0] && !parts[0].includes('-')) {
-				// It's likely a guest with just the key (host tokens have dashes)
-				roomKey = parts[0];
-			}
+			roomKey = parts[0];
 		}
 	});
 
@@ -427,7 +421,7 @@
 			const parts = hash.split(':');
 			if (parts.length > 1) {
 				roomKey = parts[1];
-			} else if (parts[0] && !parts[0].includes('-')) {
+			} else if (parts[0]) {
 				roomKey = parts[0];
 			}
 		}
