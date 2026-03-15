@@ -68,7 +68,7 @@
 				throw new Error((err as { detail?: string }).detail ?? `HTTP ${res.status}`);
 			}
 			const data = (await res.json()) as { id: string; host_token: string };
-			goto(`/reverse/${data.id}#host=${data.host_token}`);
+			goto(`/reverse/${data.id}#${data.host_token}`);
 		} catch (e: unknown) {
 			toast.error(`Failed to create room: ${e instanceof Error ? e.message : String(e)}`);
 		} finally {
