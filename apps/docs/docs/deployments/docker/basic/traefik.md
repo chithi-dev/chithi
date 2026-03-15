@@ -89,7 +89,7 @@ services:
         restart: 'no'
 
     rustfs:
-        image: rustfs/rustfs:1.0.0-alpha.81
+        image: rustfs/rustfs:1.0.0-alpha.85
         security_opt:
             - 'no-new-privileges:true'
         container_name: rustfs
