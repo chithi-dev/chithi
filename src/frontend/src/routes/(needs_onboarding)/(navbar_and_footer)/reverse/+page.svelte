@@ -94,7 +94,7 @@
 		<div class="space-y-1 text-center">
 			<h1 class="text-3xl font-bold tracking-tight">Reverse File Share</h1>
 			<p class="text-muted-foreground">
-				Host a room to push files to everyone — clients receive them in real time or download via a
+				Host a room to push files to everyone - clients receive them in real time or download via a
 				permanent link.
 			</p>
 		</div>

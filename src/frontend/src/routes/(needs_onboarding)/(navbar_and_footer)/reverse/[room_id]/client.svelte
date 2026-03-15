@@ -14,6 +14,8 @@
 		CardTitle
 	} from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import { Input } from '$lib/components/ui/input';
+	import { Label } from '$lib/components/ui/label';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
@@ -143,6 +145,23 @@
 			: 0
 	);
 
+	// Encryption key prompt state
+	let showKeyPrompt = $state(false);
+	let keyInput = $state('');
+
+	function submitKey() {
+		const k = keyInput.trim();
+		if (!k) {
+			toast.error('Please enter an encryption key');
+			return;
+		}
+		roomKey = k;
+		showKeyPrompt = false;
+		toast.success('Encryption key set');
+		// After user provides key, load the room data and connect
+		loadRoom();
+	}
+
 	async function loadRoom() {
 		loadStatus = 'loading';
 		try {
@@ -160,6 +179,8 @@
 			roomFiles = [...data.files];
 			hostCount = data.host_count ?? 1;
 			loadStatus = 'loaded';
+			// If we don't already have a room key from the URL/hash, prompt the user
+			if (!roomKey) showKeyPrompt = true;
 			connectWebSocket();
 		} catch {
 			loadStatus = 'error';
@@ -351,10 +372,7 @@
 
 			let streamWithProgress: ReadableStream<Uint8Array> = res.body as any;
 			if (roomKey) {
-				const { stream: decryptedStream } = await createDecryptedStream(
-					res.body as any,
-					roomKey
-				);
+				const { stream: decryptedStream } = await createDecryptedStream(res.body as any, roomKey);
 				streamWithProgress = decryptedStream;
 			}
 
@@ -393,11 +411,66 @@
 		});
 	}
 
-	onMount(loadRoom);
+	// Utility to display filename (strip .zip if present)
+	function getDisplayFilename(filename: string): string {
+		return filename.endsWith('.zip') ? filename.slice(0, -4) : filename;
+	}
+
+	onMount(() => {
+		// Re-check hash on mount (ensure key from URL is captured)
+		const hash = $page.url.hash.slice(1);
+		if (hash) {
+			const parts = hash.split(':');
+			if (parts.length > 1) {
+				roomKey = parts[1];
+			} else if (parts[0] && !parts[0].includes('-')) {
+				roomKey = parts[0];
+			}
+		}
+		if (roomKey) {
+			loadRoom();
+		} else {
+			// Ask for key first, then loadRoom after submission
+			showKeyPrompt = true;
+		}
+	});
 	onDestroy(cleanup);
 </script>
 
-{#if loadStatus === 'loading'}
+{#if showKeyPrompt}
+	<div class="mx-auto max-w-2xl p-4">
+		<Card>
+			<CardHeader>
+				<CardTitle class="flex items-center gap-2">
+					<Download class="h-5 w-5" />
+					Enter Room Key
+				</CardTitle>
+			</CardHeader>
+			<CardContent class="space-y-4">
+				<div class="space-y-2">
+					<Label for="room-key">Room Key</Label>
+					<Input
+						id="room-key"
+						type="password"
+						placeholder="Paste room key here"
+						bind:value={keyInput}
+						onkeydown={(e) => e.key === 'Enter' && submitKey()}
+					/>
+				</div>
+				<p class="text-sm text-muted-foreground">
+					This key is required to decrypt files sent to this room.
+				</p>
+			</CardContent>
+			<CardFooter class="flex gap-2">
+				<Button variant="outline" onclick={() => goto('/reverse')}>
+					<ArrowLeft class="mr-1 h-4 w-4" />
+					Back
+				</Button>
+				<Button onclick={submitKey} class="flex-1">Enter Key</Button>
+			</CardFooter>
+		</Card>
+	</div>
+{:else if loadStatus === 'loading'}
 	<div class="flex min-h-[70vh] items-center justify-center">
 		<div class="flex items-center gap-3 text-muted-foreground">
 			<LoaderCircle class="h-6 w-6 animate-spin" />
@@ -430,6 +503,42 @@
 		</div>
 	</div>
 {:else if loadStatus === 'loaded' && room}
+	{#if showKeyPrompt}
+		<div class="mx-auto max-w-2xl p-4">
+			<Card>
+				<CardHeader>
+					<CardTitle>Enter encryption key</CardTitle>
+				</CardHeader>
+				<CardContent class="space-y-2">
+					<p class="text-sm text-muted-foreground">
+						This room's files are encrypted. Enter the room key to decrypt incoming files.
+					</p>
+					<div class="space-y-2">
+						<Label for="room-key">Room Key</Label>
+						<Input
+							id="room-key"
+							type="password"
+							placeholder="Paste room key here"
+							bind:value={keyInput}
+							onkeydown={(e) => e.key === 'Enter' && submitKey()}
+						/>
+					</div>
+				</CardContent>
+				<CardFooter class="flex justify-end gap-2">
+					<Button
+						variant="outline"
+						onclick={() => {
+							showKeyPrompt = false;
+							keyInput = '';
+						}}
+					>
+						Cancel
+					</Button>
+					<Button onclick={submitKey}>Set Key</Button>
+				</CardFooter>
+			</Card>
+		</div>
+	{/if}
 	{#if downloadPreference === null}
 		<div class="mx-auto flex min-h-[60vh] max-w-2xl flex-col items-center justify-center p-4">
 			<div class="mb-8 space-y-2 text-center">

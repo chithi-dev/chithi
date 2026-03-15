@@ -349,7 +349,6 @@ export async function createZipStream(
 
 	return readable;
 }
-
 export async function createEncryptedStream(
 	inputStream: ReadableStream<Uint8Array>,
 	password?: string,
@@ -360,7 +359,8 @@ export async function createEncryptedStream(
 	const ikm = ikm_override ?? crypto.getRandomValues(new Uint8Array(32));
 	const { aesKey, baseIv } = await deriveSecrets(ikm, password);
 
-	let buffer = new Uint8Array(0);
+	const chunks: Uint8Array[] = [];
+	let bufferedBytes = 0;
 	let chunkIndex = 0;
 	let allDonePromise: Promise<void> | null = null;
 
@@ -380,17 +380,32 @@ export async function createEncryptedStream(
 		onProgress
 	};
 
+	function readChunk(size: number): Uint8Array {
+		const out = new Uint8Array(size);
+		let offset = 0;
+
+		while (offset < size) {
+			const first = chunks[0];
+			const take = Math.min(first.length, size - offset);
+
+			out.set(first.subarray(0, take), offset);
+
+			if (take === first.length) {
+				chunks.shift();
+			} else {
+				chunks[0] = first.subarray(take);
+			}
+
+			offset += take;
+			bufferedBytes -= take;
+		}
+
+		return out;
+	}
+
 	const transformer = new TransformStream<Uint8Array, Uint8Array>({
 		async start(controller) {
 			ctx.controllerRef = controller;
-			ctx.workers = [];
-			ctx.nextWorker = 0;
-			ctx.encryptedMap.clear();
-			ctx.nextToEnqueue = 0;
-			ctx.pendingCount = 0;
-			ctx.allDoneResolve = null;
-			ctx.allDoneReject = null;
-			ctx.streamEnded = false;
 
 			allDonePromise = new Promise<void>((res, rej) => {
 				ctx.allDoneResolve = res;
@@ -399,34 +414,40 @@ export async function createEncryptedStream(
 
 			await initializeEncryptionWorkers(ctx, aesKey, baseIv, WORKER_CONCURRENCY);
 		},
-		async transform(chunk, controller) {
-			const newBuffer = new Uint8Array(buffer.length + chunk.length);
-			newBuffer.set(buffer);
-			newBuffer.set(chunk, buffer.length);
-			buffer = newBuffer;
 
-			while (buffer.length >= CHUNK_SIZE) {
-				const chunkData = buffer.slice(0, CHUNK_SIZE);
-				buffer = buffer.slice(CHUNK_SIZE);
+		async transform(chunk) {
+			chunks.push(chunk);
+			bufferedBytes += chunk.length;
+
+			while (bufferedBytes >= CHUNK_SIZE) {
+				const chunkData = readChunk(CHUNK_SIZE);
 				const index = chunkIndex++;
+
 				ctx.chunkSizes.set(index, chunkData.byteLength);
+
 				await assignEncryptionChunk(ctx, index, chunkData, aesKey, baseIv);
 			}
 		},
-		async flush(controller) {
-			if (buffer.length > 0 || chunkIndex === 0) {
-				const chunkData = buffer.slice(0);
+
+		async flush() {
+			if (bufferedBytes > 0 || chunkIndex === 0) {
+				const chunkData = readChunk(bufferedBytes);
 				const index = chunkIndex++;
+
 				ctx.chunkSizes.set(index, chunkData.byteLength);
+
 				await assignEncryptionChunk(ctx, index, chunkData, aesKey, baseIv);
 			}
+
 			ctx.streamEnded = true;
+
 			if (ctx.pendingCount > 0) {
 				await allDonePromise;
 			}
+
 			try {
 				for (const w of ctx.workers) w.terminate();
-			} catch (e) {}
+			} catch {}
 		}
 	});
 
