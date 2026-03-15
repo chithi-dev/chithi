@@ -1,17 +1,18 @@
 import os
-from typing import Annotated, AsyncIterator
+from typing import Annotated, AsyncIterator, Final
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
 
+from app.converter.bytes import ByteSize
 from app.schemas.speedtest import UploadPayload
 from app.settings import settings
 
 router = APIRouter(prefix="/speedtest")
 
 # 1 MB chunk of random data
-CHUNK_SIZE = 1024 * 1024
-RANDOM_BYTES = os.urandom(CHUNK_SIZE)
+CHUNK_SIZE: Final[int] = ByteSize(mb=1).total_bytes()
+RANDOM_BYTES: Final[bytes] = os.urandom(CHUNK_SIZE)
 
 
 @router.get("/download", tags=["Speedtest"])

@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import datetime, timezone
+from typing import Final
 from urllib.parse import quote
 
 from botocore.exceptions import ClientError
@@ -27,7 +28,7 @@ from app.tasks.clean_file import delete_expired_file
 
 router = APIRouter(prefix="/reverse")
 
-CHUNK_SIZE = ByteSize(mb=8).total_bytes()
+CHUNK_SIZE: Final[int] = ByteSize(mb=8).total_bytes()
 
 
 @router.post("/rooms", status_code=status.HTTP_201_CREATED)

@@ -8,3 +8,7 @@ class Token(SQLModel):
 
 class TokenPayload(SQLModel):
     sub: str | None = None
+
+
+class TokenValidOut(SQLModel):
+    valid: bool
