@@ -13,6 +13,8 @@
 		CardHeader,
 		CardTitle
 	} from '$lib/components/ui/card';
+	import { ScrollArea } from '$lib/components/ui/scroll-area';
+
 	import { Button } from '$lib/components/ui/button';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Badge } from '$lib/components/ui/badge';
@@ -670,27 +672,29 @@
 				</div>
 
 				{#if pendingFiles.length > 0}
-					<div class="space-y-2">
-						<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-							Queued — {formatFileSize(totalUploadSize)}
-						</p>
-						{#each pendingFiles as file, i}
-							<div class="flex items-center gap-3 rounded-md border px-3 py-2">
-								<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
-								<span class="min-w-0 flex-1 truncate text-sm">{file.name}</span>
-								<span class="shrink-0 text-xs text-muted-foreground"
-									>{formatFileSize(file.size)}</span
-								>
-								<button
-									class="shrink-0 text-muted-foreground hover:text-destructive"
-									onclick={() => removePendingFile(i)}
-									aria-label="Remove"
-								>
-									<X class="h-4 w-4" />
-								</button>
-							</div>
-						{/each}
-					</div>
+					<ScrollArea class="max-h-64 w-full rounded-md border p-2">
+						<div class="space-y-2">
+							<p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+								Queued — {formatFileSize(totalUploadSize)}
+							</p>
+							{#each pendingFiles as file, i}
+								<div class="flex items-center gap-3 rounded-md border px-3 py-2">
+									<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
+									<span class="min-w-0 flex-1 truncate text-sm">{file.name}</span>
+									<span class="shrink-0 text-xs text-muted-foreground"
+										>{formatFileSize(file.size)}</span
+									>
+									<button
+										class="shrink-0 text-muted-foreground hover:text-destructive"
+										onclick={() => removePendingFile(i)}
+										aria-label="Remove"
+									>
+										<X class="h-4 w-4" />
+									</button>
+								</div>
+							{/each}
+						</div>
+					</ScrollArea>
 				{/if}
 
 				{#if isUploading || (uploads.length > 0 && completedUploads < totalUploads)}
@@ -768,84 +772,87 @@
 						<span>No files uploaded yet.</span>
 					</div>
 				{:else}
-					<div class="space-y-2">
-						{#each remoteUploads as u}
-							<div class="space-y-1 rounded-md border bg-muted/20 px-3 py-2">
-								<div class="flex items-center gap-2">
-									<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
-									<span class="min-w-0 flex-1 truncate text-sm"
-										>{getDisplayFilename(u.filename)}</span
-									>
-									<span class="shrink-0 text-xs text-muted-foreground">
-										{formatFileSize(u.uploadedBytes)} / {formatFileSize(u.size)}
-									</span>
-									<LoaderCircle class="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
-								</div>
-								<Progress value={u.progress.current} max={100} class="h-1" />
-							</div>
-						{/each}
-
-						{#each roomFiles as f}
-							{@const downloaded = downloadedFiles.find((d) => d.key === f.key)}
-							{@const isStreaming = receiveState.type === 'streaming' && receiveState.key === f.key}
-							{@const displayName = getDisplayFilename(f.filename)}
-							<div class="rounded-md border px-3 py-2">
-								<div class="flex items-center gap-3">
-									<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
-									<div class="min-w-0 flex-1">
-										<div class="flex items-center gap-2">
-											<p class="truncate text-sm font-medium">{displayName}</p>
-											{#if downloaded}
-												<Badge
-													variant="outline"
-													class="h-4 border-green-200 bg-green-50 px-1 text-[10px] text-green-600 uppercase"
-												>
-													Saved
-												</Badge>
-											{/if}
-										</div>
-										<p class="text-xs text-muted-foreground">{formatFileSize(f.size)}</p>
+					<ScrollArea class="max-h-96 w-full rounded-md border p-2">
+						<div class="space-y-2">
+							{#each remoteUploads as u}
+								<div class="space-y-1 rounded-md border bg-muted/20 px-3 py-2">
+									<div class="flex items-center gap-2">
+										<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
+										<span class="min-w-0 flex-1 truncate text-sm"
+											>{getDisplayFilename(u.filename)}</span
+										>
+										<span class="shrink-0 text-xs text-muted-foreground">
+											{formatFileSize(u.uploadedBytes)} / {formatFileSize(u.size)}
+										</span>
+										<LoaderCircle class="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
 									</div>
+									<Progress value={u.progress.current} max={100} class="h-1" />
+								</div>
+							{/each}
 
+							{#each roomFiles as f}
+								{@const downloaded = downloadedFiles.find((d) => d.key === f.key)}
+								{@const isStreaming =
+									receiveState.type === 'streaming' && receiveState.key === f.key}
+								{@const displayName = getDisplayFilename(f.filename)}
+								<div class="rounded-md border px-3 py-2">
+									<div class="flex items-center gap-3">
+										<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
+										<div class="min-w-0 flex-1">
+											<div class="flex items-center gap-2">
+												<p class="truncate text-sm font-medium">{displayName}</p>
+												{#if downloaded}
+													<Badge
+														variant="outline"
+														class="h-4 border-green-200 bg-green-50 px-1 text-[10px] text-green-600 uppercase"
+													>
+														Saved
+													</Badge>
+												{/if}
+											</div>
+											<p class="text-xs text-muted-foreground">{formatFileSize(f.size)}</p>
+										</div>
+
+										{#if isStreaming}
+											<div class="flex items-center gap-2 text-xs text-muted-foreground">
+												<span class="animate-pulse">Receiving…</span>
+												<span class="font-mono">{streamProgress.toFixed(0)}%</span>
+											</div>
+										{/if}
+
+										<div class="flex items-center gap-1">
+											<Button
+												size="sm"
+												variant="ghost"
+												class="h-7 shrink-0 px-2"
+												onclick={() => copyDownloadLink(f.key, fileDownloadUrl(f.key))}
+											>
+												{#if copiedFileKeys.has(f.key)}
+													<Check class="h-3.5 w-3.5 text-green-500" />
+												{:else}
+													<Copy class="h-3.5 w-3.5" />
+												{/if}
+											</Button>
+
+											<Button
+												size="sm"
+												variant={downloaded ? 'default' : 'outline'}
+												class="h-7 shrink-0 gap-1 px-2 text-xs"
+												onclick={() => downloadFile(f)}
+												disabled={receiveState.type === 'streaming' && receiveState.key !== f.key}
+											>
+												<Download class="h-3.5 w-3.5" />
+												{downloaded ? 'Save' : 'Download'}
+											</Button>
+										</div>
+									</div>
 									{#if isStreaming}
-										<div class="flex items-center gap-2 text-xs text-muted-foreground">
-											<span class="animate-pulse">Receiving…</span>
-											<span class="font-mono">{streamProgress.toFixed(0)}%</span>
-										</div>
+										<Progress value={streamProgress} max={100} class="mt-2 h-1" />
 									{/if}
-
-									<div class="flex items-center gap-1">
-										<Button
-											size="sm"
-											variant="ghost"
-											class="h-7 shrink-0 px-2"
-											onclick={() => copyDownloadLink(f.key, fileDownloadUrl(f.key))}
-										>
-											{#if copiedFileKeys.has(f.key)}
-												<Check class="h-3.5 w-3.5 text-green-500" />
-											{:else}
-												<Copy class="h-3.5 w-3.5" />
-											{/if}
-										</Button>
-
-										<Button
-											size="sm"
-											variant={downloaded ? 'default' : 'outline'}
-											class="h-7 shrink-0 gap-1 px-2 text-xs"
-											onclick={() => downloadFile(f)}
-											disabled={receiveState.type === 'streaming' && receiveState.key !== f.key}
-										>
-											<Download class="h-3.5 w-3.5" />
-											{downloaded ? 'Save' : 'Download'}
-										</Button>
-									</div>
 								</div>
-								{#if isStreaming}
-									<Progress value={streamProgress} max={100} class="mt-2 h-1" />
-								{/if}
-							</div>
-						{/each}
-					</div>
+							{/each}
+						</div>
+					</ScrollArea>
 				{/if}
 			</CardContent>
 		</Card>

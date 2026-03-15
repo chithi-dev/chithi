@@ -19,6 +19,7 @@
 	import { Progress } from '$lib/components/ui/progress';
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
+	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import * as Tooltip from '$lib/components/ui/tooltip/index';
 	import {
 		Download,
@@ -53,7 +54,6 @@
 		files: RoomFileEntry[];
 		host_count: number;
 	}
-
 	type ReceiveState =
 		| { type: 'idle' }
 		| {
@@ -438,37 +438,39 @@
 </script>
 
 {#if showKeyPrompt}
-	<div class="mx-auto max-w-2xl p-4">
-		<Card>
-			<CardHeader>
-				<CardTitle class="flex items-center gap-2">
-					<Download class="h-5 w-5" />
-					Enter Room Key
-				</CardTitle>
-			</CardHeader>
-			<CardContent class="space-y-4">
-				<div class="space-y-2">
-					<Label for="room-key">Room Key</Label>
-					<Input
-						id="room-key"
-						type="password"
-						placeholder="Paste room key here"
-						bind:value={keyInput}
-						onkeydown={(e) => e.key === 'Enter' && submitKey()}
-					/>
-				</div>
-				<p class="text-sm text-muted-foreground">
-					This key is required to decrypt files sent to this room.
-				</p>
-			</CardContent>
-			<CardFooter class="flex gap-2">
-				<Button variant="outline" onclick={() => goto('/reverse')}>
-					<ArrowLeft class="mr-1 h-4 w-4" />
-					Back
-				</Button>
-				<Button onclick={submitKey} class="flex-1">Enter Key</Button>
-			</CardFooter>
-		</Card>
+	<div class="flex min-h-[70vh] items-center justify-center p-4">
+		<div class="w-full max-w-2xl">
+			<Card>
+				<CardHeader>
+					<CardTitle class="flex items-center gap-2">
+						<Download class="h-5 w-5" />
+						Enter Room Key
+					</CardTitle>
+				</CardHeader>
+				<CardContent class="space-y-4">
+					<div class="space-y-2">
+						<Label for="room-key">Room Key</Label>
+						<Input
+							id="room-key"
+							type="password"
+							placeholder="Paste room key here"
+							bind:value={keyInput}
+							onkeydown={(e) => e.key === 'Enter' && submitKey()}
+						/>
+					</div>
+					<p class="text-sm text-muted-foreground">
+						This key is required to decrypt files sent to this room.
+					</p>
+				</CardContent>
+				<CardFooter class="flex gap-2">
+					<Button variant="outline" onclick={() => goto('/reverse')}>
+						<ArrowLeft class="mr-1 h-4 w-4" />
+						Back
+					</Button>
+					<Button onclick={submitKey} class="flex-1">Enter Key</Button>
+				</CardFooter>
+			</Card>
+		</div>
 	</div>
 {:else if loadStatus === 'loading'}
 	<div class="flex min-h-[70vh] items-center justify-center">
@@ -503,42 +505,6 @@
 		</div>
 	</div>
 {:else if loadStatus === 'loaded' && room}
-	{#if showKeyPrompt}
-		<div class="mx-auto max-w-2xl p-4">
-			<Card>
-				<CardHeader>
-					<CardTitle>Enter encryption key</CardTitle>
-				</CardHeader>
-				<CardContent class="space-y-2">
-					<p class="text-sm text-muted-foreground">
-						This room's files are encrypted. Enter the room key to decrypt incoming files.
-					</p>
-					<div class="space-y-2">
-						<Label for="room-key">Room Key</Label>
-						<Input
-							id="room-key"
-							type="password"
-							placeholder="Paste room key here"
-							bind:value={keyInput}
-							onkeydown={(e) => e.key === 'Enter' && submitKey()}
-						/>
-					</div>
-				</CardContent>
-				<CardFooter class="flex justify-end gap-2">
-					<Button
-						variant="outline"
-						onclick={() => {
-							showKeyPrompt = false;
-							keyInput = '';
-						}}
-					>
-						Cancel
-					</Button>
-					<Button onclick={submitKey}>Set Key</Button>
-				</CardFooter>
-			</Card>
-		</div>
-	{/if}
 	{#if downloadPreference === null}
 		<div class="mx-auto flex min-h-[60vh] max-w-2xl flex-col items-center justify-center p-4">
 			<div class="mb-8 space-y-2 text-center">
@@ -682,85 +648,87 @@
 							<span>Waiting for host to share files…</span>
 						</div>
 					{:else}
-						<div class="space-y-2">
-							{#each remoteUploads as u}
-								<div class="space-y-1 rounded-md border bg-muted/20 px-3 py-2">
-									<div class="flex items-center gap-2">
-										<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
-										<span class="min-w-0 flex-1 truncate text-sm"
-											>{getDisplayFilename(u.filename)}</span
-										>
-										<span class="shrink-0 text-xs text-muted-foreground">
-											{formatFileSize(u.uploadedBytes)} / {formatFileSize(u.size)}
-										</span>
-										<LoaderCircle class="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
-									</div>
-									<Progress value={u.progress.current} max={100} class="h-1" />
-								</div>
-							{/each}
-
-							{#each roomFiles as f}
-								{@const downloaded = downloadedFiles.find((d) => d.key === f.key)}
-								{@const isStreaming =
-									receiveState.type === 'streaming' && receiveState.key === f.key}
-								{@const displayName = getDisplayFilename(f.filename)}
-								<div class="rounded-md border px-3 py-2">
-									<div class="flex items-center gap-3">
-										<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
-										<div class="min-w-0 flex-1">
-											<div class="flex items-center gap-2">
-												<p class="truncate text-sm font-medium">{displayName}</p>
-												{#if downloaded}
-													<Badge
-														variant="outline"
-														class="h-4 border-green-200 bg-green-50 px-1 text-[10px] text-green-600 uppercase"
-													>
-														Saved
-													</Badge>
-												{/if}
-											</div>
-											<p class="text-xs text-muted-foreground">{formatFileSize(f.size)}</p>
+						<ScrollArea class="max-h-96 w-full rounded-md border p-2">
+							<div class="space-y-2">
+								{#each remoteUploads as u}
+									<div class="space-y-1 rounded-md border bg-muted/20 px-3 py-2">
+										<div class="flex items-center gap-2">
+											<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
+											<span class="min-w-0 flex-1 truncate text-sm"
+												>{getDisplayFilename(u.filename)}</span
+											>
+											<span class="shrink-0 text-xs text-muted-foreground">
+												{formatFileSize(u.uploadedBytes)} / {formatFileSize(u.size)}
+											</span>
+											<LoaderCircle class="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
 										</div>
+										<Progress value={u.progress.current} max={100} class="h-1" />
+									</div>
+								{/each}
 
+								{#each roomFiles as f}
+									{@const downloaded = downloadedFiles.find((d) => d.key === f.key)}
+									{@const isStreaming =
+										receiveState.type === 'streaming' && receiveState.key === f.key}
+									{@const displayName = getDisplayFilename(f.filename)}
+									<div class="rounded-md border px-3 py-2">
+										<div class="flex items-center gap-3">
+											<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
+											<div class="min-w-0 flex-1">
+												<div class="flex items-center gap-2">
+													<p class="truncate text-sm font-medium">{displayName}</p>
+													{#if downloaded}
+														<Badge
+															variant="outline"
+															class="h-4 border-green-200 bg-green-50 px-1 text-[10px] text-green-600 uppercase"
+														>
+															Saved
+														</Badge>
+													{/if}
+												</div>
+												<p class="text-xs text-muted-foreground">{formatFileSize(f.size)}</p>
+											</div>
+
+											{#if isStreaming}
+												<div class="flex items-center gap-2 text-xs text-muted-foreground">
+													<span class="animate-pulse">Receiving…</span>
+													<span class="font-mono">{streamProgress.toFixed(0)}%</span>
+												</div>
+											{/if}
+
+											<div class="flex items-center gap-1">
+												<Button
+													size="sm"
+													variant="ghost"
+													class="h-7 shrink-0 px-2"
+													onclick={() => copyDownloadLink(f.key, fileDownloadUrl(f.key))}
+												>
+													{#if copiedFileKeys.has(f.key)}
+														<Check class="h-3.5 w-3.5 text-green-500" />
+													{:else}
+														<Copy class="h-3.5 w-3.5" />
+													{/if}
+												</Button>
+
+												<Button
+													size="sm"
+													variant={downloaded ? 'default' : 'outline'}
+													class="h-7 shrink-0 gap-1 px-2 text-xs"
+													onclick={() => downloadFile(f)}
+													disabled={receiveState.type === 'streaming' && receiveState.key !== f.key}
+												>
+													<Download class="h-3.5 w-3.5" />
+													{downloaded ? 'Save' : 'Download'}
+												</Button>
+											</div>
+										</div>
 										{#if isStreaming}
-											<div class="flex items-center gap-2 text-xs text-muted-foreground">
-												<span class="animate-pulse">Receiving…</span>
-												<span class="font-mono">{streamProgress.toFixed(0)}%</span>
-											</div>
+											<Progress value={streamProgress} max={100} class="mt-2 h-1" />
 										{/if}
-
-										<div class="flex items-center gap-1">
-											<Button
-												size="sm"
-												variant="ghost"
-												class="h-7 shrink-0 px-2"
-												onclick={() => copyDownloadLink(f.key, fileDownloadUrl(f.key))}
-											>
-												{#if copiedFileKeys.has(f.key)}
-													<Check class="h-3.5 w-3.5 text-green-500" />
-												{:else}
-													<Copy class="h-3.5 w-3.5" />
-												{/if}
-											</Button>
-
-											<Button
-												size="sm"
-												variant={downloaded ? 'default' : 'outline'}
-												class="h-7 shrink-0 gap-1 px-2 text-xs"
-												onclick={() => downloadFile(f)}
-												disabled={receiveState.type === 'streaming' && receiveState.key !== f.key}
-											>
-												<Download class="h-3.5 w-3.5" />
-												{downloaded ? 'Save' : 'Download'}
-											</Button>
-										</div>
 									</div>
-									{#if isStreaming}
-										<Progress value={streamProgress} max={100} class="mt-2 h-1" />
-									{/if}
-								</div>
-							{/each}
-						</div>
+								{/each}
+							</div>
+						</ScrollArea>
 					{/if}
 				</CardContent>
 			</Card>
