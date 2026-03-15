@@ -9,7 +9,9 @@
 	$effect(() => {
 		if (typeof window === 'undefined') return;
 		const hash = window.location.hash.slice(1);
-		renderHost = Boolean(hash);
+		// Match patterns like `host_token:encryption_key`
+		const hostPattern = /^([^:]+):([^:]+)$/;
+		renderHost = hostPattern.test(hash);
 	});
 </script>
 
