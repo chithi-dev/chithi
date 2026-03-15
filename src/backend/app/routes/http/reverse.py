@@ -131,6 +131,19 @@ async def upload_file_to_room(
     # observers can see in-flight uploads (mirrors upload.py behavior).
     await UploadProgress.start(upload_key=file_key, filename=filename)
 
+    # Broadcast upload start to the room
+    await RoomState.publish_event(
+        room_id,
+        json.dumps(
+            {
+                "type": "upload_start",
+                "upload_key": file_key,
+                "filename": filename,
+                "size": file.size if file.size is not None else 0,
+            }
+        ),
+    )
+
     # Multipart upload to RustFS
     # Store filename in S3 metadata so the shareable download link works
     # even after the room expires.
@@ -145,6 +158,8 @@ async def upload_file_to_room(
     parts: list[CompletedPartTypeDef] = []
     part_number = 1
     uploaded_size = 0
+    last_broadcast_size = 0
+    BROADCAST_THRESHOLD = ByteSize(kb=512).total_bytes()
 
     try:
         while True:
@@ -172,6 +187,20 @@ async def upload_file_to_room(
                 upload_key=file_key, uploaded_bytes=uploaded_size
             )
 
+            # Broadcast progress to the room (throttled)
+            if uploaded_size - last_broadcast_size >= BROADCAST_THRESHOLD:
+                await RoomState.publish_event(
+                    room_id,
+                    json.dumps(
+                        {
+                            "type": "upload_progress",
+                            "upload_key": file_key,
+                            "uploaded_bytes": uploaded_size,
+                        }
+                    ),
+                )
+                last_broadcast_size = uploaded_size
+
             # If the client disconnected mid-upload, abort and evict
             if await request.is_disconnected():
                 await s3.abort_multipart_upload(
@@ -180,6 +209,10 @@ async def upload_file_to_room(
                     UploadId=upload_id,
                 )
                 await UploadProgress.cancel(upload_key=file_key)
+                await RoomState.publish_event(
+                    room_id,
+                    json.dumps({"type": "upload_cancelled", "upload_key": file_key}),
+                )
                 raise HTTPException(status_code=499, detail="Client disconnected")
 
         if not parts:
@@ -195,9 +228,24 @@ async def upload_file_to_room(
             MultipartUpload={"Parts": parts},
         )
         await UploadProgress.finish(upload_key=file_key, final_size=uploaded_size)
+        # Broadcast final progress
+        await RoomState.publish_event(
+            room_id,
+            json.dumps(
+                {
+                    "type": "upload_progress",
+                    "upload_key": file_key,
+                    "uploaded_bytes": uploaded_size,
+                }
+            ),
+        )
     except HTTPException:
         # Ensure failed uploads are removed from AppState
         await UploadProgress.cancel(upload_key=file_key)
+        await RoomState.publish_event(
+            room_id,
+            json.dumps({"type": "upload_cancelled", "upload_key": file_key}),
+        )
         raise
     except Exception:
         await s3.abort_multipart_upload(
@@ -207,6 +255,10 @@ async def upload_file_to_room(
         )
         # Ensure failed uploads are removed from AppState
         await UploadProgress.cancel(upload_key=file_key)
+        await RoomState.publish_event(
+            room_id,
+            json.dumps({"type": "upload_cancelled", "upload_key": file_key}),
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Upload failed",

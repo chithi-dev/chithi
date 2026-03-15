@@ -149,6 +149,11 @@ async def room_ws(
                         await ws.send_text(json.dumps(data))
                     continue
 
+                if msg_type in ("upload_start", "upload_progress", "upload_cancelled"):
+                    async with send_lock:
+                        await ws.send_text(json.dumps(data))
+                    continue
+
                 try:
                     event = RoomFileEvent.model_validate(data)
                 except Exception:
@@ -156,6 +161,17 @@ async def room_ws(
                     continue
 
                 if event.event == "file_added":
+                    # Notify frontend about the new file entry
+                    async with send_lock:
+                        await ws.send_text(
+                            json.dumps(
+                                {
+                                    "type": "file_added",
+                                    "file": event.file.model_dump(mode="json"),
+                                }
+                            )
+                        )
+
                     if event.file.key in seen_keys:
                         continue
                     seen_keys.add(event.file.key)

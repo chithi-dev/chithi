@@ -78,6 +78,14 @@
 		objectUrl?: string;
 	}
 
+	interface RemoteUpload {
+		key: string;
+		filename: string;
+		size: number;
+		uploadedBytes: number;
+		progress: Tween<number>;
+	}
+
 	let room_id = $derived(page.params.room_id);
 
 	function fileDownloadUrl(fileKey: string): string {
@@ -117,6 +125,7 @@
 	// WebSocket
 	let ws = $state<WebSocket | null>(null);
 	let wsConnected = $state(false);
+	let remoteUploads = $state<RemoteUpload[]>([]);
 
 	// Copy state
 	let copiedShareLink = $state(false);
@@ -205,6 +214,38 @@
 				hostCount = r.host_count ?? 1;
 			} else if (type === 'host_count') {
 				hostCount = msg.count as number;
+			} else if (type === 'upload_start') {
+				const key = msg.upload_key as string;
+				if (!remoteUploads.find((u) => u.key === key)) {
+					remoteUploads = [
+						...remoteUploads,
+						{
+							key,
+							filename: msg.filename as string,
+							size: msg.size as number,
+							uploadedBytes: 0,
+							progress: new Tween(0, { duration: 300, easing: cubicOut })
+						}
+					];
+				}
+			} else if (type === 'upload_progress') {
+				const key = msg.upload_key as string;
+				const bytes = msg.uploaded_bytes as number;
+				const upload = remoteUploads.find((u) => u.key === key);
+				if (upload) {
+					upload.uploadedBytes = bytes;
+					const pct = upload.size > 0 ? (bytes / upload.size) * 100 : 0;
+					upload.progress.target = pct;
+				}
+			} else if (type === 'upload_cancelled') {
+				const key = msg.upload_key as string;
+				remoteUploads = remoteUploads.filter((u) => u.key !== key);
+			} else if (type === 'file_added') {
+				const file = msg.file as RoomFileEntry;
+				if (!roomFiles.find((f) => f.key === file.key)) {
+					roomFiles = [...roomFiles, file];
+				}
+				remoteUploads = remoteUploads.filter((u) => u.key !== file.key);
 			} else if (type === 'file_start' && !isHost) {
 				receiveState = {
 					type: 'streaming',
@@ -670,6 +711,38 @@
 						{/if}
 					</Button>
 				</CardFooter>
+			</Card>
+		{/if}
+
+		<!-- Remote uploads (other hosts) -->
+		{#if remoteUploads.length > 0}
+			<Card>
+				<CardHeader>
+					<CardTitle class="flex items-center gap-2 text-base">
+						<Upload class="h-4 w-4" />
+						In-flight Uploads
+					</CardTitle>
+					<CardDescription>
+						Other hosts are currently uploading files to this room.
+					</CardDescription>
+				</CardHeader>
+				<CardContent class="space-y-4">
+					<div class="space-y-2">
+						{#each remoteUploads as u}
+							<div class="space-y-1 rounded-md border px-3 py-2">
+								<div class="flex items-center gap-2">
+									<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
+									<span class="min-w-0 flex-1 truncate text-sm">{u.filename}</span>
+									<span class="shrink-0 text-xs text-muted-foreground">
+										{formatFileSize(u.uploadedBytes)} / {formatFileSize(u.size)}
+									</span>
+									<LoaderCircle class="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+								</div>
+								<Progress value={u.progress.current} max={100} class="h-1" />
+							</div>
+						{/each}
+					</div>
+				</CardContent>
 			</Card>
 		{/if}
 
