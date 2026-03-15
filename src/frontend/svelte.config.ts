@@ -20,6 +20,9 @@ export default {
 	},
 	preprocess: vitePreprocess(),
 	kit: {
+		paths: {
+			base: ''
+		},
 		experimental: {
 			remoteFunctions: true
 		},

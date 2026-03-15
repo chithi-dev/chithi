@@ -8,7 +8,6 @@ class RoomFileEntry(SQLModel):
     filename: str
     size: int
     uploaded_at: datetime
-    download_url: str
 
 
 class RoomOut(SQLModel):

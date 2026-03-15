@@ -77,7 +77,7 @@ async def room_ws(
     s3_client: S3Dep,
     host_token: str | None = None,
 ):
-    room = await RoomState.get(room_id)
+    room = await RoomState.get(room_id, strip_keys=False)
     if room is None:
         await ws.close(code=4004, reason="Room not found or expired")
         return
@@ -97,7 +97,7 @@ async def room_ws(
     channel = RoomState.channel_for(room_id)
     await pubsub.subscribe(channel)
 
-    room = await RoomState.get(room_id)
+    room = await RoomState.get(room_id, strip_keys=False)
     if room is None:
         await pubsub.unsubscribe(channel)
         await pubsub.aclose()
@@ -105,9 +105,17 @@ async def room_ws(
         await ws.close(code=4004, reason="Room expired")
         return
 
-    await ws.send_text(
-        json.dumps({"type": "snapshot", "room": room.model_dump(mode="json")})
-    )
+    # Send a public snapshot with stripped file keys
+    snapshot = room.model_dump(mode="json")
+    if isinstance(snapshot.get("files"), list):
+        prefix = f"rooms/{room_id}/"
+        for f in snapshot["files"]:
+            if isinstance(f, dict) and isinstance(f.get("key"), str):
+                k = f["key"]
+                if k.startswith(prefix):
+                    f["key"] = k.removeprefix(prefix)
+
+    await ws.send_text(json.dumps({"type": "snapshot", "room": snapshot}))
 
     sem = asyncio.Semaphore(MAX_CONCURRENT_STREAMS)
     send_lock = asyncio.Lock()
@@ -162,14 +170,17 @@ async def room_ws(
 
                 if event.event == "file_added":
                     # Notify frontend about the new file entry
+                    public_file = event.file.model_dump(mode="json")
+                    # strip key for public consumers
+                    if isinstance(public_file.get("key"), str):
+                        pk = public_file["key"]
+                        prefix = f"rooms/{room_id}/"
+                        if pk.startswith(prefix):
+                            public_file["key"] = pk.removeprefix(prefix)
+
                     async with send_lock:
                         await ws.send_text(
-                            json.dumps(
-                                {
-                                    "type": "file_added",
-                                    "file": event.file.model_dump(mode="json"),
-                                }
-                            )
+                            json.dumps({"type": "file_added", "file": public_file})
                         )
 
                     if event.file.key in seen_keys:
@@ -178,12 +189,18 @@ async def room_ws(
                     tg.create_task(_dispatch_file(event.file))
 
                 elif event.event == "file_removed":
+                    # send public key to clients
+                    public_key = event.file.key
+                    prefix = f"rooms/{room_id}/"
+                    if isinstance(public_key, str) and public_key.startswith(prefix):
+                        public_key = public_key.removeprefix(prefix)
+
                     async with send_lock:
                         await ws.send_text(
                             json.dumps(
                                 {
                                     "type": "file_removed",
-                                    "key": event.file.key,
+                                    "key": public_key,
                                     "filename": event.file.filename,
                                 }
                             )

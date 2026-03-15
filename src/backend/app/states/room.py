@@ -85,7 +85,14 @@ class RoomState(GlobalState):
         )
 
     @classmethod
-    async def get(cls, room_id: str) -> RoomOut | None:
+    async def get(cls, room_id: str, *, strip_keys: bool = True) -> RoomOut | None:
+        """Retrieve a room.
+
+        By default (`strip_keys=True`) the returned `RoomOut` will contain
+        file entries whose `key` has the storage prefix removed so API
+        consumers see only the short id. Internal callers that need the
+        full storage key should pass `strip_keys=False`.
+        """
         data = await cls._json_get(_room_key(room_id))
         if data is None:
             return None
@@ -96,6 +103,20 @@ class RoomState(GlobalState):
         # Ensure a default for number_of_downloads for backward compatibility
         if "number_of_downloads" not in data:
             data["number_of_downloads"] = None
+
+        # Optionally remove the storage prefix from file keys for public
+        # responses while leaving the stored document unchanged.
+        if strip_keys and isinstance(data.get("files"), list):
+            prefix = f"rooms/{room_id}/"
+            new_files = []
+            for f in data["files"]:
+                if isinstance(f, dict) and isinstance(f.get("key"), str):
+                    key = f["key"]
+                    if key.startswith(prefix):
+                        f = {**f, "key": key.removeprefix(prefix)}
+                new_files.append(f)
+            data["files"] = new_files
+
         return RoomOut.model_validate(data)
 
     @classmethod

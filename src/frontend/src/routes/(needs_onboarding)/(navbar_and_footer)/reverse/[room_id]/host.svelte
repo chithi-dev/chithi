@@ -44,6 +44,7 @@
 		createDecryptedStream
 	} from '#functions/streams';
 	import { base64urlToBytes } from '#functions/encryption';
+	import { resolve } from '$app/paths';
 
 	interface RoomFileEntry {
 		key: string;
@@ -114,7 +115,8 @@
 	}
 
 	function downloadPageHref(fileKey: string): string {
-		return `/download/${fileKey}${roomKey ? `#${roomKey}` : ''}`;
+		console.log(fileKey);
+		return resolve(`/download/${fileKey}${roomKey ? `#${roomKey}` : ''}`);
 	}
 
 	type LoadStatus = 'loading' | 'not_found' | 'error' | 'loaded';
@@ -851,15 +853,13 @@
 												{downloaded ? 'Save' : 'Download'}
 											</Button>
 
-											<Button
-												size="sm"
-												variant="outline"
-												class="h-7 shrink-0 gap-1 px-2 text-xs"
-												onclick={() => goto(downloadPageHref(f.key))}
+											<a
+												href={downloadPageHref(f.key)}
+												class="inline-flex h-7 shrink-0 items-center gap-1 px-2 text-xs"
 											>
 												<Link class="h-3.5 w-3.5" />
-												Download Page
-											</Button>
+												<span>Download Page</span>
+											</a>
 										</div>
 									</div>
 									{#if isStreaming}

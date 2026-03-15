@@ -73,7 +73,7 @@ async def delete_room(
     if not await RoomState.verify_host(room_id, x_host_token):
         raise HTTPException(status_code=403, detail="Invalid host token")
 
-    room = await RoomState.get(room_id)
+    room = await RoomState.get(room_id, strip_keys=False)
     if room is None:
         raise HTTPException(status_code=404, detail="Room not found or expired")
 
@@ -123,8 +123,8 @@ async def upload_file_to_room(
     if datetime.now(timezone.utc) > room.expires_at:
         raise HTTPException(status_code=410, detail="Room has expired")
 
-    # Namespace S3 key under the room
-    file_key = f"rooms/{room_id}/{uuid.uuid7()}"
+    # Use a short opaque storage key (no room prefix)
+    file_key = str(uuid.uuid7())
     filename = file.filename or str(uuid.uuid7())
 
     # Track upload progress in global AppState so websockets and other
@@ -302,7 +302,6 @@ async def upload_file_to_room(
         filename=filename,
         size=uploaded_size,
         uploaded_at=now,
-        download_url=str(request.app.url_path_for("download_files", key=file_key)),
     )
 
     # Persist in room state + fan-out event via pub/sub (atomic append)

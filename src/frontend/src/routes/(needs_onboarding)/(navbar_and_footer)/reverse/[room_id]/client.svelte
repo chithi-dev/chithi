@@ -38,13 +38,13 @@
 	import { formatFileSize } from '#functions/bytes';
 	import { REVERSE_ROOMS_URL, REVERSE_WS_URL } from '#consts/backend';
 	import { createDecryptedStream } from '#functions/streams';
+	import { resolve } from '$app/paths';
 
 	interface RoomFileEntry {
 		key: string;
 		filename: string;
 		size: number;
 		uploaded_at: string;
-		download_url: string;
 	}
 
 	interface RoomOut {
@@ -103,7 +103,7 @@
 	}
 
 	function downloadPageHref(fileKey: string): string {
-		return `/download/${fileKey}${roomKey ? `#${roomKey}` : ''}`;
+		return resolve(`/download/${fileKey}${roomKey ? `#${roomKey}` : ''}`);
 	}
 
 	type LoadStatus = 'loading' | 'not_found' | 'error' | 'loaded';
@@ -727,15 +727,13 @@
 													{downloaded ? 'Save' : 'Download'}
 												</Button>
 
-												<Button
-													size="sm"
-													variant="outline"
-													class="h-7 shrink-0 gap-1 px-2 text-xs"
-													onclick={() => goto(downloadPageHref(f.key))}
+												<a
+													href={downloadPageHref(f.key)}
+													class="inline-flex h-7 shrink-0 items-center gap-1 px-2 text-xs"
 												>
 													<Link class="h-3.5 w-3.5" />
-													Download Page
-												</Button>
+													<span>Download Page</span>
+												</a>
 											</div>
 										</div>
 										{#if isStreaming}
