@@ -354,9 +354,10 @@ export async function createEncryptedStream(
 	inputStream: ReadableStream<Uint8Array>,
 	password?: string,
 	originalSize?: number,
-	onProgress?: (processed: number, total?: number) => void
+	onProgress?: (processed: number, total?: number) => void,
+	ikm_override?: Uint8Array
 ) {
-	const ikm = crypto.getRandomValues(new Uint8Array(32));
+	const ikm = ikm_override ?? crypto.getRandomValues(new Uint8Array(32));
 	const { aesKey, baseIv } = await deriveSecrets(ikm, password);
 
 	let buffer = new Uint8Array(0);
@@ -421,11 +422,7 @@ export async function createEncryptedStream(
 			}
 			ctx.streamEnded = true;
 			if (ctx.pendingCount > 0) {
-				try {
-					await allDonePromise;
-				} catch (e) {
-					throw e;
-				}
+				await allDonePromise;
 			}
 			try {
 				for (const w of ctx.workers) w.terminate();

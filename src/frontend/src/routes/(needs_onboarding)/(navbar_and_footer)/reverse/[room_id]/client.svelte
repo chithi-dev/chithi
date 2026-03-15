@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
+	import { page } from '$app/stores';
 	import { cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
 	import { toast } from 'svelte-sonner';
@@ -33,6 +34,7 @@
 	} from 'lucide-svelte';
 	import { formatFileSize } from '#functions/bytes';
 	import { REVERSE_ROOMS_URL, REVERSE_WS_URL } from '#consts/backend';
+	import { createDecryptedStream } from '#functions/streams';
 
 	interface RoomFileEntry {
 		key: string;
@@ -77,6 +79,22 @@
 	}
 
 	let { room_id }: { room_id: string } = $props();
+	let roomKey = $state<string | null>(null);
+
+	$effect(() => {
+		const hash = $page.url.hash.slice(1);
+		if (hash) {
+			// This could be a host token or a room key
+			const parts = hash.split(':');
+			if (parts.length > 1) {
+				// It's a host joining, key is the second part
+				roomKey = parts[1];
+			} else if (parts[0] && !parts[0].includes('-')) {
+				// It's likely a guest with just the key (host tokens have dashes)
+				roomKey = parts[0];
+			}
+		}
+	});
 
 	function fileDownloadUrl(fileKey: string): string {
 		return `${REVERSE_ROOMS_URL}/${room_id}/files/${fileKey}/download`;
@@ -167,7 +185,7 @@
 			toast.error('WebSocket connection error');
 		};
 
-		socket.onmessage = (ev) => {
+		socket.onmessage = async (ev) => {
 			if (ev.data instanceof ArrayBuffer || ev.data instanceof Blob) {
 				handleBinaryChunk(ev.data);
 				return;
@@ -234,8 +252,26 @@
 				}
 			} else if (type === 'file_end' && receiveState.type === 'streaming') {
 				const { key, filename, size, chunks } = receiveState;
-				const blob = new Blob(chunks);
-				const objectUrl = URL.createObjectURL(blob);
+
+				let finalBlob: Blob;
+				if (roomKey) {
+					try {
+						const encryptedBlob = new Blob(chunks);
+						const { stream: decryptedStream } = await createDecryptedStream(
+							encryptedBlob.stream() as any,
+							roomKey
+						);
+						const decryptedBlob = await new Response(decryptedStream as any).blob();
+						finalBlob = decryptedBlob;
+					} catch (e) {
+						toast.error(`Decryption failed for ${filename}`);
+						finalBlob = new Blob(chunks);
+					}
+				} else {
+					finalBlob = new Blob(chunks);
+				}
+
+				const objectUrl = URL.createObjectURL(finalBlob);
 				downloadedFiles = [...downloadedFiles, { key, filename, size, objectUrl }];
 				receiveState = { type: 'idle' };
 				toast.success(`Received: ${filename}`);
@@ -259,12 +295,13 @@
 		const buf = data instanceof Blob ? await data.arrayBuffer() : data;
 		if (receiveState.type !== 'streaming') return;
 		const chunk = new Uint8Array(buf);
-		receiveState.chunks.push(buf);
+		receiveState.chunks.push(buf as any);
 		receiveState.received += chunk.byteLength;
 	}
 
 	async function copyShareLink() {
-		await navigator.clipboard.writeText(shareUrl);
+		const url = roomKey ? `${shareUrl}#${roomKey}` : shareUrl;
+		await navigator.clipboard.writeText(url);
 		copiedShareLink = true;
 		setTimeout(() => (copiedShareLink = false), 2000);
 	}
@@ -287,7 +324,7 @@
 		if (downloaded?.objectUrl) {
 			const a = document.createElement('a');
 			a.href = downloaded.objectUrl;
-			a.download = downloaded.filename;
+			a.download = f.filename;
 			a.click();
 			return;
 		}
@@ -310,14 +347,25 @@
 			const res = await fetch(fileDownloadUrl(f.key), { credentials: 'include' });
 
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			const reader = res.body?.getReader();
-			if (!reader) throw new Error('Streaming not supported');
+			if (!res.body) throw new Error('No response body');
 
+			let streamWithProgress: ReadableStream<Uint8Array> = res.body as any;
+			if (roomKey) {
+				const { stream: decryptedStream } = await createDecryptedStream(
+					res.body as any,
+					roomKey
+				);
+				streamWithProgress = decryptedStream;
+			}
+
+			const reader = streamWithProgress.getReader();
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) break;
-				receiveState.chunks.push(value);
-				receiveState.received += value.byteLength;
+				if (value) {
+					receiveState.chunks.push(value as any);
+					receiveState.received += value.byteLength;
+				}
 			}
 
 			const blob = new Blob(receiveState.chunks);
@@ -384,22 +432,23 @@
 {:else if loadStatus === 'loaded' && room}
 	{#if downloadPreference === null}
 		<div class="mx-auto flex min-h-[60vh] max-w-2xl flex-col items-center justify-center p-4">
-			<div class="mb-8 text-center space-y-2">
+			<div class="mb-8 space-y-2 text-center">
 				<h2 class="text-3xl font-bold tracking-tight">How should we handle downloads?</h2>
-				<p class="text-muted-foreground text-lg">
+				<p class="text-lg text-muted-foreground">
 					Choose how you want to receive files from the host.
 				</p>
 			</div>
 
 			<div class="grid w-full gap-6 sm:grid-cols-2">
 				<Card
-					class="relative cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg border-2 border-primary bg-primary/5"
+					class="relative cursor-pointer border-2 border-primary bg-primary/5 transition-all hover:border-primary/50 hover:shadow-lg"
 					onclick={() => (downloadPreference = 'eager')}
 				>
 					<div class="absolute -top-3 left-1/2 -translate-x-1/2">
-						<Badge class="bg-primary text-primary-foreground px-3 py-1 shadow-md">Recommended</Badge>
+						<Badge class="bg-primary px-3 py-1 text-primary-foreground shadow-md">Recommended</Badge
+						>
 					</div>
-					<CardHeader class="flex flex-col items-center text-center pb-2 pt-8">
+					<CardHeader class="flex flex-col items-center pt-8 pb-2 text-center">
 						<div class="mb-3 rounded-full bg-primary/20 p-4">
 							<Zap class="h-8 w-8 text-primary" />
 						</div>
@@ -415,10 +464,10 @@
 				</Card>
 
 				<Card
-					class="cursor-pointer transition-all hover:border-primary/50 hover:shadow-lg border-2 border-transparent"
+					class="cursor-pointer border-2 border-transparent transition-all hover:border-primary/50 hover:shadow-lg"
 					onclick={() => (downloadPreference = 'manual')}
 				>
-					<CardHeader class="flex flex-col items-center text-center pb-2 pt-8">
+					<CardHeader class="flex flex-col items-center pt-8 pb-2 text-center">
 						<div class="mb-3 rounded-full bg-muted p-4">
 							<MousePointerClick class="h-8 w-8 text-muted-foreground" />
 						</div>
@@ -526,10 +575,12 @@
 					{:else}
 						<div class="space-y-2">
 							{#each remoteUploads as u}
-								<div class="space-y-1 rounded-md border px-3 py-2 bg-muted/20">
+								<div class="space-y-1 rounded-md border bg-muted/20 px-3 py-2">
 									<div class="flex items-center gap-2">
 										<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
-										<span class="min-w-0 flex-1 truncate text-sm">{u.filename}</span>
+										<span class="min-w-0 flex-1 truncate text-sm"
+											>{getDisplayFilename(u.filename)}</span
+										>
 										<span class="shrink-0 text-xs text-muted-foreground">
 											{formatFileSize(u.uploadedBytes)} / {formatFileSize(u.size)}
 										</span>
@@ -541,17 +592,19 @@
 
 							{#each roomFiles as f}
 								{@const downloaded = downloadedFiles.find((d) => d.key === f.key)}
-								{@const isStreaming = receiveState.type === 'streaming' && receiveState.key === f.key}
+								{@const isStreaming =
+									receiveState.type === 'streaming' && receiveState.key === f.key}
+								{@const displayName = getDisplayFilename(f.filename)}
 								<div class="rounded-md border px-3 py-2">
 									<div class="flex items-center gap-3">
 										<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
 										<div class="min-w-0 flex-1">
 											<div class="flex items-center gap-2">
-												<p class="truncate text-sm font-medium">{f.filename}</p>
+												<p class="truncate text-sm font-medium">{displayName}</p>
 												{#if downloaded}
 													<Badge
 														variant="outline"
-														class="h-4 px-1 text-[10px] uppercase text-green-600 border-green-200 bg-green-50"
+														class="h-4 border-green-200 bg-green-50 px-1 text-[10px] text-green-600 uppercase"
 													>
 														Saved
 													</Badge>

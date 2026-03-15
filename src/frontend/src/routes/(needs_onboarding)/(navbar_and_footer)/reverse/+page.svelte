@@ -17,6 +17,7 @@
 	import { Upload, Download, ArrowLeft, LoaderCircle } from 'lucide-svelte';
 	import { REVERSE_ROOMS_URL } from '#consts/backend';
 	import { useConfigQuery } from '#queries/config';
+	import { base64url } from '#functions/encryption';
 
 	type LandingView = 'main' | 'create' | 'join';
 	let landingView = $state<LandingView>('main');
@@ -68,7 +69,9 @@
 				throw new Error((err as { detail?: string }).detail ?? `HTTP ${res.status}`);
 			}
 			const data = (await res.json()) as { id: string; host_token: string };
-			goto(`/reverse/${data.id}#${data.host_token}`);
+			const roomKeyBytes = crypto.getRandomValues(new Uint8Array(32));
+			const roomKey = base64url(roomKeyBytes);
+			goto(`/reverse/${data.id}#${data.host_token}:${roomKey}`);
 		} catch (e: unknown) {
 			toast.error(`Failed to create room: ${e instanceof Error ? e.message : String(e)}`);
 		} finally {
