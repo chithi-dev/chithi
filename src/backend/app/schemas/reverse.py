@@ -1,9 +1,9 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from sqlmodel import SQLModel
 
 
-class RoomFileEntry(BaseModel):
+class RoomFileEntry(SQLModel):
     key: str
     filename: str
     size: int
@@ -11,7 +11,7 @@ class RoomFileEntry(BaseModel):
     download_url: str
 
 
-class RoomOut(BaseModel):
+class RoomOut(SQLModel):
     id: str
     name: str
     created_at: datetime
@@ -27,22 +27,22 @@ class RoomCreateOut(RoomOut):
     host_token: str
 
 
-class RoomCreate(BaseModel):
+class RoomCreate(SQLModel):
     name: str
     expire_after: int  # seconds from now
 
 
-class RoomIn(BaseModel):
+class RoomIn(SQLModel):
     name: str
     expire_after: int  # seconds from now
     number_of_downloads: int | None = None
 
 
-class AddHostOut(BaseModel):
+class AddHostOut(SQLModel):
     host_token: str
 
 
-class RoomFileEvent(BaseModel):
+class RoomFileEvent(SQLModel):
     """Pushed to WebSocket subscribers on file activity."""
 
     event: str  # "file_added" | "file_removed"

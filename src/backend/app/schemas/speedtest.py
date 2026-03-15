@@ -1,5 +1,5 @@
-from pydantic import BaseModel
+from sqlmodel import SQLModel
 
 
-class UploadPayload(BaseModel):
+class UploadPayload(SQLModel):
     bytes_received: int

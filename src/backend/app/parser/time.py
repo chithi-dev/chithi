@@ -7,5 +7,10 @@ def parse_rate_string(rate_string: str) -> tuple[int, int]:
     if not match:
         raise ValueError(f"Invalid rate: {rate_string}")
 
-    seconds_map = {"sec": 1, "min": 60, "hour": 3600, "day": 86400}
+    seconds_map = {
+        "sec": 1,
+        "min": 60,
+        "hour": 3600,
+        "day": 86400,
+    }
     return int(match.group(1)), seconds_map[match.group(2)]
