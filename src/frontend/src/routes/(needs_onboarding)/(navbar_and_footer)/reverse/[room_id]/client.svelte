@@ -102,6 +102,10 @@
 		return `${REVERSE_ROOMS_URL}/${room_id}/files/${fileKey}/download`;
 	}
 
+	function downloadPageHref(fileKey: string): string {
+		return `/download/${fileKey}${roomKey ? `#${roomKey}` : ''}`;
+	}
+
 	type LoadStatus = 'loading' | 'not_found' | 'error' | 'loaded';
 	let loadStatus = $state<LoadStatus>('loading');
 	let room = $state<RoomOut | null>(null);
@@ -676,7 +680,9 @@
 											<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
 											<div class="min-w-0 flex-1">
 												<div class="flex items-center gap-2">
-													<p class="truncate text-sm font-medium">{displayName}</p>
+													<p class="truncate text-sm font-medium">
+														{displayName}
+													</p>
 													{#if downloaded}
 														<Badge
 															variant="outline"
@@ -701,7 +707,7 @@
 													size="sm"
 													variant="ghost"
 													class="h-7 shrink-0 px-2"
-													onclick={() => copyDownloadLink(f.key, fileDownloadUrl(f.key))}
+													onclick={() => copyDownloadLink(f.key, downloadPageHref(f.key))}
 												>
 													{#if copiedFileKeys.has(f.key)}
 														<Check class="h-3.5 w-3.5 text-green-500" />
@@ -719,6 +725,16 @@
 												>
 													<Download class="h-3.5 w-3.5" />
 													{downloaded ? 'Save' : 'Download'}
+												</Button>
+
+												<Button
+													size="sm"
+													variant="outline"
+													class="h-7 shrink-0 gap-1 px-2 text-xs"
+													onclick={() => goto(downloadPageHref(f.key))}
+												>
+													<Link class="h-3.5 w-3.5" />
+													Download Page
 												</Button>
 											</div>
 										</div>
