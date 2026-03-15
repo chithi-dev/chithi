@@ -2,22 +2,23 @@ import asyncio
 import json
 import logging
 from contextlib import suppress
+from typing import Final
 
 import redis.asyncio as aioredis
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from app.converter.bytes import ByteSize
 from app.deps import S3Dep
 from app.schemas.reverse import RoomFileEntry, RoomFileEvent
 from app.settings import settings
 from app.states.room import RoomState
-from app.converter.bytes import ByteSize
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-MAX_CONCURRENT_STREAMS = 4  # files streamed in parallel per connection
-S3_CHUNK_SIZE = ByteSize(kb=256).total_bytes()  # 256 KB read chunks
+MAX_CONCURRENT_STREAMS: Final[int] = 4  # files streamed in parallel per connection
+S3_CHUNK_SIZE: Final[int] = ByteSize(kb=256).total_bytes()  # 256 KB read chunks
 
 
 async def _stream_file_to_ws(
