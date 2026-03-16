@@ -52,13 +52,10 @@
 		}
 	});
 
-	function fileDownloadUrl(fileKey: string): string {
-		return `${REVERSE_ROOMS_URL}/${room_id}/files/${fileKey}/download`;
-	}
-
-	function downloadPageHref(fileKey: string): string {
-		return resolve(`/download/${fileKey}${roomKey ? `#${roomKey}` : ''}`);
-	}
+	const fileDownloadUrl = (fileKey: string) =>
+		`${REVERSE_ROOMS_URL}/${room_id}/files/${fileKey}/download`;
+	const downloadPageHref = (fileKey: string) =>
+		resolve(`/download/${fileKey}${roomKey ? `#${roomKey}` : ''}`);
 
 	type LoadStatus = 'loading' | 'not_found' | 'error' | 'loaded';
 	let loadStatus = $state<LoadStatus>('loading');
@@ -76,9 +73,7 @@
 	$effect(() => {
 		if (downloadPreference === 'eager' && receiveState.type === 'idle') {
 			const next = roomFiles.find((f) => !downloadedFiles.some((d) => d.key === f.key));
-			if (next) {
-				downloadFile(next);
-			}
+			if (next) downloadFile(next);
 		}
 	});
 
@@ -87,25 +82,23 @@
 	let wsConnected = $state(false);
 	let remoteUploads = $state<RemoteUpload[]>([]);
 
-	// Copy state
+	// UI states
 	let copiedShareLink = $state(false);
 	let copiedFileKeys = $state(new Set<string>());
+	let showKeyPrompt = $state(false);
+	let keyInput = $state('');
 
-	let shareUrl = $derived(
+	const shareUrl = $derived(
 		typeof window !== 'undefined'
 			? `${window.location.origin}/reverse/${room_id}`
 			: `/reverse/${room_id}`
 	);
 
-	let streamProgress = $derived(
+	const streamProgress = $derived(
 		receiveState.type === 'streaming' && receiveState.size > 0
 			? (receiveState.received / receiveState.size) * 100
 			: 0
 	);
-
-	// Encryption key prompt state
-	let showKeyPrompt = $state(false);
-	let keyInput = $state('');
 
 	function submitKey() {
 		const k = keyInput.trim();
@@ -116,7 +109,6 @@
 		roomKey = k;
 		showKeyPrompt = false;
 		toast.success('Encryption key set');
-		// After user provides key, load the room data and connect
 		loadRoom();
 	}
 
@@ -128,16 +120,14 @@
 				loadStatus = 'not_found';
 				return;
 			}
-			if (!res.ok) {
-				loadStatus = 'error';
-				return;
-			}
+			if (!res.ok) throw new Error();
+
 			const data: RoomOut = await res.json();
 			room = data;
 			roomFiles = [...data.files];
 			hostCount = data.host_count ?? 1;
 			loadStatus = 'loaded';
-			// If we don't already have a room key from the URL/hash, prompt the user
+
 			if (!roomKey) showKeyPrompt = true;
 			connectWebSocket();
 		} catch {
@@ -146,15 +136,11 @@
 	}
 
 	function connectWebSocket() {
-		if (ws) ws.close();
-		let wsUrl = `${REVERSE_WS_URL}/${room_id}`;
-		const socket = new WebSocket(wsUrl);
+		ws?.close();
+		const socket = new WebSocket(`${REVERSE_WS_URL}/${room_id}`);
 		ws = socket;
-		wsConnected = false;
 
-		socket.onopen = () => {
-			wsConnected = true;
-		};
+		socket.onopen = () => (wsConnected = true);
 		socket.onclose = () => {
 			wsConnected = false;
 			ws = null;
@@ -170,130 +156,132 @@
 				return;
 			}
 
-			let msg: Record<string, unknown>;
 			try {
-				msg = JSON.parse(ev.data as string);
-			} catch {
-				return;
-			}
+				const msg = JSON.parse(ev.data);
+				const { type } = msg;
 
-			const type = msg.type as string;
-
-			if (type === 'snapshot') {
-				const r = msg.room as RoomOut;
-				room = r;
-				roomFiles = [...r.files];
-				hostCount = r.host_count ?? 1;
-				// Sync remote uploads from snapshot
-				if (r.active_uploads) {
-					remoteUploads = r.active_uploads.map((u) => ({
-						key: u.upload_key,
-						filename: u.filename,
-						size: u.size,
-						uploadedBytes: u.uploaded_bytes,
-						progress: new Tween(u.size > 0 ? (u.uploaded_bytes / u.size) * 100 : 0, {
-							duration: 300,
-							easing: cubicOut
-						})
-					}));
-				}
-			} else if (type === 'host_count') {
-				hostCount = msg.count as number;
-			} else if (type === 'connection_counts') {
-				if (room) {
-					room.connected_hosts = msg.hosts as number;
-					room.connected_guests = msg.guests as number;
-				}
-			} else if (type === 'upload_start') {
-				const key = msg.upload_key as string;
-				if (!remoteUploads.find((u) => u.key === key)) {
-					remoteUploads = [
-						...remoteUploads,
-						{
-							key,
-							filename: msg.filename as string,
-							size: msg.size as number,
-							uploadedBytes: 0,
-							progress: new Tween(0, { duration: 300, easing: cubicOut })
-						}
-					];
-				}
-			} else if (type === 'upload_progress') {
-				const key = msg.upload_key as string;
-				const bytes = msg.uploaded_bytes as number;
-				const upload = remoteUploads.find((u) => u.key === key);
-				if (upload) {
-					upload.uploadedBytes = bytes;
-					const pct = upload.size > 0 ? (bytes / upload.size) * 100 : 0;
-					upload.progress.target = pct;
-				}
-			} else if (type === 'upload_cancelled') {
-				const key = msg.upload_key as string;
-				remoteUploads = remoteUploads.filter((u) => u.key !== key);
-			} else if (type === 'file_added') {
-				const file = msg.file as RoomFileEntry;
-				if (!roomFiles.find((f) => f.key === file.key)) {
-					roomFiles = [...roomFiles, file];
-				}
-				remoteUploads = remoteUploads.filter((u) => u.key !== file.key);
-			} else if (type === 'file_start') {
-				if (downloadPreference === 'eager' && receiveState.type === 'idle') {
-					receiveState = {
-						type: 'streaming',
-						key: msg.key as string,
-						filename: msg.filename as string,
-						size: msg.size as number,
-						received: 0,
-						chunks: []
-					};
-				}
-			} else if (type === 'file_end' && receiveState.type === 'streaming') {
-				const { key, filename, size, chunks } = receiveState;
-
-				let finalBlob: Blob;
-				if (roomKey) {
-					try {
-						const encryptedBlob = new Blob(chunks);
-						const { stream: decryptedStream } = await createDecryptedStream(
-							encryptedBlob.stream() as any,
-							roomKey
-						);
-						const decryptedBlob = await new Response(decryptedStream as any).blob();
-						finalBlob = decryptedBlob;
-					} catch (e) {
-						toast.error(`Decryption failed for ${filename}`);
-						finalBlob = new Blob(chunks);
+				switch (type) {
+					case 'snapshot': {
+						const r = msg.room as RoomOut;
+						room = r;
+						roomFiles = [...r.files];
+						hostCount = r.host_count ?? 1;
+						remoteUploads =
+							r.active_uploads?.map((u) => ({
+								key: u.upload_key,
+								filename: u.filename,
+								size: u.size,
+								uploadedBytes: u.uploaded_bytes,
+								progress: new Tween(u.size > 0 ? (u.uploaded_bytes / u.size) * 100 : 0, {
+									duration: 300,
+									easing: cubicOut
+								})
+							})) ?? [];
+						break;
 					}
-				} else {
-					finalBlob = new Blob(chunks);
+					case 'host_count':
+						hostCount = msg.count;
+						break;
+					case 'connection_counts':
+						if (room) {
+							room.connected_hosts = msg.hosts;
+							room.connected_guests = msg.guests;
+						}
+						break;
+					case 'upload_start': {
+						const key = msg.upload_key;
+						if (!remoteUploads.some((u) => u.key === key)) {
+							remoteUploads = [
+								...remoteUploads,
+								{
+									key,
+									filename: msg.filename,
+									size: msg.size,
+									uploadedBytes: 0,
+									progress: new Tween(0, { duration: 300, easing: cubicOut })
+								}
+							];
+						}
+						break;
+					}
+					case 'upload_progress': {
+						const upload = remoteUploads.find((u) => u.key === msg.upload_key);
+						if (upload) {
+							upload.uploadedBytes = msg.uploaded_bytes;
+							upload.progress.target = upload.size > 0 ? (msg.uploaded_bytes / upload.size) * 100 : 0;
+						}
+						break;
+					}
+					case 'upload_cancelled':
+						remoteUploads = remoteUploads.filter((u) => u.key !== msg.upload_key);
+						break;
+					case 'file_added': {
+						const file = msg.file as RoomFileEntry;
+						if (!roomFiles.some((f) => f.key === file.key)) {
+							roomFiles = [...roomFiles, file];
+						}
+						remoteUploads = remoteUploads.filter((u) => u.key !== file.key);
+						break;
+					}
+					case 'file_start':
+						if (downloadPreference === 'eager' && receiveState.type === 'idle') {
+							receiveState = {
+								type: 'streaming',
+								key: msg.key,
+								filename: msg.filename,
+								size: msg.size,
+								received: 0,
+								chunks: []
+							};
+						}
+						break;
+					case 'file_end':
+						if (receiveState.type === 'streaming') {
+							const { key, filename, size, chunks } = receiveState;
+							try {
+								let finalBlob = new Blob(chunks);
+								if (roomKey) {
+									const { stream: decryptedStream } = await createDecryptedStream(
+										finalBlob.stream() as any,
+										roomKey
+									);
+									finalBlob = await new Response(decryptedStream as any).blob();
+								}
+								const objectUrl = URL.createObjectURL(finalBlob);
+								downloadedFiles = [...downloadedFiles, { key, filename, size, objectUrl }];
+								toast.success(`Received: ${filename}`);
+							} catch {
+								toast.error(`Decryption failed for ${filename}`);
+							} finally {
+								receiveState = { type: 'idle' };
+							}
+						}
+						break;
+					case 'file_error':
+						receiveState = { type: 'idle' };
+						toast.error(`File error: ${msg.detail}`);
+						break;
+					case 'file_removed':
+						roomFiles = roomFiles.filter((f) => f.key !== msg.key);
+						downloadedFiles = downloadedFiles.filter((f) => f.key !== msg.key);
+						break;
+					case 'room_destroyed':
+						toast.info('The host has closed the room.');
+						cleanup();
+						goto('/reverse');
+						break;
 				}
-
-				const objectUrl = URL.createObjectURL(finalBlob);
-				downloadedFiles = [...downloadedFiles, { key, filename, size, objectUrl }];
-				receiveState = { type: 'idle' };
-				toast.success(`Received: ${filename}`);
-			} else if (type === 'file_error') {
-				receiveState = { type: 'idle' };
-				toast.error(`File error: ${msg.detail}`);
-			} else if (type === 'file_removed') {
-				const removedKey = msg.key as string;
-				roomFiles = roomFiles.filter((f) => f.key !== removedKey);
-				downloadedFiles = downloadedFiles.filter((f) => f.key !== removedKey);
-			} else if (type === 'room_destroyed') {
-				toast.info('The host has closed the room.');
-				cleanup();
-				goto('/reverse');
-				return;
+			} catch {
+				/* ignore invalid JSON */
 			}
 		};
 	}
 
 	async function handleBinaryChunk(data: ArrayBuffer | Blob) {
-		const buf = data instanceof Blob ? await data.arrayBuffer() : data;
 		if (receiveState.type !== 'streaming') return;
-		const chunk = new Uint8Array(buf);
+		const buf = data instanceof Blob ? await data.arrayBuffer() : data;
 		receiveState.chunks.push(buf as any);
-		receiveState.received += chunk.byteLength;
+		receiveState.received += buf.byteLength;
 	}
 
 	async function copyShareLink() {
@@ -307,7 +295,8 @@
 		await navigator.clipboard.writeText(url);
 		copiedFileKeys = new Set([...copiedFileKeys, key]);
 		setTimeout(() => {
-			copiedFileKeys = new Set([...copiedFileKeys].filter((k) => k !== key));
+			copiedFileKeys.delete(key);
+			copiedFileKeys = new Set(copiedFileKeys);
 		}, 2000);
 	}
 
@@ -342,73 +331,53 @@
 
 		try {
 			const res = await fetch(fileDownloadUrl(f.key), { credentials: 'include' });
-
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			if (!res.body) throw new Error('No response body');
 
-			let streamWithProgress: ReadableStream<Uint8Array> = res.body as any;
+			let stream = res.body as any;
 			if (roomKey) {
-				const { stream: decryptedStream } = await createDecryptedStream(res.body as any, roomKey);
-				streamWithProgress = decryptedStream;
+				const { stream: decryptedStream } = await createDecryptedStream(stream, roomKey);
+				stream = decryptedStream;
 			}
 
-			const reader = streamWithProgress.getReader();
+			const reader = stream.getReader();
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) break;
-				if (value) {
-					receiveState.chunks.push(value as any);
-					receiveState.received += value.byteLength;
-				}
+				receiveState.chunks.push(value);
+				receiveState.received += value.byteLength;
 			}
 
-			const blob = new Blob(receiveState.chunks);
-			const objectUrl = URL.createObjectURL(blob);
-			downloadedFiles = [
-				...downloadedFiles,
-				{ key: f.key, filename: f.filename, size: f.size, objectUrl }
-			];
+			const objectUrl = URL.createObjectURL(new Blob(receiveState.chunks));
+			downloadedFiles = [...downloadedFiles, { ...f, objectUrl }];
 			receiveState = { type: 'idle' };
 
 			const a = document.createElement('a');
 			a.href = objectUrl;
 			a.download = f.filename;
 			a.click();
-		} catch (e: unknown) {
+		} catch (e: any) {
 			receiveState = { type: 'idle' };
-			toast.error(`Download failed: ${e instanceof Error ? e.message : String(e)}`);
+			toast.error(`Download failed: ${e.message || String(e)}`);
 		}
 	}
 
 	function cleanup() {
-		if (ws) ws.close();
-		downloadedFiles.forEach((f) => {
-			if (f.objectUrl) URL.revokeObjectURL(f.objectUrl);
-		});
+		ws?.close();
+		downloadedFiles.forEach((f) => f.objectUrl && URL.revokeObjectURL(f.objectUrl));
 	}
 
-	// Utility to display filename (strip .zip if present)
-	function getDisplayFilename(filename: string): string {
-		return filename.endsWith('.zip') ? filename.slice(0, -4) : filename;
-	}
+	const getDisplayFilename = (filename: string) =>
+		filename.endsWith('.zip') ? filename.slice(0, -4) : filename;
 
 	onMount(() => {
-		// Re-check hash on mount (ensure key from URL is captured)
 		const hash = $page.url.hash.slice(1);
 		if (hash) {
 			const parts = hash.split(':');
-			if (parts.length > 1) {
-				roomKey = parts[1];
-			} else if (parts[0]) {
-				roomKey = parts[0];
-			}
+			roomKey = parts[parts.length - 1] || null;
 		}
-		if (roomKey) {
-			loadRoom();
-		} else {
-			// Ask for key first, then loadRoom after submission
-			showKeyPrompt = true;
-		}
+		if (roomKey) loadRoom();
+		else showKeyPrompt = true;
 	});
 	onDestroy(cleanup);
 </script>
@@ -549,10 +518,11 @@
 										{room.connected_hosts}
 										{room.connected_hosts === 1 ? 'host' : 'hosts'}
 									</Badge>
-									</Tooltip.Trigger>
-									<Tooltip.Content>
+								</Tooltip.Trigger>
+								<Tooltip.Content>
 									{room.connected_hosts} host{room.connected_hosts === 1 ? '' : 's'} online
-									</Tooltip.Content>							</Tooltip.Root>
+								</Tooltip.Content>
+							</Tooltip.Root>
 						</Tooltip.Provider>
 						<Tooltip.Provider>
 							<Tooltip.Root>
@@ -564,11 +534,7 @@
 									{/if}
 								</Tooltip.Trigger>
 								<Tooltip.Content>
-									{#if wsConnected}
-										WebSocket connected
-									{:else}
-										Disconnected
-									{/if}
+									{wsConnected ? 'WebSocket connected' : 'Disconnected'}
 								</Tooltip.Content>
 							</Tooltip.Root>
 						</Tooltip.Provider>

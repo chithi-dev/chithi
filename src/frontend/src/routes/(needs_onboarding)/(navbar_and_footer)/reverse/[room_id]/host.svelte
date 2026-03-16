@@ -14,7 +14,6 @@
 		CardTitle
 	} from '$lib/components/ui/card';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
-
 	import { Button } from '$lib/components/ui/button';
 	import { Progress } from '$lib/components/ui/progress';
 	import { Badge } from '$lib/components/ui/badge';
@@ -67,13 +66,10 @@
 		}
 	});
 
-	function fileDownloadUrl(fileKey: string): string {
-		return `${REVERSE_ROOMS_URL}/${room_id}/files/${fileKey}/download`;
-	}
-
-	function downloadPageHref(fileKey: string): string {
-		return resolve(`/download/${fileKey}${roomKey ? `#${roomKey}` : ''}`);
-	}
+	const fileDownloadUrl = (fileKey: string) =>
+		`${REVERSE_ROOMS_URL}/${room_id}/files/${fileKey}/download`;
+	const downloadPageHref = (fileKey: string) =>
+		resolve(`/download/${fileKey}${roomKey ? `#${roomKey}` : ''}`);
 
 	type LoadStatus = 'loading' | 'not_found' | 'error' | 'loaded';
 	let loadStatus = $state<LoadStatus>('loading');
@@ -86,9 +82,9 @@
 	let fileInput = $state<HTMLInputElement>();
 	let uploads = $state<UploadEntry[]>([]);
 	let isUploading = $state(false);
-	let overallProgress = $state(new Tween(0, { duration: 400, easing: cubicOut }));
+	const overallProgress = new Tween(0, { duration: 400, easing: cubicOut });
 
-	// Client streaming (Hosts can also receive files if there are other hosts)
+	// Client streaming
 	let receiveState = $state<ReceiveState>({ type: 'idle' });
 	let downloadedFiles = $state<DownloadedFile[]>([]);
 
@@ -97,23 +93,23 @@
 	let wsConnected = $state(false);
 	let remoteUploads = $state<RemoteUpload[]>([]);
 
-	// Copy state
+	// Copy/UI states
 	let copiedShareLink = $state(false);
 	let copiedFileKeys = $state(new Set<string>());
 	let copiedInviteLink = $state(false);
 	let isInviting = $state(false);
 
-	let shareUrl = $derived(
+	const shareUrl = $derived(
 		typeof window !== 'undefined'
 			? `${window.location.origin}/reverse/${room_id}`
 			: `/reverse/${room_id}`
 	);
 
-	let totalUploadSize = $derived(pendingFiles.reduce((s, f) => s + f.size, 0));
-	let completedUploads = $derived(uploads.filter((u) => u.status === 'done').length);
-	let totalUploads = $derived(uploads.length);
+	const totalUploadSize = $derived(pendingFiles.reduce((s, f) => s + f.size, 0));
+	const completedUploads = $derived(uploads.filter((u) => u.status === 'done').length);
+	const totalUploads = $derived(uploads.length);
 
-	let streamProgress = $derived(
+	const streamProgress = $derived(
 		receiveState.type === 'streaming' && receiveState.size > 0
 			? (receiveState.received / receiveState.size) * 100
 			: 0
@@ -127,10 +123,8 @@
 				loadStatus = 'not_found';
 				return;
 			}
-			if (!res.ok) {
-				loadStatus = 'error';
-				return;
-			}
+			if (!res.ok) throw new Error();
+
 			const data: RoomOut = await res.json();
 			room = data;
 			roomFiles = [...data.files];
@@ -143,15 +137,13 @@
 	}
 
 	function connectWebSocket() {
-		if (ws) ws.close();
-		let wsUrl = `${REVERSE_WS_URL}/${room_id}?host_token=${encodeURIComponent(hostToken)}`;
-		const socket = new WebSocket(wsUrl);
+		ws?.close();
+		const socket = new WebSocket(
+			`${REVERSE_WS_URL}/${room_id}?host_token=${encodeURIComponent(hostToken)}`
+		);
 		ws = socket;
-		wsConnected = false;
 
-		socket.onopen = () => {
-			wsConnected = true;
-		};
+		socket.onopen = () => (wsConnected = true);
 		socket.onclose = () => {
 			wsConnected = false;
 			ws = null;
@@ -161,107 +153,109 @@
 			toast.error('WebSocket connection error');
 		};
 
-		socket.onmessage = (ev) => {
+		socket.onmessage = async (ev) => {
 			if (ev.data instanceof ArrayBuffer || ev.data instanceof Blob) {
 				handleBinaryChunk(ev.data);
 				return;
 			}
 
-			let msg: Record<string, unknown>;
 			try {
-				msg = JSON.parse(ev.data as string);
-			} catch {
-				return;
-			}
+				const msg = JSON.parse(ev.data);
+				const { type } = msg;
 
-			const type = msg.type as string;
-
-			if (type === 'snapshot') {
-				const r = msg.room as RoomOut;
-				room = r;
-				roomFiles = [...r.files];
-				hostCount = r.host_count ?? 1;
-				// Sync remote uploads from snapshot
-				if (r.active_uploads) {
-					remoteUploads = r.active_uploads.map((u) => ({
-						key: u.upload_key,
-						filename: u.filename,
-						size: u.size,
-						uploadedBytes: u.uploaded_bytes,
-						progress: new Tween(u.size > 0 ? (u.uploaded_bytes / u.size) * 100 : 0, {
-							duration: 300,
-							easing: cubicOut
-						})
-					}));
-				}
-			} else if (type === 'host_count') {
-				hostCount = msg.count as number;
-			} else if (type === 'connection_counts') {
-				if (room) {
-					room.connected_hosts = msg.hosts as number;
-					room.connected_guests = msg.guests as number;
-				}
-			} else if (type === 'upload_start') {
-				const key = msg.upload_key as string;
-				if (!remoteUploads.find((u) => u.key === key)) {
-					remoteUploads = [
-						...remoteUploads,
-						{
-							key,
-							filename: msg.filename as string,
-							size: msg.size as number,
-							uploadedBytes: 0,
-							progress: new Tween(0, { duration: 300, easing: cubicOut })
+				switch (type) {
+					case 'snapshot': {
+						const r = msg.room as RoomOut;
+						room = r;
+						roomFiles = [...r.files];
+						hostCount = r.host_count ?? 1;
+						remoteUploads =
+							r.active_uploads?.map((u) => ({
+								key: u.upload_key,
+								filename: u.filename,
+								size: u.size,
+								uploadedBytes: u.uploaded_bytes,
+								progress: new Tween(u.size > 0 ? (u.uploaded_bytes / u.size) * 100 : 0, {
+									duration: 300,
+									easing: cubicOut
+								})
+							})) ?? [];
+						break;
+					}
+					case 'host_count':
+						hostCount = msg.count;
+						break;
+					case 'connection_counts':
+						if (room) {
+							room.connected_hosts = msg.hosts;
+							room.connected_guests = msg.guests;
 						}
-					];
+						break;
+					case 'upload_start': {
+						const key = msg.upload_key;
+						if (!remoteUploads.some((u) => u.key === key)) {
+							remoteUploads = [
+								...remoteUploads,
+								{
+									key,
+									filename: msg.filename,
+									size: msg.size,
+									uploadedBytes: 0,
+									progress: new Tween(0, { duration: 300, easing: cubicOut })
+								}
+							];
+						}
+						break;
+					}
+					case 'upload_progress': {
+						const upload = remoteUploads.find((u) => u.key === msg.upload_key);
+						if (upload) {
+							upload.uploadedBytes = msg.uploaded_bytes;
+							upload.progress.target = upload.size > 0 ? (msg.uploaded_bytes / upload.size) * 100 : 0;
+						}
+						break;
+					}
+					case 'upload_cancelled':
+						remoteUploads = remoteUploads.filter((u) => u.key !== msg.upload_key);
+						break;
+					case 'file_added': {
+						const file = msg.file as RoomFileEntry;
+						if (!roomFiles.some((f) => f.key === file.key)) {
+							roomFiles = [...roomFiles, file];
+						}
+						remoteUploads = remoteUploads.filter((u) => u.key !== file.key);
+						break;
+					}
+					case 'file_removed':
+						roomFiles = roomFiles.filter((f) => f.key !== msg.key);
+						downloadedFiles = downloadedFiles.filter((f) => f.key !== msg.key);
+						break;
+					case 'room_destroyed':
+						toast.info('The room has been destroyed.');
+						cleanup();
+						goto('/reverse');
+						break;
 				}
-			} else if (type === 'upload_progress') {
-				const key = msg.upload_key as string;
-				const bytes = msg.uploaded_bytes as number;
-				const upload = remoteUploads.find((u) => u.key === key);
-				if (upload) {
-					upload.uploadedBytes = bytes;
-					const pct = upload.size > 0 ? (bytes / upload.size) * 100 : 0;
-					upload.progress.target = pct;
-				}
-			} else if (type === 'upload_cancelled') {
-				const key = msg.upload_key as string;
-				remoteUploads = remoteUploads.filter((u) => u.key !== key);
-			} else if (type === 'file_added') {
-				const file = msg.file as RoomFileEntry;
-				if (!roomFiles.find((f) => f.key === file.key)) {
-					roomFiles = [...roomFiles, file];
-				}
-				remoteUploads = remoteUploads.filter((u) => u.key !== file.key);
-			} else if (type === 'file_removed') {
-				const removedKey = msg.key as string;
-				roomFiles = roomFiles.filter((f) => f.key !== removedKey);
-				downloadedFiles = downloadedFiles.filter((f) => f.key !== removedKey);
-			} else if (type === 'room_destroyed') {
-				toast.info('The room has been destroyed.');
-				cleanup();
-				goto('/reverse');
-				return;
+			} catch {
+				/* ignore invalid JSON */
 			}
 		};
 	}
 
 	async function handleBinaryChunk(data: ArrayBuffer | Blob) {
-		const buf = data instanceof Blob ? await data.arrayBuffer() : data;
 		if (receiveState.type !== 'streaming') return;
-		const chunk = new Uint8Array(buf);
+		const buf = data instanceof Blob ? await data.arrayBuffer() : data;
 		receiveState.chunks.push(buf as any);
-		receiveState.received += chunk.byteLength;
+		receiveState.received += buf.byteLength;
 	}
 
 	function addFiles(selected: FileList | null) {
-		if (!selected) return;
-		pendingFiles = [...pendingFiles, ...Array.from(selected)];
+		if (selected) pendingFiles = [...pendingFiles, ...Array.from(selected)];
 	}
 
-	function removePendingFile(index: number) {
+	const removePendingFile = (index: number) => {
 		pendingFiles = pendingFiles.filter((_, i) => i !== index);
-	}
+	};
 
 	async function uploadAll() {
 		if (!room || pendingFiles.length === 0) return;
@@ -270,12 +264,12 @@
 			return;
 		}
 		isUploading = true;
-		overallProgress = new Tween(0, { duration: 400, easing: cubicOut });
+		overallProgress.set(0, { duration: 0 });
 
 		const batch: UploadEntry[] = pendingFiles.map((f) => ({
 			file: f,
 			progress: new Tween(0, { duration: 300, easing: cubicOut }),
-			status: 'pending' as const
+			status: 'pending'
 		}));
 		uploads = [...uploads, ...batch];
 		pendingFiles = [];
@@ -284,7 +278,7 @@
 
 		for (const entry of batch) {
 			entry.status = 'uploading';
-			uploads = uploads;
+			uploads = [...uploads];
 
 			try {
 				const zipStream = await createZipStream([entry.file]);
@@ -303,20 +297,18 @@
 					entry.progress.target = pct;
 					const done = uploads.filter((u) => u.status === 'done').length;
 					overallProgress.target = ((done + pct / 100) / batch.length) * 100;
-					uploads = uploads;
+					uploads = [...uploads];
 				});
 				entry.status = 'done';
 				entry.entry = fileEntry;
-				if (!roomFiles.find((f) => f.key === fileEntry.key)) {
+				if (!roomFiles.some((f) => f.key === fileEntry.key)) {
 					roomFiles = [...roomFiles, fileEntry];
 				}
-			} catch (e: unknown) {
+			} catch (e: any) {
 				entry.status = 'error';
-				toast.error(
-					`Upload failed for ${entry.file.name}: ${e instanceof Error ? e.message : String(e)}`
-				);
+				toast.error(`Upload failed for ${entry.file.name}: ${e.message || String(e)}`);
 			}
-			uploads = uploads;
+			uploads = [...uploads];
 		}
 
 		overallProgress.target = 100;
@@ -344,21 +336,20 @@
 			xhr.onload = () => {
 				if (xhr.status >= 200 && xhr.status < 300) {
 					try {
-						resolve(JSON.parse(xhr.responseText) as RoomFileEntry);
+						resolve(JSON.parse(xhr.responseText));
 					} catch {
 						reject(new Error('Invalid server response'));
 					}
 				} else {
 					let detail = `HTTP ${xhr.status}`;
 					try {
-						detail = (JSON.parse(xhr.responseText) as { detail: string }).detail ?? detail;
+						detail = JSON.parse(xhr.responseText).detail || detail;
 					} catch {
 						/* ignore */
 					}
 					reject(new Error(detail));
 				}
 			};
-
 			xhr.onerror = () => reject(new Error('Network error'));
 			xhr.send(fd);
 		});
@@ -379,20 +370,16 @@
 				credentials: 'include',
 				headers: { 'X-Host-Token': hostToken }
 			});
-			if (!res.ok) {
-				const err = await res.json().catch(() => ({}));
-				throw new Error((err as { detail?: string }).detail ?? `HTTP ${res.status}`);
-			}
-			const data = (await res.json()) as { host_token: string };
-			const inviteUrl = roomKey
-				? `${window.location.origin}/reverse/${room_id}#${data.host_token}:${roomKey}`
-				: `${window.location.origin}/reverse/${room_id}#${data.host_token}`;
+			if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
+
+			const { host_token } = await res.json();
+			const inviteUrl = `${window.location.origin}/reverse/${room_id}#${host_token}${roomKey ? `:${roomKey}` : ''}`;
 			await navigator.clipboard.writeText(inviteUrl);
 			copiedInviteLink = true;
 			toast.success('Host invite link copied to clipboard');
 			setTimeout(() => (copiedInviteLink = false), 3000);
-		} catch (e: unknown) {
-			toast.error(`Failed to create invite: ${e instanceof Error ? e.message : String(e)}`);
+		} catch (e: any) {
+			toast.error(`Failed to create invite: ${e.message || String(e)}`);
 		} finally {
 			isInviting = false;
 		}
@@ -402,7 +389,8 @@
 		await navigator.clipboard.writeText(url);
 		copiedFileKeys = new Set([...copiedFileKeys, key]);
 		setTimeout(() => {
-			copiedFileKeys = new Set([...copiedFileKeys].filter((k) => k !== key));
+			copiedFileKeys.delete(key);
+			copiedFileKeys = new Set(copiedFileKeys);
 		}, 2000);
 	}
 
@@ -444,55 +432,44 @@
 			if (!res.ok) throw new Error(`HTTP ${res.status}`);
 			if (!res.body) throw new Error('No response body');
 
-			let streamWithProgress: ReadableStream<Uint8Array> = res.body as any;
-
+			let stream = res.body as any;
 			if (roomKey) {
-				const { stream: decryptedStream } = await createDecryptedStream(res.body as any, roomKey);
-				streamWithProgress = decryptedStream;
+				const { stream: decryptedStream } = await createDecryptedStream(stream, roomKey);
+				stream = decryptedStream;
 			}
 
-			const reader = streamWithProgress.getReader();
+			const reader = stream.getReader();
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) break;
-				if (value) {
-					receiveState.chunks.push(value as any);
-					receiveState.received += value.byteLength;
-				}
+				receiveState.chunks.push(value);
+				receiveState.received += value.byteLength;
 			}
 
-			const blob = new Blob(receiveState.chunks);
-			const objectUrl = URL.createObjectURL(blob);
-			downloadedFiles = [
-				...downloadedFiles,
-				{ key: f.key, filename: f.filename, size: f.size, objectUrl }
-			];
+			const objectUrl = URL.createObjectURL(new Blob(receiveState.chunks));
+			downloadedFiles = [...downloadedFiles, { ...f, objectUrl }];
 			receiveState = { type: 'idle' };
 
 			const a = document.createElement('a');
 			a.href = objectUrl;
 			a.download = f.filename;
 			a.click();
-		} catch (e: unknown) {
+		} catch (e: any) {
 			receiveState = { type: 'idle' };
-			toast.error(`Download failed: ${e instanceof Error ? e.message : String(e)}`);
+			toast.error(`Download failed: ${e.message || String(e)}`);
 		}
 	}
 
 	function cleanup() {
-		if (ws) ws.close();
-		downloadedFiles.forEach((f) => {
-			if (f.objectUrl) URL.revokeObjectURL(f.objectUrl);
-		});
+		ws?.close();
+		downloadedFiles.forEach((f) => f.objectUrl && URL.revokeObjectURL(f.objectUrl));
 	}
 
 	onMount(loadRoom);
 	onDestroy(cleanup);
 
-	// Utility to display filename (strip .zip if present)
-	function getDisplayFilename(filename: string): string {
-		return filename.endsWith('.zip') ? filename.slice(0, -4) : filename;
-	}
+	const getDisplayFilename = (filename: string) =>
+		filename.endsWith('.zip') ? filename.slice(0, -4) : filename;
 </script>
 
 {#if loadStatus === 'loading'}
