@@ -23,6 +23,7 @@ export interface RoomOut {
 	connected_hosts: number;
 	connected_guests: number;
 }
+
 export type ReceiveState =
 	| { type: 'idle' }
 	| {
