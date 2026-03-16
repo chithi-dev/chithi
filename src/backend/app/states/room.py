@@ -21,19 +21,14 @@ local raw = redis.call('JSON.GET', KEYS[1], '$.files')
 if not raw then return nil end
 local outer = cjson.decode(raw)
 local files = outer[1]
-local removed = nil
-local new_files = {}
-for _, f in ipairs(files) do
+for i, f in ipairs(files) do
     if f['key'] == ARGV[1] then
-        removed = cjson.encode(f)
-    else
-        new_files[#new_files + 1] = f
+        local removed = cjson.encode(f)
+        redis.call('JSON.DEL', KEYS[1], '$.files[' .. (i-1) .. ']')
+        return removed
     end
 end
-if removed then
-    redis.call('JSON.SET', KEYS[1], '$.files', cjson.encode(new_files))
-end
-return removed
+return nil
 """
 
 
@@ -107,8 +102,10 @@ class RoomState(GlobalState):
         data["connected_hosts"] = hosts_count
         data["connected_guests"] = guests_count
         
-        if "active_uploads" not in data:
+        if not isinstance(data.get("active_uploads"), list):
             data["active_uploads"] = []
+        if not isinstance(data.get("files"), list):
+            data["files"] = []
         # Ensure a default for number_of_downloads for backward compatibility
         if "number_of_downloads" not in data:
             data["number_of_downloads"] = None
@@ -274,14 +271,13 @@ class RoomState(GlobalState):
         if not raw then return nil end
         local outer = cjson.decode(raw)
         local uploads = outer[1]
-        local new_uploads = {}
-        for _, u in ipairs(uploads) do
-            if u['upload_key'] ~= ARGV[1] then
-                new_uploads[#new_uploads + 1] = u
+        for i, u in ipairs(uploads) do
+            if u['upload_key'] == ARGV[1] then
+                redis.call('JSON.DEL', KEYS[1], '$.active_uploads[' .. (i-1) .. ']')
+                return 1
             end
         end
-        redis.call('JSON.SET', KEYS[1], '$.active_uploads', cjson.encode(new_uploads))
-        return 1
+        return nil
         """
         await cls._client().eval(script, 1, key, upload_key)
 

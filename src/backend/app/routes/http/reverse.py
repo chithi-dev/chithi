@@ -22,7 +22,6 @@ from app.schemas.reverse import (
     RoomOut,
 )
 from app.settings import settings
-from app.states.app import UploadProgress
 from app.states.room import RoomState
 from app.tasks.clean_file import delete_expired_file
 
