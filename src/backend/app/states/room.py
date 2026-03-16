@@ -156,7 +156,12 @@ class RoomState(GlobalState):
 
     @classmethod
     async def delete(cls, room_id: str) -> bool:
-        result = await cls._client().delete(_room_key(room_id))
+        client = cls._client()
+        result = await client.delete(
+            _room_key(room_id),
+            cls._hosts_set_key(room_id),
+            cls._guests_set_key(room_id),
+        )
         return result > 0
 
     @classmethod
@@ -314,6 +319,12 @@ class RoomState(GlobalState):
         await client.srem(key, client_id)  # type:ignore[misc]
 
         hosts_count, guests_count = await cls.get_connection_counts(room_id)
+
+        # If all clients and hosts have left, destroy the room
+        if hosts_count == 0 and guests_count == 0:
+            await cls.delete(room_id)
+            return
+
         await cls.publish_event(
             room_id,
             json.dumps(
