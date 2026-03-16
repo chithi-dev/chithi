@@ -33,12 +33,14 @@ export type ReceiveState =
 			received: number;
 			chunks: BlobPart[];
 	  };
+
 export interface DownloadedFile {
 	key: string;
 	filename: string;
 	size: number;
 	objectUrl?: string;
 }
+
 export interface RemoteUpload {
 	key: string;
 	filename: string;
@@ -46,6 +48,7 @@ export interface RemoteUpload {
 	uploadedBytes: number;
 	progress: Tween<number>;
 }
+
 export interface UploadEntry {
 	file: File;
 	progress: Tween<number>;
