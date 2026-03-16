@@ -48,12 +48,22 @@
 		uploaded_at: string;
 	}
 
+	interface ActiveUpload {
+		upload_key: string;
+		filename: string;
+		size: number;
+		uploaded_bytes: number;
+	}
+
 	interface RoomOut {
 		id: string;
 		name: string;
 		expires_at: string;
 		files: RoomFileEntry[];
+		active_uploads: ActiveUpload[];
 		host_count: number;
+		connected_hosts: number;
+		connected_guests: number;
 	}
 	type ReceiveState =
 		| { type: 'idle' }
@@ -223,8 +233,27 @@
 				room = r;
 				roomFiles = [...r.files];
 				hostCount = r.host_count ?? 1;
+
+				// Sync remote uploads from snapshot
+				if (r.active_uploads) {
+					remoteUploads = r.active_uploads.map((u) => ({
+						key: u.upload_key,
+						filename: u.filename,
+						size: u.size,
+						uploadedBytes: u.uploaded_bytes,
+						progress: new Tween((u.size > 0 ? (u.uploaded_bytes / u.size) * 100 : 0), {
+							duration: 300,
+							easing: cubicOut
+						})
+					}));
+				}
 			} else if (type === 'host_count') {
 				hostCount = msg.count as number;
+			} else if (type === 'connection_counts') {
+				if (room) {
+					room.connected_hosts = msg.hosts as number;
+					room.connected_guests = msg.guests as number;
+				}
 			} else if (type === 'upload_start') {
 				const key = msg.upload_key as string;
 				if (!remoteUploads.find((u) => u.key === key)) {

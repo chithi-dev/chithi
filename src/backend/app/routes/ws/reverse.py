@@ -1,3 +1,4 @@
+import uuid
 import asyncio
 import json
 import logging
@@ -82,6 +83,7 @@ async def room_ws(
         await ws.close(code=4004, reason="Room not found or expired")
         return
 
+    is_host = False
     if host_token is not None:
         is_host = await RoomState.verify_host(room_id, host_token)
         if not is_host:
@@ -89,6 +91,9 @@ async def room_ws(
             return
 
     await ws.accept()
+
+    client_id = str(uuid.uuid4())
+    await RoomState.client_online(room_id, client_id, is_host)
 
     redis_client = aioredis.from_url(
         settings.REDIS_ENDPOINT, encoding="utf-8", decode_responses=True
@@ -101,6 +106,7 @@ async def room_ws(
     if room is None:
         await pubsub.unsubscribe(channel)
         await pubsub.aclose()
+        await RoomState.client_offline(room_id, client_id, is_host)
         await redis_client.aclose()
         await ws.close(code=4004, reason="Room expired")
         return
@@ -152,7 +158,7 @@ async def room_ws(
                     done_event.set()
                     return
 
-                if msg_type == "host_count":
+                if msg_type in ("host_count", "connection_counts"):
                     async with send_lock:
                         await ws.send_text(json.dumps(data))
                     continue
@@ -214,6 +220,7 @@ async def room_ws(
     except WebSocketDisconnect:
         pass
     finally:
+        await RoomState.client_offline(room_id, client_id, is_host)
         listen_task.cancel()
         done_event.set()
         with suppress(asyncio.CancelledError, ExceptionGroup):

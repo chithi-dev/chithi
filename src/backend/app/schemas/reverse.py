@@ -10,13 +10,23 @@ class RoomFileEntry(SQLModel):
     uploaded_at: datetime
 
 
+class ActiveUpload(SQLModel):
+    upload_key: str
+    filename: str
+    size: int
+    uploaded_bytes: int = 0
+
+
 class RoomOut(SQLModel):
     id: str
     name: str
     created_at: datetime
     expires_at: datetime
     files: list[RoomFileEntry] = []
+    active_uploads: list[ActiveUpload] = []
     host_count: int = 1
+    connected_hosts: int = 0
+    connected_guests: int = 0
     number_of_downloads: int | None
 
 

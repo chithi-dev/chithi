@@ -127,9 +127,8 @@ async def upload_file_to_room(
     file_key = str(uuid.uuid7())
     filename = file.filename or str(uuid.uuid7())
 
-    # Track upload progress in global AppState so websockets and other
-    # observers can see in-flight uploads (mirrors upload.py behavior).
-    await UploadProgress.start(upload_key=file_key, filename=filename)
+    # Track upload progress in RoomState
+    await RoomState.add_active_upload(room_id, file_key, filename, file.size or 0)
 
     # Broadcast upload start to the room
     await RoomState.publish_event(
@@ -182,10 +181,8 @@ async def upload_file_to_room(
             uploaded_size += len(chunk)
             part_number += 1
 
-            # Update upload progress in global state
-            await UploadProgress.update(
-                upload_key=file_key, uploaded_bytes=uploaded_size
-            )
+            # Update upload progress in RoomState
+            await RoomState.update_active_upload(room_id, file_key, uploaded_size)
 
             # Broadcast progress to the room (throttled)
             if uploaded_size - last_broadcast_size >= BROADCAST_THRESHOLD:
@@ -208,7 +205,7 @@ async def upload_file_to_room(
                     Key=file_key,
                     UploadId=upload_id,
                 )
-                await UploadProgress.cancel(upload_key=file_key)
+                await RoomState.remove_active_upload(room_id, file_key)
                 await RoomState.publish_event(
                     room_id,
                     json.dumps({"type": "upload_cancelled", "upload_key": file_key}),
@@ -227,7 +224,7 @@ async def upload_file_to_room(
             UploadId=upload_id,
             MultipartUpload={"Parts": parts},
         )
-        await UploadProgress.finish(upload_key=file_key, final_size=uploaded_size)
+        await RoomState.remove_active_upload(room_id, file_key)
         # Broadcast final progress
         await RoomState.publish_event(
             room_id,
@@ -241,7 +238,7 @@ async def upload_file_to_room(
         )
     except HTTPException:
         # Ensure failed uploads are removed from AppState
-        await UploadProgress.cancel(upload_key=file_key)
+        await RoomState.remove_active_upload(room_id, file_key)
         await RoomState.publish_event(
             room_id,
             json.dumps({"type": "upload_cancelled", "upload_key": file_key}),
@@ -254,7 +251,7 @@ async def upload_file_to_room(
             UploadId=upload_id,
         )
         # Ensure failed uploads are removed from AppState
-        await UploadProgress.cancel(upload_key=file_key)
+        await RoomState.remove_active_upload(room_id, file_key)
         await RoomState.publish_event(
             room_id,
             json.dumps({"type": "upload_cancelled", "upload_key": file_key}),
@@ -310,7 +307,7 @@ async def upload_file_to_room(
         # Room vanished mid-upload clean up the S3 object
         await s3.delete_object(Bucket=settings.RUSTFS_BUCKET_NAME, Key=file_key)
         # Remove in-flight upload from global state
-        await UploadProgress.cancel(upload_key=file_key)
+        await RoomState.remove_active_upload(room_id, file_key)
         raise HTTPException(status_code=404, detail="Room expired during upload")
 
     return entry
