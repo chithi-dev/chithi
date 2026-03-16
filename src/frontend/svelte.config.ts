@@ -7,6 +7,7 @@ export default {
 	// Consult https://svelte.dev/docs/kit/integrations
 	// for more information about preprocessors
 	compilerOptions: {
+		name: 'chithi',
 		modernAst: true,
 		experimental: {
 			async: true
