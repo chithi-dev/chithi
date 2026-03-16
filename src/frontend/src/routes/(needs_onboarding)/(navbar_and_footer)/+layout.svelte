@@ -76,12 +76,6 @@
 	];
 	let rightFooterLinks: LinkItem[] = $state([
 		{
-			href: '/speedtest',
-			name: 'Speedtest',
-			icon: Gauge,
-			order: 4
-		},
-		{
 			href: 'https://docs.chithi.dev',
 			name: 'Documentation',
 			icon: BookOpenText,
@@ -101,6 +95,12 @@
 		}
 	]);
 	let leftFooterLinks: LinkItem[] = $state([
+		{
+			href: '/speedtest',
+			name: 'Speedtest',
+			icon: Gauge,
+			order: 2
+		},
 		{
 			href: '/information',
 			name: 'Information about the instance',

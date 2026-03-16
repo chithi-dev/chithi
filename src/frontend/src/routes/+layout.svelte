@@ -25,11 +25,10 @@
 				credentials: 'include'
 			})
 				.then((res) => {
-					if (res.status !== 200) {
-						logout();
-					}
 					if (res.ok) {
 						user_store.authenticate();
+					} else {
+						logout();
 					}
 				})
 				.catch((_) => {
