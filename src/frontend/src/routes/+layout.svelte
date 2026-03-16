@@ -14,7 +14,6 @@
 	import type { Snippet } from 'svelte';
 	import { MetaTags, deepMerge } from 'svelte-meta-tags';
 	import { user_store } from '$lib/store/user.svelte';
-	import { token_store } from '$lib/store/token.svelte';
 	import { SvelteQueryDevtools } from '@tanstack/svelte-query-devtools';
 	import { logout } from '$lib/remote/auth.remote';
 	import { TOKEN_VALIDATE_URL } from '#consts/backend';
@@ -22,7 +21,6 @@
 
 	$effect.pre(() => {
 		if (data.token) {
-			token_store.token = data.token;
 			void fetch(TOKEN_VALIDATE_URL, {
 				credentials: 'include'
 			})
@@ -34,7 +32,7 @@
 						user_store.authenticate();
 					}
 				})
-				.catch((err) => {
+				.catch((_) => {
 					console.log(`Error while fetching token data`);
 					user_store.unauthenticate();
 				});
