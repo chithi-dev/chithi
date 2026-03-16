@@ -46,65 +46,14 @@
 	import { base64urlToBytes } from '#functions/encryption';
 	import { resolve } from '$app/paths';
 	import { extractEncryptionKey, extractHostToken } from './utils';
-
-	interface RoomFileEntry {
-		key: string;
-		filename: string;
-		size: number;
-		uploaded_at: string;
-		download_url: string;
-	}
-
-	interface ActiveUpload {
-		upload_key: string;
-		filename: string;
-		size: number;
-		uploaded_bytes: number;
-	}
-
-	interface RoomOut {
-		id: string;
-		name: string;
-		expires_at: string;
-		files: RoomFileEntry[];
-		active_uploads: ActiveUpload[];
-		host_count: number;
-		connected_hosts: number;
-		connected_guests: number;
-	}
-
-	type ReceiveState =
-		| { type: 'idle' }
-		| {
-				type: 'streaming';
-				key: string;
-				filename: string;
-				size: number;
-				received: number;
-				chunks: BlobPart[];
-		  };
-
-	interface UploadEntry {
-		file: File;
-		progress: Tween<number>;
-		status: 'pending' | 'uploading' | 'done' | 'error';
-		entry?: RoomFileEntry;
-	}
-
-	interface DownloadedFile {
-		key: string;
-		filename: string;
-		size: number;
-		objectUrl?: string;
-	}
-
-	interface RemoteUpload {
-		key: string;
-		filename: string;
-		size: number;
-		uploadedBytes: number;
-		progress: Tween<number>;
-	}
+	import type {
+		DownloadedFile,
+		ReceiveState,
+		RemoteUpload,
+		RoomFileEntry,
+		RoomOut,
+		UploadEntry
+	} from './types';
 
 	let { room_id }: { room_id: string } = $props();
 	let hostToken = $state('');
@@ -240,7 +189,7 @@
 						filename: u.filename,
 						size: u.size,
 						uploadedBytes: u.uploaded_bytes,
-						progress: new Tween((u.size > 0 ? (u.uploaded_bytes / u.size) * 100 : 0), {
+						progress: new Tween(u.size > 0 ? (u.uploaded_bytes / u.size) * 100 : 0, {
 							duration: 300,
 							easing: cubicOut
 						})
