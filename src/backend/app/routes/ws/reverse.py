@@ -95,13 +95,6 @@ async def room_ws(
     client_id = str(uuid.uuid4())
     await RoomState.client_online(room_id, client_id, is_host)
 
-    # Broadcast host count update to all clients
-    if is_host:
-        hosts_count, _ = await RoomState.get_connection_counts(room_id)
-        await RoomState.publish_event(
-            room_id, json.dumps({"type": "host_count", "count": hosts_count})
-        )
-
     redis_client = aioredis.from_url(
         settings.REDIS_ENDPOINT, encoding="utf-8", decode_responses=True
     )
@@ -114,12 +107,6 @@ async def room_ws(
         await pubsub.unsubscribe(channel)
         await pubsub.aclose()
         await RoomState.client_offline(room_id, client_id, is_host)
-        # Broadcast host count update to all clients
-        if is_host:
-            hosts_count, _ = await RoomState.get_connection_counts(room_id)
-            await RoomState.publish_event(
-                room_id, json.dumps({"type": "host_count", "count": hosts_count})
-            )
         await redis_client.aclose()
         await ws.close(code=4004, reason="Room expired")
         return
@@ -234,12 +221,6 @@ async def room_ws(
         pass
     finally:
         await RoomState.client_offline(room_id, client_id, is_host)
-        # Broadcast host count update to all clients
-        if is_host:
-            hosts_count, _ = await RoomState.get_connection_counts(room_id)
-            await RoomState.publish_event(
-                room_id, json.dumps({"type": "host_count", "count": hosts_count})
-            )
         listen_task.cancel()
         done_event.set()
         with suppress(asyncio.CancelledError, ExceptionGroup):

@@ -184,7 +184,6 @@
 				room = r;
 				roomFiles = [...r.files];
 				hostCount = r.host_count ?? 1;
-
 				// Sync remote uploads from snapshot
 				if (r.active_uploads) {
 					remoteUploads = r.active_uploads.map((u) => ({
@@ -204,7 +203,6 @@
 				if (room) {
 					room.connected_hosts = msg.hosts as number;
 					room.connected_guests = msg.guests as number;
-					hostCount = msg.hosts as number;
 				}
 			} else if (type === 'upload_start') {
 				const key = msg.upload_key as string;
@@ -548,14 +546,13 @@
 								<Tooltip.Trigger>
 									<Badge variant="outline" class="gap-1">
 										<Users class="h-3 w-3" />
-										{hostCount}
-										{hostCount === 1 ? 'host' : 'hosts'}
+										{room.connected_hosts}
+										{room.connected_hosts === 1 ? 'host' : 'hosts'}
 									</Badge>
-								</Tooltip.Trigger>
-								<Tooltip.Content>
-									{hostCount} host{hostCount === 1 ? '' : 's'} can upload to this room
-								</Tooltip.Content>
-							</Tooltip.Root>
+									</Tooltip.Trigger>
+									<Tooltip.Content>
+									{room.connected_hosts} host{room.connected_hosts === 1 ? '' : 's'} online
+									</Tooltip.Content>							</Tooltip.Root>
 						</Tooltip.Provider>
 						<Tooltip.Provider>
 							<Tooltip.Root>
