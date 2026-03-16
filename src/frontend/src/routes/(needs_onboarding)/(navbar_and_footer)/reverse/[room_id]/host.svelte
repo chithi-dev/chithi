@@ -201,6 +201,7 @@
 				if (room) {
 					room.connected_hosts = msg.hosts as number;
 					room.connected_guests = msg.guests as number;
+					hostCount = msg.hosts as number;
 				}
 			} else if (type === 'upload_start') {
 				const key = msg.upload_key as string;
