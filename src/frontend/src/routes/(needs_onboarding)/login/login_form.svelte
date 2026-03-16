@@ -30,7 +30,8 @@
 						exact: true,
 						refetchType: 'all'
 					});
-					goto(next_url, { replaceState: true });
+					// Hard refresh
+					window.location.href = next_url;
 				} else {
 					const globalErrors = form.errors._errors;
 

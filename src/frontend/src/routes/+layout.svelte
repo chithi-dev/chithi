@@ -14,14 +14,30 @@
 	import type { Snippet } from 'svelte';
 	import { MetaTags, deepMerge } from 'svelte-meta-tags';
 	import { user_store } from '$lib/store/user.svelte';
+	import { token_store } from '$lib/store/token.svelte';
 	import { SvelteQueryDevtools } from '@tanstack/svelte-query-devtools';
+	import { logout } from '$lib/remote/auth.remote';
+	import { TOKEN_VALIDATE_URL } from '#consts/backend';
 	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 
 	$effect.pre(() => {
-		if (data.user) {
-			user_store.authenticate();
-		} else {
-			user_store.unauthenticate();
+		if (data.token) {
+			token_store.token = data.token;
+			void fetch(TOKEN_VALIDATE_URL, {
+				credentials: 'include'
+			})
+				.then((res) => {
+					if (res.status !== 200) {
+						logout();
+					}
+					if (res.ok) {
+						user_store.authenticate();
+					}
+				})
+				.catch((err) => {
+					console.log(`Error while fetching token data`);
+					user_store.unauthenticate();
+				});
 		}
 	});
 

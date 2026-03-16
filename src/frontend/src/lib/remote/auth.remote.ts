@@ -1,5 +1,6 @@
 import { LOGIN_URL } from '#consts/backend';
 import { command, getRequestEvent } from '$app/server';
+import { user_store } from '$lib/store/user.svelte';
 import { z } from 'zod';
 
 const loginSchema = z.object({
@@ -45,5 +46,6 @@ export const login = command(loginSchema, async ({ username, password }) => {
 export const logout = command(async () => {
 	const { cookies } = getRequestEvent();
 	cookies.delete('access_token', { path: '/' });
+	user_store.unauthenticate();
 	return { success: true };
 });

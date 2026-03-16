@@ -1,7 +1,7 @@
-import uuid
 import asyncio
 import json
 import logging
+import uuid
 from contextlib import suppress
 from typing import Final
 
