@@ -13,12 +13,13 @@
 
 	const { status } = useOnboarding();
 
+	let step = $state<null | number>(null);
+
 	$effect(() => {
-		if (!status.isLoading) {
+		if (!status.isLoading && step === null && !status.data?.onboarded) {
 			step = 1;
 		}
 	});
-	let step = $state<null | number>(null);
 
 	function nextStep() {
 		if (step === 1) {
@@ -47,7 +48,7 @@
 
 	<!-- Step Content Container -->
 	<div class="z-10 w-full max-w-100 transition-all duration-500 {step === 2 ? 'max-w-xl' : ''}">
-		{#if status.isLoading}
+		{#if status.isLoading && step === null}
 			<div class="mx-auto w-full max-w-md">
 				<Card.Root
 					class="relative overflow-hidden border-slate-200/60 bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl dark:border-zinc-800/50 dark:bg-zinc-900/50"
@@ -73,7 +74,7 @@
 					</Card.Content>
 				</Card.Root>
 			</div>
-		{:else if status.data?.onboarded}
+		{:else if status.data?.onboarded && step === null}
 			<div in:fade class="mx-auto w-full max-w-md">
 				<Card.Root
 					class="relative overflow-hidden border-slate-200/60 bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl dark:border-zinc-800/50 dark:bg-zinc-900/50"
