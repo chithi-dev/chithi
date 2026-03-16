@@ -39,6 +39,7 @@
 	import { REVERSE_ROOMS_URL, REVERSE_WS_URL } from '#consts/backend';
 	import { createDecryptedStream } from '#functions/streams';
 	import { resolve } from '$app/paths';
+	import { extractEncryptionKey } from './utils';
 
 	interface RoomFileEntry {
 		key: string;
@@ -86,9 +87,7 @@
 	$effect(() => {
 		const hash = $page.url.hash.slice(1);
 		if (hash) {
-			// This could be a host token or a room key. Accept any non-empty hash as the key.
-			const parts = hash.split(':');
-			roomKey = parts[0];
+			roomKey = extractEncryptionKey(hash);
 		}
 	});
 
@@ -587,7 +586,11 @@
 									{/if}
 								</Tooltip.Trigger>
 								<Tooltip.Content>
-									{wsConnected ? 'WebSocket connected' : 'Disconnected'}
+									{#if wsConnected}
+										WebSocket connected
+									{:else}
+										Disconnected
+									{/if}
 								</Tooltip.Content>
 							</Tooltip.Root>
 						</Tooltip.Provider>
@@ -709,17 +712,31 @@
 														<Copy class="h-3.5 w-3.5" />
 													{/if}
 												</Button>
-
-												<Button
-													size="sm"
-													variant={downloaded ? 'default' : 'outline'}
-													class="h-7 shrink-0 gap-1 px-2 text-xs"
-													onclick={() => downloadFile(f)}
-													disabled={receiveState.type === 'streaming' && receiveState.key !== f.key}
-												>
-													<Download class="h-3.5 w-3.5" />
-													{downloaded ? 'Save' : 'Download'}
-												</Button>
+												{#if downloaded}
+													<Button
+														size="sm"
+														variant="default"
+														class="h-7 shrink-0 gap-1 px-2 text-xs"
+														onclick={() => downloadFile(f)}
+														disabled={receiveState.type === 'streaming' &&
+															receiveState.key !== f.key}
+													>
+														<Download class="h-3.5 w-3.5" />
+														Save
+													</Button>
+												{:else}
+													<Button
+														size="sm"
+														variant="outline"
+														class="h-7 shrink-0 gap-1 px-2 text-xs"
+														onclick={() => downloadFile(f)}
+														disabled={receiveState.type === 'streaming' &&
+															receiveState.key !== f.key}
+													>
+														<Download class="h-3.5 w-3.5" />
+														Download
+													</Button>
+												{/if}
 
 												<a
 													href={downloadPageHref(f.key)}

@@ -45,6 +45,7 @@
 	} from '#functions/streams';
 	import { base64urlToBytes } from '#functions/encryption';
 	import { resolve } from '$app/paths';
+	import { extractEncryptionKey, extractHostToken } from './utils';
 
 	interface RoomFileEntry {
 		key: string;
@@ -102,11 +103,8 @@
 	$effect(() => {
 		const hash = $page.url.hash.slice(1);
 		if (hash) {
-			const parts = hash.split(':');
-			hostToken = parts[0];
-			if (parts.length > 1) {
-				roomKey = parts[1];
-			}
+			hostToken = extractHostToken(hash);
+			roomKey = extractEncryptionKey(hash);
 		}
 	});
 
@@ -115,7 +113,6 @@
 	}
 
 	function downloadPageHref(fileKey: string): string {
-		console.log(fileKey);
 		return resolve(`/download/${fileKey}${roomKey ? `#${roomKey}` : ''}`);
 	}
 
@@ -842,16 +839,29 @@
 												{/if}
 											</Button>
 
-											<Button
-												size="sm"
-												variant={downloaded ? 'default' : 'outline'}
-												class="h-7 shrink-0 gap-1 px-2 text-xs"
-												onclick={() => downloadFile(f)}
-												disabled={receiveState.type === 'streaming' && receiveState.key !== f.key}
-											>
-												<Download class="h-3.5 w-3.5" />
-												{downloaded ? 'Save' : 'Download'}
-											</Button>
+											{#if downloaded}
+												<Button
+													size="sm"
+													variant="default"
+													class="h-7 shrink-0 gap-1 px-2 text-xs"
+													onclick={() => downloadFile(f)}
+													disabled={receiveState.type === 'streaming' && receiveState.key !== f.key}
+												>
+													<Download class="h-3.5 w-3.5" />
+													Save
+												</Button>
+											{:else}
+												<Button
+													size="sm"
+													variant="outline"
+													class="h-7 shrink-0 gap-1 px-2 text-xs"
+													onclick={() => downloadFile(f)}
+													disabled={receiveState.type === 'streaming' && receiveState.key !== f.key}
+												>
+													<Download class="h-3.5 w-3.5" />
+													Download
+												</Button>
+											{/if}
 
 											<a
 												href={downloadPageHref(f.key)}
