@@ -4,7 +4,7 @@ COPY package*.json .
 COPY .npmrc .
 RUN npm i
 COPY . .
-RUN npm run build:node
+RUN npm run build
 RUN npm prune --production
 
 FROM node:25-alpine

@@ -4,7 +4,8 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"build:node": "cross-env BUILD_NODE_ENV=node vite build",
+		"build": "vite build",
+		"build:anaylze": "cross-env VISUALIZE=1 vite build",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"dev": "vite dev",
@@ -67,6 +68,7 @@
 		"remark": "^15.0.1",
 		"remark-parse": "^11.0.0",
 		"remark-rehype": "^11.1.2",
+		"rollup-plugin-visualizer": "^7.0.1",
 		"sass-embedded": "^1.98.0",
 		"superforms": "^0.0.1",
 		"svelte": "^5.53.11",
