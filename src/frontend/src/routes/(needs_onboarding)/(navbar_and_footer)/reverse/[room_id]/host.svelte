@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
 	import { toast } from 'svelte-sonner';
@@ -55,16 +55,8 @@
 	} from './types';
 
 	let { room_id }: { room_id: string } = $props();
-	let hostToken = $state('');
-	let roomKey = $state<string | null>(null);
-
-	$effect(() => {
-		const hash = $page.url.hash.slice(1);
-		if (hash) {
-			hostToken = extractHostToken(hash);
-			roomKey = extractEncryptionKey(hash);
-		}
-	});
+	let hostToken = $derived(extractHostToken(page.url.hash.slice(1)));
+	let roomKey = $derived(extractEncryptionKey(page.url.hash.slice(1)));
 
 	const fileDownloadUrl = (fileKey: string) =>
 		`${REVERSE_ROOMS_URL}/${room_id}/files/${fileKey}/download`;

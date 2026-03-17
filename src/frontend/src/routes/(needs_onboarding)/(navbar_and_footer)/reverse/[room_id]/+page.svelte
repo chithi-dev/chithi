@@ -6,14 +6,7 @@
 	import { isHost } from './utils';
 
 	let room_id = $derived(page.params.room_id ?? '');
-	let renderHost = $state(false);
-
-	$effect(() => {
-		if (!browser) return;
-
-		const hash = window.location.hash.slice(1);
-		renderHost = isHost(hash);
-	});
+	let renderHost = $derived(isHost(page.url.hash.slice(1)));
 </script>
 
 {#if renderHost}

@@ -18,7 +18,7 @@ from app.states.room import RoomState
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-MAX_CONCURRENT_STREAMS: Final[int] = 4  # files streamed in parallel per connection
+MAX_CONCURRENT_STREAMS: Final[int] = 1  # files streamed serially per connection to avoid interleaving
 S3_CHUNK_SIZE: Final[int] = ByteSize(kb=256).total_bytes()  # 256 KB read chunks
 
 
@@ -216,7 +216,46 @@ async def room_ws(
 
     try:
         while True:
-            await ws.receive_text()
+            message = await ws.receive_text()
+            try:
+                data = json.loads(message)
+                if data.get("type") == "request_file":
+                    file_key = data.get("key")
+                    if not file_key:
+                        continue
+
+                    # Search in existing files
+                    # Note: room.files might be slightly stale but _listen_and_stream
+                    # updates seen_keys. For a request_file, we should check the latest.
+                    current_room = await RoomState.get(room_id, strip_keys=False)
+                    if not current_room:
+                        continue
+
+                    entry = next((f for f in current_room.files if f.key == file_key), None)
+                    if not entry:
+                        # Try with prefix if the client sent a stripped key
+                        prefix = f"rooms/{room_id}/"
+                        entry = next(
+                            (f for f in current_room.files if f.key == prefix + file_key),
+                            None,
+                        )
+
+                    if entry:
+                        # Stream the file in the background (respecting semaphore)
+                        asyncio.create_task(_dispatch_file(entry))
+                    else:
+                        async with send_lock:
+                            await ws.send_text(
+                                json.dumps(
+                                    {
+                                        "type": "file_error",
+                                        "key": file_key,
+                                        "detail": "File not found in room",
+                                    }
+                                )
+                            )
+            except json.JSONDecodeError:
+                continue
     except WebSocketDisconnect:
         pass
     finally:

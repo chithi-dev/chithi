@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { page } from '$app/stores';
+	import { page } from '$app/state';
 	import { cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
 	import { toast } from 'svelte-sonner';
@@ -43,14 +43,7 @@
 	import type { DownloadedFile, ReceiveState, RemoteUpload, RoomFileEntry, RoomOut } from './types';
 
 	let { room_id }: { room_id: string } = $props();
-	let roomKey = $state<string | null>(null);
-
-	$effect(() => {
-		const hash = $page.url.hash.slice(1);
-		if (hash) {
-			roomKey = extractEncryptionKey(hash);
-		}
-	});
+	let roomKey = $derived(extractEncryptionKey(page.url.hash.slice(1)));
 
 	const fileDownloadUrl = (fileKey: string) =>
 		`${REVERSE_ROOMS_URL}/${room_id}/files/${fileKey}/download`;
@@ -106,7 +99,10 @@
 			toast.error('Please enter an encryption key');
 			return;
 		}
-		roomKey = k;
+		// Since roomKey is derived from hash, we need to update hash to set it permanently
+		// but for the prompt, we can just trigger a reload if we were at a wrong hash.
+		// Actually, the prompt is for when there is NO hash.
+		window.location.hash = k;
 		showKeyPrompt = false;
 		toast.success('Encryption key set');
 		loadRoom();
@@ -208,7 +204,8 @@
 						const upload = remoteUploads.find((u) => u.key === msg.upload_key);
 						if (upload) {
 							upload.uploadedBytes = msg.uploaded_bytes;
-							upload.progress.target = upload.size > 0 ? (msg.uploaded_bytes / upload.size) * 100 : 0;
+							upload.progress.target =
+								upload.size > 0 ? (msg.uploaded_bytes / upload.size) * 100 : 0;
 						}
 						break;
 					}
@@ -224,19 +221,25 @@
 						break;
 					}
 					case 'file_start':
-						if (downloadPreference === 'eager' && receiveState.type === 'idle') {
-							receiveState = {
-								type: 'streaming',
-								key: msg.key,
-								filename: msg.filename,
-								size: msg.size,
-								received: 0,
-								chunks: []
-							};
+						if (receiveState.type === 'idle') {
+							if (downloadPreference === 'eager') {
+								receiveState = {
+									type: 'streaming',
+									key: msg.key,
+									filename: msg.filename,
+									size: msg.size,
+									received: 0,
+									chunks: []
+								};
+							}
+						} else if (receiveState.type === 'streaming' && receiveState.key === msg.key) {
+							// Already set up by downloadFile, just confirm size/filename
+							receiveState.size = msg.size;
+							receiveState.filename = msg.filename;
 						}
 						break;
 					case 'file_end':
-						if (receiveState.type === 'streaming') {
+						if (receiveState.type === 'streaming' && receiveState.key === msg.key) {
 							const { key, filename, size, chunks } = receiveState;
 							try {
 								let finalBlob = new Blob(chunks);
@@ -250,6 +253,12 @@
 								const objectUrl = URL.createObjectURL(finalBlob);
 								downloadedFiles = [...downloadedFiles, { key, filename, size, objectUrl }];
 								toast.success(`Received: ${filename}`);
+
+								// Trigger download automatically if this was a manual request
+								const a = document.createElement('a');
+								a.href = objectUrl;
+								a.download = filename;
+								a.click();
 							} catch {
 								toast.error(`Decryption failed for ${filename}`);
 							} finally {
@@ -258,7 +267,9 @@
 						}
 						break;
 					case 'file_error':
-						receiveState = { type: 'idle' };
+						if (receiveState.type === 'streaming' && receiveState.key === msg.key) {
+							receiveState = { type: 'idle' };
+						}
 						toast.error(`File error: ${msg.detail}`);
 						break;
 					case 'file_removed':
@@ -329,36 +340,11 @@
 			chunks: []
 		};
 
-		try {
-			const res = await fetch(fileDownloadUrl(f.key), { credentials: 'include' });
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			if (!res.body) throw new Error('No response body');
-
-			let stream = res.body as any;
-			if (roomKey) {
-				const { stream: decryptedStream } = await createDecryptedStream(stream, roomKey);
-				stream = decryptedStream;
-			}
-
-			const reader = stream.getReader();
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				receiveState.chunks.push(value);
-				receiveState.received += value.byteLength;
-			}
-
-			const objectUrl = URL.createObjectURL(new Blob(receiveState.chunks));
-			downloadedFiles = [...downloadedFiles, { ...f, objectUrl }];
+		if (wsConnected && ws) {
+			ws.send(JSON.stringify({ type: 'request_file', key: f.key }));
+		} else {
+			toast.error('WebSocket not connected. Cannot request file.');
 			receiveState = { type: 'idle' };
-
-			const a = document.createElement('a');
-			a.href = objectUrl;
-			a.download = f.filename;
-			a.click();
-		} catch (e: any) {
-			receiveState = { type: 'idle' };
-			toast.error(`Download failed: ${e.message || String(e)}`);
 		}
 	}
 
@@ -371,11 +357,6 @@
 		filename.endsWith('.zip') ? filename.slice(0, -4) : filename;
 
 	onMount(() => {
-		const hash = $page.url.hash.slice(1);
-		if (hash) {
-			const parts = hash.split(':');
-			roomKey = parts[parts.length - 1] || null;
-		}
 		if (roomKey) loadRoom();
 		else showKeyPrompt = true;
 	});
