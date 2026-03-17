@@ -1,8 +1,12 @@
+import { TOKEN_VALIDATE_URL } from '#consts/backend';
 import { browser } from '$app/environment';
 import image from '$lib/assets/opengraph.png?url';
+import { logout } from '$lib/remote/auth.remote';
+import { user_store } from '$lib/store/user.svelte';
 import { QueryClient } from '@tanstack/svelte-query';
 import { defineBaseMetaTags } from 'svelte-meta-tags';
 import type { LayoutLoad } from './$types';
+
 export const trailingSlash = 'always';
 
 export const load: LayoutLoad = async ({ data, url }) => {
@@ -37,6 +41,23 @@ export const load: LayoutLoad = async ({ data, url }) => {
 			]
 		}
 	});
+
+	if (data.token) {
+		void fetch(TOKEN_VALIDATE_URL, {
+			credentials: 'include'
+		})
+			.then((res) => {
+				if (res.ok) {
+					user_store.authenticate();
+				} else {
+					logout();
+				}
+			})
+			.catch((_) => {
+				console.log(`Error while fetching token data`);
+				user_store.unauthenticate();
+			});
+	}
 
 	return { queryClient, ...baseTags, ...data };
 };

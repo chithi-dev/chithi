@@ -13,38 +13,21 @@
 	import type { LayoutData } from './$types';
 	import { type Component, type Snippet } from 'svelte';
 	import { MetaTags, deepMerge } from 'svelte-meta-tags';
-	import { user_store } from '$lib/store/user.svelte';
-	import { logout } from '$lib/remote/auth.remote';
-	import { TOKEN_VALIDATE_URL } from '#consts/backend';
-	import { browser } from '$app/environment';
-	import { dev } from '$app/environment';
 
 	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 
-	let SvelteQueryDevtools = $state<Component<any> | null>(null);
-	if (dev) {
+	async function loadDevtools() {
+		if (!import.meta.env.DEV) return null;
+
 		const mod = await import('@tanstack/svelte-query-devtools');
-		SvelteQueryDevtools = mod.SvelteQueryDevtools;
+		return mod.SvelteQueryDevtools;
 	}
 
-	if (browser) {
-		$effect.pre(() => {
-			if (!data.token) return;
+	let SvelteQueryDevtools = $state<Component<any> | null>(null);
 
-			void fetch(TOKEN_VALIDATE_URL, {
-				credentials: 'include'
-			})
-				.then((res) => {
-					if (res.ok) {
-						user_store.authenticate();
-					} else {
-						logout();
-					}
-				})
-				.catch((_) => {
-					console.log(`Error while fetching token data`);
-					user_store.unauthenticate();
-				});
+	if (import.meta.env.DEV) {
+		loadDevtools().then((c) => {
+			SvelteQueryDevtools = c;
 		});
 	}
 
