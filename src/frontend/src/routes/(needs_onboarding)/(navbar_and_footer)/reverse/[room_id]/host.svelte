@@ -58,8 +58,6 @@
 	let hostToken = $derived(extractHostToken(page.url.hash.slice(1)));
 	let roomKey = $derived(extractEncryptionKey(page.url.hash.slice(1)));
 
-	const fileDownloadUrl = (fileKey: string) =>
-		`${REVERSE_ROOMS_URL}/${room_id}/files/${fileKey}/download`;
 	const downloadPageHref = (fileKey: string) =>
 		resolve(`/download/${fileKey}${roomKey ? `#${roomKey}` : ''}`);
 
@@ -133,6 +131,8 @@
 		const socket = new WebSocket(
 			`${REVERSE_WS_URL}/${room_id}?host_token=${encodeURIComponent(hostToken)}`
 		);
+		// prefer ArrayBuffer for binary frames to avoid Blob conversion
+		socket.binaryType = 'arraybuffer';
 		ws = socket;
 
 		socket.onopen = () => (wsConnected = true);
@@ -147,6 +147,10 @@
 
 		socket.onmessage = async (ev) => {
 			if (ev.data instanceof ArrayBuffer || ev.data instanceof Blob) {
+				console.debug(
+					'[reverse/host] binary frame received, size=',
+					ev.data instanceof ArrayBuffer ? ev.data.byteLength : (ev.data as Blob).size
+				);
 				handleBinaryChunk(ev.data);
 				return;
 			}
@@ -203,7 +207,8 @@
 						const upload = remoteUploads.find((u) => u.key === msg.upload_key);
 						if (upload) {
 							upload.uploadedBytes = msg.uploaded_bytes;
-							upload.progress.target = upload.size > 0 ? (msg.uploaded_bytes / upload.size) * 100 : 0;
+							upload.progress.target =
+								upload.size > 0 ? (msg.uploaded_bytes / upload.size) * 100 : 0;
 						}
 						break;
 					}
@@ -218,6 +223,66 @@
 						remoteUploads = remoteUploads.filter((u) => u.key !== file.key);
 						break;
 					}
+					case 'file_start':
+						if (receiveState.type === 'idle') {
+							// server started streaming without an explicit client request
+							receiveState = {
+								type: 'streaming',
+								key: msg.key,
+								filename: msg.filename,
+								size: msg.size,
+								received: 0,
+								chunks: []
+							};
+						} else if (receiveState.type === 'streaming' && receiveState.key === msg.key) {
+							// confirm metadata for an in-progress request
+							receiveState.size = msg.size;
+							receiveState.filename = msg.filename;
+						}
+						break;
+					case 'file_end':
+						if (receiveState.type === 'streaming' && receiveState.key === msg.key) {
+							const { key, filename, size, chunks } = receiveState;
+							console.debug(
+								'[reverse/host] file_end for',
+								key,
+								'filename=',
+								filename,
+								'chunks=',
+								chunks.length,
+								'expected_size=',
+								size
+							);
+							try {
+								let finalBlob = new Blob(chunks);
+								if (roomKey) {
+									const { stream: decryptedStream } = await createDecryptedStream(
+										finalBlob.stream() as any,
+										roomKey
+									);
+									finalBlob = await new Response(decryptedStream as any).blob();
+								}
+								const objectUrl = URL.createObjectURL(finalBlob);
+								downloadedFiles = [...downloadedFiles, { key, filename, size, objectUrl }];
+								toast.success(`Received: ${filename}`);
+
+								const a = document.createElement('a');
+								a.href = objectUrl;
+								a.download = filename;
+								a.click();
+							} catch {
+								toast.error(`Decryption failed for ${filename}`);
+							} finally {
+								receiveState = { type: 'idle' };
+							}
+						}
+						break;
+					case 'file_error':
+						if (receiveState.type === 'streaming' && receiveState.key === msg.key) {
+							receiveState = { type: 'idle' };
+						}
+						toast.error(`File error: ${msg.detail}`);
+						break;
 					case 'file_removed':
 						roomFiles = roomFiles.filter((f) => f.key !== msg.key);
 						downloadedFiles = downloadedFiles.filter((f) => f.key !== msg.key);
@@ -377,7 +442,8 @@
 		}
 	}
 
-	async function copyDownloadLink(key: string, url: string) {
+	async function copyDownloadLink(key: string) {
+		const url = downloadPageHref(key);
 		await navigator.clipboard.writeText(url);
 		copiedFileKeys = new Set([...copiedFileKeys, key]);
 		setTimeout(() => {
@@ -415,40 +481,12 @@
 			chunks: []
 		};
 
-		try {
-			const res = await fetch(fileDownloadUrl(f.key), {
-				credentials: 'include',
-				headers: { 'X-Host-Token': hostToken }
-			});
-
-			if (!res.ok) throw new Error(`HTTP ${res.status}`);
-			if (!res.body) throw new Error('No response body');
-
-			let stream = res.body as any;
-			if (roomKey) {
-				const { stream: decryptedStream } = await createDecryptedStream(stream, roomKey);
-				stream = decryptedStream;
-			}
-
-			const reader = stream.getReader();
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				receiveState.chunks.push(value);
-				receiveState.received += value.byteLength;
-			}
-
-			const objectUrl = URL.createObjectURL(new Blob(receiveState.chunks));
-			downloadedFiles = [...downloadedFiles, { ...f, objectUrl }];
+		// Request file via WebSocket; backend will stream file_start, bytes, file_end
+		if (wsConnected && ws) {
+			ws.send(JSON.stringify({ type: 'request_file', key: f.key }));
+		} else {
 			receiveState = { type: 'idle' };
-
-			const a = document.createElement('a');
-			a.href = objectUrl;
-			a.download = f.filename;
-			a.click();
-		} catch (e: any) {
-			receiveState = { type: 'idle' };
-			toast.error(`Download failed: ${e.message || String(e)}`);
+			toast.error('WebSocket not connected. Cannot request file.');
 		}
 	}
 
@@ -776,7 +814,7 @@
 												size="sm"
 												variant="ghost"
 												class="h-7 shrink-0 px-2"
-												onclick={() => copyDownloadLink(f.key, downloadPageHref(f.key))}
+												onclick={() => copyDownloadLink(f.key)}
 											>
 												{#if copiedFileKeys.has(f.key)}
 													<Check class="h-3.5 w-3.5 text-green-500" />

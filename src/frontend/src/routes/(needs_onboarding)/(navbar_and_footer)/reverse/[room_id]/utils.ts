@@ -1,18 +1,16 @@
-const hostPattern = /^([^:]+):([^:]+)$/;
+const hostPattern = /^(?<token>[^:]+):(?<key>[^:]+)$/;
 
-export function isHost(host: string) {
-	return host.includes(':') && hostPattern.test(host);
-}
+export const isHost = (host: string): boolean => !!host?.includes(':') && hostPattern.test(host);
 
-export function 1extractEncryptionKey(host: string) {
+export const extractEncryptionKey = (host: string) => {
 	if (!host) return null;
 	if (!host.includes(':')) return host;
-	const match = hostPattern.exec(host);
-	return match ? match[2] : host;
-}
 
-export function extractHostToken(host: string) {
-	if (!host || !host.includes(':')) return '';
-	const match = hostPattern.exec(host);
-	return match ? match[1] : '';
-}
+	return hostPattern.exec(host)?.groups?.key ?? host;
+};
+
+export const extractHostToken = (host: string): string => {
+	if (!host?.includes(':')) return '';
+
+	return hostPattern.exec(host)?.groups?.token ?? '';
+};

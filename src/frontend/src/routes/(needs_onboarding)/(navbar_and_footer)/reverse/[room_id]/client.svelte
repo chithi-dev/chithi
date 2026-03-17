@@ -45,8 +45,6 @@
 	let { room_id }: { room_id: string } = $props();
 	let roomKey = $derived(extractEncryptionKey(page.url.hash.slice(1)));
 
-	const fileDownloadUrl = (fileKey: string) =>
-		`${REVERSE_ROOMS_URL}/${room_id}/files/${fileKey}/download`;
 	const downloadPageHref = (fileKey: string) =>
 		resolve(`/download/${fileKey}${roomKey ? `#${roomKey}` : ''}`);
 
@@ -134,6 +132,8 @@
 	function connectWebSocket() {
 		ws?.close();
 		const socket = new WebSocket(`${REVERSE_WS_URL}/${room_id}`);
+		// prefer ArrayBuffer for binary frames to avoid Blob conversion
+		socket.binaryType = 'arraybuffer';
 		ws = socket;
 
 		socket.onopen = () => (wsConnected = true);
@@ -148,6 +148,10 @@
 
 		socket.onmessage = async (ev) => {
 			if (ev.data instanceof ArrayBuffer || ev.data instanceof Blob) {
+				console.debug(
+					'[reverse/client] binary frame received, size=',
+					ev.data instanceof ArrayBuffer ? ev.data.byteLength : (ev.data as Blob).size
+				);
 				handleBinaryChunk(ev.data);
 				return;
 			}
@@ -241,6 +245,16 @@
 					case 'file_end':
 						if (receiveState.type === 'streaming' && receiveState.key === msg.key) {
 							const { key, filename, size, chunks } = receiveState;
+							console.debug(
+								'[reverse/client] file_end for',
+								key,
+								'filename=',
+								filename,
+								'chunks=',
+								chunks.length,
+								'expected_size=',
+								size
+							);
 							try {
 								let finalBlob = new Blob(chunks);
 								if (roomKey) {
@@ -302,7 +316,8 @@
 		setTimeout(() => (copiedShareLink = false), 2000);
 	}
 
-	async function copyDownloadLink(key: string, url: string) {
+	async function copyDownloadLink(key: string) {
+		const url = downloadPageHref(key);
 		await navigator.clipboard.writeText(url);
 		copiedFileKeys = new Set([...copiedFileKeys, key]);
 		setTimeout(() => {
@@ -629,7 +644,7 @@
 													size="sm"
 													variant="ghost"
 													class="h-7 shrink-0 px-2"
-													onclick={() => copyDownloadLink(f.key, downloadPageHref(f.key))}
+													onclick={() => copyDownloadLink(f.key)}
 												>
 													{#if copiedFileKeys.has(f.key)}
 														<Check class="h-3.5 w-3.5 text-green-500" />
