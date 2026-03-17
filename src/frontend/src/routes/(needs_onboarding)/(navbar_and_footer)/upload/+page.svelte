@@ -13,9 +13,9 @@
 	import { Button } from '$lib/components/ui/button';
 	import { fly, fade } from 'svelte/transition';
 
-	let Stage1 = await import('./stage_1.svelte').then((m) => m.default);
-	let Stage2 = await import('./stage_2.svelte').then((m) => m.default);
-	let Stage3 = await import('./stage_3.svelte').then((m) => m.default);
+	import Stage1 from './stage_1.svelte';
+	import Stage2 from './stage_2.svelte';
+	import Stage3 from './stage_3.svelte';
 
 	const { config: configData } = useConfigQuery();
 
