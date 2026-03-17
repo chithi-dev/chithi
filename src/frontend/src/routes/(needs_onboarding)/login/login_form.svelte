@@ -101,11 +101,11 @@
 					type="button"
 					onclick={() => (showPassword = !showPassword)}
 					disabled={isPasswordEmpty}
-					class={cn(
+					class={[
 						'absolute top-1 right-1 h-10 w-10 text-muted-foreground transition-all duration-200',
 						isPasswordEmpty && 'pointer-events-none scale-90 opacity-0',
 						!isPasswordEmpty && 'scale-100 opacity-100 hover:bg-transparent hover:text-foreground'
-					)}
+					]}
 				>
 					{#if showPassword}
 						<EyeOff class="size-4" />

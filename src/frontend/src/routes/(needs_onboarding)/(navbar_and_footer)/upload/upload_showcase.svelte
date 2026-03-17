@@ -143,12 +143,12 @@
 					<Tooltip.Root>
 						<Tooltip.Trigger>
 							<div
-								class={cn(
+								class={[
 									'flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium',
 									appState.connected
 										? 'bg-primary/10 text-primary'
 										: 'bg-muted text-muted-foreground'
-								)}
+								]}
 							>
 								{#if appState.connected}
 									<Wifi class="h-3 w-3" />
@@ -212,10 +212,10 @@
 								style="left: {offset}%; width: {Math.max(pct.current, MIN_SEGMENT_PCT)}%"
 							>
 								<div
-									class={cn(
+									class={[
 										'h-full w-full animate-pulse transition-all duration-500',
 										SEGMENT_COLORS[i % SEGMENT_COLORS.length]
-									)}
+									]}
 									style="animation-duration: 2s; animation-delay: {i * 150}ms"
 								></div>
 							</Tooltip.Trigger>
@@ -223,10 +223,10 @@
 								<div class="space-y-0.5 text-xs">
 									<div class="flex items-center gap-2">
 										<span
-											class={cn(
+											class={[
 												'inline-block h-2 w-2 rounded-full',
 												SEGMENT_LEGEND_COLORS[i % SEGMENT_LEGEND_COLORS.length]
-											)}
+											]}
 										></span>
 										<span class="max-w-32 truncate font-medium">{activeUploads[i]?.filename}</span>
 									</div>
@@ -347,10 +347,10 @@
 					{#if activeUploads.length > 0}
 						<span class="flex items-center gap-1">
 							<span
-								class={cn(
+								class={[
 									'inline-block h-1.5 w-1.5 animate-pulse rounded-full',
 									SEGMENT_LEGEND_COLORS[0]
-								)}
+								]}
 								style="animation-duration: 2s"
 							></span>
 							{activeUploads.length} uploading

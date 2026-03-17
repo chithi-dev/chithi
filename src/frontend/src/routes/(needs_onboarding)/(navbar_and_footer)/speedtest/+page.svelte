@@ -140,10 +140,10 @@
 				</div>
 				<div class="flex h-6 flex-col justify-center">
 					<div
-						class={cn(
+						class={[
 							'flex items-center gap-2 transition-opacity duration-200',
 							status === 'idle' || status === 'error' ? 'opacity-0' : 'opacity-100'
-						)}
+						]}
 					>
 						{#if status === 'finished'}
 							<span class="text-sm font-medium tracking-wider text-green-500 uppercase">
@@ -199,12 +199,12 @@
 			<div class="relative h-14 w-full">
 				<!-- Progress Bar -->
 				<div
-					class={cn(
+					class={[
 						'absolute inset-0 flex flex-col justify-center space-y-2 transition-all duration-300',
 						status === 'downloading' || status === 'uploading' || status === 'starting'
 							? 'translate-y-0 opacity-100'
 							: 'pointer-events-none translate-y-2 opacity-0'
-					)}
+					]}
 				>
 					<div class="flex justify-between text-xs text-muted-foreground">
 						<span>Progress</span>
@@ -215,12 +215,12 @@
 
 				<!-- Error Message -->
 				<div
-					class={cn(
+					class={[
 						'absolute inset-0 flex items-center justify-center rounded-md border border-destructive/50 bg-destructive/10 text-center text-sm text-destructive transition-all duration-300',
 						status === 'error'
 							? 'translate-y-0 opacity-100'
 							: 'pointer-events-none translate-y-2 opacity-0'
-					)}
+					]}
 				>
 					Error: {errorMsg}
 				</div>

@@ -442,10 +442,10 @@
 			</div>
 		</div>
 		<ScrollArea
-			class={cn(
+			class={[
 				'mb-4 h-60 max-h-[45vh] w-full rounded-lg border border-border bg-card transition-colors lg:max-h-[50vh] lg:flex-1',
 				isDraggingOverZone && 'bg-primary/5'
-			)}
+			]}
 			ondragenter={onZoneDragEnter}
 			ondragleave={onZoneDragLeave}
 			ondragover={(e) => e.preventDefault()}

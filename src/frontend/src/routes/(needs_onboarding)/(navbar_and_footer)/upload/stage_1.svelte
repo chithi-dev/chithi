@@ -105,10 +105,10 @@
 </script>
 
 <div
-	class={cn(
+	class={[
 		'relative flex h-full cursor-pointer flex-col items-center justify-center rounded-lg bg-card transition-all duration-200 focus:outline-none',
 		isDraggingOverZone && 'scale-[1.02] shadow-xl'
-	)}
+	]}
 	ondrop={handleZoneDrop}
 	onclick={() => fileInputInitial?.click()}
 	onkeydown={(e) => {
@@ -127,28 +127,28 @@
 	<div class="relative z-10 flex flex-col items-center justify-center p-12">
 		<!-- Plus icon in circle -->
 		<div
-			class={cn(
+			class={[
 				'mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary transition-all duration-200',
 				isDraggingOverZone && 'scale-110 bg-primary/10'
-			)}
+			]}
 		>
 			<Plus class="h-8 w-8 text-primary transition-transform duration-200" />
 		</div>
 
 		<!-- Text content -->
 		<h2
-			class={cn(
+			class={[
 				'mb-2 text-xl font-medium transition-colors duration-200',
 				isDraggingOverZone && 'text-primary'
-			)}
+			]}
 		>
 			Drag and drop files
 		</h2>
 		<p
-			class={cn(
+			class={[
 				'mb-8 text-center transition-colors duration-200 md:mb-4 md:text-sm',
 				isDraggingOverZone ? 'text-primary/80' : 'text-muted-foreground'
-			)}
+			]}
 		>
 			or click to send up to {formatFileSize(configData.data?.max_file_size_limit ?? 0)} of files with
 			end-to-end encryption
@@ -158,10 +158,10 @@
 		<Button
 			variant="default"
 			size="lg"
-			class={cn(
+			class={[
 				'cursor-pointer px-8 py-6 text-lg transition-all duration-200 md:px-6 md:py-4 md:text-base',
 				isDraggingOverZone && 'scale-105 shadow-lg'
-			)}
+			]}
 			onclick={(e) => {
 				e.stopPropagation();
 				fileInputInitial?.click();
@@ -191,7 +191,7 @@
 			fill="none"
 			stroke="currentColor"
 			stroke-width="2"
-			class={cn('text-border transition-all duration-200', isDraggingOverZone && 'animate-dash')}
+			class={['text-border transition-all duration-200', isDraggingOverZone && 'animate-dash']}
 			stroke-dasharray="10"
 		/>
 	</svg>
