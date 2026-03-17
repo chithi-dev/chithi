@@ -52,7 +52,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: sccache
-        uses: mozilla-actions/sccache-action@v0.0.4
+        uses: mozilla-actions/sccache-action@v0.0.9
 
         
       - name: Install uv
