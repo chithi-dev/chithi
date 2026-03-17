@@ -13,26 +13,20 @@ if (fs.existsSync(buildInfoPath)) {
 	buildInfo = JSON.parse(fs.readFileSync(buildInfoPath, 'utf-8'));
 }
 
-const plugins = [tailwindcss(), sveltekit()];
-
-if (process.env.VISUALIZE) {
-	plugins.push(
-		// @ts-ignore
-		visualizer({
-			emitFile: true,
-			filename: 'stats.html'
-		})
-	);
-}
-
 export default defineConfig({
 	define: {
 		__APP_VERSION__: JSON.stringify(buildInfo.version),
 		__COMMIT_SHA__: JSON.stringify(buildInfo.commit)
 	},
 
-	plugins,
-
+	plugins: [
+		tailwindcss(),
+		sveltekit(),
+		visualizer({
+			emitFile: true,
+			filename: 'stats.html'
+		})
+	],
 	worker: {
 		format: 'es'
 	},
