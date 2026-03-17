@@ -2,6 +2,7 @@ import { WORKER_CONCURRENCY } from '#consts/concurrency';
 import DecryptWorker from '#workers/decrypt.worker?worker';
 import EncryptWorker from '#workers/encrypt.worker?worker';
 import { ZipWriter, configure } from '@zip.js/zip.js';
+import { v7 as uuidv7 } from 'uuid';
 import {
 	CHUNK_SIZE,
 	argon2Derive,
@@ -313,16 +314,56 @@ async function writeZipFiles(
 	signal?: AbortSignal
 ): Promise<void> {
 	try {
+		const usedNames = new Map<string, number>();
+
+		const makeUnique = (name: string) => {
+			if (!usedNames.has(name)) {
+				usedNames.set(name, 1);
+				return name;
+			}
+
+			// Use uuidv7 to generate a collision-resistant suffix
+			const id = uuidv7();
+
+			// Preserve extension when adding suffix
+			const lastDot = name.lastIndexOf('.');
+			if (lastDot > 0) {
+				const base = name.slice(0, lastDot);
+				const ext = name.slice(lastDot);
+				return `${base}-${id}${ext}`;
+			}
+			return `${name}-${id}`;
+		};
+
 		for (const file of files) {
-			const filename = (file as any).relativePath || file.name;
-			await zipWriter.add(filename, file.stream(), {
-				password: password?.length ? password : undefined,
-				// prefer strongest WinZip AES (1..3 => 128,192,256). Use 3 for AES-256 compatibility.
-				encryptionStrength: password?.length ? 3 : undefined,
-				level: 9,
-				signal
-			});
+			let filename = (file as any).relativePath || file.name;
+			filename = makeUnique(filename);
+
+			try {
+				await zipWriter.add(filename, file.stream(), {
+					password: password?.length ? password : undefined,
+					// prefer strongest WinZip AES (1..3 => 128,192,256). Use 3 for AES-256 compatibility.
+					encryptionStrength: password?.length ? 3 : undefined,
+					level: 9,
+					signal
+				});
+			} catch (err: any) {
+				// If the writer reports an existing file, try to generate another unique name and retry once
+				const msg = String(err?.message || err || '');
+				if (msg.includes('File already exists') || msg.includes('already exists')) {
+					const altName = makeUnique((file as any).relativePath || file.name);
+					await zipWriter.add(altName, file.stream(), {
+						password: password?.length ? password : undefined,
+						encryptionStrength: password?.length ? 3 : undefined,
+						level: 9,
+						signal
+					});
+				} else {
+					throw err;
+				}
+			}
 		}
+
 		await zipWriter.close();
 	} catch (error) {
 		console.error('Error creating zip stream:', error);
