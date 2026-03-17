@@ -9,7 +9,6 @@
 	import { toast } from 'svelte-sonner';
 	import { dev } from '$app/environment';
 	import { markdown_to_html } from '$lib/markdown/markdown';
-	import { onMount, onDestroy } from 'svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { fly, fade } from 'svelte/transition';
 
@@ -35,24 +34,12 @@
 	let detailsMarkdown = $derived(configData.data?.site_description ?? '');
 
 	// Handle physical mouse back button (X1) to return from stage 2 to stage 1
-	let _mouseBackHandler: ((e: MouseEvent) => void) | undefined;
-	onMount(() => {
-		_mouseBackHandler = (e: MouseEvent) => {
-			if (e.button === 3 && stage === 2) {
-				stage = 1;
-				e.preventDefault();
-			}
-		};
-		window.addEventListener('auxclick', _mouseBackHandler as EventListener);
-		window.addEventListener('pointerdown', _mouseBackHandler as EventListener);
-	});
-
-	onDestroy(() => {
-		if (_mouseBackHandler) {
-			window.removeEventListener('auxclick', _mouseBackHandler as EventListener);
-			window.removeEventListener('pointerdown', _mouseBackHandler as EventListener);
+	const handleMouseBack = (e: MouseEvent) => {
+		if (e.button === 3 && stage === 2) {
+			stage = 1;
+			e.preventDefault();
 		}
-	});
+	};
 
 	const handleWindowDragEnter = (e: DragEvent) => {
 		e.preventDefault();
@@ -229,6 +216,8 @@
 	ondragleave={handleWindowDragLeave}
 	ondrop={handleWindowDrop}
 	onpaste={handlePaste}
+	onauxclick={handleMouseBack}
+	onpointerdown={handleMouseBack}
 />
 
 {#snippet encryptionInfo()}
