@@ -1,118 +1,48 @@
 <script lang="ts">
-	import { Button, buttonVariants } from '$lib/components/ui/button';
 	import { Card, CardContent } from '$lib/components/ui/card';
-	import { Input } from '$lib/components/ui/input';
-	import * as Select from '$lib/components/ui/select';
-	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { useConfigQuery } from '#queries/config';
-	import {
-		Plus,
-		ArrowLeft,
-		X,
-		FileIcon,
-		Eye,
-		EyeOff,
-		Trash2,
-		Check,
-		Copy,
-		Lock,
-		Upload,
-		Download,
-		ScanEye
-	} from 'lucide-svelte';
-	import { formatFileSize } from '#functions/bytes';
-	import { formatSeconds } from '#functions/times';
-	import { createZipStream, createEncryptedStream } from '#functions/streams';
-	import * as Tooltip from '$lib/components/ui/tooltip/index';
-	import { v7 as uuidv7 } from 'uuid';
-	import { BACKEND_API } from '#consts/backend';
-	import { Progress } from '$lib/components/ui/progress';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import QRCode from '$lib/components/QRCode.svelte';
+	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import RecentUpload from './recent_upload.svelte';
 	import UploadShowcase from './upload_showcase.svelte';
-	import { addHistoryEntry } from '$lib/database';
 	import { cn } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
 	import { dev } from '$app/environment';
 	import { markdown_to_html } from '$lib/markdown/markdown';
-	import { cubicOut } from 'svelte/easing';
-	import { Tween } from 'svelte/motion';
 	import { onMount, onDestroy } from 'svelte';
-	import * as ButtonGroup from '$lib/components/ui/button-group';
+	import { Button } from '$lib/components/ui/button';
+	import { fly, fade } from 'svelte/transition';
+
+	import Stage1 from './stage_1.svelte';
+	import Stage2 from './stage_2.svelte';
+	import Stage3 from './stage_3.svelte';
 
 	const { config: configData } = useConfigQuery();
 
+	let stage = $state(1);
 	let isDragging = $state(false);
 	let isDraggingOverCard = $state(false);
 	let isDraggingOverZone = $state(false);
 	let dragCounter = $state(0);
 	let files = $state(new Array<File>());
-	let isUploading = $state(false);
-	let totalSize = $state('0 Bytes');
-	let fileInputInitial = $state<HTMLInputElement>();
-	let fileInput = $state<HTMLInputElement>();
-	let downloadLimit = $state('1');
-	let defaultDownloadLimitSet = false;
-	let timeLimit = $state('86400');
-	let defaultTimeLimitSet = false;
-	let isPasswordProtected = $state(false);
-	let password = $state('');
-	let showPassword = $state(false);
-	let uploadingInProgress = $state(false);
-	let isUploadComplete = $state(false);
-	let finalLink = $state('');
-	let isCopied = $state(false);
 	let debugLoading = $state(false);
-	let folderName = $state(uuidv7());
-	let isViewOnce = $state(false);
-	let viewOnceLink = $state('');
+	let uploadResult = $state<{
+		finalLink: string;
+		viewOnceLink: string;
+		isViewOnce: boolean;
+	} | null>(null);
 
-	let isEncrypting = $state(false);
 	let detailsMarkdown = $derived(configData.data?.site_description ?? '');
-
-	// Encryption progress states
-	let encryptionProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
-	let uploadProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
-
-	$effect(() => {
-		const total = files.reduce((sum, file) => sum + file.size, 0);
-		totalSize = formatFileSize(total);
-		if (files.length === 1) {
-			folderName = files[0].name;
-		} else if (files.length === 0) {
-			folderName = uuidv7();
-		}
-	});
-
-	$effect(() => {
-		if (configData.data?.default_number_of_downloads && !defaultDownloadLimitSet) {
-			downloadLimit = configData.data.default_number_of_downloads.toString();
-			defaultDownloadLimitSet = true;
-		}
-	});
-
-	$effect(() => {
-		if (configData.data?.default_expiry && !defaultTimeLimitSet) {
-			timeLimit = configData.data.default_expiry.toString();
-			defaultTimeLimitSet = true;
-		}
-	});
 
 	// Handle physical mouse back button (X1) to return from stage 2 to stage 1
 	let _mouseBackHandler: ((e: MouseEvent) => void) | undefined;
 	onMount(() => {
 		_mouseBackHandler = (e: MouseEvent) => {
-			// In many browsers the auxiliary Back button reports button === 3
-			if (e.button === 3) {
-				// Only act when we're on the upload stage and not actively uploading
-				if (isUploading && !uploadingInProgress) {
-					isUploading = false;
-					e.preventDefault();
-				}
+			if (e.button === 3 && stage === 2) {
+				stage = 1;
+				e.preventDefault();
 			}
 		};
-
 		window.addEventListener('auxclick', _mouseBackHandler as EventListener);
 		window.addEventListener('pointerdown', _mouseBackHandler as EventListener);
 	});
@@ -129,9 +59,6 @@
 		dragCounter++;
 		if (e.dataTransfer) {
 			e.dataTransfer.dropEffect = 'copy';
-			if (isUploadComplete && e.dataTransfer.types.includes('Files')) {
-				clearAllFiles();
-			}
 		}
 		isDragging = true;
 	};
@@ -237,106 +164,8 @@
 		return [];
 	};
 
-	const addFiles = (newFiles: File[]) => {
-		const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
-		const newFilesSize = newFiles.reduce((sum, file) => sum + file.size, 0);
-
-		if (configData.data?.max_file_size_limit) {
-			if (currentTotalSize + newFilesSize > configData.data.max_file_size_limit) {
-				toast.error(
-					`Total file size cannot exceed ${formatFileSize(configData.data.max_file_size_limit)}`
-				);
-				return;
-			}
-		}
-
-		const wasSingleFile = files.length === 1;
-		files = [...files, ...newFiles];
-		if (wasSingleFile && files.length > 1) {
-			folderName = uuidv7();
-		}
-		if (files.length > 0) {
-			isUploading = true;
-			isUploadComplete = false;
-		}
-	};
-
-	const handleZoneDrop = async (e: DragEvent) => {
-		e.preventDefault();
-		e.stopPropagation();
-		isDragging = false;
-		isDraggingOverZone = false;
-		isDraggingOverCard = false;
-		dragCounter = 0;
-
-		const items = e.dataTransfer?.items;
-		if (items) {
-			const promises: Promise<File[]>[] = [];
-			for (let i = 0; i < items.length; i++) {
-				const item = items[i];
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
-				if (entry) {
-					promises.push(traverseFileTree(entry));
-				} else if (item.kind === 'file') {
-					const file = item.getAsFile();
-					if (file) promises.push(Promise.resolve([file]));
-				}
-			}
-			const fileArrays = await Promise.all(promises);
-			const newFiles = fileArrays.flat();
-			if (newFiles.length > 0) {
-				addFiles(newFiles);
-			}
-		} else if (e.dataTransfer?.files) {
-			addFiles(Array.from(e.dataTransfer.files));
-		}
-	};
-
-	const handleCardDrop = (e: DragEvent) => {
-		e.preventDefault();
-		e.stopPropagation();
-		isDragging = false;
-		isDraggingOverZone = false;
-		isDraggingOverCard = false;
-		dragCounter = 0;
-		toast.error('File/Folder must be dropped in the bordered area');
-	};
-
-	const handleFileSelect = (e: Event) => {
-		const target = e.target as HTMLInputElement;
-		if (target.files) {
-			addFiles(Array.from(target.files));
-		}
-		target.value = '';
-	};
-
-	const removeFile = (file: File) => {
-		files = files.filter((f) => f !== file);
-		if (files.length === 0) {
-			isUploading = false;
-		}
-	};
-
-	const clearAllFiles = () => {
-		files = new Array<(typeof files)[0]>();
-		isUploading = false;
-		isUploadComplete = false;
-		finalLink = '';
-		viewOnceLink = '';
-		isViewOnce = false;
-		folderName = uuidv7();
-	};
-
-	const copyLink = () => {
-		navigator.clipboard.writeText(finalLink);
-		isCopied = true;
-		toast.success('Copied the link successfully');
-		setTimeout(() => (isCopied = false), 2000);
-	};
-
 	const handlePaste = async (e: ClipboardEvent) => {
-		if (uploadingInProgress || isUploadComplete) return;
+		if (stage === 3) return;
 
 		const items = e.clipboardData?.items;
 		if (!items) return;
@@ -369,137 +198,28 @@
 		const fileArrays = await Promise.all(promises);
 		const newFiles = fileArrays.flat();
 		if (newFiles.length > 0) {
-			addFiles(newFiles);
+			onFilesSelected(newFiles);
 		}
 	};
 
-	const handleUpload = async (viewOnce = false) => {
-		if (files.length === 0) return;
-		if (viewOnce && files.length !== 1) {
-			toast.error('View Once only supports a single file');
-			return;
-		}
-		isViewOnce = viewOnce;
-		// isUploading is already true
-		try {
-			uploadingInProgress = true;
-			uploadProgress = new Tween(0, { duration: 500, easing: cubicOut });
+	const onFilesSelected = (newFiles: File[]) => {
+		files = [...files, ...newFiles];
+		stage = 2;
+	};
 
-			// Create Zip Stream
-			const stream = await createZipStream(files, isPasswordProtected ? password : undefined);
+	const onUploadComplete = (result: {
+		finalLink: string;
+		viewOnceLink: string;
+		isViewOnce: boolean;
+	}) => {
+		uploadResult = result;
+		stage = 3;
+	};
 
-			//  Encrypt
-			const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
-			// start encryption progress reporting
-			isEncrypting = true;
-			encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
-			const { stream: encryptedStream, keySecret } = await createEncryptedStream(
-				stream,
-				isPasswordProtected ? password : undefined,
-				currentTotalSize,
-				(processed, total) => {
-					if (total && total > 0) {
-						encryptionProgress.target = Math.min(100, Math.round((processed / total) * 100));
-					} else {
-						encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
-					}
-				}
-			);
-
-			// Upload
-			// send a readable filename (original file name or folder name) and a generated blob filename
-			const readableFilename = files.length === 1 ? files[0].name : folderName;
-			const blobFilename = uuidv7();
-			const encryptedBlob = await new Response(encryptedStream).blob();
-			// ensure encryption progress completes
-			isEncrypting = false;
-			encryptionProgress.target = 100;
-
-			const formData = new FormData();
-			formData.append('filename', readableFilename);
-			formData.append('expire_after_n_download', viewOnce ? '1' : downloadLimit);
-			formData.append('expire_after', timeLimit);
-			formData.append('file', encryptedBlob, blobFilename);
-			if (files.length > 1) {
-				formData.append('folder_name', folderName);
-			}
-
-			const data = await new Promise<any>((resolve, reject) => {
-				const xhr = new XMLHttpRequest();
-				xhr.open('POST', `${BACKEND_API}/upload`);
-
-				xhr.upload.onprogress = (e) => {
-					if (e.lengthComputable) {
-						uploadProgress.target = Math.round((e.loaded / e.total) * 100);
-					} else {
-						// fallback to visible progress when total is unknown
-						uploadProgress.target = Math.min(99, uploadProgress.target + 1);
-					}
-				};
-
-				xhr.onload = () => {
-					if (xhr.status >= 200 && xhr.status < 300) {
-						try {
-							resolve(JSON.parse(xhr.responseText));
-						} catch (e) {
-							reject(new Error('Invalid JSON response'));
-						}
-					} else {
-						reject(
-							new Error(`Upload failed: ${xhr.status} ${xhr.statusText} ${xhr.responseText || ''}`)
-						);
-					}
-				};
-
-				xhr.onerror = () => reject(new Error('Network error during upload'));
-				xhr.send(formData);
-			});
-
-			uploadProgress.target = 100;
-
-			const serverPath =
-				data && (data.id || data.path || data.key) ? data.id || data.path || data.key : null;
-
-			if (!serverPath) throw new Error('Invalid server response');
-
-			// Store the key in the URL fragment so it is never sent to the server
-			const downloadPath = `/download/${serverPath}#${keySecret}`;
-			finalLink = `${window.location.origin}${downloadPath}`;
-			if (viewOnce) {
-				viewOnceLink = `${window.location.origin}/once/${serverPath}#${keySecret}`;
-			}
-			isUploadComplete = true;
-			isUploading = false;
-
-			// Add to history (use server key/id so it matches remote resource)
-			const expiryTime = Date.now() + parseInt(timeLimit) * 1000;
-			const entryName = files.length === 1 ? files[0].name : folderName;
-
-			addHistoryEntry({
-				id: serverPath,
-				name: entryName,
-				link: viewOnce ? viewOnceLink : finalLink,
-				expiry: expiryTime,
-				downloadLimit: viewOnce ? '1' : downloadLimit,
-				createdAt: Date.now(),
-				size: totalSize
-			});
-
-			// show success toast
-			toast.success(viewOnce ? 'View Once link created' : 'Upload complete');
-		} catch (err: any) {
-			console.error('Upload failed', err);
-			toast.error('Upload failed: ' + (err?.message ?? err));
-			// keep files so user can retry; reset upload progress and flags
-			uploadingInProgress = false;
-			uploadProgress = new Tween(0, { duration: 500, easing: cubicOut });
-			// reset encryption state if error during encrypt
-			isEncrypting = false;
-			encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
-		} finally {
-			uploadingInProgress = false;
-			isEncrypting = false;
-		}
+	const onReset = () => {
+		files = [];
+		uploadResult = null;
+		stage = 1;
 	};
 </script>
 
@@ -510,36 +230,6 @@
 	ondrop={handleWindowDrop}
 	onpaste={handlePaste}
 />
-
-{#snippet fileItem(file: File)}
-	<div
-		class="flex items-center justify-between border-b border-border py-2 first:pt-0 last:border-0"
-	>
-		<div class="flex items-center gap-3">
-			<div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
-				<FileIcon class="h-4 w-4 text-primary" />
-			</div>
-			<div class="flex flex-col gap-0.5">
-				<div class="text-sm leading-none font-medium">{file.name}</div>
-				<div class="text-xs text-foreground">
-					{#if (file as any).relativePath}
-						<span class="block max-w-50 truncate text-xs opacity-70"
-							>{(file as any).relativePath}</span
-						>
-					{/if}
-					{formatFileSize(file.size)}
-				</div>
-			</div>
-		</div>
-		<Button
-			variant="ghost"
-			onclick={() => removeFile(file)}
-			class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-		>
-			<X class="h-4 w-4" />
-		</Button>
-	</div>
-{/snippet}
 
 {#snippet encryptionInfo()}
 	<div class="flex h-full w-full flex-col justify-center p-4 lg:p-8">
@@ -607,6 +297,7 @@
 		</ScrollArea>
 	</div>
 {/snippet}
+
 <Card
 	class={cn(
 		'relative z-10 mx-auto w-full max-w-5xl border-border bg-card transition-all duration-200',
@@ -614,7 +305,15 @@
 		isDraggingOverCard && 'shadow-[0_0_40px_-10px_var(--primary)]',
 		isDraggingOverZone && 'shadow-[0_0_60px_-10px_var(--primary)]'
 	)}
-	ondrop={handleCardDrop}
+	ondrop={(e) => {
+		e.preventDefault();
+		e.stopPropagation();
+		dragCounter = 0;
+		isDragging = false;
+		isDraggingOverZone = false;
+		isDraggingOverCard = false;
+		toast.error('File/Folder must be dropped in the bordered area');
+	}}
 	ondragenter={handleCardDragEnter}
 	ondragleave={handleCardDragLeave}
 >
@@ -625,453 +324,17 @@
 		<div class="grid min-h-150 grid-cols-1 gap-8 lg:grid-cols-2">
 			{#if configData.isLoading || (dev && debugLoading)}
 				{@render configSkeleton()}
-			{:else if isUploadComplete}
-				<!-- Final Success Screen -->
-				<div
-					class="col-span-1 flex h-full flex-col items-center justify-center py-12 text-center lg:col-span-2"
-				>
-					<div class="mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-green-500/10">
-						<Lock class="h-10 w-10 text-green-500" />
-					</div>
-					<h2 class="mb-2 text-3xl font-bold tracking-tight">
-						{isViewOnce
-							? 'Your view-once link is ready'
-							: 'Your file is encrypted and ready to send'}
-					</h2>
-					<p class="mb-8 text-muted-foreground">
-						{isViewOnce
-							? 'This link can only be viewed once:'
-							: 'Copy the link to share your file:'}
-					</p>
-
-					<div class="mb-8 flex w-full max-w-md items-center gap-2">
-						<Input
-							readonly
-							value={isViewOnce ? viewOnceLink : finalLink}
-							class="font-mono text-sm"
-						/>
-					</div>
-
-					<div class="mb-8 flex flex-col items-center gap-4">
-						<div class="rounded-lg border bg-white p-2 dark:bg-white">
-							<QRCode
-								value={isViewOnce ? viewOnceLink : finalLink}
-								size={180}
-								color="#000000"
-								backgroundColor="#ffffff"
-							/>
-						</div>
-					</div>
-					<ButtonGroup.Root>
-						<ButtonGroup.Root>
-							<Tooltip.Provider>
-								<Tooltip.Root>
-									<Tooltip.Trigger>
-										<Button variant="outline" size="sm" onclick={copyLink} class="w-32">
-											{#if isCopied}
-												<Check class="mr-2 size-4" /> Copied
-											{:else}
-												<Copy class="mr-2 size-4" /> Copy link
-											{/if}
-										</Button>
-									</Tooltip.Trigger>
-									<Tooltip.Content>Copy link to clipboard</Tooltip.Content>
-								</Tooltip.Root>
-							</Tooltip.Provider>
-						</ButtonGroup.Root>
-
-						{#if isViewOnce}
-							<ButtonGroup.Root>
-								<Button variant="outline" size="icon-sm" href={viewOnceLink} aria-label="View once">
-									<Tooltip.Provider>
-										<Tooltip.Root>
-											<Tooltip.Trigger>
-												<ScanEye class="size-4" />
-											</Tooltip.Trigger>
-											<Tooltip.Content>View once in browser</Tooltip.Content>
-										</Tooltip.Root>
-									</Tooltip.Provider>
-								</Button>
-							</ButtonGroup.Root>
-						{:else}
-							<ButtonGroup.Root>
-								<Button variant="outline" size="icon-sm" href={finalLink} aria-label="Download">
-									<Tooltip.Provider>
-										<Tooltip.Root>
-											<Tooltip.Trigger>
-												<Download class="size-4" />
-											</Tooltip.Trigger>
-											<Tooltip.Content>Download file</Tooltip.Content>
-										</Tooltip.Root>
-									</Tooltip.Provider>
-								</Button>
-
-								<Button
-									variant="outline"
-									size="icon-sm"
-									href={finalLink.replace('/download/', '/view/')}
-									aria-label="View"
-								>
-									<Tooltip.Provider>
-										<Tooltip.Root>
-											<Tooltip.Trigger>
-												<Eye class="size-4" />
-											</Tooltip.Trigger>
-											<Tooltip.Content>View file in browser</Tooltip.Content>
-										</Tooltip.Root>
-									</Tooltip.Provider>
-								</Button>
-							</ButtonGroup.Root>
-						{/if}
-					</ButtonGroup.Root>
-				</div>
-			{:else if isUploading}
-				{#if uploadingInProgress}
-					<!-- Modern Upload Animation -->
-					<div class="flex h-full w-full flex-col items-center justify-center p-8">
-						<div class="relative mb-8 flex h-40 w-40 items-center justify-center">
-							<!-- Background Layers -->
-							<div class="absolute inset-0 animate-pulse rounded-full bg-primary/5"></div>
-
-							<!-- Static Track -->
-							<div class="absolute inset-0 rounded-full border-4 border-muted/20"></div>
-
-							<!-- Dynamic Rings -->
-							<div
-								class="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary shadow-[0_0_15px_-3px_var(--primary)]"
-								style="animation-duration: 1.5s; animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);"
-							></div>
-
-							<div
-								class="absolute inset-3 animate-spin rounded-full border-4 border-transparent border-t-primary/70 border-r-primary/30"
-								style="animation-duration: 2s; animation-direction: reverse; animation-timing-function: linear;"
-							></div>
-
-							<!-- Center Icon -->
-							<div class="relative z-10">
-								<Upload class="h-12 w-12 text-primary drop-shadow-md" />
-							</div>
-						</div>
-
-						<h3 class="mb-2 text-2xl font-semibold tracking-tight">Encrypting & Uploading...</h3>
-						<p class="mb-8 text-muted-foreground">Please wait while we secure your files</p>
-
-						<div class="w-full max-w-md space-y-3">
-							{#if isEncrypting}
-								<Progress value={encryptionProgress.current} class="h-2" />
-								<div class="flex justify-between text-xs font-medium text-muted-foreground">
-									<span>Encrypting {Math.round(encryptionProgress.current)}%</span>
-									<span>{totalSize}</span>
-								</div>
-							{:else}
-								<Progress value={uploadProgress.current} class="h-2" />
-								<div class="flex justify-between text-xs font-medium text-muted-foreground">
-									<span>{Math.round(uploadProgress.current)}%</span>
-									<span>{totalSize}</span>
-								</div>
-							{/if}
-						</div>
-					</div>
-				{:else}
-					<!-- Upload Interface -->
-					<!-- Left Column: File List and Controls -->
-					<div class="flex h-full w-full flex-col pb-2">
-						<!-- File List with Back button on the left -->
-						<div class="mb-2 flex items-center justify-between gap-2">
-							<div>
-								{#if !uploadingInProgress}
-									<Tooltip.Provider>
-										<Tooltip.Root>
-											<Tooltip.Trigger>
-												<Button
-													variant="ghost"
-													size="sm"
-													class="mb-2"
-													onclick={() => (isUploading = false)}
-												>
-													<ArrowLeft class="mr-2 h-4 w-4" />
-													Back
-												</Button>
-											</Tooltip.Trigger>
-											<Tooltip.Content>Return to file selection (stage 1)</Tooltip.Content>
-										</Tooltip.Root>
-									</Tooltip.Provider>
-								{/if}
-							</div>
-
-							<div class="flex items-center gap-2">
-								{#if files.length > 1}
-									<Input bind:value={folderName} class="h-8 w-48" placeholder="Folder Name" />
-								{/if}
-								<Tooltip.Provider>
-									<Tooltip.Root>
-										<Tooltip.Trigger
-											class={`${buttonVariants({ variant: 'ghost' })} cursor-pointer`}
-											onclick={() => {
-												clearAllFiles();
-											}}
-										>
-											<Trash2 class="h-4 w-4" />
-										</Tooltip.Trigger>
-										<Tooltip.Content>
-											<p>Clear all files</p>
-										</Tooltip.Content>
-									</Tooltip.Root>
-								</Tooltip.Provider>
-							</div>
-						</div>
-						<ScrollArea
-							class={cn(
-								'mb-4 h-60 max-h-[45vh] w-full rounded-lg border border-border bg-card transition-colors lg:max-h-[50vh] lg:flex-1',
-								isDraggingOverZone && 'bg-primary/5'
-							)}
-							ondragenter={handleZoneDragEnter}
-							ondragleave={handleZoneDragLeave}
-							ondragover={(e) => e.preventDefault()}
-							ondrop={handleZoneDrop}
-						>
-							<div class="p-4">
-								{#each files as file}
-									{@render fileItem(file)}
-								{/each}
-							</div>
-						</ScrollArea>
-
-						<!-- Controls -->
-						<div class="mb-4 flex items-center">
-							<button
-								class="flex cursor-pointer items-center text-sm text-primary hover:underline"
-								onclick={() => fileInput?.click()}
-							>
-								<Plus class="mr-1 h-4 w-4" />
-								Select files to upload
-							</button>
-							<input
-								bind:this={fileInput}
-								type="file"
-								id="file-input"
-								class="hidden"
-								multiple
-								onchange={handleFileSelect}
-							/>
-							<div class="ml-auto text-sm text-muted-foreground">Total size: {totalSize}</div>
-						</div>
-
-						<!-- Expiry and Password Options -->
-						<div class="mb-4 space-y-2">
-							<div class="flex items-center">
-								<span class="text-sm">Expires after</span>
-								<Select.Root type="single" bind:value={downloadLimit}>
-									<Select.Trigger class="ml-2 w-35">
-										{downloadLimit}
-										{downloadLimit === '1' ? 'download' : 'downloads'}
-									</Select.Trigger>
-									<Select.Content>
-										{#if configData.data?.download_configs}
-											{#each configData.data.download_configs as limit}
-												<Select.Item value={limit.toString()}
-													>{limit} {limit === 1 ? 'download' : 'downloads'}</Select.Item
-												>
-											{/each}
-										{:else}
-											<Select.Item value="1">1 download</Select.Item>
-										{/if}
-									</Select.Content>
-								</Select.Root>
-								<span class="mx-2 text-sm">or</span>
-								<Select.Root type="single" bind:value={timeLimit}>
-									<Select.Trigger class="w-35">
-										{@const { val, unit } = formatSeconds(parseInt(timeLimit))}
-										{val}
-										{val === 1 ? unit.slice(0, -1) : unit}
-									</Select.Trigger>
-									<Select.Content>
-										{#if configData.data?.time_configs}
-											{#each configData.data.time_configs as time}
-												{@const { val, unit } = formatSeconds(time)}
-												<Select.Item value={time.toString()}>
-													{val}
-													{val === 1 ? unit.slice(0, -1) : unit}
-												</Select.Item>
-											{/each}
-										{:else}
-											<Select.Item value="86400">1 Day</Select.Item>
-										{/if}
-									</Select.Content>
-								</Select.Root>
-							</div>
-							<div class="flex h-9 items-center gap-2">
-								<div class="flex items-center">
-									<input
-										type="checkbox"
-										id="password"
-										bind:checked={isPasswordProtected}
-										class="mr-2 h-4 w-4 rounded border-primary text-primary focus:ring-primary"
-									/>
-									<label
-										for="password"
-										class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-										>Protect with password</label
-									>
-								</div>
-								{#if isPasswordProtected}
-									<div class="relative max-w-xs flex-1">
-										<Input
-											type={showPassword ? 'text' : 'password'}
-											placeholder="Password"
-											bind:value={password}
-											class="h-9 pr-10"
-										/>
-										<button
-											type="button"
-											onclick={() => (showPassword = !showPassword)}
-											class="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
-										>
-											{#if showPassword}
-												<EyeOff class="h-4 w-4" />
-											{:else}
-												<Eye class="h-4 w-4" />
-											{/if}
-										</button>
-									</div>
-								{/if}
-							</div>
-						</div>
-
-						<Button
-							class="w-full cursor-pointer"
-							onclick={() => handleUpload(false)}
-							disabled={files.length === 0 || uploadingInProgress}>Upload</Button
-						>
-						{#if files.length === 1}
-							<Button
-								variant="outline"
-								class="w-full cursor-pointer"
-								onclick={() => handleUpload(true)}
-								disabled={uploadingInProgress}
-							>
-								<Eye class="mr-2 size-4" /> View Once
-							</Button>
-						{:else}
-							<Tooltip.Provider>
-								<Tooltip.Root>
-									<Tooltip.Trigger>
-										<Button variant="outline" class="w-full" disabled>
-											<Eye class="mr-2 size-4" /> View Once
-										</Button>
-									</Tooltip.Trigger>
-									<Tooltip.Content>View Once requires exactly one file</Tooltip.Content>
-								</Tooltip.Root>
-							</Tooltip.Provider>
-						{/if}
-					</div>
-				{/if}
-			{:else}
-				<!-- Initial Drop Area -->
-				<!-- Left Column: Drop Area -->
-				<div
-					class={cn(
-						'relative flex h-full cursor-pointer flex-col items-center justify-center rounded-lg bg-card transition-all duration-200 focus:outline-none',
-						isDraggingOverZone && 'scale-[1.02] shadow-xl'
-					)}
-					ondrop={handleZoneDrop}
-					onclick={() => fileInputInitial?.click()}
-					onkeydown={(e) => {
-						if (e.key === 'Enter' || e.key === ' ') {
-							e.preventDefault();
-							fileInputInitial?.click();
-						}
-					}}
-					ondragenter={handleZoneDragEnter}
-					ondragleave={handleZoneDragLeave}
-					tabindex="0"
-					role="button"
-					aria-label="File drop area - click or drop files to upload"
-				>
-					<!-- Main content container -->
-					<div class="relative z-10 flex flex-col items-center justify-center p-12">
-						<!-- Plus icon in circle -->
-						<div
-							class={cn(
-								'mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary transition-all duration-200',
-								isDraggingOverZone && 'scale-110 bg-primary/10'
-							)}
-						>
-							<Plus class="h-8 w-8 text-primary transition-transform duration-200" />
-						</div>
-
-						<!-- Text content -->
-						<h2
-							class={cn(
-								'mb-2 text-xl font-medium transition-colors duration-200',
-								isDraggingOverZone && 'text-primary'
-							)}
-						>
-							Drag and drop files
-						</h2>
-						<p
-							class={cn(
-								'mb-8 text-center transition-colors duration-200 md:mb-4 md:text-sm',
-								isDraggingOverZone ? 'text-primary/80' : 'text-muted-foreground'
-							)}
-						>
-							or click to send up to {formatFileSize(configData.data?.max_file_size_limit ?? 0)} of files
-							with end-to-end encryption
-						</p>
-
-						<!-- Button -->
-						<Button
-							variant="default"
-							size="lg"
-							class={cn(
-								'cursor-pointer px-8 py-6 text-lg transition-all duration-200 md:px-6 md:py-4 md:text-base',
-								isDraggingOverZone && 'scale-105 shadow-lg'
-							)}
-							onclick={(e) => {
-								e.stopPropagation();
-								fileInputInitial?.click();
-							}}
-						>
-							Select files to upload
-						</Button>
-
-						<!-- Hidden file input -->
-						<input
-							bind:this={fileInputInitial}
-							type="file"
-							id="file-input-initial"
-							class="hidden"
-							multiple
-							onchange={handleFileSelect}
-						/>
-					</div>
-
-					<!-- Border elements -->
-					<svg class="pointer-events-none absolute inset-0 h-full w-full rounded-lg">
-						<rect
-							width="100%"
-							height="100%"
-							rx="8"
-							ry="8"
-							fill="none"
-							stroke="currentColor"
-							stroke-width="2"
-							class={cn(
-								'text-border transition-all duration-200',
-								isDragging && (isDraggingOverZone ? 'text-primary' : 'text-primary/50'),
-								isDraggingOverZone && 'animate-dash'
-							)}
-							stroke-dasharray="10"
-						/>
-					</svg>
-				</div>
-			{/if}
-
-			<!-- Right Column: Info -->
-			{#if configData.isLoading || (dev && debugLoading)}
 				{@render rightColumnSkeleton()}
-			{:else if !isUploadComplete && !isUploading}
-				<div class="flex h-full w-full flex-col p-4 lg:p-8">
+			{:else if stage === 1}
+				<div in:fly={{ x: -20, duration: 400 }}>
+					<Stage1
+						{onFilesSelected}
+						{isDraggingOverZone}
+						onZoneDragEnter={handleZoneDragEnter}
+						onZoneDragLeave={handleZoneDragLeave}
+					/>
+				</div>
+				<div class="flex h-full w-full flex-col p-4 lg:p-8" in:fade>
 					<ScrollArea class="h-auto w-full lg:h-full">
 						<div
 							class="prose w-full max-w-none prose-zinc md:text-sm lg:text-lg lg:leading-relaxed dark:prose-invert"
@@ -1082,16 +345,36 @@
 						</div>
 					</ScrollArea>
 				</div>
-			{:else if !isUploadComplete}
-				{@render encryptionInfo()}
+			{:else if stage === 2}
+				<div in:fly={{ x: 20, duration: 400 }}>
+					<Stage2
+						bind:files
+						onFilesUpdated={(newFiles) => (files = newFiles)}
+						{onUploadComplete}
+						onBack={() => (stage = 1)}
+						{isDraggingOverZone}
+						onZoneDragEnter={handleZoneDragEnter}
+						onZoneDragLeave={handleZoneDragLeave}
+					/>
+				</div>
+				<div in:fade>
+					{@render encryptionInfo()}
+				</div>
+			{:else if stage === 3 && uploadResult}
+				<div class="col-span-1 lg:col-span-2" in:fly={{ y: 20, duration: 400 }}>
+					<Stage3
+						finalLink={uploadResult.finalLink}
+						viewOnceLink={uploadResult.viewOnceLink}
+						isViewOnce={uploadResult.isViewOnce}
+						{onReset}
+					/>
+				</div>
 			{/if}
 		</div>
 	</CardContent>
 </Card>
 
-<UploadShowcase
-	localUploadSize={isUploading && !isUploadComplete ? files.reduce((s, f) => s + f.size, 0) : 0}
-/>
+<UploadShowcase localUploadSize={stage === 2 ? files.reduce((s, f) => s + f.size, 0) : 0} />
 
 {#if dev}
 	<div class="fixed bottom-4 left-4 z-50">
