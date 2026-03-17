@@ -7,6 +7,7 @@
 	import { useConfigQuery } from '#queries/config';
 	import {
 		Plus,
+		ArrowLeft,
 		X,
 		FileIcon,
 		Eye,
@@ -37,6 +38,7 @@
 	import { markdown_to_html } from '$lib/markdown/markdown';
 	import { cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
+	import { onMount, onDestroy } from 'svelte';
 	import * as ButtonGroup from '$lib/components/ui/button-group';
 
 	const { config: configData } = useConfigQuery();
@@ -44,8 +46,8 @@
 	let isDragging = $state(false);
 	let isDraggingOverCard = $state(false);
 	let isDraggingOverZone = $state(false);
-	let dragCounter = 0;
-	let files: File[] = $state([]);
+	let dragCounter = $state(0);
+	let files = $state(new Array<File>());
 	let isUploading = $state(false);
 	let totalSize = $state('0 Bytes');
 	let fileInputInitial = $state<HTMLInputElement>();
@@ -94,6 +96,31 @@
 		if (configData.data?.default_expiry && !defaultTimeLimitSet) {
 			timeLimit = configData.data.default_expiry.toString();
 			defaultTimeLimitSet = true;
+		}
+	});
+
+	// Handle physical mouse back button (X1) to return from stage 2 to stage 1
+	let _mouseBackHandler: ((e: MouseEvent) => void) | undefined;
+	onMount(() => {
+		_mouseBackHandler = (e: MouseEvent) => {
+			// In many browsers the auxiliary Back button reports button === 3
+			if (e.button === 3) {
+				// Only act when we're on the upload stage and not actively uploading
+				if (isUploading && !uploadingInProgress) {
+					isUploading = false;
+					e.preventDefault();
+				}
+			}
+		};
+
+		window.addEventListener('auxclick', _mouseBackHandler as EventListener);
+		window.addEventListener('pointerdown', _mouseBackHandler as EventListener);
+	});
+
+	onDestroy(() => {
+		if (_mouseBackHandler) {
+			window.removeEventListener('auxclick', _mouseBackHandler as EventListener);
+			window.removeEventListener('pointerdown', _mouseBackHandler as EventListener);
 		}
 	});
 
@@ -747,6 +774,13 @@
 					<!-- Upload Interface -->
 					<!-- Left Column: File List and Controls -->
 					<div class="flex h-full w-full flex-col pb-2">
+						<!-- Back button to return to initial drop area (stage 1) -->
+						{#if !uploadingInProgress}
+							<Button variant="ghost" size="sm" class="mb-2" onclick={() => (isUploading = false)}>
+								<ArrowLeft class="mr-2 h-4 w-4" />
+								Back
+							</Button>
+						{/if}
 						<!-- File List -->
 						<div class="mb-2 flex items-center justify-end gap-2">
 							{#if files.length > 1}
