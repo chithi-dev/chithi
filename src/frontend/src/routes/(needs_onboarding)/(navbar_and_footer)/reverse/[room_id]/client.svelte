@@ -87,7 +87,7 @@
 
 	const streamProgress = $derived(
 		receiveState.type === 'streaming' && receiveState.size > 0
-			? (receiveState.received / receiveState.size) * 100
+			? Math.min((receiveState.received / receiveState.size) * 100, 100)
 			: 0
 	);
 
@@ -172,10 +172,13 @@
 								filename: u.filename,
 								size: u.size,
 								uploadedBytes: u.uploaded_bytes,
-								progress: new Tween(u.size > 0 ? (u.uploaded_bytes / u.size) * 100 : 0, {
-									duration: 300,
-									easing: cubicOut
-								})
+								progress: new Tween(
+									u.size > 0 ? Math.min((u.uploaded_bytes / u.size) * 100, 100) : 0,
+									{
+										duration: 300,
+										easing: cubicOut
+									}
+								)
 							})) ?? [];
 						break;
 					}
@@ -209,7 +212,7 @@
 						if (upload) {
 							upload.uploadedBytes = msg.uploaded_bytes;
 							upload.progress.target =
-								upload.size > 0 ? (msg.uploaded_bytes / upload.size) * 100 : 0;
+								upload.size > 0 ? Math.min((msg.uploaded_bytes / upload.size) * 100, 100) : 0;
 						}
 						break;
 					}
@@ -305,6 +308,12 @@
 	async function handleBinaryChunk(data: ArrayBuffer | Blob) {
 		if (receiveState.type !== 'streaming') return;
 		const buf = data instanceof Blob ? await data.arrayBuffer() : data;
+
+		// If we've already received the full file, ignore subsequent chunks (e.g. from duplicate host streams)
+		if (receiveState.size > 0 && receiveState.received >= receiveState.size) {
+			return;
+		}
+
 		receiveState.chunks.push(buf as any);
 		receiveState.received += buf.byteLength;
 	}
