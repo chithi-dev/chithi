@@ -10,12 +10,12 @@
         "format": "biome check --write --unsafe ."
     },
     "dependencies": {
-        "next": "16.2.0-canary.103",
+        "next": "16.2.0-canary.104",
         "react": "canary",
         "react-dom": "canary"
     },
     "devDependencies": {
-        "@biomejs/biome": "2.4.7",
+        "@biomejs/biome": "2.4.8",
         "@bprogress/core": "^1.3.4",
         "@bprogress/next": "^3.2.12",
         "@scalar/api-reference-react": "^0.9.0",
