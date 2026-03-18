@@ -8,8 +8,8 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 
 	// Steps
-	let Step1 = await import('./1.svelte').then((m) => m.default);
-	let Step2 = await import('./2.svelte').then((m) => m.default);
+	import Step1 from './1.svelte';
+	import Step2 from './2.svelte';
 
 	const { status } = useOnboarding();
 
