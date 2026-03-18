@@ -218,6 +218,9 @@ interface DecryptionContext {
 	allDoneReject: ((e: any) => void) | null;
 	streamEnded: boolean;
 	controllerRef: ReadableStreamDefaultController<Uint8Array> | null;
+	processedTotal: number;
+	originalSize?: number;
+	onProgress?: (processed: number, total?: number) => void;
 }
 
 async function handleDecryptionError(ctx: DecryptionContext, e: any): Promise<void> {
@@ -234,8 +237,12 @@ async function handleWorkerDecryptedMessage(ctx: DecryptionContext, data: any): 
 			ctx.decryptedMap.delete(ctx.nextToEnqueue);
 			ctx.controllerRef!.enqueue(arr);
 			ctx.nextToEnqueue++;
+
+			ctx.processedTotal += arr.byteLength;
+			if (ctx.onProgress) ctx.onProgress(ctx.processedTotal, ctx.originalSize);
 		}
 		if (ctx.streamEnded && ctx.pendingCount === 0 && ctx.allDoneResolve) {
+			if (ctx.onProgress) ctx.onProgress(ctx.originalSize ?? ctx.processedTotal, ctx.originalSize);
 			ctx.allDoneResolve();
 		}
 	} else if (data?.type === 'error') {
@@ -302,9 +309,13 @@ async function decryptChunkFallback(
 				ctx.decryptedMap.delete(ctx.nextToEnqueue);
 				ctx.controllerRef.enqueue(arr);
 				ctx.nextToEnqueue++;
+
+				ctx.processedTotal += arr.byteLength;
+				if (ctx.onProgress) ctx.onProgress(ctx.processedTotal, ctx.originalSize);
 			}
 		}
 		if (ctx.streamEnded && ctx.pendingCount === 0 && ctx.allDoneResolve) {
+			if (ctx.onProgress) ctx.onProgress(ctx.originalSize ?? ctx.processedTotal, ctx.originalSize);
 			ctx.allDoneResolve();
 		}
 	} catch (err) {
@@ -500,7 +511,9 @@ export async function createEncryptedStream(
 export async function createDecryptedStream(
 	inputStream: ReadableStream<Uint8Array>,
 	keySecret: string,
-	password?: string
+	password?: string,
+	originalSize?: number,
+	onProgress?: (processed: number, total?: number) => void
 ) {
 	const ikm = base64urlToBytes(keySecret);
 	const { aesKey, baseIv } = await deriveSecrets(ikm, password);
@@ -521,7 +534,10 @@ export async function createDecryptedStream(
 		allDoneResolve: null,
 		allDoneReject: null,
 		streamEnded: false,
-		controllerRef: null
+		controllerRef: null,
+		processedTotal: 0,
+		originalSize,
+		onProgress
 	};
 
 	const allDonePromise = new Promise<void>((res, rej) => {
@@ -574,6 +590,9 @@ export async function createDecryptedStream(
 					ctx.decryptedMap.delete(ctx.nextToEnqueue);
 					controller.enqueue(arr);
 					ctx.nextToEnqueue++;
+
+					ctx.processedTotal += arr.byteLength;
+					if (ctx.onProgress) ctx.onProgress(ctx.processedTotal, ctx.originalSize);
 				}
 				controller.close();
 			}

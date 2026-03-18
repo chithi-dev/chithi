@@ -57,6 +57,8 @@
 	// Client streaming
 	let receiveState = $state<ReceiveState>({ type: 'idle' });
 	let downloadedFiles = $state<DownloadedFile[]>([]);
+	let decryptionProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
+	let isDecrypting = $state(false);
 
 	type DownloadPreference = 'eager' | 'manual' | null;
 	let downloadPreference = $state<DownloadPreference>(null);
@@ -261,11 +263,25 @@
 							try {
 								let finalBlob = new Blob(chunks);
 								if (roomKey) {
+									isDecrypting = true;
+									decryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
 									const { stream: decryptedStream } = await createDecryptedStream(
 										finalBlob.stream() as any,
-										roomKey
+										roomKey,
+										undefined,
+										finalBlob.size,
+										(processed, total) => {
+											if (total && total > 0) {
+												decryptionProgress.target = Math.min(
+													100,
+													Math.round((processed / total) * 100)
+												);
+											}
+										}
 									);
 									finalBlob = await new Response(decryptedStream as any).blob();
+									isDecrypting = false;
+									decryptionProgress.target = 100;
 								}
 								const objectUrl = URL.createObjectURL(finalBlob);
 								downloadedFiles = [...downloadedFiles, { key, filename, size, objectUrl }];
@@ -280,6 +296,7 @@
 								toast.error(`Decryption failed for ${filename}`);
 							} finally {
 								receiveState = { type: 'idle' };
+								isDecrypting = false;
 							}
 						}
 						break;
@@ -643,8 +660,13 @@
 
 											{#if isStreaming}
 												<div class="flex items-center gap-2 text-xs text-muted-foreground">
-													<span class="animate-pulse">Receiving…</span>
-													<span class="font-mono">{streamProgress.toFixed(0)}%</span>
+													{#if isDecrypting}
+														<span class="animate-pulse">Decrypting…</span>
+														<span class="font-mono">{decryptionProgress.current.toFixed(0)}%</span>
+													{:else}
+														<span class="animate-pulse">Receiving…</span>
+														<span class="font-mono">{streamProgress.toFixed(0)}%</span>
+													{/if}
 												</div>
 											{/if}
 
@@ -697,7 +719,11 @@
 											</div>
 										</div>
 										{#if isStreaming}
-											<Progress value={streamProgress} max={100} class="mt-2 h-1" />
+											{#if isDecrypting}
+												<Progress value={decryptionProgress.current} max={100} class="mt-2 h-1" />
+											{:else}
+												<Progress value={streamProgress} max={100} class="mt-2 h-1" />
+											{/if}
 										{/if}
 									</div>
 								{/each}

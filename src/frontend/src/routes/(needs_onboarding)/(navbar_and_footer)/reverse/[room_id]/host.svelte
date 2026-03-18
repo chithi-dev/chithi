@@ -73,10 +73,14 @@
 	let uploads = $state<UploadEntry[]>([]);
 	let isUploading = $state(false);
 	const overallProgress = new Tween(0, { duration: 400, easing: cubicOut });
+	let encryptionProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
+	let isEncrypting = $state(false);
 
 	// Client streaming
 	let receiveState = $state<ReceiveState>({ type: 'idle' });
 	let downloadedFiles = $state<DownloadedFile[]>([]);
+	let decryptionProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
+	let isDecrypting = $state(false);
 
 	// WebSocket
 	let ws = $state<WebSocket | null>(null);
@@ -259,11 +263,25 @@
 							try {
 								let finalBlob = new Blob(chunks);
 								if (roomKey) {
+									isDecrypting = true;
+									decryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
 									const { stream: decryptedStream } = await createDecryptedStream(
 										finalBlob.stream() as any,
-										roomKey
+										roomKey,
+										undefined,
+										finalBlob.size,
+										(processed, total) => {
+											if (total && total > 0) {
+												decryptionProgress.target = Math.min(
+													100,
+													Math.round((processed / total) * 100)
+												);
+											}
+										}
 									);
 									finalBlob = await new Response(decryptedStream as any).blob();
+									isDecrypting = false;
+									decryptionProgress.target = 100;
 								}
 								const objectUrl = URL.createObjectURL(finalBlob);
 								downloadedFiles = [...downloadedFiles, { key, filename, size, objectUrl }];
@@ -277,6 +295,7 @@
 								toast.error(`Decryption failed for ${filename}`);
 							} finally {
 								receiveState = { type: 'idle' };
+								isDecrypting = false;
 							}
 						}
 						break;
@@ -347,16 +366,26 @@
 			uploads = [...uploads];
 
 			try {
+				isEncrypting = true;
+				encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
+
 				const zipStream = await createZipStream([entry.file]);
 				const { stream: encryptedStream } = await createEncryptedStream(
 					zipStream,
 					undefined,
-					undefined,
-					undefined,
+					entry.file.size,
+					(processed, total) => {
+						if (total && total > 0) {
+							encryptionProgress.target = Math.min(100, Math.round((processed / total) * 100));
+						}
+					},
 					ikm
 				);
 
 				const encryptedBlob = await new Response(encryptedStream).blob();
+				isEncrypting = false;
+				encryptionProgress.target = 100;
+
 				const filename = `${entry.file.name}.zip`;
 
 				const fileEntry = await uploadFileXhr(encryptedBlob, filename, (pct) => {
@@ -373,6 +402,8 @@
 			} catch (e: any) {
 				entry.status = 'error';
 				toast.error(`Upload failed for ${entry.file.name}: ${e.message || String(e)}`);
+			} finally {
+				isEncrypting = false;
 			}
 			uploads = [...uploads];
 		}
@@ -720,11 +751,19 @@
 									{:else if u.status === 'error'}
 										<X class="h-4 w-4 shrink-0 text-destructive" />
 									{:else if u.status === 'uploading'}
-										<LoaderCircle class="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+										{#if isEncrypting}
+											<span class="animate-pulse text-xs text-muted-foreground">Encrypting…</span>
+										{:else}
+											<LoaderCircle class="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+										{/if}
 									{/if}
 								</div>
 								{#if u.status === 'uploading' || u.status === 'pending'}
-									<Progress value={u.progress.current} max={100} class="h-1" />
+									{#if u.status === 'uploading' && isEncrypting}
+										<Progress value={encryptionProgress.current} max={100} class="h-1" />
+									{:else}
+										<Progress value={u.progress.current} max={100} class="h-1" />
+									{/if}
 								{/if}
 							</div>
 						{/each}
@@ -813,8 +852,13 @@
 
 										{#if isStreaming}
 											<div class="flex items-center gap-2 text-xs text-muted-foreground">
-												<span class="animate-pulse">Receiving…</span>
-												<span class="font-mono">{streamProgress.toFixed(0)}%</span>
+												{#if isDecrypting}
+													<span class="animate-pulse">Decrypting…</span>
+													<span class="font-mono">{decryptionProgress.current.toFixed(0)}%</span>
+												{:else}
+													<span class="animate-pulse">Receiving…</span>
+													<span class="font-mono">{streamProgress.toFixed(0)}%</span>
+												{/if}
 											</div>
 										{/if}
 
@@ -866,7 +910,11 @@
 										</div>
 									</div>
 									{#if isStreaming}
-										<Progress value={streamProgress} max={100} class="mt-2 h-1" />
+										{#if isDecrypting}
+											<Progress value={decryptionProgress.current} max={100} class="mt-2 h-1" />
+										{:else}
+											<Progress value={streamProgress} max={100} class="mt-2 h-1" />
+										{/if}
 									{/if}
 								</div>
 							{/each}
