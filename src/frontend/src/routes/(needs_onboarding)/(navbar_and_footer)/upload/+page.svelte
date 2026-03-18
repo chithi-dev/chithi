@@ -12,9 +12,9 @@
 	import { Button } from '$lib/components/ui/button';
 	import { fly, fade } from 'svelte/transition';
 
-	const Stage1 = await import('./stage_1.svelte').then((m) => m.default);
-	const Stage2 = await import('./stage_2.svelte').then((m) => m.default);
-	const Stage3 = await import('./stage_3.svelte').then((m) => m.default);
+	import Stage1 from './stage_1.svelte';
+	import Stage2 from './stage_2.svelte';
+	import Stage3 from './stage_3.svelte';
 
 	const { config: configData } = useConfigQuery();
 
@@ -32,6 +32,15 @@
 	} | null>(null);
 
 	let detailsMarkdown = $derived(configData.data?.site_description ?? '');
+	let detailsHtml = $state('');
+
+	$effect(() => {
+		if (detailsMarkdown) {
+			markdown_to_html(detailsMarkdown).then((html) => {
+				detailsHtml = html;
+			});
+		}
+	});
 
 	// Handle physical mouse back button (X1) to return from stage 2 to stage 1
 	const handleMouseBack = (e: MouseEvent) => {
@@ -301,12 +310,12 @@
 {/snippet}
 
 <Card
-	class={[
+	class={cn(
 		'relative z-10 mx-auto w-full max-w-5xl border-border bg-card transition-all duration-200',
 		isDragging && 'shadow-[0_0_20px_-10px_var(--primary)]',
 		isDraggingOverCard && 'shadow-[0_0_40px_-10px_var(--primary)]',
 		isDraggingOverZone && 'shadow-[0_0_60px_-10px_var(--primary)]'
-	]}
+	)}
 	ondrop={(e) => {
 		e.preventDefault();
 		e.stopPropagation();
@@ -325,8 +334,12 @@
 	<CardContent class="p-6">
 		<div class="grid min-h-150 grid-cols-1 gap-8 lg:grid-cols-2">
 			{#if configData.isLoading || (dev && debugLoading)}
-				{@render configSkeleton()}
-				{@render rightColumnSkeleton()}
+				<div class="col-span-1">
+					{@render configSkeleton()}
+				</div>
+				<div class="col-span-1">
+					{@render rightColumnSkeleton()}
+				</div>
 			{:else if stage === 1}
 				<div in:fly={{ x: -20, duration: 400 }}>
 					<Stage1
@@ -341,9 +354,7 @@
 						<div
 							class="prose w-full max-w-none prose-zinc md:text-sm lg:text-lg lg:leading-relaxed dark:prose-invert"
 						>
-							{#await markdown_to_html(detailsMarkdown) then html}
-								{@html html}
-							{/await}
+							{@html detailsHtml}
 						</div>
 					</ScrollArea>
 				</div>

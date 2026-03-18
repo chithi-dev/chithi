@@ -3,7 +3,6 @@
 	import { Plus } from 'lucide-svelte';
 	import { formatFileSize } from '#functions/bytes';
 	import { useConfigQuery } from '#queries/config';
-	import { cn } from '$lib/utils';
 
 	interface Props {
 		onFilesSelected: (files: File[]) => void;
