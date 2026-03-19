@@ -93,6 +93,14 @@
 			: 0
 	);
 
+	const isAnyStreaming = $derived(receiveState.type === 'streaming');
+	const isAnyProcessing = $derived(receiveState.type === 'processing');
+	const currentTransferKey = $derived(
+		receiveState.type === 'streaming' || receiveState.type === 'processing'
+			? receiveState.key
+			: null
+	);
+
 	function submitKey() {
 		const k = keyInput.trim();
 		if (!k) {
@@ -120,7 +128,7 @@
 
 			const data: RoomOut = await res.json();
 			room = data;
-			roomFiles = [...data.files];
+			roomFiles = structuredClone(data.files);
 			hostCount = data.host_count ?? 1;
 			loadStatus = 'loaded';
 
@@ -166,7 +174,7 @@
 					case 'snapshot': {
 						const r = msg.room as RoomOut;
 						room = r;
-						roomFiles = [...r.files];
+						roomFiles = structuredClone(r.files);
 						hostCount = r.host_count ?? 1;
 						remoteUploads =
 							r.active_uploads?.map((u) => ({
@@ -232,6 +240,10 @@
 					case 'file_start':
 						if (receiveState.type === 'idle') {
 							if (downloadPreference === 'eager') {
+								// Skip if already in memory
+								if (downloadedFiles.some((d) => d.key === msg.key)) {
+									return;
+								}
 								receiveState = {
 									type: 'streaming',
 									key: msg.key,
@@ -250,6 +262,9 @@
 					case 'file_end':
 						if (receiveState.type === 'streaming' && receiveState.key === msg.key) {
 							const { key, filename, size, chunks } = receiveState;
+							// Guard against concurrent file_end processing (e.g. multiple hosts)
+							receiveState = { type: 'processing', key, filename, size };
+
 							console.debug(
 								'[reverse/client] file_end for',
 								key,
@@ -287,7 +302,7 @@
 								downloadedFiles = [...downloadedFiles, { key, filename, size, objectUrl }];
 								toast.success(`Received: ${filename}`);
 
-								// Trigger download automatically if this was a manual request
+								// Trigger download automatically
 								const a = document.createElement('a');
 								a.href = objectUrl;
 								a.download = filename;
@@ -635,8 +650,9 @@
 
 								{#each roomFiles as f}
 									{@const downloaded = downloadedFiles.find((d) => d.key === f.key)}
-									{@const isStreaming =
-										receiveState.type === 'streaming' && receiveState.key === f.key}
+									{@const isThisStreaming = receiveState.type === 'streaming' && receiveState.key === f.key}
+									{@const isThisProcessing = receiveState.type === 'processing' && receiveState.key === f.key}
+									{@const isAnyActive = isAnyStreaming || isAnyProcessing}
 									{@const displayName = getDisplayFilename(f.filename)}
 									<div class="rounded-md border px-3 py-2">
 										<div class="flex items-center gap-3">
@@ -658,9 +674,9 @@
 												<p class="text-xs text-muted-foreground">{formatFileSize(f.size)}</p>
 											</div>
 
-											{#if isStreaming}
+											{#if isThisStreaming || isThisProcessing}
 												<div class="flex items-center gap-2 text-xs text-muted-foreground">
-													{#if isDecrypting}
+													{#if isDecrypting || isThisProcessing}
 														<span class="animate-pulse">Decrypting…</span>
 														<span class="font-mono">{decryptionProgress.current.toFixed(0)}%</span>
 													{:else}
@@ -689,8 +705,7 @@
 														variant="default"
 														class="h-7 shrink-0 gap-1 px-2 text-xs"
 														onclick={() => downloadFile(f)}
-														disabled={receiveState.type === 'streaming' &&
-															receiveState.key !== f.key}
+														disabled={isAnyActive && currentTransferKey !== f.key}
 													>
 														<Download class="h-3.5 w-3.5" />
 														Save
@@ -701,8 +716,7 @@
 														variant="outline"
 														class="h-7 shrink-0 gap-1 px-2 text-xs"
 														onclick={() => downloadFile(f)}
-														disabled={receiveState.type === 'streaming' &&
-															receiveState.key !== f.key}
+														disabled={isAnyActive && currentTransferKey !== f.key}
 													>
 														<Download class="h-3.5 w-3.5" />
 														Download
@@ -718,8 +732,8 @@
 												</a>
 											</div>
 										</div>
-										{#if isStreaming}
-											{#if isDecrypting}
+										{#if isThisStreaming || isThisProcessing}
+											{#if isDecrypting || isThisProcessing}
 												<Progress value={decryptionProgress.current} max={100} class="mt-2 h-1" />
 											{:else}
 												<Progress value={streamProgress} max={100} class="mt-2 h-1" />

@@ -33,6 +33,12 @@ export type ReceiveState =
 			size: number;
 			received: number;
 			chunks: BlobPart[];
+	  }
+	| {
+			type: 'processing';
+			key: string;
+			filename: string;
+			size: number;
 	  };
 
 export interface DownloadedFile {
