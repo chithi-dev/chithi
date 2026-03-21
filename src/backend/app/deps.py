@@ -93,4 +93,4 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 S3Dep = Annotated[S3Client, Depends(get_s3_client)]
 RedisDep = Annotated[Redis, Depends(get_redis)]
 
-__all__ = ["SessionDep", "CurrentUser", "TokenDep", "S3Dep"]
+__all__ = ["SessionDep", "CurrentUser", "TokenDep", "S3Dep", "RedisDep"]

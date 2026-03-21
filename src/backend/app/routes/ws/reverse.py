@@ -5,12 +5,11 @@ import uuid
 from contextlib import suppress
 from typing import Final
 
-import redis.asyncio as aioredis
 from botocore.exceptions import ClientError
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from app.converter.bytes import ByteSize
-from app.deps import S3Dep
+from app.deps import RedisDep, S3Dep
 from app.schemas.reverse import RoomFileEntry, RoomFileEvent
 from app.settings import settings
 from app.states.room import RoomState
@@ -76,6 +75,7 @@ async def room_ws(
     ws: WebSocket,
     room_id: str,
     s3_client: S3Dep,
+    redis_client: RedisDep,
     host_token: str | None = None,
 ):
     room = await RoomState.get(room_id, strip_keys=False)
@@ -95,9 +95,6 @@ async def room_ws(
     client_id = str(uuid.uuid4())
     await RoomState.client_online(room_id, client_id, is_host)
 
-    redis_client = aioredis.from_url(
-        settings.REDIS_ENDPOINT, encoding="utf-8", decode_responses=True
-    )
     pubsub = redis_client.pubsub()
     channel = RoomState.channel_for(room_id)
     await pubsub.subscribe(channel)
@@ -107,7 +104,6 @@ async def room_ws(
         await pubsub.unsubscribe(channel)
         await pubsub.aclose()
         await RoomState.client_offline(room_id, client_id, is_host)
-        await redis_client.aclose()
         await ws.close(code=4004, reason="Room expired")
         return
 
@@ -267,4 +263,3 @@ async def room_ws(
 
         await pubsub.unsubscribe(channel)
         await pubsub.aclose()
-        await redis_client.aclose()
