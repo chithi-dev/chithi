@@ -32,12 +32,6 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v6
 
-            - name: Set up Python
-              uses: actions/setup-python@v6
-              
-            - name: Inject Version
-              run: python scripts/inject_version.py
-              
             - name: Set up Node.js ${{ matrix.node-version }}
               uses: actions/setup-node@v6
               with:
@@ -47,6 +41,9 @@ jobs:
 
             - name: Install dependencies
               run: npm i
+
+            - name: Inject Version
+              run: node --no-experimental-strip-types scripts/inject-version.ts
 
             - name: Build (Node adapter)
               run: npm run build
