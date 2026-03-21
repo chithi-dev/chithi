@@ -1,5 +1,5 @@
 from datetime import datetime
-
+from typing import Literal
 from sqlmodel import SQLModel
 
 
@@ -54,5 +54,5 @@ class AddHostOut(SQLModel):
 class RoomFileEvent(SQLModel):
     """Pushed to WebSocket subscribers on file activity."""
 
-    event: str  # "file_added" | "file_removed"
+    event: Literal["file_added", "file_removed"]
     file: RoomFileEntry
