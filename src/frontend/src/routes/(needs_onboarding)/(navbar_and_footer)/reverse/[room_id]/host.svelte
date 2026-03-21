@@ -382,7 +382,7 @@
 
 			try {
 				isEncrypting = true;
-				encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
+				encryptionProgress.set(0, { duration: 0 });
 
 				const zipStream = await createZipStream([entry.file]);
 				const { stream: encryptedStream } = await createEncryptedStream(
@@ -391,15 +391,18 @@
 					entry.file.size,
 					(processed, total) => {
 						if (total && total > 0) {
-							encryptionProgress.target = Math.min(100, Math.round((processed / total) * 100));
+							encryptionProgress.target = Math.min(100, (processed / total) * 100);
 						}
 					},
 					ikm
 				);
 
 				const encryptedBlob = await new Response(encryptedStream).blob();
-				isEncrypting = false;
 				encryptionProgress.target = 100;
+				
+				// Allow time for the progress bar to animate to 100%
+				await new Promise((r) => setTimeout(r, 600));
+				isEncrypting = false;
 
 				const filename = `${entry.file.name}.zip`;
 
