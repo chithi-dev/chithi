@@ -12,7 +12,7 @@ async def state_ws(ws: WebSocket):
     await manager.connect(ws)
     try:
         # Send current state snapshot on connect
-        current: AppState = await AppState.get()
+        current = await AppState.get()
         await ws.send_text(current.model_dump_json())
 
         # Keep the connection alive - read (and discard) client pings/messages

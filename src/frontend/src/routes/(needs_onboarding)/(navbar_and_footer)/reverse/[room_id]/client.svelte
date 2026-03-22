@@ -40,6 +40,7 @@
 	import { createDecryptedStream } from '#functions/streams';
 	import { resolve } from '$app/paths';
 	import { extractEncryptionKey } from './utils';
+	import { getDisplayFilename, handleBinaryChunk } from './functions';
 	import type { DownloadedFile, ReceiveState, RemoteUpload, RoomFileEntry, RoomOut } from './types';
 
 	let { room_id }: { room_id: string } = $props();
@@ -162,7 +163,7 @@
 					'[reverse/client] binary frame received, size=',
 					ev.data instanceof ArrayBuffer ? ev.data.byteLength : (ev.data as Blob).size
 				);
-				handleBinaryChunk(ev.data);
+				handleBinaryChunk(receiveState, ev.data);
 				return;
 			}
 
@@ -337,19 +338,6 @@
 		};
 	}
 
-	async function handleBinaryChunk(data: ArrayBuffer | Blob) {
-		if (receiveState.type !== 'streaming') return;
-		const buf = data instanceof Blob ? await data.arrayBuffer() : data;
-
-		// If we've already received the full file, ignore subsequent chunks (e.g. from duplicate host streams)
-		if (receiveState.size > 0 && receiveState.received >= receiveState.size) {
-			return;
-		}
-
-		receiveState.chunks.push(buf as any);
-		receiveState.received += buf.byteLength;
-	}
-
 	async function copyShareLink() {
 		const url = roomKey ? `${shareUrl}#${roomKey}` : shareUrl;
 		await navigator.clipboard.writeText(url);
@@ -408,9 +396,6 @@
 		ws?.close();
 		downloadedFiles.forEach((f) => f.objectUrl && URL.revokeObjectURL(f.objectUrl));
 	}
-
-	const getDisplayFilename = (filename: string) =>
-		filename.endsWith('.zip') ? filename.slice(0, -4) : filename;
 
 	onMount(() => {
 		if (roomKey) loadRoom();

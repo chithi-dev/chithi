@@ -45,6 +45,7 @@
 	import { base64urlToBytes } from '#functions/encryption';
 	import { resolve } from '$app/paths';
 	import { extractEncryptionKey, extractHostToken } from './utils';
+	import { getDisplayFilename, handleBinaryChunk } from './functions';
 	import type {
 		DownloadedFile,
 		ReceiveState,
@@ -163,9 +164,10 @@
 					'[reverse/host] binary frame received, size=',
 					ev.data instanceof ArrayBuffer ? ev.data.byteLength : (ev.data as Blob).size
 				);
-				handleBinaryChunk(ev.data);
+				handleBinaryChunk(receiveState, ev.data);
 				return;
 			}
+
 
 			try {
 				const msg = JSON.parse(ev.data);
@@ -334,19 +336,6 @@
 				/* ignore invalid JSON */
 			}
 		};
-	}
-
-	async function handleBinaryChunk(data: ArrayBuffer | Blob) {
-		if (receiveState.type !== 'streaming') return;
-		const buf = data instanceof Blob ? await data.arrayBuffer() : data;
-
-		// If we've already received the full file, ignore subsequent chunks (e.g. from duplicate host streams)
-		if (receiveState.size > 0 && receiveState.received >= receiveState.size) {
-			return;
-		}
-
-		receiveState.chunks.push(buf as any);
-		receiveState.received += buf.byteLength;
 	}
 
 	function addFiles(selected: FileList | null) {
@@ -567,9 +556,6 @@
 
 	onMount(loadRoom);
 	onDestroy(cleanup);
-
-	const getDisplayFilename = (filename: string) =>
-		filename.endsWith('.zip') ? filename.slice(0, -4) : filename;
 </script>
 
 {#if loadStatus === 'loading'}
