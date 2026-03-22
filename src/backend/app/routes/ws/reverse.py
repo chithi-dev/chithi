@@ -74,7 +74,7 @@ async def room_ws(
     ws: WebSocket,
     s3_client: S3Dep,
     redis_client: RedisDep,
-    room_id: Annotated[str, Query()],
+    room_id: str,
     host_token: Annotated[str | None, Query()] = None,
 ):
     room = await RoomState.get(room_id, strip_keys=False)
