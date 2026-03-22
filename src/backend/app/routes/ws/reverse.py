@@ -17,9 +17,6 @@ from app.states.room import RoomState
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-MAX_CONCURRENT_STREAMS: Final[int] = (
-    1  # files streamed serially per connection to avoid interleaving
-)
 S3_CHUNK_SIZE: Final[int] = ByteSize(kb=256).total_bytes()  # 256 KB read chunks
 
 
@@ -121,13 +118,11 @@ async def room_ws(
 
     await ws.send_text(json.dumps({"type": "snapshot", "room": snapshot}))
 
-    sem = asyncio.Semaphore(MAX_CONCURRENT_STREAMS)
     send_lock = asyncio.Lock()
     done_event = asyncio.Event()
 
     async def _dispatch_file(entry: RoomFileEntry) -> None:
-        async with sem:
-            await _stream_file_to_ws(ws, entry, s3_client, send_lock)
+        await _stream_file_to_ws(ws, entry, s3_client, send_lock)
 
     async def _listen_and_stream() -> None:
         seen_keys: set[str] = {e.key for e in room.files}
