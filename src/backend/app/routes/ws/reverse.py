@@ -3,10 +3,10 @@ import json
 import logging
 import uuid
 from contextlib import suppress
-from typing import Final
+from typing import Annotated, Final
 
 from botocore.exceptions import ClientError
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Query, WebSocket, WebSocketDisconnect
 
 from app.converter.bytes import ByteSize
 from app.deps import RedisDep, S3Dep
@@ -17,7 +17,9 @@ from app.states.room import RoomState
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-MAX_CONCURRENT_STREAMS: Final[int] = 1  # files streamed serially per connection to avoid interleaving
+MAX_CONCURRENT_STREAMS: Final[int] = (
+    1  # files streamed serially per connection to avoid interleaving
+)
 S3_CHUNK_SIZE: Final[int] = ByteSize(kb=256).total_bytes()  # 256 KB read chunks
 
 
@@ -76,7 +78,7 @@ async def room_ws(
     room_id: str,
     s3_client: S3Dep,
     redis_client: RedisDep,
-    host_token: str | None = None,
+    host_token: Annotated[str | None, Query()] = None,
 ):
     room = await RoomState.get(room_id, strip_keys=False)
     if room is None:
@@ -227,12 +229,18 @@ async def room_ws(
                     if not current_room:
                         continue
 
-                    entry = next((f for f in current_room.files if f.key == file_key), None)
+                    entry = next(
+                        (f for f in current_room.files if f.key == file_key), None
+                    )
                     if not entry:
                         # Try with prefix if the client sent a stripped key
                         prefix = f"rooms/{room_id}/"
                         entry = next(
-                            (f for f in current_room.files if f.key == prefix + file_key),
+                            (
+                                f
+                                for f in current_room.files
+                                if f.key == prefix + file_key
+                            ),
                             None,
                         )
 
