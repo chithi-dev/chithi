@@ -72,9 +72,9 @@ async def _stream_file_to_ws(
 @router.websocket("/ws/reverse/rooms/{room_id}")
 async def room_ws(
     ws: WebSocket,
-    room_id: str,
     s3_client: S3Dep,
     redis_client: RedisDep,
+    room_id: Annotated[str, Query()],
     host_token: Annotated[str | None, Query()] = None,
 ):
     room = await RoomState.get(room_id, strip_keys=False)
