@@ -3,17 +3,13 @@ name: CLI CI/CD
 on:
   push:
     branches: ['main']
-    paths:
-      - 'src/cli/**'
-      - '.github/workflows/**'
+    paths: ['src/cli/**', '.github/workflows/**']
   pull_request:
     branches: ['main']
-    paths:
-      - 'src/cli/**'
-      - '.github/workflows/**'
+    paths: ['src/cli/**', '.github/workflows/**']
   workflow_dispatch:
   release:
-        types: [published]
+    types: [published]
 
 permissions:
   contents: write
@@ -29,19 +25,15 @@ jobs:
           - os: ubuntu-latest
             target: linux-amd64
             asset_name: chithi-cli-linux-amd64
-            build_cmd: nuitka-linux
           - os: ubuntu-24.04-arm
             target: linux-arm64
             asset_name: chithi-cli-linux-arm64
-            build_cmd: nuitka-linux
           - os: windows-latest
             target: windows-amd64
             asset_name: chithi-cli-windows-amd64.exe
-            build_cmd: nuitka-windows
           - os: windows-11-arm
             target: windows-arm64
             asset_name: chithi-cli-windows-arm64.exe
-            build_cmd: nuitka-windows
 
     defaults:
       run:
@@ -54,7 +46,6 @@ jobs:
       - name: sccache
         uses: mozilla-actions/sccache-action@v0.0.9
 
-        
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
@@ -62,22 +53,7 @@ jobs:
         run: uv sync --frozen
 
       - name: Build Binary
-        run: uv run poe ${{ matrix.build_cmd }}
-
-      - name: Rename Artifact (Linux/macOS)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          if [ -f "app.bin" ]; then mv app.bin ${{ matrix.asset_name }}
-          elif [ -f "app" ]; then mv app ${{ matrix.asset_name }}
-          else echo "Artifact not found"; exit 1; fi
-
-      - name: Rename Artifact (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          if (Test-Path "app.exe") { Move-Item "app.exe" "${{ matrix.asset_name }}" }
-          else { throw "Artifact not found" }
+        run: uv run python build.py --output ${{ matrix.asset_name }}
 
       - name: Upload CI Artifact
         uses: actions/upload-artifact@v7
@@ -87,19 +63,10 @@ jobs:
           if-no-files-found: error
     
       - name: Test CLI
+        shell: bash
         run: |
-          echo "Testing ${{ matrix.asset_name }}"
-          if [[ "$RUNNER_OS" == "Windows" ]]; then
-            pwsh -Command "
-              try {
-                .\src\cli\${{ matrix.asset_name }} --help
-              } catch {
-                Write-Error 'CLI failed'
-                exit 1
-              }"
-          else
-            ./src/cli/${{ matrix.asset_name }} --help || { echo 'CLI failed'; exit 1; }
-          fi
+          chmod +x ./${{ matrix.asset_name }} || true
+          ./${{ matrix.asset_name }} --help || { echo 'CLI failed'; exit 1; }
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2

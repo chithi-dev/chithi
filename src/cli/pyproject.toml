@@ -32,10 +32,8 @@ build = ["nuitka>=2.8.9", "zstandard>=0.25.0"]
 dev = ["poethepoet>=0.39.0"]
 
 [tool.poe.tasks]
-nuitka-windows = "nuitka --standalone --onefile --lto=yes --python-flag=-m --python-flag=-OO --disable-bytecode-cache --assume-yes-for-downloads --windows-icon-from-ico=./assets/logo.ico ./app"
-nuitka-linux = "nuitka --standalone --onefile --clang --lto=yes --python-flag=-m --python-flag=-OO --disable-bytecode-cache --assume-yes-for-downloads ./app"
-nuitka-debug = "nuitka --standalone --onefile --clang --lto=yes --debug --python-flag=-m --python-flag=-OO --disable-bytecode-cache --assume-yes-for-downloads ./app"
-
+nuitka-build = "python build.py"
+nuitka-debug = "python build.py debug"
 
 [tool.setuptools]
 packages = ["app"]
