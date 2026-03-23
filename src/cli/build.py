@@ -31,8 +31,8 @@ class NuitkaBuilder:
         args.extend(
             [
                 "--msvc=latest",
-                "--windows-console-mode=disable",
-                "--onefile-no-compression",
+                # "--windows-console-mode=disable",
+                # "--onefile-no-compression", # Enable when upx
                 "--windows-icon-from-ico=./assets/logo.ico",
             ]
         )
