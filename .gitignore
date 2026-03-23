@@ -1,3 +1,4 @@
 # Ignore rustfs mount during dev
 
 data
+src/cli/nuitka-crash-report.xml

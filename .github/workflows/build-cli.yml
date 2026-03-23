@@ -45,6 +45,11 @@ jobs:
 
       - name: sccache
         uses: mozilla-actions/sccache-action@v0.0.9
+        
+      - name: Install UPX
+        uses: crazy-max/ghaction-upx@v4
+        with:
+          install-only: true
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
