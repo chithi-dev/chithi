@@ -1,14 +1,20 @@
 import subprocess
 import sys
 import platform
+import argparse
+import io
+
+# Force UTF-8 encoding for stdout to prevent Emoji-related crashes on Windows
+if sys.stdout.encoding != "utf-8":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 
 
 class NuitkaBuilder:
-    def __init__(self, target_script="./app"):
-        self.target = target_script
-        # Common flags used across ALL platforms
+    def __init__(self, target="./app", output_name=None):
+        self.target = target
+        self.output_name = output_name
         self.base_args = [
-            "python",
+            sys.executable,
             "-m",
             "nuitka",
             "--standalone",
@@ -23,8 +29,6 @@ class NuitkaBuilder:
 
     def build_windows(self, debug=False):
         args = self.base_args.copy()
-
-        # Windows specific flags
         args.extend(
             [
                 "--windows-console-mode=disable",
@@ -32,12 +36,10 @@ class NuitkaBuilder:
                 "--onefile-no-compression",
             ]
         )
-
         if debug:
             args.extend(["--clang", "--debug"])
         else:
             args.append("--windows-icon-from-ico=./assets/logo.ico")
-
         self._run(args)
 
     def build_linux(self):
@@ -46,25 +48,29 @@ class NuitkaBuilder:
         self._run(args)
 
     def _run(self, args):
+        if self.output_name:
+            args.append(f"--output-filename={self.output_name}")
+
         args.append(self.target)
-        print(f"🚀 Starting build: {' '.join(args)}\n")
+
+        print(f"Building: {' '.join(args)}\n")
         try:
             subprocess.run(args, check=True)
-            print("\n✅ Build successful!")
+            print("\nBuild successful!")
         except subprocess.CalledProcessError as e:
-            print(f"\n❌ Build failed with exit code {e.returncode}")
+            print(f"\nBuild failed with exit code {e.returncode}")
             sys.exit(e.returncode)
 
 
 if __name__ == "__main__":
-    builder = NuitkaBuilder()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--output", help="Final name of the binary")
+    parser.add_argument("--debug", action="store_true")
+    args = parser.parse_args()
 
-    # Detect OS or use CLI args to decide what to build
-    current_os = platform.system().lower()
+    builder = NuitkaBuilder(output_name=args.output)
 
-    if len(sys.argv) > 1 and sys.argv[1] == "debug":
-        builder.build_windows(debug=True)
-    elif current_os == "windows":
-        builder.build_windows()
+    if platform.system().lower() == "windows":
+        builder.build_windows(debug=args.debug)
     else:
         builder.build_linux()
