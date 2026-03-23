@@ -18,6 +18,7 @@ jobs:
   build:
     name: Build (${{ matrix.target }})
     runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
@@ -25,15 +26,26 @@ jobs:
           - os: ubuntu-latest
             target: linux-amd64
             asset_name: chithi-cli-linux-amd64
+
           - os: ubuntu-24.04-arm
             target: linux-arm64
             asset_name: chithi-cli-linux-arm64
+
           - os: windows-latest
             target: windows-amd64
             asset_name: chithi-cli-windows-amd64.exe
+
           - os: windows-11-arm
             target: windows-arm64
             asset_name: chithi-cli-windows-arm64.exe
+
+          - os: macos-15-intel
+            target: macos-amd64
+            asset_name: chithi-cli-macos-amd64
+
+          - os: macos-latest
+            target: macos-arm64
+            asset_name: chithi-cli-macos-arm64
 
     defaults:
       run:
@@ -43,13 +55,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: sccache
+      - name: Setup sccache
         uses: mozilla-actions/sccache-action@v0.0.9
-        
-      # - name: Install UPX
-      #   uses: crazy-max/ghaction-upx@v4
-      #   with:
-      #     install-only: true
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -60,21 +67,35 @@ jobs:
       - name: Build Binary
         run: uv run python build.py --output ${{ matrix.asset_name }}
 
+      - name: Package macOS app
+        if: startsWith(matrix.target, 'macos')
+        run: |
+          APP_NAME="${{ matrix.asset_name }}.app"
+          zip -r "${{ matrix.asset_name }}.zip" "$APP_NAME"
+
       - name: Upload CI Artifact
         uses: actions/upload-artifact@v7
         with:
           name: cli-${{ matrix.target }}
-          path: src/cli/${{ matrix.asset_name }}
+          path: |
+            src/cli/${{ matrix.asset_name }}
+            src/cli/${{ matrix.asset_name }}.zip
           if-no-files-found: error
-    
+
       - name: Test CLI
         shell: bash
         run: |
-          chmod +x ./${{ matrix.asset_name }} || true
-          ./${{ matrix.asset_name }} --help || { echo 'CLI failed'; exit 1; }
+          if [[ "${{ matrix.target }}" == macos* ]]; then
+            ./${{ matrix.asset_name }}.app/Contents/MacOS/${{ matrix.asset_name }} --help || { echo 'CLI failed'; exit 1; }
+          else
+            chmod +x ./${{ matrix.asset_name }} || true
+            ./${{ matrix.asset_name }} --help || { echo 'CLI failed'; exit 1; }
+          fi
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: src/cli/${{ matrix.asset_name }}
+          files: |
+            src/cli/${{ matrix.asset_name }}
+            src/cli/${{ matrix.asset_name }}.zip
