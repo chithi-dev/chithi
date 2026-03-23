@@ -19,6 +19,8 @@ router = APIRouter()
 
 S3_CHUNK_SIZE: Final[int] = ByteSize(kb=256).total_bytes()  # 256 KB read chunks
 
+s3_semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT_S3_READS)
+
 
 async def _stream_file_to_ws(
     ws: WebSocket,
@@ -122,7 +124,8 @@ async def room_ws(
     done_event = asyncio.Event()
 
     async def _dispatch_file(entry: RoomFileEntry) -> None:
-        await _stream_file_to_ws(ws, entry, s3_client, send_lock)
+        async with s3_semaphore:
+            await _stream_file_to_ws(ws, entry, s3_client, send_lock)
 
     async def _listen_and_stream() -> None:
         seen_keys: set[str] = {e.key for e in room.files}
