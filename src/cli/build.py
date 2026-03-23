@@ -4,12 +4,8 @@ import platform
 import argparse
 import io
 
-# Force UTF-8 encoding for stdout to prevent Emoji-related crashes on Windows
 if sys.stdout.encoding != "utf-8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
-# nuitka-windows = "nuitka --standalone --onefile --lto=yes --python-flag=-m --python-flag=-OO --disable-bytecode-cache --assume-yes-for-downloads --windows-icon-from-ico=./assets/logo.ico ./app"
-# nuitka-linux = "nuitka --standalone --onefile --clang --lto=yes --python-flag=-m --python-flag=-OO --disable-bytecode-cache --assume-yes-for-downloads ./app"
-# nuitka-debug = "nuitka --standalone --onefile --clang --lto=yes --debug --python-flag=-m --python-flag=-OO --disable-bytecode-cache --assume-yes-for-downloads ./app"
 
 
 class NuitkaBuilder:
@@ -25,7 +21,7 @@ class NuitkaBuilder:
             "--lto=yes",
             "--python-flag=-m",
             "--python-flag=-OO",
-            "--enable-plugin=upx",
+            # "--enable-plugin=upx",
             "--disable-bytecode-cache",
             "--assume-yes-for-downloads",
         ]
