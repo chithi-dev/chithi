@@ -85,6 +85,21 @@ jobs:
           name: cli-${{ matrix.target }}
           path: src/cli/${{ matrix.asset_name }}
           if-no-files-found: error
+    
+      - name: Test CLI
+        run: |
+          echo "Testing ${{ matrix.asset_name }}"
+          if [[ "$RUNNER_OS" == "Windows" ]]; then
+            pwsh -Command "
+              try {
+                .\src\cli\${{ matrix.asset_name }} --help
+              } catch {
+                Write-Error 'CLI failed'
+                exit 1
+              }"
+          else
+            ./src/cli/${{ matrix.asset_name }} --help || { echo 'CLI failed'; exit 1; }
+          fi
 
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v2
