@@ -166,17 +166,15 @@ def _make_qr_avif(url: str, dest: Path) -> None:
     buf.seek(0)
     qr_img = Image.open(buf).convert("RGBA")
 
-    # Overlay the SVG logo if available
-    if _LOGO_SVG.exists():
-        logo_size = qr_img.width // 4
-        svg_bytes = resvg_py.svg_to_bytes(
-            svg_path=str(_LOGO_SVG),
-            width=logo_size,
-            height=logo_size,
-        )
-        logo = Image.open(io.BytesIO(svg_bytes)).convert("RGBA")
-        pos = ((qr_img.width - logo_size) // 2, (qr_img.height - logo_size) // 2)
-        qr_img.paste(logo, pos, logo)
+    logo_size = qr_img.width // 4
+    svg_bytes = resvg_py.svg_to_bytes(
+        svg_path=str(_LOGO_SVG),
+        width=logo_size,
+        height=logo_size,
+    )
+    logo = Image.open(io.BytesIO(svg_bytes)).convert("RGBA")
+    pos = ((qr_img.width - logo_size) // 2, (qr_img.height - logo_size) // 2)
+    qr_img.paste(logo, pos, logo)
 
     # Save as AVIF
     qr_img.convert("RGB").save(str(dest), format="AVIF")
