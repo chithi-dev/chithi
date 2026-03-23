@@ -7,6 +7,9 @@ import io
 # Force UTF-8 encoding for stdout to prevent Emoji-related crashes on Windows
 if sys.stdout.encoding != "utf-8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+# nuitka-windows = "nuitka --standalone --onefile --lto=yes --python-flag=-m --python-flag=-OO --disable-bytecode-cache --assume-yes-for-downloads --windows-icon-from-ico=./assets/logo.ico ./app"
+# nuitka-linux = "nuitka --standalone --onefile --clang --lto=yes --python-flag=-m --python-flag=-OO --disable-bytecode-cache --assume-yes-for-downloads ./app"
+# nuitka-debug = "nuitka --standalone --onefile --clang --lto=yes --debug --python-flag=-m --python-flag=-OO --disable-bytecode-cache --assume-yes-for-downloads ./app"
 
 
 class NuitkaBuilder:
@@ -31,15 +34,15 @@ class NuitkaBuilder:
         args = self.base_args.copy()
         args.extend(
             [
+                "--msvc=latest",
                 "--windows-console-mode=disable",
-                "--allow-import-from-plugin=anti-bloat:PIL.ImageQt",
                 "--onefile-no-compression",
+                "--windows-icon-from-ico=./assets/logo.ico",
             ]
         )
         if debug:
-            args.extend(["--clang", "--debug"])
-        else:
-            args.append("--windows-icon-from-ico=./assets/logo.ico")
+            args.extend(["--debug"])
+
         self._run(args)
 
     def build_linux(self):
