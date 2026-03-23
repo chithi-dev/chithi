@@ -77,7 +77,7 @@ class Settings(BaseSettings):
 
     # Instance Limits for S3 ops
 
-    MAX_CONCURRENT_S3_READS = 10
+    MAX_CONCURRENT_S3_READS: int = 10
 
 
 settings = Settings()  # type: ignore
