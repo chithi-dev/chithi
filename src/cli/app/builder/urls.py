@@ -1,13 +1,12 @@
-from urllib.parse import urljoin, urlparse, urlunparse
+from urllib.parse import urljoin, urlparse
 from app.settings import settings
 import typer
 
 
 class UrlBuilder:
     def __init__(self, backend_url: str, frontend_url: str):
-        # Ensure schemes are present
-        self.__backend_url = self.__ensure_scheme(backend_url)
-        self.__frontend_url = self.__ensure_scheme(frontend_url)
+        self._backend_url = self.__ensure_scheme(backend_url)
+        self._frontend_url = self.__ensure_scheme(frontend_url)
 
     @staticmethod
     def __ensure_scheme(url: str) -> str:
@@ -17,65 +16,50 @@ class UrlBuilder:
 
     @staticmethod
     def __ensure_trailing_slash(url: str) -> str:
-        parsed = urlparse(url)
-        if not parsed.path.endswith("/"):
-            new_path = parsed.path + "/"
-            parsed = parsed._replace(path=new_path)
-        return urlunparse(parsed)
+        if not url.endswith("/"):
+            return url + "/"
+        return url
 
     @classmethod
     def resolve(cls, initial_url: str | None = None) -> "UrlBuilder":
-        """
-        Logic:
-        1. If a URL is passed from CLI/Link, use it.
-        2. If not, check settings.
-        3. If still nothing, prompt user for 'Same Domain' setup.
-        """
         url_candidate = initial_url or settings.INSTANCE_URL
 
         if url_candidate:
-            # If we already have a URL, we treat it as both for simplicity
-            return cls(backend_url=url_candidate, frontend_url=url_candidate)
+            base = cls.__ensure_scheme(url_candidate)
+            # If "api" isn't in the URL, we assume the backend is at /api/
+            if "/api" not in base.lower():
+                base_dir = cls.__ensure_trailing_slash(base)
+                return cls(backend_url=urljoin(base_dir, "api/"), frontend_url=base_dir)
+            return cls(backend_url=base, frontend_url=base)
 
-        # Interactive Setup
-        same_domain = typer.confirm(
-            "Are the backend and frontend hosted on the same domain?", default=True
-        )
-
-        if same_domain:
-            domain = typer.prompt("Enter the base domain", default="chithi.dev").strip(
-                "/"
-            )
-            # Standard structure: root for frontend, /api/ for backend
-            return cls(
-                backend_url=f"https://{domain}/api/", frontend_url=f"https://{domain}/"
-            )
+        # Interactive Fallback
+        if typer.confirm("Are backend and frontend on the same domain?", default=True):
+            domain = typer.prompt("Enter base domain", default="chithi.dev").strip("/")
+            base = f"https://{domain}/"
+            return cls(backend_url=urljoin(base, "api/"), frontend_url=base)
         else:
-            frontend = typer.prompt("Enter the Frontend URL (e.g. https://chithi.dev)")
-            backend = typer.prompt(
-                "Enter the Backend URL (e.g. https://api.chithi.dev)"
-            )
+            frontend = typer.prompt("Frontend URL (e.g. https://chithi.dev)")
+            backend = typer.prompt("Backend URL (e.g. https://api.chithi.dev)")
             return cls(backend_url=backend, frontend_url=frontend)
 
     @property
-    def instance_url(self):
-        """Standardized backend base URL."""
-        return self.__ensure_trailing_slash(self.__backend_url)
+    def backend_url(self) -> str:
+        return self.__ensure_trailing_slash(self._backend_url)
 
     @property
-    def frontend_url(self):
-        """Standardized frontend base URL."""
-        return self.__ensure_trailing_slash(self.__frontend_url)
+    def frontend_url(self) -> str:
+        return self.__ensure_trailing_slash(self._frontend_url)
 
-    def upload_url(self):
-        return urljoin(self.instance_url, "upload")
+    def upload_url(self) -> str:
+        return urljoin(self.backend_url, "upload")
 
-    def config_url(self):
-        return urljoin(self.instance_url, "config")
+    def config_url(self) -> str:
+        return urljoin(self.backend_url, "config")
 
-    def download_url(self):
-        return urljoin(self.instance_url, "download/")
+    def download_url(self) -> str:
+        return urljoin(self.backend_url, "download/")
 
     def share_url(self, slug: str, key_secret: str) -> str:
-        # Share URLs should point to the Frontend UI
-        return f"{self.frontend_url}download/{slug}#{key_secret}"
+        # urljoin handles the path joining
+        base_share = urljoin(self.frontend_url, f"download/{slug}")
+        return f"{base_share}#{key_secret}"

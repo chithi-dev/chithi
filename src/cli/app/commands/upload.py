@@ -10,7 +10,7 @@ from app.builder.urls import UrlBuilder
 from app.helpers.file import cleanup
 from app.helpers.print import print_compact_qr
 
-app = typer.Typer(help="Upload & download encrypted files via Chithi.")
+app = typer.Typer(help="Upload encrypted files via Chithi.")
 console = Console()
 
 
@@ -74,7 +74,7 @@ def upload(
             finally:
                 cleanup(tmp_zip, tmp_enc)
 
-        # --- UI Output Logic ---
+        # UI Output Logic
         if minimal:
             # Clean output for scripts or pipes
             typer.echo(download_url)

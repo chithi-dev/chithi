@@ -37,17 +37,19 @@ class _ProgressReader:
 
 
 class Client:
-    def __init__(self, instance_url: str | UrlBuilder):
-        self.urls = (
-            instance_url
-            if isinstance(instance_url, UrlBuilder)
-            else UrlBuilder(instance_url)
-        )
+    def __init__(self, urls: UrlBuilder):
+        """
+        Initialize with a UrlBuilder instance.
+        Uses backend_url for API calls and frontend_url for headers.
+        """
+        self.urls = urls
         self._session = requests.Session()
+
+        # Set headers based on the frontend URL to avoid CORS/Security issues
         self._session.headers.update(
             {
-                "Origin": self.urls.instance_url,
-                "Referer": self.urls.instance_url,
+                "Origin": self.urls.frontend_url.rstrip("/"),
+                "Referer": self.urls.frontend_url,
             }
         )
 
@@ -61,10 +63,17 @@ class Client:
         self._session.close()
 
     @classmethod
-    def resolve(cls, instance_url: str | None = None) -> "Client":
-        """Resolve instance URL from arg/env/prompt and return Client."""
-        urls = UrlBuilder.resolve(instance_url)
+    def resolve(cls, initial_url: str | None = None) -> "Client":
+        """Resolve URLs via UrlBuilder and return a Client."""
+        urls = UrlBuilder.resolve(initial_url)
         return cls(urls)
+
+    def get_config(self) -> dict:
+        """Fetch the server configuration using the backend URL."""
+        url = self.urls.config_url()
+        response = self._session.get(url, timeout=30)
+        response.raise_for_status()
+        return response.json()
 
     def upload_file(
         self,
@@ -74,21 +83,18 @@ class Client:
         expire_after: int | None = None,
     ) -> dict:
         """
-        Stream-upload *file_path* to ``POST /upload`` on the backend.
-        Returns the JSON response (contains the download key).
+        Stream-upload *file_path* to the backend.
+        Uses the resolved backend_url/upload endpoint.
         """
-        if expire_after_n_download is None:
-            expire_after_n_download = settings.EXPIRE_AFTER_N_DOWNLOAD
+        # Resolve expiration settings
+        expire_n = expire_after_n_download or settings.EXPIRE_AFTER_N_DOWNLOAD
+        expire_t = expire_after or settings.EXPIRE_AFTER
 
-        if expire_after is None:
-            expire_after = settings.EXPIRE_AFTER
-
-        if expire_after_n_download is None or expire_after is None:
+        # Fallback to server defaults if not set locally
+        if expire_n is None or expire_t is None:
             config = self.get_config()
-            if expire_after_n_download is None:
-                expire_after_n_download = config["default_number_of_downloads"]
-            if expire_after is None:
-                expire_after = config["default_expiry"]
+            expire_n = expire_n or config.get("default_number_of_downloads")
+            expire_t = expire_t or config.get("default_expiry")
 
         upload_url = self.urls.upload_url()
         display_name = filename or file_path.name
@@ -106,41 +112,52 @@ class Client:
         ):
             wrapped = _ProgressReader(f, pbar)
             wrapped_io = cast(BinaryIO, wrapped)
+
+            # Multipart form data
             files = {"file": (display_name, wrapped_io, "application/octet-stream")}
             data = {
                 "filename": display_name,
-                "expire_after_n_download": str(expire_after_n_download),
-                "expire_after": str(expire_after),
+                "expire_after_n_download": str(expire_n),
+                "expire_after": str(expire_t),
             }
 
             response = self._session.post(
                 upload_url,
                 data=data,
                 files=files,
-                timeout=(30, None),
+                timeout=(
+                    30,
+                    None,
+                ),  # 30s connect timeout, infinite read timeout for large files
             )
+
+            # If the backend returned HTML (redirect/error), catch it here
+            if "text/html" in response.headers.get("Content-Type", ""):
+                raise ConnectionError(
+                    f"Upload failed: Server returned HTML instead of JSON from {upload_url}"
+                )
+
             response.raise_for_status()
             return response.json()
 
-    def get_config(self) -> dict:
-        """Fetch the server configuration."""
-        url = self.urls.config_url()
-        response = self._session.get(url, timeout=30)
-        response.raise_for_status()
-        return response.json()
-
     def download_to_file(self, key: str, dest: Path) -> Path:
-        """
-        Stream-download a file and write it to *dest* with a progress bar.
-        Returns *dest*.
-        """
+        """Stream-download a file using the backend URL."""
         download_url = f"{self.urls.download_url()}{key}"
 
         with self._session.get(
             download_url, stream=True, timeout=(30, None)
         ) as response:
+            # Validation: Catch frontend HTML responses before they hit the crypto layer
+            content_type = response.headers.get("Content-Type", "")
+            if "text/html" in content_type:
+                raise ConnectionError(
+                    f"Expected binary file, but got HTML. Your API URL is likely wrong.\n"
+                    f"Attempted URL: {download_url}"
+                )
+
             response.raise_for_status()
             total = int(response.headers.get("content-length", 0)) or None
+
             with (
                 open(dest, "wb") as f,
                 tqdm(
