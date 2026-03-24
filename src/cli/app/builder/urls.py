@@ -1,5 +1,4 @@
-from urllib.parse import urljoin, urlparse
-
+from urllib.parse import urljoin, urlparse, urlunparse
 from app.settings import settings
 
 
@@ -12,6 +11,15 @@ class UrlBuilder:
 
         self.__instance_url = instance_url.rstrip("/") + "/"
 
+    @staticmethod
+    def __ensure_trailing_slash(url: str) -> str:
+        parsed = urlparse(url)
+        if not parsed.path.endswith("/"):
+            # Reconstruct with a slash added to the path portion
+            new_path = parsed.path + "/"
+            parsed = parsed._replace(path=new_path)
+        return urlunparse(parsed)
+
     @classmethod
     def resolve(cls, instance_url: str | None = None) -> "UrlBuilder":
         """Resolve instance URL from arg/env/prompt and return UrlBuilder."""
@@ -20,28 +28,23 @@ class UrlBuilder:
         url = instance_url or settings.INSTANCE_URL
         if not url:
             url = typer.prompt(
-                "Enter the Chithi instance URL (e.g. https://chithi.dev)"
+                "Enter the Chithi instance URL (e.g. https://chithi.dev/api/)"
             )
         return cls(url)
 
     @property
     def instance_url(self):
-        return self.__instance_url
-
-    @property
-    def __api_url(self):
-        return urljoin(self.instance_url, "api/")
+        return self.__ensure_trailing_slash(self.__instance_url)
 
     def upload_url(self):
         # SENSITIVE URL
-        return urljoin(self.__api_url, "upload")
+        return urljoin(self.__instance_url, "upload")
 
     def config_url(self):
-        return urljoin(self.__api_url, "config")
+        return urljoin(self.__instance_url, "config")
 
     def download_url(self):
-        return urljoin(self.__api_url, "download/")
+        return urljoin(self.__instance_url, "download/")
 
     def share_url(self, slug: str, key_secret: str) -> str:
-        """Web-facing download link: ``https://instance/download/<slug>#<key>``."""
         return f"{self.instance_url}download/{slug}#{key_secret}"
