@@ -129,7 +129,7 @@ services:
             volume-permission-helper:
                 condition: service_completed_successfully
     redis:
-        image: redis:8.4.0-alpine
+        image: redis:8.6-alpine
         container_name: redis
         restart: unless-stopped
         volumes:
