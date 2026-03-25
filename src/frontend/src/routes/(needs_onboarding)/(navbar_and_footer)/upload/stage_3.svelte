@@ -59,7 +59,7 @@
 				<Tooltip.Provider>
 					<Tooltip.Root>
 						<Tooltip.Trigger>
-							<Button variant="outline" size="sm" onclick={copyLink} class="w-32">
+							<Button variant="outline" size="sm" onclick={copyLink} class="w-32 cursor-pointer">
 								{#if isCopied}
 									<Check class="mr-2 size-4" /> Copied
 								{:else}
@@ -74,7 +74,13 @@
 
 			{#if isViewOnce}
 				<ButtonGroup.Root>
-					<Button variant="outline" size="icon-sm" href={viewOnceLink} aria-label="View once">
+					<Button
+						variant="outline"
+						size="icon-sm"
+						href={viewOnceLink}
+						class="cursor-pointer"
+						aria-label="View once"
+					>
 						<Tooltip.Provider>
 							<Tooltip.Root>
 								<Tooltip.Trigger>
@@ -87,7 +93,13 @@
 				</ButtonGroup.Root>
 			{:else}
 				<ButtonGroup.Root>
-					<Button variant="outline" size="icon-sm" href={finalLink} aria-label="Download">
+					<Button
+						variant="outline"
+						class="cursor-pointer"
+						size="icon-sm"
+						href={finalLink}
+						aria-label="Download"
+					>
 						<Tooltip.Provider>
 							<Tooltip.Root>
 								<Tooltip.Trigger>
@@ -101,6 +113,7 @@
 					<Button
 						variant="outline"
 						size="icon-sm"
+						class="cursor-pointer"
 						href={finalLink.replace('/download/', '/view/')}
 						aria-label="View"
 					>
@@ -117,6 +130,6 @@
 			{/if}
 		</ButtonGroup.Root>
 
-		<Button variant="ghost" onclick={onReset}>Upload more files</Button>
+		<Button variant="ghost" class='cursor-pointer' onclick={onReset}>Upload more files</Button>
 	</div>
 </div>
