@@ -46,7 +46,7 @@ services:
         restart: 'no'
 
     rustfs:
-        image: rustfs/rustfs:1.0.0-alpha.81
+        image: rustfs/rustfs:1.0.0-alpha.85
         container_name: rustfs
         restart: unless-stopped
         user: '10001:10001'
@@ -78,7 +78,7 @@ services:
                 condition: service_completed_successfully
 
     redis:
-        image: redis:8.4.0-alpine
+        image: redis:8.6-alpine
         container_name: redis
         restart: unless-stopped
         volumes:
