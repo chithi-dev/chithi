@@ -17,7 +17,7 @@
 
 	const { config: configData } = useConfigQuery();
 
-	let stage = $state(1);
+	let stage = $state<1 | 2 | 3>(1);
 	let isDragging = $state(false);
 	let isDraggingOverCard = $state(false);
 	let isDraggingOverZone = $state(false);
@@ -51,6 +51,7 @@
 	};
 
 	const handleWindowDragEnter = (e: DragEvent) => {
+		if (stage === 3) return;
 		e.preventDefault();
 		dragCounter++;
 		if (e.dataTransfer) {
@@ -60,6 +61,7 @@
 	};
 
 	const handleWindowDragLeave = (e: DragEvent) => {
+		if (stage === 3) return;
 		dragCounter--;
 		if (dragCounter <= 0) {
 			isDragging = false;
@@ -68,11 +70,13 @@
 	};
 
 	const handleWindowDragOver = (e: DragEvent) => {
+		if (stage === 3) return;
 		e.preventDefault();
 		if (!isDragging) isDragging = true;
 	};
 
 	const handleWindowDrop = (e: DragEvent) => {
+		if (stage === 3) return;
 		e.preventDefault();
 		dragCounter = 0;
 		isDragging = false;
@@ -84,11 +88,13 @@
 	};
 
 	const handleCardDragEnter = (e: DragEvent) => {
+		if (stage === 3) return;
 		e.preventDefault();
 		isDraggingOverCard = true;
 	};
 
 	const handleCardDragLeave = (e: DragEvent) => {
+		if (stage === 3) return;
 		const currentTarget = e.currentTarget as Node;
 		const relatedTarget = e.relatedTarget as Node;
 		if (currentTarget && relatedTarget && currentTarget.contains(relatedTarget)) {
@@ -316,6 +322,7 @@
 		isDraggingOverZone && 'shadow-[0_0_60px_-10px_var(--primary)]'
 	]}
 	ondrop={(e) => {
+		if (stage === 3) return;
 		e.preventDefault();
 		e.stopPropagation();
 		dragCounter = 0;
