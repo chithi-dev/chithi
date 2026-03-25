@@ -5,7 +5,6 @@
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import RecentUpload from './recent_upload.svelte';
 	import UploadShowcase from './upload_showcase.svelte';
-	import { cn } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
 	import { dev } from '$app/environment';
 	import { markdown_to_html } from '$lib/markdown/markdown';
@@ -310,12 +309,12 @@
 {/snippet}
 
 <Card
-	class={cn(
+	class={[
 		'relative z-10 mx-auto w-full max-w-5xl border-border bg-card transition-all duration-200',
 		isDragging && 'shadow-[0_0_20px_-10px_var(--primary)]',
 		isDraggingOverCard && 'shadow-[0_0_40px_-10px_var(--primary)]',
 		isDraggingOverZone && 'shadow-[0_0_60px_-10px_var(--primary)]'
-	)}
+	]}
 	ondrop={(e) => {
 		e.preventDefault();
 		e.stopPropagation();
