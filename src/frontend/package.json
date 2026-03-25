@@ -15,6 +15,7 @@
 		"test": "npm run test:unit -- --run",
 		"test:unit": "vitest"
 	},
+	"dependencies": {},
 	"devDependencies": {
 		"@codemirror/commands": "^6.10.3",
 		"@codemirror/language": "^6.12.2",
@@ -35,6 +36,7 @@
 		"@tailwindcss/vite": "^4.2.1",
 		"@tanstack/svelte-query": "^6.1.0",
 		"@tanstack/svelte-query-devtools": "^6.0.4",
+		"@tanstack/svelte-virtual": "^3.13.23",
 		"@types/node": "^25",
 		"@types/nprogress": "^0.2.3",
 		"@types/qrcode": "^1.5.6",
@@ -88,8 +90,5 @@
 		"vite": "^8.0.0",
 		"vitest": "^4.1.0",
 		"zod": "^4.3.6"
-	},
-	"dependencies": {
-		"@tanstack/svelte-virtual": "^3.13.23"
 	}
 }
