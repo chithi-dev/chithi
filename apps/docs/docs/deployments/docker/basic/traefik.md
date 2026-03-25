@@ -19,7 +19,7 @@ Here is a ready to use docker file that can be used to deploy your site:
 ```yaml
 services:
     traefik:
-        image: traefik:v3.6.7
+        image: traefik:v3.7.0
         container_name: traefik
         restart: unless-stopped
         ports:
@@ -121,7 +121,7 @@ services:
             volume-permission-helper:
                 condition: service_completed_successfully
     redis:
-        image: redis:8.4.0-alpine
+        image: redis:8.6-alpine
         container_name: redis
         restart: unless-stopped
         volumes:
