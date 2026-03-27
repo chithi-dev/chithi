@@ -130,6 +130,6 @@
 			{/if}
 		</ButtonGroup.Root>
 
-		<Button variant="ghost" class='cursor-pointer' onclick={onReset}>Upload more files</Button>
+		<Button variant="ghost" class="cursor-pointer" onclick={onReset}>Upload more files</Button>
 	</div>
 </div>

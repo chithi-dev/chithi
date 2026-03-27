@@ -13,7 +13,6 @@
 	import { BACKEND_API } from '#consts/backend';
 	import { Progress } from '$lib/components/ui/progress';
 	import { addHistoryEntry } from '$lib/database';
-	import { cn } from '$lib/utils';
 	import { toast } from 'svelte-sonner';
 	import { cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
@@ -45,22 +44,23 @@
 	const { config: configData } = useConfigQuery();
 
 	let fileInput = $state<HTMLInputElement>();
+
+	// Flattened settings
 	let downloadLimit = $state('1');
-	let defaultDownloadLimitSet = false;
 	let timeLimit = $state('86400');
-	let defaultTimeLimitSet = false;
 	let isPasswordProtected = $state(false);
 	let password = $state('');
 	let showPassword = $state(false);
-	let uploadingInProgress = $state(false);
 	let folderName = $state(uuidv7());
-	let isEncrypting = $state(false);
+	let defaultsLoaded = $state(false);
 
-	// Encryption progress states
+	// Flattened status
+	let inProgress = $state(false);
+	let isEncrypting = $state(false);
 	let encryptionProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 	let uploadProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 
-	let totalSize = $derived(formatFileSize(files.reduce((sum, file) => sum + file.size, 0)));
+	const totalSize = $derived(formatFileSize(files.reduce((sum, file) => sum + file.size, 0)));
 
 	$effect(() => {
 		if (files.length === 1) {
@@ -71,16 +71,10 @@
 	});
 
 	$effect(() => {
-		if (configData.data?.default_number_of_downloads && !defaultDownloadLimitSet) {
-			downloadLimit = configData.data.default_number_of_downloads.toString();
-			defaultDownloadLimitSet = true;
-		}
-	});
-
-	$effect(() => {
-		if (configData.data?.default_expiry && !defaultTimeLimitSet) {
-			timeLimit = configData.data.default_expiry.toString();
-			defaultTimeLimitSet = true;
+		if (configData.data && !defaultsLoaded) {
+			downloadLimit = configData.data.default_number_of_downloads?.toString() ?? downloadLimit;
+			timeLimit = configData.data.default_expiry?.toString() ?? timeLimit;
+			defaultsLoaded = true;
 		}
 	});
 
@@ -137,13 +131,14 @@
 		const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
 		const newFilesSize = newFiles.reduce((sum, file) => sum + file.size, 0);
 
-		if (configData.data?.max_file_size_limit) {
-			if (currentTotalSize + newFilesSize > configData.data.max_file_size_limit) {
-				toast.error(
-					`Total file size cannot exceed ${formatFileSize(configData.data.max_file_size_limit)}`
-				);
-				return;
-			}
+		if (
+			configData.data?.max_file_size_limit &&
+			currentTotalSize + newFilesSize > configData.data.max_file_size_limit
+		) {
+			toast.error(
+				`Total file size cannot exceed ${formatFileSize(configData.data.max_file_size_limit)}`
+			);
+			return;
 		}
 
 		files = [...files, ...newFiles];
@@ -157,23 +152,17 @@
 
 		const items = e.dataTransfer?.items;
 		if (items) {
-			const promises: Promise<File[]>[] = [];
-			for (let i = 0; i < items.length; i++) {
-				const item = items[i];
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
-				if (entry) {
-					promises.push(traverseFileTree(entry));
-				} else if (item.kind === 'file') {
-					const file = item.getAsFile();
-					if (file) promises.push(Promise.resolve([file]));
-				}
-			}
+			const promises = Array.from(items).map((item) => {
+				const entry = (item as any).webkitGetAsEntry?.();
+				return entry
+					? traverseFileTree(entry)
+					: item.kind === 'file'
+						? Promise.resolve([item.getAsFile()].filter(Boolean) as File[])
+						: Promise.resolve([]);
+			});
 			const fileArrays = await Promise.all(promises);
 			const newFiles = fileArrays.flat();
-			if (newFiles.length > 0) {
-				addFiles(newFiles);
-			}
+			newFiles.length > 0 && addFiles(newFiles);
 		} else if (e.dataTransfer?.files) {
 			addFiles(Array.from(e.dataTransfer.files));
 		}
@@ -190,9 +179,7 @@
 	const removeFile = (file: File) => {
 		files = files.filter((f) => f !== file);
 		onFilesUpdated(files);
-		if (files.length === 0) {
-			onBack();
-		}
+		files.length === 0 && onBack();
 	};
 
 	const clearAllFiles = () => {
@@ -209,7 +196,7 @@
 		}
 
 		try {
-			uploadingInProgress = true;
+			inProgress = true;
 			uploadProgress = new Tween(0, { duration: 500, easing: cubicOut });
 
 			// Create Zip Stream
@@ -246,9 +233,7 @@
 			formData.append('expire_after_n_download', viewOnce ? '1' : downloadLimit);
 			formData.append('expire_after', timeLimit);
 			formData.append('file', encryptedBlob, blobFilename);
-			if (files.length > 1) {
-				formData.append('folder_name', folderName);
-			}
+			files.length > 1 && formData.append('folder_name', folderName);
 
 			const data = await new Promise<any>((resolve, reject) => {
 				const xhr = new XMLHttpRequest();
@@ -283,18 +268,16 @@
 
 			uploadProgress.target = 100;
 
-			const serverPath =
-				data && (data.id || data.path || data.key) ? data.id || data.path || data.key : null;
+			const serverPath = data?.id ?? data?.path ?? data?.key;
 
 			if (!serverPath) throw new Error('Invalid server response');
 
 			// Store the key in the URL fragment so it is never sent to the server
 			const downloadPath = `/download/${serverPath}#${keySecret}`;
 			const finalLink = `${window.location.origin}${downloadPath}`;
-			let viewOnceLink = '';
-			if (viewOnce) {
-				viewOnceLink = `${window.location.origin}/once/${serverPath}#${keySecret}`;
-			}
+			const viewOnceLink = viewOnce
+				? `${window.location.origin}/once/${serverPath}#${keySecret}`
+				: '';
 
 			// Add to history
 			const expiryTime = Date.now() + parseInt(timeLimit) * 1000;
@@ -315,12 +298,12 @@
 		} catch (err: any) {
 			console.error('Upload failed', err);
 			toast.error('Upload failed: ' + (err?.message ?? err));
-			uploadingInProgress = false;
+			inProgress = false;
 			uploadProgress = new Tween(0, { duration: 500, easing: cubicOut });
 			isEncrypting = false;
 			encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
 		} finally {
-			uploadingInProgress = false;
+			inProgress = false;
 			isEncrypting = false;
 		}
 	};
@@ -356,7 +339,7 @@
 	</div>
 {/snippet}
 
-{#if uploadingInProgress}
+{#if inProgress}
 	<!-- Modern Upload Animation -->
 	<div class="flex h-full w-full flex-col items-center justify-center p-8">
 		<div class="relative mb-8 flex h-40 w-40 items-center justify-center">
