@@ -1,4 +1,9 @@
+<script lang="ts">
+	let { class: klass } = $props();
+</script>
+
 <svg
+	class={klass}
 	xmlns="http://www.w3.org/2000/svg"
 	width="336px"
 	height="210px"

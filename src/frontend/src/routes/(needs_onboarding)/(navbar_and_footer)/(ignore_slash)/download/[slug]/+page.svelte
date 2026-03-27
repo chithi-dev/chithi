@@ -167,7 +167,7 @@
 							class="flex flex-col items-center justify-center py-4"
 						>
 							<div class="mb-6 flex flex-col items-center text-muted-foreground">
-								<CompleteSvg />
+								<CompleteSvg class="pointer-events-none select-none" />
 							</div>
 
 							<div class="flex w-full gap-3 pt-2">
