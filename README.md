@@ -35,7 +35,12 @@ This project is licensed under the Mozilla Public License 2.0. See `LICENSE.md` 
 
 If you need help running the project or want to contribute, open an issue or a discussion.
 
+## Videos about Chithi
+* [Best Docker Apps of January 2026](https://youtu.be/smAgwhfrYzk?t=371)
 
+  
 ## Star History
+
+Give this repository a star to keep track of releases and updates. Stars are also great for motivating me to keep adding features!
 
 [![Star History Chart](https://api.star-history.com/svg?repos=chithi-dev/chithi&type=date&legend=top-left)](https://www.star-history.com/#chithi-dev/chithi&type=date&legend=top-left)
