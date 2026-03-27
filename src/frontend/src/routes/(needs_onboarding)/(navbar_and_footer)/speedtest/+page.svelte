@@ -19,7 +19,6 @@
 	import { PieChart, Text } from 'layerchart';
 	import { Play, RotateCw, Activity, ArrowDown, ArrowUp, Timer } from 'lucide-svelte';
 	import SpeedtestWorker from './speedtest.worker?worker';
-	import { cn } from '$lib/utils';
 	import { Progress } from '$lib/components/ui/progress';
 
 	let worker: Worker | undefined;
