@@ -1,11 +1,11 @@
 from datetime import datetime, timezone
-from typing import Any
 
 import redis.asyncio as redis
 from pydantic import BaseModel
 from redis.asyncio import Redis
 
 from app.settings import settings
+
 from ._global import GlobalState
 
 
@@ -110,6 +110,7 @@ class AppState(GlobalState, BaseModel):
     @classmethod
     async def ensure_created(cls) -> None:
         from sqlmodel import select
+
         from app.db import AsyncSessionLocal
         from app.models.config import Config
 
