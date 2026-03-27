@@ -12,6 +12,7 @@ from app.converter.bytes import ByteSize
 from app.deps import RedisDep, S3Dep
 from app.schemas.reverse import RoomFileEntry, RoomFileEvent
 from app.settings import settings
+from app.states.app import UploadProgress
 from app.states.room import RoomState
 
 logger = logging.getLogger(__name__)
@@ -29,46 +30,66 @@ async def _stream_file_to_ws(
     send_lock: asyncio.Lock,
 ) -> None:
     """Fetch one file from RustFS and relay every chunk to *ws*."""
+    upload_key = f"ws:{uuid.uuid4()}"
+    await UploadProgress.start(
+        upload_key=upload_key, filename=entry.filename, track_space=False
+    )
+
+    success = False
     try:
-        s3_response = await s3_client.get_object(
-            Bucket=settings.RUSTFS_BUCKET_NAME,
-            Key=entry.key,
-        )
-    except ClientError:
+        try:
+            s3_response = await s3_client.get_object(
+                Bucket=settings.RUSTFS_BUCKET_NAME,
+                Key=entry.key,
+            )
+        except ClientError:
+            async with send_lock:
+                await ws.send_text(
+                    json.dumps(
+                        {
+                            "type": "file_error",
+                            "key": entry.key,
+                            "detail": "Not found in storage",
+                        }
+                    )
+                )
+            return
+
         async with send_lock:
             await ws.send_text(
                 json.dumps(
                     {
-                        "type": "file_error",
+                        "type": "file_start",
                         "key": entry.key,
-                        "detail": "Not found in storage",
+                        "filename": entry.filename,
+                        "size": entry.size,
                     }
                 )
             )
-        return
 
-    async with send_lock:
-        await ws.send_text(
-            json.dumps(
-                {
-                    "type": "file_start",
-                    "key": entry.key,
-                    "filename": entry.filename,
-                    "size": entry.size,
-                }
-            )
-        )
+        body = s3_response["Body"]
+        uploaded_bytes = 0
+        try:
+            async for chunk in body.iter_chunks(S3_CHUNK_SIZE):
+                async with send_lock:
+                    await ws.send_bytes(chunk)
+                uploaded_bytes += len(chunk)
+                await UploadProgress.update(
+                    upload_key=upload_key, uploaded_bytes=uploaded_bytes
+                )
+        finally:
+            body.close()
 
-    body = s3_response["Body"]
-    try:
-        async for chunk in body.iter_chunks(S3_CHUNK_SIZE):
-            async with send_lock:
-                await ws.send_bytes(chunk)
+        async with send_lock:
+            await ws.send_text(json.dumps({"type": "file_end", "key": entry.key}))
+
+        await UploadProgress.finish(upload_key=upload_key, final_size=entry.size)
+        success = True
+    except (asyncio.CancelledError, Exception):
+        raise
     finally:
-        body.close()
-
-    async with send_lock:
-        await ws.send_text(json.dumps({"type": "file_end", "key": entry.key}))
+        if not success:
+            await UploadProgress.cancel(upload_key=upload_key)
 
 
 @router.websocket("/ws/reverse/rooms/{room_id}")
