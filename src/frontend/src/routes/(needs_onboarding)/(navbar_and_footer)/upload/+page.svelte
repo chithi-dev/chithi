@@ -17,12 +17,14 @@
 
 	const { config: configData } = useConfigQuery();
 
-	let stage = $state<1 | 2 | 3>(1);
-	let isDragging = $state(false);
-	let isDraggingOverCard = $state(false);
-	let isDraggingOverZone = $state(false);
+	type Stage = 1 | 2 | 3;
+	let stage = $state<Stage>(1);
+
+	let dragActive = $state(false);
+	let dragOverCard = $state(false);
+	let dragOverZone = $state(false);
 	let dragCounter = $state(0);
-	let files = $state(new Array<File>());
+	let files = $state<File[]>([]);
 	let debugLoading = $state(false);
 	let uploadResult = $state<{
 		finalLink: string;
@@ -30,7 +32,7 @@
 		isViewOnce: boolean;
 	} | null>(null);
 
-	let detailsMarkdown = $derived(configData.data?.site_description ?? '');
+	const detailsMarkdown = $derived(configData.data?.site_description ?? '');
 	let detailsHtml = $state('');
 
 	$effect(() => {
@@ -54,17 +56,15 @@
 		if (stage === 3) return;
 		e.preventDefault();
 		dragCounter++;
-		if (e.dataTransfer) {
-			e.dataTransfer.dropEffect = 'copy';
-		}
-		isDragging = true;
+		e.dataTransfer && (e.dataTransfer.dropEffect = 'copy');
+		dragActive = true;
 	};
 
 	const handleWindowDragLeave = (e: DragEvent) => {
 		if (stage === 3) return;
 		dragCounter--;
 		if (dragCounter <= 0) {
-			isDragging = false;
+			dragActive = false;
 			dragCounter = 0;
 		}
 	};
@@ -72,16 +72,16 @@
 	const handleWindowDragOver = (e: DragEvent) => {
 		if (stage === 3) return;
 		e.preventDefault();
-		if (!isDragging) isDragging = true;
+		dragActive ||= true;
 	};
 
 	const handleWindowDrop = (e: DragEvent) => {
 		if (stage === 3) return;
 		e.preventDefault();
 		dragCounter = 0;
-		isDragging = false;
-		isDraggingOverZone = false;
-		isDraggingOverCard = false;
+		dragActive = false;
+		dragOverZone = false;
+		dragOverCard = false;
 		if (e.dataTransfer?.types.includes('Files')) {
 			toast.error('File/folder must be dropped into the bordered area in the dashed circle');
 		}
@@ -90,31 +90,27 @@
 	const handleCardDragEnter = (e: DragEvent) => {
 		if (stage === 3) return;
 		e.preventDefault();
-		isDraggingOverCard = true;
+		dragOverCard = true;
 	};
 
 	const handleCardDragLeave = (e: DragEvent) => {
 		if (stage === 3) return;
 		const currentTarget = e.currentTarget as Node;
 		const relatedTarget = e.relatedTarget as Node;
-		if (currentTarget && relatedTarget && currentTarget.contains(relatedTarget)) {
-			return;
-		}
-		isDraggingOverCard = false;
+		if (currentTarget?.contains(relatedTarget)) return;
+		dragOverCard = false;
 	};
 
 	const handleZoneDragEnter = (e: DragEvent) => {
 		e.preventDefault();
-		isDraggingOverZone = true;
+		dragOverZone = true;
 	};
 
 	const handleZoneDragLeave = (e: DragEvent) => {
 		const currentTarget = e.currentTarget as Node;
 		const relatedTarget = e.relatedTarget as Node;
-		if (currentTarget && relatedTarget && currentTarget.contains(relatedTarget)) {
-			return;
-		}
-		isDraggingOverZone = false;
+		if (currentTarget?.contains(relatedTarget)) return;
+		dragOverZone = false;
 	};
 
 	const traverseFileTree = async (item: any, path = ''): Promise<File[]> => {
@@ -317,18 +313,18 @@
 <Card
 	class={[
 		'relative z-10 mx-auto w-full max-w-5xl border-border bg-card transition-all duration-200',
-		isDragging && 'shadow-[0_0_20px_-10px_var(--primary)]',
-		isDraggingOverCard && 'shadow-[0_0_40px_-10px_var(--primary)]',
-		isDraggingOverZone && 'shadow-[0_0_60px_-10px_var(--primary)]'
+		dragActive && 'shadow-[0_0_20px_-10px_var(--primary)]',
+		dragOverCard && 'shadow-[0_0_40px_-10px_var(--primary)]',
+		dragOverZone && 'shadow-[0_0_60px_-10px_var(--primary)]'
 	]}
 	ondrop={(e) => {
 		if (stage === 3) return;
 		e.preventDefault();
 		e.stopPropagation();
 		dragCounter = 0;
-		isDragging = false;
-		isDraggingOverZone = false;
-		isDraggingOverCard = false;
+		dragActive = false;
+		dragOverZone = false;
+		dragOverCard = false;
 		toast.error('File/Folder must be dropped in the bordered area');
 	}}
 	ondragenter={handleCardDragEnter}
@@ -350,7 +346,7 @@
 				<div in:fly={{ x: -20, duration: 400 }}>
 					<Stage1
 						{onFilesSelected}
-						{isDraggingOverZone}
+						isDraggingOverZone={dragOverZone}
 						onZoneDragEnter={handleZoneDragEnter}
 						onZoneDragLeave={handleZoneDragLeave}
 					/>
@@ -371,7 +367,7 @@
 						onFilesUpdated={(newFiles) => (files = newFiles)}
 						{onUploadComplete}
 						onBack={() => (stage = 1)}
-						{isDraggingOverZone}
+						isDraggingOverZone={dragOverZone}
 						onZoneDragEnter={handleZoneDragEnter}
 						onZoneDragLeave={handleZoneDragLeave}
 					/>
