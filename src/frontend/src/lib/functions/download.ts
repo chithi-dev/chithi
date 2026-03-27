@@ -1,4 +1,4 @@
-import { BACKEND_API } from '#consts/backend';
+import { Api } from '#consts/backend';
 import { createDecryptedStream } from './streams';
 
 export class PasswordRequiredError extends Error {
@@ -16,7 +16,7 @@ export async function downloadAndDecryptFile(
 	fileSize: number,
 	onProgress: (percent: number) => void
 ) {
-	const res = await fetch(`${BACKEND_API}/download/${slug}`);
+	const res = await fetch(Api.DOWNLOAD(slug));
 	if (!res.ok) throw new Error('Download failed');
 	if (!res.body) throw new Error('No response body');
 

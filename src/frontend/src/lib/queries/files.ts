@@ -1,4 +1,4 @@
-import { ADMIN_FILES_URL } from '#consts/backend';
+import { Api } from '#consts/backend';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 export type FileInfo = {
@@ -17,7 +17,7 @@ export const useFilesQuery = () => {
 	const query = createQuery(() => ({
 		queryKey: ['admin-files'],
 		queryFn: async () => {
-			const res = await fetch(ADMIN_FILES_URL, {
+			const res = await fetch(Api.ADMIN.FILES, {
 				credentials: 'include'
 			});
 
@@ -34,7 +34,7 @@ export const useFilesQuery = () => {
 	}));
 
 	const revokeFile = async (id: string) => {
-		const res = await fetch(`${ADMIN_FILES_URL}/${id}`, {
+		const res = await fetch(Api.ADMIN.FILE_REVOKE(id), {
 			method: 'DELETE',
 			credentials: 'include'
 		});

@@ -15,7 +15,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import { Label } from '$lib/components/ui/label';
 	import { Upload, Download, ArrowLeft, LoaderCircle } from 'lucide-svelte';
-	import { REVERSE_ROOMS_URL } from '#consts/backend';
+	import { Api } from '#consts/backend';
 	import { useConfigQuery } from '#queries/config';
 	import { base64url } from '#functions/encryption';
 
@@ -54,7 +54,7 @@
 		}
 		isCreating = true;
 		try {
-			const res = await fetch(REVERSE_ROOMS_URL, {
+			const res = await fetch(Api.REVERSE.ROOMS, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({

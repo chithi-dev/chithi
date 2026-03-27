@@ -1,4 +1,4 @@
-import { ADMIN_USER_UPDATE_URL, USER_URL } from '#consts/backend';
+import { Api } from '#consts/backend';
 import { browser } from '$app/environment';
 import { login as loginRemote } from '$lib/remote/auth.remote';
 import { user_store } from '$lib/store/user.svelte';
@@ -12,7 +12,7 @@ const fetchUser = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
 	if (!user_store.is_authenticated) return null;
 
 	const runtimeFetch = resolveFetch(fetch);
-	const res = await runtimeFetch(USER_URL, {
+	const res = await runtimeFetch(Api.USER, {
 		credentials: 'include'
 	});
 
@@ -57,7 +57,7 @@ export const useAuth = () => {
 		if (!browser) return;
 		const runtimeFetch = resolveFetch();
 
-		const res = await runtimeFetch(ADMIN_USER_UPDATE_URL, {
+		const res = await runtimeFetch(Api.ADMIN.USER_UPDATE, {
 			method: 'PATCH',
 			headers: {
 				'Content-Type': 'application/json'

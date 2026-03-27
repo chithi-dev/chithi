@@ -12,7 +12,7 @@
 	} from '$lib/database';
 	import { formatFileSize } from '#functions/bytes';
 	import { get } from 'svelte/store';
-	import { FILE_INFO_URL } from '#consts/backend';
+	import { Api } from '#consts/backend';
 
 	let open = $state(false);
 	let copiedId = $state<string | null>(null);
@@ -26,7 +26,7 @@
 		expired: boolean;
 	};
 	const fetchFileInformation = async (key: string): Promise<FileInformationOut> => {
-		const res = await fetch(`${FILE_INFO_URL}/${key}`);
+		const res = await fetch(Api.FILE_INFO(key));
 		if (!res.ok) {
 			throw new Error('Failed to fetch file information');
 		}

@@ -5,7 +5,7 @@
 	import { FileText, CircleAlert, LoaderCircle, Download, KeyRound } from 'lucide-svelte';
 	import { page } from '$app/state';
 	import { fly } from 'svelte/transition';
-	import { BACKEND_API } from '#consts/backend';
+	import { Api } from '#consts/backend';
 	import { downloadAndDecryptFile, PasswordRequiredError } from '#functions/download';
 	import { formatFileSize } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';
@@ -35,7 +35,7 @@
 		}
 		status = 'checking';
 		try {
-			const res = await fetch(`${BACKEND_API}/information/${slug}`);
+			const res = await fetch(Api.FILE_INFO(slug));
 			if (!res.ok) {
 				if (res.status === 404) throw new Error('File not found');
 				if (res.status === 410) throw new Error('File expired or limit reached');

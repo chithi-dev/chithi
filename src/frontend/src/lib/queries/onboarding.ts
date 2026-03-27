@@ -1,4 +1,4 @@
-import { ONBOARDING_URL } from '#consts/backend';
+import { Api } from '#consts/backend';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 const queryKey = ['onboarding-status'];
@@ -7,7 +7,7 @@ const resolveFetch = (fetch?: typeof globalThis.fetch) => fetch ?? globalThis.fe
 
 const fetchOnboarding = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
 	const runtimeFetch = resolveFetch(fetch);
-	const res = await runtimeFetch(ONBOARDING_URL, { credentials: 'include' });
+	const res = await runtimeFetch(Api.ONBOARDING, { credentials: 'include' });
 	if (!res.ok) {
 		throw new Error('Failed to fetch onboarding status');
 	}
@@ -37,7 +37,7 @@ export const useOnboarding = () => {
 		email: string;
 		password: string;
 	}) => {
-		const res = await fetch(ONBOARDING_URL, {
+		const res = await fetch(Api.ONBOARDING, {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'

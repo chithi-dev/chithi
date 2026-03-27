@@ -1,4 +1,4 @@
-import { ADMIN_CONFIG_URL, CONFIG_URL } from '#consts/backend';
+import { Api } from '#consts/backend';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 const queryKey = ['config'];
@@ -6,7 +6,7 @@ const resolveFetch = (fetch?: typeof globalThis.fetch) => fetch ?? globalThis.fe
 
 const fetchConfig = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
 	const runtimeFetch = resolveFetch(fetch);
-	const res = await runtimeFetch(CONFIG_URL, {
+	const res = await runtimeFetch(Api.CONFIG, {
 		credentials: 'include'
 	});
 
@@ -54,7 +54,7 @@ export const useConfigQuery = () => {
 	}));
 
 	const update_config = async (data: Partial<ConfigIn>) => {
-		const res = await fetch(ADMIN_CONFIG_URL, {
+		const res = await fetch(Api.ADMIN.CONFIG, {
 			method: 'PATCH',
 			headers: {
 				'Content-Type': 'application/json'

@@ -36,7 +36,7 @@
 		UserPlus
 	} from 'lucide-svelte';
 	import { formatFileSize } from '#functions/bytes';
-	import { REVERSE_ROOMS_URL, REVERSE_WS_URL } from '#consts/backend';
+	import { Api } from '#consts/backend';
 	import {
 		createZipStream,
 		createEncryptedStream,
@@ -121,7 +121,7 @@
 	async function loadRoom() {
 		loadStatus = 'loading';
 		try {
-			const res = await fetch(`${REVERSE_ROOMS_URL}/${room_id}`, { credentials: 'include' });
+			const res = await fetch(`${Api.REVERSE.ROOMS}/${room_id}`, { credentials: 'include' });
 			if (res.status === 404) {
 				loadStatus = 'not_found';
 				return;
@@ -142,7 +142,7 @@
 	function connectWebSocket() {
 		ws?.close();
 		const socket = new WebSocket(
-			`${REVERSE_WS_URL}/${room_id}?host_token=${encodeURIComponent(hostToken)}`
+			Api.REVERSE.WS_URL(room_id, hostToken)
 		);
 		// prefer ArrayBuffer for binary frames to avoid Blob conversion
 		socket.binaryType = 'arraybuffer';
@@ -441,7 +441,7 @@
 			fd.append('file', file, filename);
 
 			const xhr = new XMLHttpRequest();
-			xhr.open('POST', `${REVERSE_ROOMS_URL}/${room_id}/upload`);
+			xhr.open('POST', `${Api.REVERSE.ROOMS}/${room_id}/upload`);
 			xhr.withCredentials = true;
 			xhr.setRequestHeader('X-Host-Token', hostToken);
 
@@ -481,7 +481,7 @@
 	async function inviteHost() {
 		isInviting = true;
 		try {
-			const res = await fetch(`${REVERSE_ROOMS_URL}/${room_id}/hosts`, {
+			const res = await fetch(`${Api.REVERSE.ROOMS}/${room_id}/hosts`, {
 				method: 'POST',
 				credentials: 'include',
 				headers: { 'X-Host-Token': hostToken }

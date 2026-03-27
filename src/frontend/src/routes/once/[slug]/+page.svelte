@@ -3,7 +3,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { CircleAlert, LoaderCircle, KeyRound } from 'lucide-svelte';
 	import { page } from '$app/state';
-	import { BACKEND_API } from '#consts/backend';
+	import { Api } from '#consts/backend';
 	import { PasswordRequiredError } from '#functions/download';
 	import { createDecryptedStream } from '#functions/streams';
 	import { BlobWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
@@ -31,7 +31,7 @@
 
 		try {
 			// Fetch encrypted data
-			const res = await fetch(`${BACKEND_API}/download/${slug}`);
+			const res = await fetch(Api.DOWNLOAD(slug));
 			if (!res.ok) {
 				if (res.status === 404) throw new Error('File not found');
 				if (res.status === 410) throw new Error('File expired or already downloaded');

@@ -10,7 +10,7 @@
 	import { createZipStream, createEncryptedStream } from '#functions/streams';
 	import * as Tooltip from '$lib/components/ui/tooltip/index';
 	import { v7 as uuidv7 } from 'uuid';
-	import { BACKEND_API } from '#consts/backend';
+	import { Api } from '#consts/backend';
 	import { Progress } from '$lib/components/ui/progress';
 	import { addHistoryEntry } from '$lib/database';
 	import { toast } from 'svelte-sonner';
@@ -237,7 +237,7 @@
 
 			const data = await new Promise<any>((resolve, reject) => {
 				const xhr = new XMLHttpRequest();
-				xhr.open('POST', `${BACKEND_API}/upload`);
+				xhr.open('POST', Api.UPLOAD);
 
 				xhr.upload.onprogress = (e) => {
 					if (e.lengthComputable) {
@@ -565,3 +565,4 @@
 		{/if}
 	</div>
 {/if}
+

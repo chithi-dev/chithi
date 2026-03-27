@@ -1,4 +1,4 @@
-import { TOKEN_VALIDATE_URL } from '#consts/backend';
+import { Api } from '#consts/backend';
 import { browser } from '$app/environment';
 import image from '$lib/assets/opengraph.png?url';
 import { logout } from '$lib/remote/auth.remote';
@@ -43,7 +43,7 @@ export const load: LayoutLoad = async ({ data, url }) => {
 	});
 
 	if (data.token) {
-		void fetch(TOKEN_VALIDATE_URL, {
+		void fetch(Api.TOKEN_VALIDATE, {
 			credentials: 'include'
 		})
 			.then((res) => {

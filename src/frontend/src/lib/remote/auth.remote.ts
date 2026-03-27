@@ -1,4 +1,4 @@
-import { LOGIN_URL } from '#consts/backend';
+import { Api } from '#consts/backend';
 import { command, getRequestEvent } from '$app/server';
 import { user_store } from '$lib/store/user.svelte';
 import { z } from 'zod';
@@ -15,7 +15,7 @@ export const login = command(loginSchema, async ({ username, password }) => {
 	form.append('username', username);
 	form.append('password', password);
 
-	const res = await fetch(LOGIN_URL, {
+	const res = await fetch(Api.LOGIN, {
 		method: 'POST',
 		body: form
 	});

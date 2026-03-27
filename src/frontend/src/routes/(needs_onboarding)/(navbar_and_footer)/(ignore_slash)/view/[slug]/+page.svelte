@@ -22,7 +22,7 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { fly, fade } from 'svelte/transition';
-	import { BACKEND_API } from '#consts/backend';
+	import { Api } from '#consts/backend';
 	import { PasswordRequiredError } from '#functions/download';
 	import { createDecryptedStream } from '#functions/streams';
 	import { formatFileSize } from '#functions/bytes';
@@ -79,7 +79,7 @@
 		}
 		status = 'checking';
 		try {
-			const res = await fetch(`${BACKEND_API}/information/${slug}`);
+			const res = await fetch(Api.FILE_INFO(slug));
 			if (!res.ok) {
 				if (res.status === 404) throw new Error('File not found');
 				if (res.status === 410) throw new Error('File expired or limit reached');
@@ -156,7 +156,7 @@
 		totalSize: number,
 		onProgress: (percent: number) => void
 	): Promise<Blob> {
-		const res = await fetch(`${BACKEND_API}/download/${slug}`);
+		const res = await fetch(Api.DOWNLOAD(slug));
 		if (!res.ok) throw new Error('Download failed');
 		if (!res.body) throw new Error('No response body');
 

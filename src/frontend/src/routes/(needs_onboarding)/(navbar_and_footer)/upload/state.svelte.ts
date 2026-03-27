@@ -1,4 +1,4 @@
-import { BACKEND_API } from '#consts/backend';
+import { Api } from '#consts/backend';
 
 export interface ActiveUpload {
 	upload_key: string;
@@ -28,7 +28,7 @@ let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let refCount = 0;
 
 function getWsUrl(): string {
-	const base = BACKEND_API.replace(/^http/, 'ws');
+	const base = Api.BASE.replace(/^http/, 'ws');
 	return `${base}/ws/state`;
 }
 

@@ -2,7 +2,7 @@
 	import { onDestroy } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
-	import { BACKEND_API } from '#consts/backend';
+	import { Api } from '#consts/backend';
 	import {
 		Card,
 		CardContent,
@@ -73,7 +73,7 @@
 			}
 		};
 
-		worker.postMessage({ type: 'start', baseUrl: BACKEND_API, duration: testDuration });
+		worker.postMessage({ type: 'start', baseUrl: Api.BASE, duration: testDuration });
 	}
 
 	onDestroy(() => {
