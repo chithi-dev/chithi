@@ -13,11 +13,11 @@ on:
       - '.github/workflows/**'
   workflow_dispatch:
   release:
-        types: [published]
+    types: [published]
 
 permissions:
-    contents: read
-    packages: write
+  contents: read
+  packages: write
 
 env:
   REGISTRY: ghcr.io
@@ -33,7 +33,6 @@ jobs:
             platform: linux/amd64
           - os: ubuntu-24.04-arm 
             platform: linux/arm64
-    
 
     steps:
       - name: Checkout
@@ -51,6 +50,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Extract metadata (Digests Only)
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          annotations: |
+            org.opencontainers.image.title=Backend Image
+            org.opencontainers.image.description=Backend build for ${{ github.repository }} (${{ github.ref_name }})
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=MIT
+
       - name: Build and push by digest
         id: build
         uses: docker/build-push-action@v7
@@ -58,6 +69,7 @@ jobs:
           context: ./src/backend
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          annotations: ${{ steps.meta.outputs.annotations }}
 
       - name: Export digest
         run: |
@@ -103,18 +115,21 @@ jobs:
             type=semver,pattern={{version}}
             type=raw,value=latest,enable=${{ github.event_name == 'release' || startsWith(github.ref, 'refs/tags/v') }}
 
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
-          # Create an array of tags prefixed with -t
           TAG_ARGS=$(echo "${{ steps.meta.outputs.tags }}" | xargs -I {} echo "-t {}")
-          
-          # Create an array of digests prefixed with the image name
           DIGEST_ARGS=$(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
-          
-          # Execute the command
-          docker buildx imagetools create $TAG_ARGS $DIGEST_ARGS
+
+          docker buildx imagetools create \
+            $TAG_ARGS \
+            --annotation org.opencontainers.image.title="Backend Image" \
+            --annotation org.opencontainers.image.description="Backend build for ${{ github.repository }} (${{
+              github.ref_name }})" \
+            --annotation org.opencontainers.image.source="https://github.com/${{ github.repository }}" \
+            --annotation org.opencontainers.image.revision="${{ github.sha }}" \
+            --annotation org.opencontainers.image.licenses="MIT" \
+            $DIGEST_ARGS

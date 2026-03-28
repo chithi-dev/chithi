@@ -13,16 +13,16 @@ on:
       - '.github/workflows/**'
   workflow_dispatch:
   release:
-        types: [published]
+    types: [published]
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}-frontend-node
 
 permissions:
-    contents: read
-    packages: write
-  
+  contents: read
+  packages: write
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -31,9 +31,8 @@ jobs:
         include:
           - os: ubuntu-latest
             platform: linux/amd64
-          - os: ubuntu-24.04-arm  
+          - os: ubuntu-24.04-arm
             platform: linux/arm64
-    
 
     steps:
       - name: Checkout repository
@@ -65,6 +64,13 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          annotations: |
+            org.opencontainers.image.title=Frontend Image
+            org.opencontainers.image.description=Frontend build for ${{ github.repository }} (${{
+              github.ref_name }})
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=MIT
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -73,19 +79,18 @@ jobs:
         id: build
         uses: docker/build-push-action@v7
         with:
-          context: ./src/frontend 
+          context: ./src/frontend
           file: ./src/frontend/Dockerfile
           platforms: ${{ matrix.platform }}
-          # We push by digest to a temporary location to merge later
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          annotations: ${{ steps.meta.outputs.annotations }}
 
-      # We need to export the digest so the 'merge' job can find it
       - name: Export digest
         run: |
           mkdir -p /tmp/digests
           digest="${{ steps.build.outputs.digest }}"
           touch "/tmp/digests/${digest#sha256:}"
-          
+
       - name: Upload digest
         uses: actions/upload-artifact@v7
         with:
@@ -129,11 +134,15 @@ jobs:
       - name: Create manifest list and push
         working-directory: /tmp/digests
         run: |
-          # Create an array of tags prefixed with -t
           TAG_ARGS=$(echo "${{ steps.meta.outputs.tags }}" | xargs -I {} echo "-t {}")
-          
-          # Create an array of digests prefixed with the image name
           DIGEST_ARGS=$(printf '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:%s ' *)
-          
-          # Execute the command
-          docker buildx imagetools create $TAG_ARGS $DIGEST_ARGS
+
+          docker buildx imagetools create \
+            $TAG_ARGS \
+            --annotation org.opencontainers.image.title="Frontend Image" \
+            --annotation org.opencontainers.image.description="Frontend build for ${{ github.repository }} (${{
+              github.ref_name }})" \
+            --annotation org.opencontainers.image.source="https://github.com/${{ github.repository }}" \
+            --annotation org.opencontainers.image.revision="${{ github.sha }}" \
+            --annotation org.opencontainers.image.licenses="MIT" \
+            $DIGEST_ARGS
