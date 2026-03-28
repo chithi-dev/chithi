@@ -21,6 +21,9 @@ class WebSocketManager:
     async def connect(self, ws: WebSocket) -> None:
         await ws.accept()
         self._connections.add(ws)
+        # Send current state snapshot on connect
+        state = await AppState.get()
+        await ws.send_text(state.model_dump_json())
 
     def disconnect(self, ws: WebSocket) -> None:
         self._connections.discard(ws)
