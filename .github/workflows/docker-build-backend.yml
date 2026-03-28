@@ -69,7 +69,6 @@ jobs:
           context: ./src/backend
           platforms: ${{ matrix.platform }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
-          annotations: ${{ steps.meta.outputs.annotations }}
 
       - name: Export digest
         run: |
@@ -127,8 +126,7 @@ jobs:
           docker buildx imagetools create \
             $TAG_ARGS \
             --annotation org.opencontainers.image.title="Backend Image" \
-            --annotation org.opencontainers.image.description="Backend build for ${{ github.repository }} (${{
-              github.ref_name }})" \
+            --annotation org.opencontainers.image.description="Backend build for ${{ github.repository }} (${{ github.ref_name }})" \
             --annotation org.opencontainers.image.source="https://github.com/${{ github.repository }}" \
             --annotation org.opencontainers.image.revision="${{ github.sha }}" \
             --annotation org.opencontainers.image.licenses="MIT" \
