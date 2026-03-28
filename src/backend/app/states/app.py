@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from typing import Any
 
 import redis.asyncio as redis
 from pydantic import BaseModel
@@ -9,7 +10,7 @@ from app.settings import settings
 from ._global import GlobalState
 
 
-class UploadProgress(BaseModel):
+class UploadProgress(GlobalState, BaseModel):
     upload_key: str
     filename: str
     uploaded_bytes: int = 0
@@ -18,24 +19,78 @@ class UploadProgress(BaseModel):
     track_space: bool = True
 
     @classmethod
-    async def start(cls, upload_key: str, filename: str, track_space: bool = True):
-        return await AppState._update_active(
-            upload_key, filename=filename, track_space=track_space
+    async def start(
+        cls, upload_key: str, filename: str, track_space: bool = True
+    ) -> "AppState":
+        """Register a new in-flight upload and set last_updated."""
+        current = await AppState.get()
+        now = datetime.now(timezone.utc)
+        current.active_uploads.append(
+            cls(
+                upload_key=upload_key,
+                filename=filename,
+                last_updated=now,
+                track_space=track_space,
+            )
         )
+        await AppState.set(current)
+        return current
 
     @classmethod
-    async def update(cls, upload_key: str, uploaded_bytes: int):
-        return await AppState._update_active(upload_key, uploaded_bytes=uploaded_bytes)
+    async def update(cls, upload_key: str, uploaded_bytes: int) -> "AppState":
+        """Update the byte count and touch last_updated for an in-flight upload."""
+        current = await AppState.get()
+        now = datetime.now(timezone.utc)
+        for upload in current.active_uploads:
+            if upload.upload_key == upload_key:
+                if upload.track_space:
+                    # Add the delta to total_space_used so partial uploads are accounted
+                    delta = uploaded_bytes - (upload.uploaded_bytes or 0)
+                    if delta > 0:
+                        current.total_space_used += delta
+                upload.uploaded_bytes = uploaded_bytes
+                upload.last_updated = now
+                break
+        await AppState.set(current)
+        return current
 
     @classmethod
-    async def finish(cls, upload_key: str, final_size: int):
-        return await AppState._update_active(
-            upload_key, uploaded_bytes=final_size, done=True
-        )
+    async def finish(cls, upload_key: str, final_size: int) -> "AppState":
+        """Mark an upload as done, touch last_updated, and add its size to total_space_used."""
+        current = await AppState.get()
+        now = datetime.now(timezone.utc)
+        for upload in current.active_uploads:
+            if upload.upload_key == upload_key:
+                if upload.track_space:
+                    # If we tracked partial bytes earlier, only add the remaining delta
+                    delta = final_size - (upload.uploaded_bytes or 0)
+                    if delta > 0:
+                        current.total_space_used += delta
+                upload.done = True
+                upload.uploaded_bytes = final_size
+                upload.last_updated = now
+                break
+        await AppState.set(current)
+        return current
 
     @classmethod
-    async def cancel(cls, upload_key: str):
-        return await AppState._update_active(upload_key, remove=True)
+    async def cancel(cls, upload_key: str) -> "AppState":
+        """Remove a failed/disconnected upload from the active list without adjusting totals."""
+        current = await AppState.get()
+        # Subtract any tracked uploaded bytes from totals when cancelling
+        remaining = []
+        freed = 0
+        for u in current.active_uploads:
+            if u.upload_key == upload_key:
+                if u.track_space:
+                    freed += u.uploaded_bytes or 0
+            else:
+                remaining.append(u)
+        current.active_uploads = remaining
+        if freed > 0:
+            current.total_space_used = max(0, current.total_space_used - freed)
+        await AppState.set(current)
+        return current
 
 
 class AppState(GlobalState, BaseModel):
@@ -44,12 +99,37 @@ class AppState(GlobalState, BaseModel):
     active_uploads: list[UploadProgress] = []
 
     @classmethod
-    async def get(cls, redis_client: Redis | None = None) -> "AppState":
-        data = await cls._json_get(settings.STATE_REDIS_KEY, redis_client=redis_client)
-        return cls.model_validate(data) if data else cls()
+    async def ensure_created(cls) -> None:
+        """Ensure a state document exists in RedisJSON, syncing `total_available_space` from Config."""
+        from sqlmodel import select
+
+        from app.db import AsyncSessionLocal
+        from app.models.config import Config
+
+        async with AsyncSessionLocal() as session:
+            result = await session.exec(select(Config))
+            config = result.first()
+            total_available_space = config.total_storage_limit if config else None
+
+        existing = await cls._json_get(settings.STATE_REDIS_KEY)
+        if existing is None:
+            state = cls(total_available_space=total_available_space)
+            await cls._json_set(settings.STATE_REDIS_KEY, state.model_dump(mode="json"))
+        else:
+            existing["total_available_space"] = total_available_space
+            await cls._json_set(settings.STATE_REDIS_KEY, existing)
 
     @classmethod
-    async def set(cls, state: "AppState", redis_client: Redis | None = None) -> None:
+    async def get(cls, redis_client: Redis | None = None) -> AppState:
+        """Return the full current state from RedisJSON."""
+        data = await cls._json_get(settings.STATE_REDIS_KEY, redis_client=redis_client)
+        if data is None:
+            return cls()
+        return cls.model_validate(data)
+
+    @classmethod
+    async def set(cls, state: AppState, redis_client: Redis | None = None) -> None:
+        """Overwrite the entire state and notify all app instances."""
         await cls._json_set(
             settings.STATE_REDIS_KEY,
             state.model_dump(mode="json"),
@@ -60,46 +140,20 @@ class AppState(GlobalState, BaseModel):
         )
 
     @classmethod
-    async def _update_active(cls, key: str, remove=False, **kwargs) -> "AppState":
-        """Unified internal method for all upload state changes (start, update, finish, cancel)."""
-        s = await cls.get()
-        now = datetime.now(timezone.utc)
-        upload = next((u for u in s.active_uploads if u.upload_key == key), None)
-
-        # Update Space Tracking (if track_space is True)
-        if upload and upload.track_space:
-            if remove:
-                s.total_space_used = max(0, s.total_space_used - upload.uploaded_bytes)
-            elif "uploaded_bytes" in kwargs:
-                s.total_space_used += kwargs["uploaded_bytes"] - upload.uploaded_bytes
-
-        # Update Active Uploads List
-        if remove or (upload and kwargs.get("done") and not upload.track_space):
-            s.active_uploads = [u for u in s.active_uploads if u.upload_key != key]
-        elif not upload:
-            s.active_uploads.append(
-                UploadProgress(upload_key=key, last_updated=now, **kwargs)
-            )
-        else:
-            for k, v in kwargs.items():
-                setattr(upload, k, v)
-            upload.last_updated = now
-
-        await cls.set(s)
-        return s
-
-    @classmethod
     async def evict_files(
         cls, file_keys: list[str], freed_bytes: int, redis_client: Redis | None = None
     ) -> None:
-        async def _evict(client: Redis):
-            s = await cls.get(redis_client=client)
-            keys = set(file_keys)
-            s.active_uploads = [u for u in s.active_uploads if u.upload_key not in keys]
-            s.total_space_used = max(0, s.total_space_used - freed_bytes)
-            await cls.set(s, redis_client=client)
 
-        if redis_client:
+        async def _evict(client: Redis) -> None:
+            current = await cls.get(redis_client=client)
+            key_set = set(file_keys)
+            current.active_uploads = [
+                u for u in current.active_uploads if u.upload_key not in key_set
+            ]
+            current.total_space_used = max(0, current.total_space_used - freed_bytes)
+            await cls.set(current, redis_client=client)
+
+        if redis_client is not None:
             await _evict(redis_client)
         else:
             async with redis.from_url(
@@ -108,16 +162,10 @@ class AppState(GlobalState, BaseModel):
                 await _evict(client)
 
     @classmethod
-    async def ensure_created(cls) -> None:
-        from sqlmodel import select
-
-        from app.db import AsyncSessionLocal
-        from app.models.config import Config
-
-        async with AsyncSessionLocal() as session:
-            config = (await session.exec(select(Config))).first()
-            limit = config.total_storage_limit if config else None
-
-        s = await cls.get()
-        s.total_available_space = limit
-        await cls.set(s)
+    async def patch(cls, **kwargs: Any) -> AppState:
+        """Partially update the state, persist, and notify."""
+        current = await cls.get()
+        updated = current.model_copy(update=kwargs)
+        updated = cls.model_validate(updated.model_dump())
+        await cls.set(updated)
+        return updated

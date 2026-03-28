@@ -35,7 +35,15 @@ export default defineConfig({
 
 	build: {
 		sourcemap: true,
-		minify: 'terser'
+		minify: 'terser',
+		rolldownOptions: {
+			output: {
+				generatedCode: {
+					preset: 'es5',
+					symbols: true
+				}
+			}
+		}
 	},
 
 	test: {
