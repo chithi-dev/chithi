@@ -7,7 +7,6 @@ from app.db import AsyncSessionLocal
 from app.deps import get_s3_client
 from app.models.files import File
 from app.settings import settings
-from app.states.app import AppState
 
 
 @celery.task
@@ -46,10 +45,5 @@ async def delete_expired_file(file_id: str):
 
         # Commit all changes
         await session.commit()
-
-        # Evict deleted files from global app state
-        file_keys = [f.key for f in files_to_delete]
-        freed_bytes = sum(f.size for f in files_to_delete)
-        await AppState.evict_files(file_keys=file_keys, freed_bytes=freed_bytes)
 
         return f"Processed {len(files_to_delete)} deletions."
