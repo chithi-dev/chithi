@@ -8,7 +8,7 @@
 	import { Skeleton } from '$lib/components/ui/skeleton';
 
 	// Steps
-	import Step1 from './1.svelte';
+	import Step1 from './stage_1.svelte';
 	import Step2 from './stage_2.svelte';
 
 	const { status } = useOnboarding();
