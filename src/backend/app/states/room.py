@@ -13,7 +13,7 @@ from app.schemas.reverse import (
     RoomOut,
 )
 from app.states._global import GlobalState
-
+from app.lua import json_remove_file_by_key,json_update_uploaded_bytes_by_key,json_update_uploaded_bytes_by_key
 
 def _room_key(room_id: str) -> str:
     return f"chithi:room:{room_id}"
@@ -199,21 +199,7 @@ class RoomState(GlobalState):
         """
         key = _room_key(room_id)
         client = cls._client()
-        script = """
-        local raw = redis.call('JSON.GET', KEYS[1], '$.files')
-        if not raw then return nil end
-        local outer = cjson.decode(raw)
-        local files = outer[1]
-        for i, f in ipairs(files) do
-            if f['key'] == ARGV[1] then
-                local removed = cjson.encode(f)
-                redis.call('JSON.DEL', KEYS[1], '$.files[' .. (i-1) .. ']')
-                return removed
-            end
-        end
-        return nil
-        """
-        result = await client.eval(script, 1, key, file_key)  # type: ignore[misc]
+        result = await client.eval(json_remove_file_by_key.code, 1, key, file_key)  # type: ignore[misc]
         if result is None:
             return None
 
@@ -260,38 +246,12 @@ class RoomState(GlobalState):
         cls, room_id: str, upload_key: str, uploaded_bytes: int
     ) -> None:
         key = _room_key(room_id)
-        script = """
-        local raw = redis.call('JSON.GET', KEYS[1], '$.active_uploads')
-        if not raw then return nil end
-        local outer = cjson.decode(raw)
-        local uploads = outer[1]
-        for i, u in ipairs(uploads) do
-            if u['upload_key'] == ARGV[1] then
-                redis.call('JSON.SET', KEYS[1], '$.active_uploads[' .. (i-1) .. '].uploaded_bytes', ARGV[2])
-                return 1
-            end
-        end
-        return nil
-        """
-        await cls._client().eval(script, 1, key, upload_key, uploaded_bytes)  # type:ignore[misc]
+        await cls._client().eval(json_update_uploaded_bytes_by_key.code, 1, key, upload_key, uploaded_bytes)  # type:ignore[misc]
 
     @classmethod
     async def remove_active_upload(cls, room_id: str, upload_key: str) -> None:
         key = _room_key(room_id)
-        script = """
-        local raw = redis.call('JSON.GET', KEYS[1], '$.active_uploads')
-        if not raw then return nil end
-        local outer = cjson.decode(raw)
-        local uploads = outer[1]
-        for i, u in ipairs(uploads) do
-            if u['upload_key'] == ARGV[1] then
-                redis.call('JSON.DEL', KEYS[1], '$.active_uploads[' .. (i-1) .. ']')
-                return 1
-            end
-        end
-        return nil
-        """
-        await cls._client().eval(script, 1, key, upload_key)  # type:ignore[misc]
+        await cls._client().eval(json_remove_upload_by_key.code, 1, key, upload_key)  # type:ignore[misc]
 
     @classmethod
     async def client_online(cls, room_id: str, client_id: str, is_host: bool) -> None:

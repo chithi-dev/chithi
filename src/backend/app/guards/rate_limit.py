@@ -4,25 +4,7 @@ from fastapi import HTTPException
 from starlette.requests import HTTPConnection
 
 from app.deps import RedisDep
-
-LUA_RATELIMIT = """
-local key = KEYS[1]
-local now = tonumber(ARGV[1])
-local window = tonumber(ARGV[2])
-local limit = tonumber(ARGV[3])
-local clear_before = now - window
-
-redis.call('ZREMRANGEBYSCORE', key, 0, clear_before)
-local amount = redis.call('ZCARD', key)
-
-if amount < limit then
-    redis.call('ZADD', key, now, now)
-    redis.call('EXPIRE', key, window)
-    return 0
-else
-    return 1
-end
-"""
+from app.lua import rate_limit
 
 
 async def rate_limiter_guard(request: HTTPConnection, redis_client: RedisDep):
@@ -41,7 +23,7 @@ async def rate_limiter_guard(request: HTTPConnection, redis_client: RedisDep):
         key = f"rl:{user_id}:{endpoint.__name__}:{window}"
 
         is_limited = await redis_client.eval(
-            LUA_RATELIMIT, 1, key, str(now), str(window), str(limit)
+            rate_limit.code, 1, key, str(now), str(window), str(limit)
         )  # type: ignore[misc]
 
         if is_limited:
