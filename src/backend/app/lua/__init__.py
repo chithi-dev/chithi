@@ -10,8 +10,8 @@ class LuaModule:
     __slots__ = ("__file__", "code")
 
     def __init__(self, file: Path, code: str) -> None:
-        self.__file__: str = str(file)
-        self.code: str = code
+        self.__file__ = str(file)
+        self.code = code
 
     def __repr__(self) -> str:
         return f"<LuaModule file={self.__file__!r}>"
