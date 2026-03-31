@@ -3,7 +3,9 @@ from typing import Self
 from uuid import UUID
 
 from pydantic import model_validator
-from sqlalchemy import BigInteger, Column, DateTime, UniqueConstraint, text
+from sqlalchemy import BigInteger, Column, DateTime, UniqueConstraint, event, text
+from sqlalchemy.engine import Connection
+from sqlalchemy.orm import Mapper
 from sqlmodel import Field, SQLModel
 
 
@@ -60,3 +62,29 @@ class File(FileOut, table=True):
         if self.expires_at < self.created_at:
             raise ValueError("Expiration time cannot be earlier than creation time")
         return self
+
+
+@event.listens_for(File, "after_delete")
+def on_file_delete(mapper: Mapper, connection: Connection, target: File):
+    """
+    Event hook to evict the file from the global app state (Redis) after it is deleted from the DB.
+    This ensures that total_space_used is updated and the file is removed from active_uploads.
+    """
+    import asyncio
+
+    from app.states.app import AppState
+
+    # Capture values to avoid issues with target being detached/deleted
+    file_key = target.key
+    file_size = target.size
+
+    async def do_evict():
+        await AppState.evict_files(file_keys=[file_key], freed_bytes=file_size)
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(do_evict())
+    except RuntimeError:
+        # If no loop is running, we might be in a sync context.
+        # In this app, it's expected to have a loop in FastAPI or Celery async tasks.
+        pass
