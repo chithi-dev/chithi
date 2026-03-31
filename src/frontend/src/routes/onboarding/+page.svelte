@@ -9,7 +9,7 @@
 
 	// Steps
 	import Step1 from './1.svelte';
-	import Step2 from './2.svelte';
+	import Step2 from './stage_2.svelte';
 
 	const { status } = useOnboarding();
 
