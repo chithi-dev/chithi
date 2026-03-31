@@ -92,9 +92,6 @@ from app.routes.http.speedtest import router as speedtest_router
 
 app.include_router(speedtest_router)
 
-from app.routes.http.token import router as token_router
-
-app.include_router(token_router)
 
 from app.routes.ws.state import router as ws_router
 
