@@ -7,9 +7,10 @@ from app.db import engine
 from app.settings import settings
 
 celery = Celery(__name__)
-celery.conf.broker_url = settings.CELERY_BROKER_URL
-celery.conf.result_backend = settings.CELERY_RESULT_BACKEND
-
+celery.conf.update(
+    broker_url=settings.CELERY_BROKER_URL,
+    result_backend=settings.CELERY_RESULT_BACKEND,
+)
 celery.autodiscover_tasks(["app.tasks"])
 
 

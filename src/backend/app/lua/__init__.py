@@ -32,3 +32,13 @@ globals().update(_modules)
 def get(name: str) -> LuaModule:
     """Type-safe access to Lua modules."""
     return _modules[name]
+
+
+# Definitions
+
+json_remove_file_by_key: LuaModule
+json_remove_upload_by_key: LuaModule
+json_update_uploaded_bytes_by_key: LuaModule
+rate_limit: LuaModule
+
+__all__: list[str]
