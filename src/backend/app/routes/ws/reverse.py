@@ -85,7 +85,7 @@ async def _stream_file_to_ws(
 
         await UploadProgress.finish(upload_key=upload_key, final_size=entry.size)
         success = True
-    except (asyncio.CancelledError, Exception):
+    except asyncio.CancelledError, Exception:
         raise
     finally:
         if not success:
