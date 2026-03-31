@@ -1,7 +1,7 @@
 import { Api } from '#consts/backend';
 import { browser } from '$app/environment';
 import image from '$lib/assets/opengraph.png?url';
-import { logout } from '$lib/remote/auth.remote';
+import { prefetch as prefetchAuth } from '#queries/auth';
 import { user_store } from '$lib/store/user.svelte';
 import { QueryClient } from '@tanstack/svelte-query';
 import { defineBaseMetaTags } from 'svelte-meta-tags';
@@ -9,14 +9,21 @@ import type { LayoutLoad } from './$types';
 
 export const trailingSlash = 'always';
 
-export const load: LayoutLoad = async ({ data, url }) => {
+export const load: LayoutLoad = async ({ data, url, fetch }) => {
 	const queryClient = new QueryClient({
 		defaultOptions: {
 			queries: {
-				enabled: browser
+				staleTime: 60 * 1000 // 1 minute
 			}
 		}
 	});
+
+	if (data.token) {
+		await prefetchAuth({ queryClient, fetch });
+	} else {
+		user_store.unauthenticate();
+	}
+
 	const baseTags = defineBaseMetaTags({
 		title: 'Chithi',
 		titleTemplate: '%s | Chithi',
@@ -41,23 +48,6 @@ export const load: LayoutLoad = async ({ data, url }) => {
 			]
 		}
 	});
-
-	if (data.token) {
-		void fetch(Api.TOKEN_VALIDATE, {
-			credentials: 'include'
-		})
-			.then((res) => {
-				if (res.ok) {
-					user_store.authenticate();
-				} else {
-					logout();
-				}
-			})
-			.catch((_) => {
-				console.log(`Error while fetching token data`);
-				user_store.unauthenticate();
-			});
-	}
 
 	return { queryClient, ...baseTags, ...data };
 };

@@ -194,16 +194,16 @@
 		</a>
 
 		<div class="flex items-center gap-2">
-			{#if user_store.is_authenticated}
+			{#if userData.data}
 				<Dropdown.Root>
 					<Dropdown.Trigger>
 						<div class="my-0.5">
 							<Avatar.Root>
-								{#if userData.data?.email}
+								{#if userData.data.email}
 									{#key hashedAvatar}
 										<Avatar.Image
 											src={hashedAvatar}
-											alt="@{userData.data?.username ?? 'username'}"
+											alt="@{userData.data.username}"
 										/>
 									{/key}
 								{/if}

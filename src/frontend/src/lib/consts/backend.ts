@@ -40,9 +40,7 @@ export class Api {
 	static get ONBOARDING() {
 		return this.#url('onboarding');
 	}
-	static get TOKEN_VALIDATE() {
-		return this.#url('token/validate');
-	}
+
 	static get UPLOAD() {
 		return this.#url('upload');
 	}

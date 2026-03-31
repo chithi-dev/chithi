@@ -9,7 +9,7 @@ export const queryKey = ['auth-user'];
 const resolveFetch = (fetch?: typeof globalThis.fetch) => fetch ?? globalThis.fetch;
 
 const fetchUser = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
-	if (!user_store.is_authenticated) return null;
+	if (browser && user_store.is_authenticated === false) return null;
 
 	const runtimeFetch = resolveFetch(fetch);
 	const res = await runtimeFetch(Api.USER, {
@@ -17,9 +17,13 @@ const fetchUser = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
 	});
 
 	if (!res.ok || res.status === 401) {
+		if (browser) user_store.unauthenticate();
 		return null;
 	}
-	return res.json();
+
+	const data = await res.json();
+	if (browser) user_store.authenticate();
+	return data;
 };
 
 export const prefetch = async ({ queryClient, fetch }: { queryClient: any; fetch: any }) => {

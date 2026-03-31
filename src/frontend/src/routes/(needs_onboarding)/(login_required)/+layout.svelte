@@ -11,13 +11,18 @@
 	let { children } = $props();
 
 	$effect(() => {
-		if (user_store.is_authenticated === null) {
+		if (user_store.is_authenticated === false) {
 			goto(`/login?next=${page.url.pathname}`);
 		}
 	});
 </script>
 
-{#if [null, undefined].includes(userData.data)}
+{#if userData.isLoading && user_store.is_authenticated !== false}
+	<div class="flex min-h-svh w-full flex-1 items-center justify-center p-4">
+		<!-- You could add a spinner here if you want -->
+		<div class="animate-pulse text-muted-foreground">Checking authentication...</div>
+	</div>
+{:else if [null, undefined].includes(userData.data)}
 	<div class="flex min-h-svh w-full flex-1 items-center justify-center p-4">
 		<Empty.Root>
 			<Empty.Header class="text-center">
