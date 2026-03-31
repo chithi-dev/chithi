@@ -4,6 +4,11 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 
+from app.lua import (
+    json_remove_file_by_key,
+    json_remove_upload_by_key,
+    json_update_uploaded_bytes_by_key,
+)
 from app.schemas.reverse import (
     ActiveUpload,
     AddHostOut,
@@ -13,7 +18,7 @@ from app.schemas.reverse import (
     RoomOut,
 )
 from app.states._global import GlobalState
-from app.lua import json_remove_file_by_key,json_update_uploaded_bytes_by_key,json_update_uploaded_bytes_by_key
+
 
 def _room_key(room_id: str) -> str:
     return f"chithi:room:{room_id}"
@@ -246,7 +251,9 @@ class RoomState(GlobalState):
         cls, room_id: str, upload_key: str, uploaded_bytes: int
     ) -> None:
         key = _room_key(room_id)
-        await cls._client().eval(json_update_uploaded_bytes_by_key.code, 1, key, upload_key, uploaded_bytes)  # type:ignore[misc]
+        await cls._client().eval(
+            json_update_uploaded_bytes_by_key.code, 1, key, upload_key, uploaded_bytes
+        )  # type:ignore[misc]
 
     @classmethod
     async def remove_active_upload(cls, room_id: str, upload_key: str) -> None:

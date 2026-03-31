@@ -1,12 +1,8 @@
 from pathlib import Path
 from typing import Final
 
+BASE_DIR: Final[Path] = Path(__file__).parent
 
-# Internal loader
-
-_BASE_DIR: Final[Path] = Path(__file__).parent
-
-# Public API types
 
 class LuaModule:
     """Typed representation of a loaded Lua file."""
@@ -22,29 +18,17 @@ class LuaModule:
 
 
 def _load_lua_file(path: Path) -> LuaModule:
-    content: str = path.read_text(encoding="utf-8")
-    return LuaModule(path, content)
+    return LuaModule(path, path.read_text(encoding="utf-8"))
 
 
-# Dynamic loading (runtime)
+# Load modules and export to globals
+_modules: dict[str, LuaModule] = {
+    file.stem: _load_lua_file(file) for file in BASE_DIR.glob("*.lua")
+}
 
-_modules: dict[str, LuaModule] = {}
+globals().update(_modules)
 
-for file in _BASE_DIR.glob("*.lua"):
-    name: str = file.stem  # script_1.lua -> script_1
-    module: LuaModule = _load_lua_file(file)
-
-    _modules[name] = module
-    globals()[name] = module  # dynamic export
-
-
-# typed accessor
 
 def get(name: str) -> LuaModule:
     """Type-safe access to Lua modules."""
     return _modules[name]
-
-
-# Typed export list
-
-__all__: list[str] = list(_modules.keys())
