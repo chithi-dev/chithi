@@ -13,14 +13,12 @@
 
 	import LoginForm from './login_form.svelte';
 	import AnimatedGrid from '$lib/components/AnimatedGrid.svelte';
+	import { validateRedirectUrl } from '$lib/utils';
 
 	// Next url
 	const nextUrl = $derived.by(() => {
 		const url = page.url.searchParams.get('next') ?? '/';
-		if (url.startsWith('/admin')) {
-			return '/';
-		}
-		return url;
+		return validateRedirectUrl(url, page.url.origin);
 	});
 
 	let { data } = $props();
