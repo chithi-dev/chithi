@@ -7,7 +7,15 @@ export const actions = {
 		await logout();
 
 		let next = url.searchParams.get('next') ?? '/';
-		next = validateRedirectUrl(next, url.origin);
+		try {
+			next = validateRedirectUrl(next, url.origin);
+		} catch {
+			next = '/';
+		}
+
+		if (next.startsWith('/admin')) {
+			next = '/';
+		}
 		throw redirect(303, next);
 	}
 };

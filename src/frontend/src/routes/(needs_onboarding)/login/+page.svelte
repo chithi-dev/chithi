@@ -15,10 +15,17 @@
 	import AnimatedGrid from '$lib/components/AnimatedGrid.svelte';
 	import { validateRedirectUrl } from '$lib/utils';
 
-	// Next url
 	const nextUrl = $derived.by(() => {
-		const url = page.url.searchParams.get('next') ?? '/';
-		return validateRedirectUrl(url, page.url.origin);
+		const next = page.url.searchParams.get('next') ?? '/';
+		try {
+			const url = validateRedirectUrl(next, page.url.origin);
+			if (url.startsWith('/admin')) {
+				return '/';
+			}
+			return url;
+		} catch {
+			return '/';
+		}
 	});
 
 	let { data } = $props();

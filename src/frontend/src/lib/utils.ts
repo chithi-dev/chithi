@@ -14,22 +14,18 @@ export type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & { ref?:
 
 export function validateRedirectUrl(url: string, origin: string): string {
 	try {
-		const parsedUrl = new URL(url, origin);
-		if (parsedUrl.origin !== origin) {
-			const allowedDomains = ['chithi.dev', 'localhost'];
-			if (!allowedDomains.includes(parsedUrl.hostname) && !parsedUrl.hostname.endsWith('.chithi.dev')) {
-				url = '/';
-			}
-		}
-		if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-			url = '/';
-		}
-	} catch {
-		url = '/';
-	}
+		const parsed = new URL(url, origin);
 
-	if (url.startsWith('/admin')) {
-		return '/';
+		if (parsed.origin !== origin) {
+			throw new Error('External redirects are not allowed.');
+		}
+
+		if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+			throw new Error('Invalid protocol.');
+		}
+		return parsed.pathname + parsed.search + parsed.hash;
+	} catch (e) {
+		if (e instanceof Error) throw e;
+		throw new Error('Malformed redirect URL.');
 	}
-	return url;
 }
