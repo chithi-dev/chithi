@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as Sidebar from '$lib/components/ui/sidebar/index';
 	import { Settings, UserPen, Link } from '@lucide/svelte';
+	import favicon from '$lib/assets/logo.svg';
 	const items = [
 		{
 			title: 'Profile',
@@ -25,8 +26,9 @@
 		<Sidebar.Menu>
 			<Sidebar.MenuItem>
 				<Sidebar.MenuButton class="data-[slot=sidebar-menu-button]:p-1.5!">
-					<a href="/">
-						<p class=" font-semibold">Chithi</p>
+					<a href="/" class="flex items-center gap-2">
+						<img src={favicon} alt="logo" class="h-6 w-6" />
+						<p class="text-xl font-bold tracking-tight">Chithi</p>
 					</a>
 				</Sidebar.MenuButton>
 			</Sidebar.MenuItem>

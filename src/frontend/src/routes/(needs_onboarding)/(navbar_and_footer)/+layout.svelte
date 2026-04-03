@@ -26,7 +26,6 @@
 	import { PUBLIC_INSTANCE_URL } from '#consts/urls';
 	import { env } from '$env/dynamic/public';
 	import { SiGithub, SiUpptime } from '@icons-pack/svelte-simple-icons';
-	import { user_store } from '$lib/store/user.svelte';
 	import type { Component, ComponentType } from 'svelte';
 	const { user: userData } = useAuth();
 

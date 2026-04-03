@@ -35,7 +35,7 @@
 		"@tailwindcss/vite": "^4.2.1",
 		"@tanstack/svelte-query": "^6.1.0",
 		"@tanstack/svelte-query-devtools": "^6.0.4",
-		"@types/node": "^25",
+		"@types/node": "^25.5.0",
 		"@types/nprogress": "^0.2.3",
 		"@types/qrcode": "^1.5.6",
 		"@vitest/browser-playwright": "^4.1.0",
