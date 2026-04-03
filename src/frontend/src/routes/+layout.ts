@@ -1,7 +1,5 @@
-import { Api } from '#consts/backend';
-import { browser } from '$app/environment';
-import image from '$lib/assets/opengraph.png?url';
 import { prefetch as prefetchAuth } from '#queries/auth';
+import image from '$lib/assets/opengraph.png?url';
 import { user_store } from '$lib/store/user.svelte';
 import { QueryClient } from '@tanstack/svelte-query';
 import { defineBaseMetaTags } from 'svelte-meta-tags';

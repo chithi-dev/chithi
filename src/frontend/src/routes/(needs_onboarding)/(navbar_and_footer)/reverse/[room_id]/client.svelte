@@ -635,8 +635,10 @@
 
 								{#each roomFiles as f}
 									{@const downloaded = downloadedFiles.find((d) => d.key === f.key)}
-									{@const isThisStreaming = receiveState.type === 'streaming' && receiveState.key === f.key}
-									{@const isThisProcessing = receiveState.type === 'processing' && receiveState.key === f.key}
+									{@const isThisStreaming =
+										receiveState.type === 'streaming' && receiveState.key === f.key}
+									{@const isThisProcessing =
+										receiveState.type === 'processing' && receiveState.key === f.key}
 									{@const isAnyActive = isAnyStreaming || isAnyProcessing}
 									{@const displayName = getDisplayFilename(f.filename)}
 									<div class="rounded-md border px-3 py-2">

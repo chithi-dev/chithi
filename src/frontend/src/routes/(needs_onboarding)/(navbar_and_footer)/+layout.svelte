@@ -201,10 +201,7 @@
 							<Avatar.Root>
 								{#if userData.data.email}
 									{#key hashedAvatar}
-										<Avatar.Image
-											src={hashedAvatar}
-											alt="@{userData.data.username}"
-										/>
+										<Avatar.Image src={hashedAvatar} alt="@{userData.data.username}" />
 									{/key}
 								{/if}
 								<Avatar.Fallback>{initials}</Avatar.Fallback>

@@ -1,6 +1,6 @@
 import { prefetch } from '#queries/config';
-import type { PageLoad } from './$types';
 import { definePageMetaTags } from 'svelte-meta-tags';
+import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ parent, fetch }) => {
 	const { queryClient } = await parent();
@@ -16,5 +16,4 @@ export const load: PageLoad = async ({ parent, fetch }) => {
 		}
 	});
 	return { ...pageTags };
-
 };
