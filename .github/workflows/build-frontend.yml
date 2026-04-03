@@ -12,7 +12,9 @@ on:
             - 'src/frontend/**'
             - '.github/workflows/**'
     workflow_dispatch:
-
+    
+permissions:
+  contents: write
 
 jobs:
     build:
