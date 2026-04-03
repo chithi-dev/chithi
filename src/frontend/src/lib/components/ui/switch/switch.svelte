@@ -6,24 +6,26 @@
 		ref = $bindable(null),
 		class: className,
 		checked = $bindable(false),
+		size = 'default',
 		...restProps
-	}: WithoutChildrenOrChild<SwitchPrimitive.RootProps> = $props();
+	}: WithoutChildrenOrChild<SwitchPrimitive.RootProps> & {
+		size?: 'sm' | 'default';
+	} = $props();
 </script>
 
 <SwitchPrimitive.Root
 	bind:ref
 	bind:checked
 	data-slot="switch"
+	data-size={size}
 	class={cn(
-		'peer inline-flex h-[1.15rem] w-8 shrink-0 items-center rounded-full border border-transparent shadow-xs transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=unchecked]:bg-input dark:data-[state=unchecked]:bg-input/80',
+		'peer group/switch relative inline-flex shrink-0 items-center rounded-full border border-transparent transition-all outline-none after:absolute after:-inset-x-3 after:-inset-y-2 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 aria-invalid:border-destructive aria-invalid:ring-3 aria-invalid:ring-destructive/20 data-checked:bg-primary data-disabled:cursor-not-allowed data-disabled:opacity-50 data-unchecked:bg-input data-[size=default]:h-[18.4px] data-[size=default]:w-[32px] data-[size=sm]:h-[14px] data-[size=sm]:w-[24px] dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 dark:data-unchecked:bg-input/80',
 		className
 	)}
 	{...restProps}
 >
 	<SwitchPrimitive.Thumb
 		data-slot="switch-thumb"
-		class={cn(
-			'pointer-events-none block size-4 rounded-full bg-background ring-0 transition-transform data-[state=checked]:translate-x-[calc(100%-2px)] data-[state=unchecked]:translate-x-0 dark:data-[state=checked]:bg-primary-foreground dark:data-[state=unchecked]:bg-foreground'
-		)}
+		class="pointer-events-none block rounded-full bg-background ring-0 transition-transform group-data-[size=default]/switch:size-4 group-data-[size=sm]/switch:size-3 group-data-[size=default]/switch:data-checked:translate-x-[calc(100%-2px)] group-data-[size=sm]/switch:data-checked:translate-x-[calc(100%-2px)] group-data-[size=default]/switch:data-unchecked:translate-x-0 group-data-[size=sm]/switch:data-unchecked:translate-x-0 rtl:data-[state=checked]:translate-x-[calc(-100%)] dark:data-checked:bg-primary-foreground dark:data-unchecked:bg-foreground"
 	/>
 </SwitchPrimitive.Root>

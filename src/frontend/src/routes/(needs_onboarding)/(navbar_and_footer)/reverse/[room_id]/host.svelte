@@ -141,9 +141,7 @@
 
 	function connectWebSocket() {
 		ws?.close();
-		const socket = new WebSocket(
-			Api.REVERSE.WS_URL(room_id, hostToken)
-		);
+		const socket = new WebSocket(Api.REVERSE.WS_URL(room_id, hostToken));
 		// prefer ArrayBuffer for binary frames to avoid Blob conversion
 		socket.binaryType = 'arraybuffer';
 		ws = socket;
@@ -167,7 +165,6 @@
 				handleBinaryChunk(receiveState, ev.data);
 				return;
 			}
-
 
 			try {
 				const msg = JSON.parse(ev.data);
@@ -388,7 +385,7 @@
 
 				const encryptedBlob = await new Response(encryptedStream).blob();
 				encryptionProgress.target = 100;
-				
+
 				// Allow time for the progress bar to animate to 100%
 				await new Promise((r) => setTimeout(r, 600));
 				isEncrypting = false;
@@ -845,8 +842,10 @@
 
 							{#each roomFiles as f}
 								{@const downloaded = downloadedFiles.find((d) => d.key === f.key)}
-								{@const isThisStreaming = receiveState.type === 'streaming' && receiveState.key === f.key}
-								{@const isThisProcessing = receiveState.type === 'processing' && receiveState.key === f.key}
+								{@const isThisStreaming =
+									receiveState.type === 'streaming' && receiveState.key === f.key}
+								{@const isThisProcessing =
+									receiveState.type === 'processing' && receiveState.key === f.key}
 								{@const isAnyActive = isAnyStreaming || isAnyProcessing}
 								{@const displayName = getDisplayFilename(f.filename)}
 								<div class="rounded-md border px-3 py-2">
