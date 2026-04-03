@@ -26,7 +26,6 @@
 	import { PUBLIC_INSTANCE_URL } from '#consts/urls';
 	import { env } from '$env/dynamic/public';
 	import { SiGithub, SiUpptime } from '@icons-pack/svelte-simple-icons';
-	import { user_store } from '$lib/store/user.svelte';
 	import type { Component, ComponentType } from 'svelte';
 	const { user: userData } = useAuth();
 
@@ -210,15 +209,15 @@
 					</Dropdown.Trigger>
 
 					<Dropdown.Content align="end" sideOffset={4} class="w-48">
-						<Dropdown.Item>
+						<Dropdown.Item onSelect={(e) => e.preventDefault()}>
 							<div class="flex w-full items-center justify-between gap-2">
 								<div class="flex items-center gap-2">
-									<Label for="theme-switch">Theme</Label>
+									<Label for="theme-switch" class="cursor-pointer">Theme</Label>
 								</div>
 								<Switch
 									id="theme-switch"
 									checked={mode.current === 'dark'}
-									onclick={() => toggleMode()}
+									onCheckedChange={() => toggleMode()}
 								/>
 							</div>
 						</Dropdown.Item>
