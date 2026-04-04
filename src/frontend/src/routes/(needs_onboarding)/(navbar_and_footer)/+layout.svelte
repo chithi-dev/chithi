@@ -107,6 +107,13 @@
 			order: 1
 		}
 	]);
+	let isDark = $state<boolean>(mode.current === 'dark');
+
+	function handleCheckedChange(checked: boolean) {
+		if ((checked && mode.current !== 'dark') || (!checked && mode.current === 'dark')) {
+			toggleMode();
+		}
+	}
 
 	const donationPlatforms = [
 		{
@@ -216,8 +223,8 @@
 								</div>
 								<Switch
 									id="theme-switch"
-									checked={mode.current === 'dark'}
-									onCheckedChange={() => toggleMode()}
+									bind:checked={isDark}
+									onCheckedChange={handleCheckedChange}
 								/>
 							</div>
 						</Dropdown.Item>
