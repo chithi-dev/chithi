@@ -1,7 +1,7 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
-	import { useFilesQuery, type FileInfo } from '#queries/files';
+	import { useFilesQuery, type FileInfo, type FilesWithStats } from '#queries/files';
 	import { toast } from 'svelte-sonner';
 	import { page } from '$app/state';
 	import UrlMetricsCard from './url_metrics_card.svelte';
@@ -9,9 +9,9 @@
 
 	const { files, revokeFile } = useFilesQuery();
 
-	let filesData = $derived(files.data ?? []);
-	let totalUrls = $derived(filesData.length);
-	let totalBytes = $derived(filesData.reduce((sum, file) => sum + (file.size ?? 0), 0));
+	let filesData = $derived(files.data?.files ?? []);
+	let totalUrls = $derived(files.data?.total_urls ?? 0);
+	let totalBytes = $derived(files.data?.total_size ?? 0);
 
 	function isExpired(file: FileInfo) {
 		const expiredByDate = file.expires_at
@@ -25,9 +25,7 @@
 	}
 
 	let activeUrls = $derived(filesData.filter((file) => !isExpired(file)).length);
-	let linksWithDownloadCaps = $derived(
-		filesData.filter((file) => file.expire_after_n_download !== undefined).length
-	);
+	let linksWithDownloadCaps = $derived(files.data?.links_with_download_caps ?? 0);
 
 	let expiringSoon = $derived(
 		filesData.filter((file) => {
@@ -38,11 +36,7 @@
 	);
 
 	let latestExpiryMs = $derived(
-		filesData.reduce((latest, file) => {
-			if (isExpired(file) || !file.expires_at) return latest;
-			const expiresAtMs = new Date(file.expires_at).getTime();
-			return Number.isFinite(expiresAtMs) ? Math.max(latest, expiresAtMs) : latest;
-		}, 0)
+		files.data?.max_expires_at ? new Date(files.data.max_expires_at).getTime() : 0
 	);
 
 	let hasIndefiniteActiveUrls = $derived(

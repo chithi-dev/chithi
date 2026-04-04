@@ -53,14 +53,14 @@
 							Error loading files: {files.error.message}
 						</Table.Cell>
 					</Table.Row>
-				{:else if !files.data || files.data.length === 0}
+				{:else if !files.data || !files.data.files || files.data.files.length === 0}
 					<Table.Row>
 						<Table.Cell colspan={5} class="h-32 text-center text-muted-foreground">
 							No outstanding URLs found.
 						</Table.Cell>
 					</Table.Row>
 				{:else}
-					{#each files.data as file (file.id)}
+					{#each files.data.files as file (file.id)}
 						<Table.Row class="group">
 							<Table.Cell class="font-medium">
 								<div class="flex items-center gap-3">

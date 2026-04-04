@@ -7,9 +7,18 @@ export type FileInfo = {
 	folder_name?: string;
 	size?: number;
 	created_at: string;
-	expires_at?: string;
+	expires_at?: string | null;
 	expire_after_n_download?: number;
 	download_count?: number;
+};
+
+export type FilesWithStats = {
+	files: FileInfo[];
+	total_urls: number;
+	total_size: number;
+	links_with_download_caps: number;
+	max_expires_at?: string | null;
+	longest_expiry_file?: FileInfo | null;
 };
 
 export const useFilesQuery = () => {
@@ -27,7 +36,10 @@ export const useFilesQuery = () => {
 				}
 				throw new Error(`Failed to fetch files: ${res.statusText}`);
 			}
-			return res.json() as Promise<FileInfo[]>;
+
+			const json = await res.json();
+
+			return json as FilesWithStats;
 		},
 		refetchInterval: 1000, // 1 second
 		retry: true
