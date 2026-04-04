@@ -10,7 +10,6 @@ from typing import (
     Literal,
     ParamSpec,
     TypeVar,
-    Union,
 )
 
 import typer
@@ -22,7 +21,7 @@ EventType = Literal["startup", "shutdown"]
 
 SyncHandler = Callable[[], None]
 AsyncHandler = Callable[[], Coroutine[Any, Any, None]]
-EventHandler = Union[SyncHandler, AsyncHandler]
+EventHandler = SyncHandler | AsyncHandler
 
 
 class AsyncTyper(typer.Typer):
@@ -43,11 +42,14 @@ class AsyncTyper(typer.Typer):
         ) -> Callable[P, Coroutine[Any, Any, R]]:
             @wraps(async_func)
             def sync_func(*_args: P.args, **_kwargs: P.kwargs) -> R:
-                self._run_handlers_sync("startup")
-                try:
-                    return self._run_async(async_func(*_args, **_kwargs))
-                finally:
-                    self._run_handlers_sync("shutdown")
+                async def runner() -> R:
+                    await self._run_handlers("startup")
+                    try:
+                        return await async_func(*_args, **_kwargs)
+                    finally:
+                        await self._run_handlers("shutdown")
+
+                return asyncio.run(runner())
 
             self.command(*args, **kwargs)(sync_func)
             return async_func
@@ -59,17 +61,8 @@ class AsyncTyper(typer.Typer):
     ) -> None:
         self.event_handlers[event_type].append(func)
 
-    def _run_async(self, coro: Coroutine[Any, Any, R]) -> R:
-        try:
-            loop = asyncio.get_running_loop()
-        except RuntimeError:
-            return asyncio.run(coro)
-        else:
-            # Already inside an event loop → create task and wait
-            return loop.run_until_complete(coro)  # type: ignore
-
-    def _run_handlers_sync(self, event_type: EventType) -> None:
+    async def _run_handlers(self, event_type: EventType) -> None:
         for handler in self.event_handlers[event_type]:
             result = handler()
             if iscoroutine(result):
-                self._run_async(result)
+                await result
