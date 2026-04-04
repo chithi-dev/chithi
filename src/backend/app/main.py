@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-
+import asyncio
 import redis.asyncio as redis
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,9 +18,19 @@ async def lifespan(app: FastAPI):
         decode_responses=True,
     )
 
-    # Initialise shared Redis client and ensure state doc exists
+    # Initialise shared Redis client and start periodic state sync task
     GlobalState.init_redis(redis_client)
-    await AppState.ensure_created()
+
+    async def _state_sync_loop() -> None:
+        try:
+            while True:
+                await AppState.state_sync()
+                await asyncio.sleep(settings.APP_STATE_SYNC_INTERVAL)
+        except asyncio.CancelledError:
+            return
+
+    state_sync_task = asyncio.create_task(_state_sync_loop())
+    app.state._state_sync_task = state_sync_task
 
     # Start WebSocket manager pub/sub listener
     ws_manager = WebSocketManager()
@@ -29,7 +39,15 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown
+    # Shutdown: stop background state sync task, then other services
+    state_sync_task = getattr(app.state, "_state_sync_task", None)
+    if state_sync_task is not None:
+        state_sync_task.cancel()
+        try:
+            await state_sync_task
+        except asyncio.CancelledError:
+            pass
+
     await ws_manager.stop()
     await redis_client.aclose()
 

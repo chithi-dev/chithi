@@ -75,6 +75,9 @@ class Settings(BaseSettings):
     STATE_REDIS_KEY: str = "chithi:global_state"
     STATE_CHANNEL: str = "chithi:state_changed"
 
+    # How often (seconds) to run `AppState.state_sync()` in background
+    APP_STATE_SYNC_INTERVAL: int = 30
+
     # Instance Limits for S3 ops
 
     MAX_CONCURRENT_S3_READS: int = 10

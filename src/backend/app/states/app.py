@@ -99,7 +99,7 @@ class AppState(GlobalState, BaseModel):
     active_uploads: list[UploadProgress] = []
 
     @classmethod
-    async def ensure_created(cls) -> None:
+    async def state_sync(cls) -> None:
         """Ensure a state document exists in RedisJSON, syncing `total_available_space` from Config."""
         from sqlmodel import select
 
