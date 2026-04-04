@@ -1,5 +1,6 @@
-from contextlib import asynccontextmanager
 import asyncio
+from contextlib import asynccontextmanager
+
 import redis.asyncio as redis
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -20,6 +21,9 @@ async def lifespan(app: FastAPI):
 
     # Initialise shared Redis client and start periodic state sync task
     GlobalState.init_redis(redis_client)
+
+    # Prune stale uploads persisted in Redis from previous runs
+    await AppState.cleanup_active_uploads(redis_client)
 
     async def _state_sync_loop() -> None:
         try:
