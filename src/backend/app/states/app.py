@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Any, cast
+from typing import Any
 
 import redis.asyncio as redis
 from pydantic import BaseModel
@@ -21,7 +21,7 @@ class UploadProgress(GlobalState, BaseModel):
     @classmethod
     async def start(
         cls, upload_key: str, filename: str, track_space: bool = True
-    ) -> "AppState":
+    ) -> AppState:
         """Register a new in-flight upload and set last_updated."""
         current = await AppState.get()
         now = datetime.now(timezone.utc)
@@ -37,7 +37,7 @@ class UploadProgress(GlobalState, BaseModel):
         return current
 
     @classmethod
-    async def update(cls, upload_key: str, uploaded_bytes: int) -> "AppState":
+    async def update(cls, upload_key: str, uploaded_bytes: int) -> AppState:
         """Update the byte count and touch last_updated for an in-flight upload."""
         current = await AppState.get()
         now = datetime.now(timezone.utc)
@@ -74,7 +74,7 @@ class UploadProgress(GlobalState, BaseModel):
         return current
 
     @classmethod
-    async def cancel(cls, upload_key: str) -> "AppState":
+    async def cancel(cls, upload_key: str) -> AppState:
         """Remove a failed/disconnected upload from the active list without adjusting totals."""
         current = await AppState.get()
         # Subtract any tracked uploaded bytes from totals when cancelling
@@ -107,11 +107,9 @@ class AppState(GlobalState, BaseModel):
         from sqlmodel import select
 
         from app.db import get_session
-        from app.deps import get_s3_client
         from app.models.config import Config
         from app.models.files import File
 
-        s3_objects: dict[str, int] = {}
         total_available_space: int | None = None
 
         try:
@@ -121,100 +119,34 @@ class AppState(GlobalState, BaseModel):
                 config = result.first()
                 total_available_space = config.total_storage_limit if config else None
 
-                files_result = await session.exec(select(File))
-                db_files = files_result.all()
-                db_keys_map = {f.key: f for f in db_files}
-
                 # Ensure state exists and update available space
                 existing = await cls._json_get(settings.STATE_REDIS_KEY)
                 if existing is None:
                     state = cls(total_available_space=total_available_space)
-                    await cls._json_set(settings.STATE_REDIS_KEY, state.model_dump(mode="json"))
+                    await cls._json_set(
+                        settings.STATE_REDIS_KEY, state.model_dump(mode="json")
+                    )
                 else:
                     existing["total_available_space"] = total_available_space
                     await cls._json_set(settings.STATE_REDIS_KEY, existing)
 
-                # Use FastAPI S3 dependency to reconcile storage
-                async for s3 in get_s3_client():
-                    try:
-                        continuation_token = None
-                        while True:
-                            if continuation_token:
-                                resp = await s3.list_objects_v2(
-                                    Bucket=settings.RUSTFS_BUCKET_NAME,
-                                    ContinuationToken=continuation_token,
-                                )
-                            else:
-                                resp = await s3.list_objects_v2(Bucket=settings.RUSTFS_BUCKET_NAME)
-
-                            for obj in resp.get("Contents", []) or []:
-                                obj_key = obj.get("Key")
-                                if not obj_key:
-                                    continue
-                                s3_objects[obj_key] = int(obj.get("Size", 0) or 0)
-
-                            if resp.get("IsTruncated"):
-                                continuation_token = resp.get("NextContinuationToken")
-                            else:
-                                break
-
-                        db_keys_set = set(db_keys_map.keys())
-                        s3_keys_set = set(s3_objects.keys())
-
-                        # Delete objects present in storage but not in DB
-                        orphan_s3_keys = list(s3_keys_set - db_keys_set)
-                        if orphan_s3_keys:
-                            for i in range(0, len(orphan_s3_keys), 1000):
-                                batch = orphan_s3_keys[i : i + 1000]
-                                objects_list = [{"Key": k} for k in batch]
-                                try:
-                                    await s3.delete_objects(
-                                        Bucket=settings.RUSTFS_BUCKET_NAME,
-                                        Delete=cast(Any, {"Objects": objects_list}),
-                                    )
-                                except Exception:
-                                    for k in batch:
-                                        try:
-                                            await s3.delete_object(
-                                                Bucket=settings.RUSTFS_BUCKET_NAME, Key=k
-                                            )
-                                        except Exception:
-                                            continue
-                    except Exception:
-                        # Ignore S3 errors and continue; we'll fall back to DB sizes
-                        s3_objects = {}
-
-                # Remove DB rows for entries where the object is missing from storage
-                if s3_objects:
-                    s3_keys_set = set(s3_objects.keys())
-                    missing_db_keys: list[str] = []
-                    files_result = await session.exec(select(File))
-                    rows = files_result.all()
-                    for row in rows:
-                        if row.key not in s3_keys_set:
-                            missing_db_keys.append(row.key)
-                            await session.delete(row)
-                    if missing_db_keys:
-                        await session.commit()
-
                 # Recompute total_space_used from DB for active (non-expired) files
                 now = datetime.now(timezone.utc)
                 active_q = select(File).where(
-                    File.expires_at > now, File.download_count < File.expire_after_n_download
+                    File.expires_at > now,
+                    File.download_count < File.expire_after_n_download,
                 )
                 result = await session.exec(active_q)
                 active_files = result.all()
                 total_space_used = 0
-                if s3_objects:
-                    for f in active_files:
-                        if f.key in s3_objects:
-                            total_space_used += int(f.size or 0)
-                else:
-                    for f in active_files:
-                        total_space_used += int(f.size or 0)
+                for f in active_files:
+                    total_space_used += int(f.size or 0)
 
                 # Persist the recalculated totals
-                await cls.patch(total_space_used=total_space_used, total_available_space=total_available_space)
+                await cls.patch(
+                    total_space_used=total_space_used,
+                    total_available_space=total_available_space,
+                )
                 break
         except Exception:
             # Best-effort: update available space if we have it
