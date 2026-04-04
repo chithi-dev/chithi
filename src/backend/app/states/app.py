@@ -119,16 +119,10 @@ class AppState(GlobalState, BaseModel):
                 config = result.first()
                 total_available_space = config.total_storage_limit if config else None
 
-                # Ensure state exists and update available space
-                existing = await cls._json_get(settings.STATE_REDIS_KEY)
-                if existing is None:
-                    state = cls(total_available_space=total_available_space)
-                    await cls._json_set(
-                        settings.STATE_REDIS_KEY, state.model_dump(mode="json")
-                    )
-                else:
-                    existing["total_available_space"] = total_available_space
-                    await cls._json_set(settings.STATE_REDIS_KEY, existing)
+                # Ensure state exists and update available space. Use `patch`
+                # so we always write a canonical AppState JSON and remove any
+                # stale/unknown fields that might remain in Redis.
+                await cls.patch(total_available_space=total_available_space)
 
                 # Recompute total_space_used from DB for active (non-expired) files
                 now = datetime.now(timezone.utc)
