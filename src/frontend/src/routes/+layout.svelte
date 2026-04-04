@@ -57,7 +57,7 @@
 <ModeWatcher />
 <QueryClientProvider client={data.queryClient}>
 	{#if SvelteQueryDevtools}
-		<SvelteQueryDevtools buttonPosition="top-left" />
+		<!-- <SvelteQueryDevtools buttonPosition="top-left" /> -->
 	{/if}
 
 	{@render children()}
