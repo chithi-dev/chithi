@@ -1,9 +1,9 @@
 import hashlib
-import inspect
 import json
 import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
+from typing import Any, Awaitable, cast
 
 from app.lua import (
     json_remove_file_by_key,
@@ -208,11 +208,7 @@ class RoomState(GlobalState):
         result_or_awaitable = client.eval(
             json_remove_file_by_key.code, 1, key, file_key
         )
-        result = (
-            await result_or_awaitable
-            if inspect.isawaitable(result_or_awaitable)
-            else result_or_awaitable
-        )
+        result = await cast(Awaitable[Any], result_or_awaitable)
         if result is None:
             return None
 
@@ -280,11 +276,9 @@ class RoomState(GlobalState):
         key = cls._hosts_set_key(room_id) if is_host else cls._guests_set_key(room_id)
         client = cls._client()
 
-        sadd_result = client.sadd(key, client_id)
-        if inspect.isawaitable(sadd_result):
-            await sadd_result
+        await cast(Awaitable[Any], client.sadd(key, client_id))
 
-        await client.expire(key, 3600)
+        await cast(Awaitable[Any], client.expire(key, 3600))
 
         hosts_count, guests_count = await cls.get_connection_counts(room_id)
         await cls.publish_event(
@@ -302,9 +296,7 @@ class RoomState(GlobalState):
     async def client_offline(cls, room_id: str, client_id: str, is_host: bool) -> None:
         key = cls._hosts_set_key(room_id) if is_host else cls._guests_set_key(room_id)
         client = cls._client()
-        srem_result = client.srem(key, client_id)
-        if inspect.isawaitable(srem_result):
-            await srem_result
+        await cast(Awaitable[Any], client.srem(key, client_id))
 
         hosts_count, guests_count = await cls.get_connection_counts(room_id)
 
@@ -327,15 +319,10 @@ class RoomState(GlobalState):
     @classmethod
     async def get_connection_counts(cls, room_id: str) -> tuple[int, int]:
         client = cls._client()
-
         hosts_result = client.scard(cls._hosts_set_key(room_id))
-        hosts = (
-            await hosts_result if inspect.isawaitable(hosts_result) else hosts_result
-        )
+        hosts = await cast(Awaitable[Any], hosts_result)
 
         guests_result = client.scard(cls._guests_set_key(room_id))
-        guests = (
-            await guests_result if inspect.isawaitable(guests_result) else guests_result
-        )
+        guests = await cast(Awaitable[Any], guests_result)
 
         return int(hosts), int(guests)

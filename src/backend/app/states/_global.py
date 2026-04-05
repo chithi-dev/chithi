@@ -1,5 +1,4 @@
-from collections.abc import Awaitable
-from typing import Any, ClassVar, cast
+from typing import Any, Awaitable, ClassVar, cast
 
 import redis.asyncio as redis
 
@@ -20,9 +19,7 @@ class GlobalState:
     async def _json_get(
         cls, key: str, redis_client: redis.Redis | None = None
     ) -> dict[str, Any] | None:
-        raw = await cast(
-            Awaitable[Any], cls._client(redis_client).json().get(key)
-        )
+        raw = await cast(Awaitable[Any], cls._client(redis_client).json().get(key))
         if isinstance(raw, list):
             return cast(dict[str, Any] | None, raw[0] if raw else None)
         return cast(dict[str, Any] | None, raw)
