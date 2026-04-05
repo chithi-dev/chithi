@@ -7,49 +7,21 @@
 	import UrlMetricsCard from './url_metrics_card.svelte';
 	import OutstandingUrlsCard from './outstanding_urls_card.svelte';
 
-	const { files, revokeFile } = useFilesQuery();
+	const limit = 20;
+	let cursorHistory = $state<(string | null)[]>([null]);
+	let currentIndex = $state(0);
 
-	let filesData = $derived(files.data ?? []);
-	let totalUrls = $derived(filesData.length);
-	let totalBytes = $derived(filesData.reduce((sum, file) => sum + (file.size ?? 0), 0));
+	const { files, revokeFile } = useFilesQuery(() => cursorHistory[currentIndex], limit);
 
-	function isExpired(file: FileInfo) {
-		const expiredByDate = file.expires_at
-			? new Date(file.expires_at).getTime() <= Date.now()
-			: false;
-		const expiredByDownloads =
-			file.expire_after_n_download !== undefined &&
-			file.download_count !== undefined &&
-			file.download_count >= file.expire_after_n_download;
-		return expiredByDate || expiredByDownloads;
-	}
-
-	let activeUrls = $derived(filesData.filter((file) => !isExpired(file)).length);
-	let linksWithDownloadCaps = $derived(
-		filesData.filter((file) => file.expire_after_n_download !== undefined).length
-	);
-
-	let expiringSoon = $derived(
-		filesData.filter((file) => {
-			if (!file.expires_at || isExpired(file)) return false;
-			const msRemaining = new Date(file.expires_at).getTime() - Date.now();
-			return msRemaining > 0 && msRemaining <= 24 * 60 * 60 * 1000;
-		}).length
-	);
-
+	let totalUrls = $derived(files.data?.total ?? 0);
+	let totalBytes = $derived(files.data?.total_bytes ?? 0);
+	let activeUrls = $derived(files.data?.active_urls ?? 0);
+	let linksWithDownloadCaps = $derived(files.data?.links_with_download_caps ?? 0);
+	let expiringSoon = $derived(files.data?.expiring_soon ?? 0);
 	let latestExpiryMs = $derived(
-		filesData.reduce((latest, file) => {
-			if (isExpired(file) || !file.expires_at) return latest;
-			const expiresAtMs = new Date(file.expires_at).getTime();
-			return Number.isFinite(expiresAtMs) ? Math.max(latest, expiresAtMs) : latest;
-		}, 0)
+		files.data?.latest_expiry ? new Date(files.data.latest_expiry).getTime() : 0
 	);
-
-	let hasIndefiniteActiveUrls = $derived(
-		filesData.some(
-			(file) => !isExpired(file) && !file.expires_at && file.expire_after_n_download === undefined
-		)
-	);
+	let hasIndefiniteActiveUrls = $derived(files.data?.has_indefinite_active_urls ?? false);
 
 	function formatDuration(ms: number) {
 		if (ms <= 0) return 'Now';
@@ -123,6 +95,33 @@
 		{expiringSoon}
 	/>
 	<OutstandingUrlsCard {files} {isRevoking} {openRevokeDialog} {formatDate} />
+
+	<div class="flex items-center justify-end space-x-2 py-4">
+		<Button
+			variant="outline"
+			size="sm"
+			onclick={() => (currentIndex = Math.max(0, currentIndex - 1))}
+			disabled={currentIndex === 0 || files.isLoading}
+		>
+			Previous
+		</Button>
+		<div class="text-sm font-medium">
+			Page {currentIndex + 1}
+		</div>
+		<Button
+			variant="outline"
+			size="sm"
+			onclick={() => {
+				if (currentIndex === cursorHistory.length - 1 && files.data?.next_cursor) {
+					cursorHistory.push(files.data.next_cursor);
+				}
+				currentIndex = currentIndex + 1;
+			}}
+			disabled={(!files.data?.next_cursor && currentIndex === cursorHistory.length - 1) || files.isLoading}
+		>
+			Next
+		</Button>
+	</div>
 
 	<Dialog.Root bind:open={isRevokeDialogOpen}>
 		<Dialog.Content>

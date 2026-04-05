@@ -2,11 +2,8 @@ import json
 import uuid
 from datetime import datetime, timezone
 from typing import Final
-from urllib.parse import quote
 
-from botocore.exceptions import ClientError
 from fastapi import APIRouter, Header, HTTPException, Request, UploadFile, status
-from fastapi.responses import StreamingResponse
 from sqlmodel import col, select
 from types_aiobotocore_s3.type_defs import CompletedPartTypeDef
 

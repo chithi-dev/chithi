@@ -21,6 +21,19 @@ class FileInformationOut(SQLModel):
     expire_after_n_download: int
 
 
+class PaginatedFileInformationOut(SQLModel):
+    items: list[FileInformationOut]
+    total: int
+    next_cursor: UUID | None
+    limit: int
+    total_bytes: int
+    active_urls: int
+    links_with_download_caps: int
+    expiring_soon: int
+    latest_expiry: datetime | None
+    has_indefinite_active_urls: bool
+
+
 class FileOut(SQLModel):
     # Unique Identifier for the S3 storage
     key: str = Field()

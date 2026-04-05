@@ -1,11 +1,19 @@
 class ByteSize:
-    def __init__(self, b=0, kb=0, mb=0, gb=0, tb=0, pb=0):
-        self._b = b
-        self._kb = kb
-        self._mb = mb
-        self._gb = gb
-        self._tb = tb
-        self._pb = pb
+    def __init__(
+        self,
+        b: int = 0,
+        kb: int = 0,
+        mb: int = 0,
+        gb: int = 0,
+        tb: int = 0,
+        pb: int = 0,
+    ) -> None:
+        self._b: int = b
+        self._kb: int = kb
+        self._mb: int = mb
+        self._gb: int = gb
+        self._tb: int = tb
+        self._pb: int = pb
 
     def total_bytes(self) -> int:
         """Return total bytes as an integer"""
@@ -18,25 +26,25 @@ class ByteSize:
             + self._pb * 1024**5
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         """Smart display using largest unit >= 1"""
-        bytes_val = self.total_bytes()
-        for unit, factor in zip(
-            ["PB", "TB", "GB", "MB", "KB", "B"],
-            [1024**5, 1024**4, 1024**3, 1024**2, 1024, 1],
-        ):
-            val = bytes_val / factor
+        bytes_val: int = self.total_bytes()
+        units: list[str] = ["PB", "TB", "GB", "MB", "KB", "B"]
+        factors: list[int] = [1024**5, 1024**4, 1024**3, 1024**2, 1024, 1]
+
+        for unit, factor in zip(units, factors):
+            val: float = bytes_val / factor
             if val >= 1:
                 return f"{val:.2f} {unit}"
         return f"{bytes_val} B"
 
     # Arithmetic support
-    def __add__(self, other):
+    def __add__(self, other: ByteSize) -> ByteSize:
         if isinstance(other, ByteSize):
             return ByteSize(b=self.total_bytes() + other.total_bytes())
-        raise TypeError("Can only add ByteSize objects")
+        return NotImplemented  # type: ignore[return-value]
 
-    def __sub__(self, other):
+    def __sub__(self, other: ByteSize) -> ByteSize:
         if isinstance(other, ByteSize):
             return ByteSize(b=self.total_bytes() - other.total_bytes())
-        raise TypeError("Can only subtract ByteSize objects")
+        return NotImplemented  # type: ignore[return-value]

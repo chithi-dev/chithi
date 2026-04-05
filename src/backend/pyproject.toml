@@ -20,8 +20,8 @@ dependencies = [
     # JWT
     "pyjwt>=2.10.1",
     # Database and ORM
-    "sqlalchemy[postgresql-asyncpg]>=2.0.45",
     "sqlmodel>=0.0.27",
+    "sqlalchemy[postgresql-asyncpg]>=2.0.45",
     # Migration Engine
     "alembic>=1.17.2",
     # Cli
@@ -29,10 +29,10 @@ dependencies = [
     # Rustfs Upload
     "aioboto3>=15.5.0",
     # Task queue
-    "celery>=5.6.1", 
+    "celery>=5.6.1",
     "celery-aio-pool>=0.1.0rc8",
-    # Redis for caching
     "celery-types>=0.24.0",
+    # Redis for caching
     "redis[hiredis]>=6.4.0",
     # Mandatory type
     "types-aiobotocore-s3>=2.25.2",
@@ -45,6 +45,8 @@ dev = [
     "ruff>=0.14.10",
     # Task runner
     "poethepoet>=0.39.0",
+    # Type checker
+    "pyrefly>=0.59.1",
 ]
 [tool.poe.tasks]
 dev = "fastapi dev ./app/main.py"
@@ -68,3 +70,6 @@ skip-magic-trailing-comma = false  # Avoids conflict with isort.split-on-trailin
 [tool.ruff.lint.isort]
 split-on-trailing-comma = true  # Keep this aligned with format.skip-magic-trailing-comma
 combine-as-imports = true
+
+[tool.pyrefly]
+strict = true
