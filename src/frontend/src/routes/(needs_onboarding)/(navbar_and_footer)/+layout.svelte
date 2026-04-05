@@ -107,6 +107,13 @@
 			order: 1
 		}
 	]);
+	let isDark = $state<boolean>(mode.current === 'dark');
+
+	function handleCheckedChange(checked: boolean) {
+		if ((checked && mode.current !== 'dark') || (!checked && mode.current === 'dark')) {
+			toggleMode();
+		}
+	}
 
 	const donationPlatforms = [
 		{
@@ -211,14 +218,17 @@
 					<Dropdown.Content align="end" sideOffset={4} class="w-48">
 						<Dropdown.Item onSelect={(e) => e.preventDefault()}>
 							<div class="flex w-full items-center justify-between gap-2">
-								<div class="flex items-center gap-2">
-									<Label for="theme-switch" class="cursor-pointer">Theme</Label>
-								</div>
-								<Switch
-									id="theme-switch"
-									checked={mode.current === 'dark'}
-									onCheckedChange={() => toggleMode()}
-								/>
+								<Label class="cursor-pointer" onclick={toggleMode}>Theme</Label>
+
+								<Button onclick={toggleMode} variant="outline" size="icon" class="relative">
+									<SunIcon
+										class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
+									/>
+									<MoonIcon
+										class="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0"
+									/>
+									<span class="sr-only">Toggle theme</span>
+								</Button>
 							</div>
 						</Dropdown.Item>
 

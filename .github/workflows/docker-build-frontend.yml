@@ -76,6 +76,9 @@ jobs:
           context: ./src/frontend
           file: ./src/frontend/Dockerfile
           platforms: ${{ matrix.platform }}
+          provenance: true
+          sbom: true
+          push: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Export digest
