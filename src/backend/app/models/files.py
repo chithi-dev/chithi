@@ -9,6 +9,9 @@ from sqlalchemy.orm import Mapper
 from sqlmodel import Field, SQLModel
 
 
+from app.pagination import Page
+
+
 class FileInformationOut(SQLModel):
     id: UUID
     filename: str
@@ -21,11 +24,7 @@ class FileInformationOut(SQLModel):
     expire_after_n_download: int
 
 
-class PaginatedFileInformationOut(SQLModel):
-    items: list[FileInformationOut]
-    total: int
-    next_cursor: UUID | None
-    limit: int
+class PaginatedFileInformationOut(Page[FileInformationOut], SQLModel):
     total_bytes: int
     active_urls: int
     links_with_download_caps: int

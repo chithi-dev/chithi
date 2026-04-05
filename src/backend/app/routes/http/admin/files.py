@@ -1,16 +1,16 @@
 from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
-from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from sqlmodel import func, select
+from sqlmodel import col, func, select
 
-from app.deps import CurrentUser, SessionDep
+from app.deps import CurrentUser, PaginationDep, SessionDep
 from app.models.files import (
     File,
     FileOut,
     PaginatedFileInformationOut,
 )
+from app.pagination import paginate
 from app.tasks import delete_expired_file
 
 router = APIRouter()
@@ -20,15 +20,10 @@ router = APIRouter()
 async def show_all_files(
     _: CurrentUser,  # Only check for login here
     session: SessionDep,
-    cursor: UUID | None = None,
-    limit: int = 100,
+    pagination: PaginationDep,
 ):
     now = datetime.now(timezone.utc)
     soon = now + timedelta(days=1)
-
-    # Total count
-    count_query = select(func.count()).select_from(File)
-    total = (await session.exec(count_query)).one()
 
     # Total bytes
     sum_bytes_query = select(func.coalesce(func.sum(File.size), 0)).select_from(File)
@@ -71,20 +66,11 @@ async def show_all_files(
     latest_expiry = (await session.exec(latest_expiry_query)).one()
 
     # Paginated items
-    query = select(File).order_by(File.id.desc()).limit(limit)  # type: ignore
-    if cursor:
-        query = query.where(File.id < cursor)
-
-    result = await session.exec(query)
-    file_objects = result.all()
-
-    next_cursor = file_objects[-1].id if len(file_objects) == limit else None
+    query = select(File).order_by(col(File.id).desc())
+    page = await paginate(query, session, pagination)
 
     return PaginatedFileInformationOut(
-        items=file_objects,
-        total=total,
-        next_cursor=next_cursor,
-        limit=limit,
+        **page.model_dump(),
         total_bytes=total_bytes,
         active_urls=active_urls,
         links_with_download_caps=links_with_download_caps,

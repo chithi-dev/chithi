@@ -82,5 +82,8 @@ class Settings(BaseSettings):
 
     MAX_CONCURRENT_S3_READS: int = 10
 
+    # Pagination
+    MAX_RESULTS_PER_PAGE: int = 50
+
 
 settings = Settings()  # type: ignore
