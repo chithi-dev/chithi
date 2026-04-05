@@ -152,33 +152,43 @@ export default function IframeEmbed({
 
             const outerBase =
                 'absolute left-1/2 transition-opacity duration-300';
-            const outerPos = anchorTop
-                ? '-translate-x-1/2 top-0'
-                : '-translate-x-1/2 -translate-y-1/2 top-1/2';
+            const outerPos = anchorTop ? 'top-0' : 'top-1/2';
             const visibility = visible
                 ? 'z-10 opacity-100 pointer-events-auto'
                 : 'z-0 opacity-0 pointer-events-none';
 
             const outerClass = cn(outerBase, outerPos, visibility);
-            const innerOrigin = anchorTop ? 'origin-top' : 'origin-center';
-            const innerClass = cn(
-                'w-screen h-screen transition-transform duration-300',
-                innerOrigin,
-            );
+            // compute layout-sized (scaled) width/height (do NOT clamp scale here)
+            const scaledW = Math.max(0, Math.round(windowSize.width * scale));
+            const scaledH = Math.max(0, Math.round(windowSize.height * scale));
+
+            // Use modern CSS functions/units to keep the iframe bounded to viewport
+            // while preserving the scaled size. `min()` + `dvw`/`dvh` avoid overflow
+            // on mobile dynamic viewports.
+            const wrapperStyle: React.CSSProperties = anchorTop
+                ? ({
+                      width: `min(${scaledW}px, 100dvw)`,
+                      height: `min(${scaledH}px, 100dvh)`,
+                      transform: 'translateX(-50%)',
+                      transformOrigin: 'top center',
+                      willChange: 'transform',
+                  } as React.CSSProperties)
+                : ({
+                      width: `min(${scaledW}px, 100dvw)`,
+                      height: `min(${scaledH}px, 100dvh)`,
+                      transform: 'translate(-50%, -50%)',
+                      transformOrigin: 'center center',
+                      willChange: 'transform',
+                  } as React.CSSProperties);
 
             return (
-                <div key={src} className={outerClass}>
-                    <div
-                        className={innerClass}
-                        style={{ transform: `scale(${scale})` }}
-                    >
-                        <iframe
-                            src={src}
-                            title={`embed-${i}`}
-                            loading="lazy"
-                            className="w-full h-full border-0 block"
-                        />
-                    </div>
+                <div key={src} className={outerClass} style={wrapperStyle}>
+                    <iframe
+                        src={src}
+                        title={`embed-${i}`}
+                        loading="lazy"
+                        className="w-full h-full border-0 block"
+                    />
                 </div>
             );
         });
@@ -188,7 +198,7 @@ export default function IframeEmbed({
         <div
             ref={containerRef}
             className={cn(
-                'relative h-full w-full overflow-auto rounded',
+                'relative h-full w-full overflow-hidden rounded',
                 className,
             )}
             style={style}
