@@ -27,9 +27,11 @@
         "@types/react-dom": "^19",
         "aos": "^2.3.4",
         "babel-plugin-react-compiler": "^1.0.0",
+        "clsx": "^2.1.1",
         "lucide-react": "^1.0.0",
         "simple-icons": "^16.8.0",
         "tailwind-animate": "^0.2.10",
+        "tailwind-merge": "^3.5.0",
         "tailwindcss": "^4",
         "typescript": "^6.0.0"
     }

@@ -28,6 +28,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { PUBLIC_INSTANCE_URL } from '@/consts/urls';
 import { GithubIcon as Github } from '@/icons/github';
+import IframeEmbed from './iframe';
 
 type Release = { tag_name?: string } | null;
 
@@ -76,14 +77,6 @@ const iframeUrls = ['https://chithi.dev', 'https://valhalla.chithi.dev'];
 
 export default function HomeClient({ release }: { release: Release }) {
     const [copied, setCopied] = useState(false);
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentImageIndex((prev) => (prev + 1) % iframeUrls.length);
-        }, 3000);
-        return () => clearInterval(interval);
-    }, [iframeUrls.length]);
 
     useEffect(() => {
         AOS.init({ duration: 600, once: true, easing: 'ease-out-quad' });
@@ -125,7 +118,6 @@ export default function HomeClient({ release }: { release: Release }) {
                             href="https://github.com/chithi-dev/chithi"
                             className="flex items-center gap-2 text-white"
                         >
-                            <Github size={14} /> GITHUB{' '}
                             {release?.tag_name && (
                                 <span className="opacity-50">
                                     /{release.tag_name}
@@ -542,19 +534,10 @@ export default function HomeClient({ release }: { release: Release }) {
                         >
                             <div className="relative aspect-3750/2004 w-full overflow-hidden rounded bg-black">
                                 <div className="relative h-full w-full overflow-hidden rounded">
-                                    {iframeUrls.map((src, index) => (
-                                        <iframe
-                                            key={src}
-                                            src={src}
-                                            title={`embed-${index}`}
-                                            loading="lazy"
-                                            className={`absolute inset-0 w-full h-full border-0 transition-all duration-1000 ${
-                                                index === currentImageIndex
-                                                    ? 'z-10 opacity-80 group-hover:opacity-100 pointer-events-auto'
-                                                    : 'z-0 opacity-0 pointer-events-none'
-                                            }`}
-                                        />
-                                    ))}
+                                    <IframeEmbed
+                                        urls={iframeUrls}
+                                        cover={true}
+                                    />
                                 </div>
                             </div>
                             <div className="mt-4 flex items-center justify-center gap-2 font-bold text-sm text-white transition-colors group-hover:text-purple-400">
