@@ -12,12 +12,14 @@
 
 <span
 	bind:this={ref}
-	data-slot="breadcrumb-ellipsis"
-	role="presentation"
 	aria-hidden="true"
-	class={cn('flex size-5 items-center justify-center [&>svg]:size-4', className)}
+	data-slot="pagination-ellipsis"
+	class={cn(
+		"flex size-8 items-center items-center justify-center justify-center [&_svg:not([class*='size-'])]:size-4",
+		className
+	)}
 	{...restProps}
 >
 	<MoreHorizontalIcon />
-	<span class="sr-only">More</span>
+	<span class="sr-only">More pages</span>
 </span>

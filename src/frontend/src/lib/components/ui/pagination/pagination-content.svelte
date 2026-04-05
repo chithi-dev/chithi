@@ -7,17 +7,14 @@
 		class: className,
 		children,
 		...restProps
-	}: WithElementRef<HTMLAttributes<HTMLSpanElement>> = $props();
+	}: WithElementRef<HTMLAttributes<HTMLUListElement>> = $props();
 </script>
 
-<span
+<ul
 	bind:this={ref}
-	data-slot="breadcrumb-page"
-	role="link"
-	aria-disabled="true"
-	aria-current="page"
-	class={cn('font-normal text-foreground', className)}
+	data-slot="pagination-content"
+	class={cn('flex items-center gap-0.5', className)}
 	{...restProps}
 >
 	{@render children?.()}
-</span>
+</ul>

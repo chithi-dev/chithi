@@ -14,28 +14,29 @@ export type FileInfo = {
 
 export type PaginatedFiles = {
 	items: FileInfo[];
-	total: number;
-	next_cursor: string | null;
-	limit: number;
-	total_bytes: number;
-	active_urls: number;
-	links_with_download_caps: number;
-	expiring_soon: number;
-	latest_expiry?: string;
-	has_indefinite_active_urls: boolean;
+	total_items: number;
+	start_index: number;
+	end_index: number;
+	total_pages: number;
+	current_page: number;
+	current_page_size: number;
+	meta: {
+		total_bytes: number;
+		active_urls: number;
+		links_with_download_caps: number;
+		expiring_soon: number;
+		latest_expiry?: number;
+	};
 };
 
-export const useFilesQuery = (cursor: () => string | null = () => null, limit: number = 100) => {
+export const useFilesQuery = (page: () => number = () => 1, pageSize: number = 20) => {
 	const queryClient = useQueryClient();
 	const query = createQuery(() => ({
-		queryKey: ['admin-files', cursor(), limit],
+		queryKey: ['admin-files', page(), pageSize],
 		queryFn: async () => {
 			const url = new URL(Api.ADMIN.FILES, window.location.origin);
-			const currentCursor = cursor();
-			if (currentCursor) {
-				url.searchParams.set('cursor', currentCursor);
-			}
-			url.searchParams.set('limit', limit.toString());
+			url.searchParams.set('page', page().toString());
+			url.searchParams.set('page_size', pageSize.toString());
 
 			const res = await fetch(url.toString(), {
 				credentials: 'include'
