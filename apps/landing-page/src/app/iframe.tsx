@@ -74,7 +74,7 @@ export default function IframeEmbed({
         return () => clearInterval(id);
     }, [urls, rotateMs]);
 
-    // compute uniform scale
+    // compute uniform scale (simple in-render calculation — let React handle memoization)
     const scale = useMemo(() => {
         if (!windowSize || !containerSize) return 1;
         if (cover) {
@@ -148,52 +148,37 @@ export default function IframeEmbed({
 
         return urls.map((src, i) => {
             const visible = i === index;
-
-            // anchor to top when using cover mode so top of content is visible
             const anchorTop = !!cover;
 
-            const wrapperStyle: React.CSSProperties = anchorTop
-                ? {
-                      position: 'absolute',
-                      left: '50%',
-                      top: 0,
-                      width: `${windowSize.width}px`,
-                      height: `${windowSize.height}px`,
-                      transform: `translateX(-50%) scale(${scale})`,
-                      transformOrigin: 'top center',
-                      transition: 'opacity 300ms, transform 300ms',
-                  }
-                : {
-                      position: 'absolute',
-                      left: '50%',
-                      top: '50%',
-                      width: `${windowSize.width}px`,
-                      height: `${windowSize.height}px`,
-                      transform: `translate(-50%, -50%) scale(${scale})`,
-                      transformOrigin: 'center center',
-                      transition: 'opacity 300ms, transform 300ms',
-                  };
+            const outerBase =
+                'absolute left-1/2 transition-opacity duration-300';
+            const outerPos = anchorTop
+                ? '-translate-x-1/2 top-0'
+                : '-translate-x-1/2 -translate-y-1/2 top-1/2';
+            const visibility = visible
+                ? 'z-10 opacity-100 pointer-events-auto'
+                : 'z-0 opacity-0 pointer-events-none';
+
+            const outerClass = cn(outerBase, outerPos, visibility);
+            const innerOrigin = anchorTop ? 'origin-top' : 'origin-center';
+            const innerClass = cn(
+                'w-screen h-screen transition-transform duration-300',
+                innerOrigin,
+            );
 
             return (
-                <div
-                    key={src}
-                    style={wrapperStyle}
-                    className={cn(
-                        visible && 'z-10 opacity-100 pointer-events-auto',
-                        !visible && 'z-0 opacity-0 pointer-events-none',
-                    )}
-                >
-                    <iframe
-                        src={src}
-                        title={`embed-${i}`}
-                        loading="lazy"
-                        style={{
-                            width: '100%',
-                            height: '100%',
-                            border: 0,
-                            display: 'block',
-                        }}
-                    />
+                <div key={src} className={outerClass}>
+                    <div
+                        className={innerClass}
+                        style={{ transform: `scale(${scale})` }}
+                    >
+                        <iframe
+                            src={src}
+                            title={`embed-${i}`}
+                            loading="lazy"
+                            className="w-full h-full border-0 block"
+                        />
+                    </div>
                 </div>
             );
         });
