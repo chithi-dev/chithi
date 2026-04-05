@@ -9,9 +9,6 @@ from sqlalchemy.orm import Mapper
 from sqlmodel import Field, SQLModel
 
 
-from app.pagination import Page
-
-
 class FileInformationOut(SQLModel):
     id: UUID
     filename: str
@@ -22,15 +19,6 @@ class FileInformationOut(SQLModel):
 
     expires_at: datetime
     expire_after_n_download: int
-
-
-class PaginatedFileInformationOut(Page[FileInformationOut], SQLModel):
-    total_bytes: int
-    active_urls: int
-    links_with_download_caps: int
-    expiring_soon: int
-    latest_expiry: datetime | None
-    has_indefinite_active_urls: bool
 
 
 class FileOut(SQLModel):

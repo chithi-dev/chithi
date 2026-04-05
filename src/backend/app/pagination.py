@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from pydantic import BaseModel, Field
 from sqlalchemy.sql import func
@@ -37,12 +37,16 @@ class Page(BaseModel, Generic[T]):
     current_page_size: int = Field(
         ge=0, description="Number of items per page (could differ from request)"
     )
+    meta: dict[str, Any] = Field(
+        default_factory=dict, description="Extra metadata for the response"
+    )
 
 
 async def paginate(
     query: SelectOfScalar[T],  # SQLModel select query
     session: AsyncSession,
     pagination_input: PaginationInput,
+    meta: dict[str, Any] | None = None,
 ) -> Page[T]:
     """Paginate the given query based on the pagination input."""
 
@@ -85,4 +89,5 @@ async def paginate(
         total_pages=total_pages,
         current_page_size=len(items),  # can differ from the requested page_size
         current_page=current_page,  # can differ from the requested page
+        meta=meta or {},
     )

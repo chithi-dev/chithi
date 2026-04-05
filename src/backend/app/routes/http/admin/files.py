@@ -7,16 +7,16 @@ from sqlmodel import col, func, select
 from app.deps import CurrentUser, PaginationDep, SessionDep
 from app.models.files import (
     File,
+    FileInformationOut,
     FileOut,
-    PaginatedFileInformationOut,
 )
-from app.pagination import paginate
+from app.pagination import Page, paginate
 from app.tasks import delete_expired_file
 
 router = APIRouter()
 
 
-@router.get("/files", response_model=PaginatedFileInformationOut)
+@router.get("/files", response_model=Page[FileInformationOut])
 async def show_all_files(
     _: CurrentUser,  # Only check for login here
     session: SessionDep,
@@ -65,18 +65,17 @@ async def show_all_files(
     )
     latest_expiry = (await session.exec(latest_expiry_query)).one()
 
-    # Paginated items
-    query = select(File).order_by(col(File.id).desc())
-    page = await paginate(query, session, pagination)
+    meta = {
+        "total_bytes": total_bytes,
+        "active_urls": active_urls,
+        "links_with_download_caps": links_with_download_caps,
+        "expiring_soon": expiring_soon,
+    }
+    if latest_expiry:
+        meta["latest_expiry"] = int(latest_expiry.timestamp())
 
-    return PaginatedFileInformationOut(
-        **page.model_dump(),
-        total_bytes=total_bytes,
-        active_urls=active_urls,
-        links_with_download_caps=links_with_download_caps,
-        expiring_soon=expiring_soon,
-        latest_expiry=latest_expiry,
-        has_indefinite_active_urls=False,
+    return await paginate(
+        select(File).order_by(col(File.id).desc()), session, pagination, meta=meta
     )
 
 
