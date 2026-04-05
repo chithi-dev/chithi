@@ -72,18 +72,18 @@ const data = [
     },
 ];
 
+const iframeUrls = ['https://chithi.dev', 'https://valhalla.chithi.dev'];
+
 export default function HomeClient({ release }: { release: Release }) {
     const [copied, setCopied] = useState(false);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-    const images = ['/images/chithi-dev.avif', '/images/chithi-(dev).avif'];
-
     useEffect(() => {
         const interval = setInterval(() => {
-            setCurrentImageIndex((prev) => (prev + 1) % images.length);
+            setCurrentImageIndex((prev) => (prev + 1) % iframeUrls.length);
         }, 3000);
         return () => clearInterval(interval);
-    }, [images.length]);
+    }, [iframeUrls.length]);
 
     useEffect(() => {
         AOS.init({ duration: 600, once: true, easing: 'ease-out-quad' });
@@ -542,14 +542,17 @@ export default function HomeClient({ release }: { release: Release }) {
                         >
                             <div className="relative aspect-3750/2004 w-full overflow-hidden rounded bg-black">
                                 <div className="relative h-full w-full overflow-hidden rounded">
-                                    {images.map((src, index) => (
-                                        <Image
+                                    {iframeUrls.map((src, index) => (
+                                        <iframe
                                             key={src}
                                             src={src}
-                                            alt="Chithi Interface"
-                                            fill
-                                            sizes="(max-width: 1000px) 100vw, 1000px"
-                                            className={`object-contain transition-all duration-1000 ${index === currentImageIndex ? 'z-10 opacity-80 grayscale group-hover:opacity-100 group-hover:grayscale-0' : 'z-0 opacity-0'}`}
+                                            title={`embed-${index}`}
+                                            loading="lazy"
+                                            className={`absolute inset-0 w-full h-full border-0 transition-all duration-1000 ${
+                                                index === currentImageIndex
+                                                    ? 'z-10 opacity-80 group-hover:opacity-100 pointer-events-auto'
+                                                    : 'z-0 opacity-0 pointer-events-none'
+                                            }`}
                                         />
                                     ))}
                                 </div>
