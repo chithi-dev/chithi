@@ -95,4 +95,11 @@ S3Dep = Annotated[S3Client, Depends(get_s3_client)]
 RedisDep = Annotated[Redis, Depends(get_redis)]
 PaginationDep = Annotated[PaginationInput, Depends()]
 
-__all__ = ["SessionDep", "CurrentUser", "TokenDep", "S3Dep", "RedisDep"]
+__all__ = [
+    "SessionDep",
+    "CurrentUser",
+    "TokenDep",
+    "S3Dep",
+    "RedisDep",
+    "PaginationDep",
+]
