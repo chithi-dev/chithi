@@ -528,8 +528,8 @@ export default function HomeClient({ release }: { release: Release }) {
                             instances to start sharing files securely. Find the
                             server closest to you for optimal performance.
                         </p>
-                        <div className="mx-auto w-full max-w-250">
-                            <div className="relative aspect-video w-full overflow-hidden rounded bg-black">
+                        <div className="mx-auto">
+                            <div className="relative aspect-3750/2500  w-full overflow-hidden rounded bg-black">
                                 <IframeEmbed urls={iframeUrls} cover={true} />
                             </div>
                             <Link
