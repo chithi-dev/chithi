@@ -1,19 +1,17 @@
 'use client';
 
-import {
-    useCallback,
-    useEffect,
-    useLayoutEffect,
-    useMemo,
-    useRef,
-    useState,
-} from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/utils/cn';
+
+type Size = {
+    width: number;
+    height: number;
+};
 
 type Props = {
     urls: string[];
     rotateMs?: number;
-    cover?: boolean; // if true, scale to cover parent (no black bars), otherwise contain
+    cover?: boolean;
     className?: string;
     style?: React.CSSProperties;
 };
@@ -21,50 +19,51 @@ type Props = {
 export default function IframeEmbed({
     urls,
     rotateMs = 3000,
-    cover = true,
     className,
     style,
 }: Props) {
     const [index, setIndex] = useState(0);
-    const [windowSize, setWindowSize] = useState<{
-        width: number;
-        height: number;
-    } | null>(null);
     const containerRef = useRef<HTMLDivElement | null>(null);
-    const [containerSize, setContainerSize] = useState<{
-        width: number;
-        height: number;
-    } | null>(null);
-    const interactingRef = useRef(false);
-    const savedScrollRef = useRef<number | null>(null);
+    const [windowSize, setWindowSize] = useState<Size>({
+        width: 1200,
+        height: 800,
+    });
+    const [containerSize, setContainerSize] = useState<Size>({
+        width: 0,
+        height: 0,
+    });
 
-    // measure window before paint
     useLayoutEffect(() => {
         const update = () =>
             setWindowSize({
                 width: window.innerWidth,
                 height: window.innerHeight,
             });
+
         update();
         window.addEventListener('resize', update);
         return () => window.removeEventListener('resize', update);
     }, []);
 
-    // observe container size
     useLayoutEffect(() => {
         const el = containerRef.current;
         if (!el) return;
+
         const update = () => {
-            const r = el.getBoundingClientRect();
-            setContainerSize({ width: r.width, height: r.height });
+            const rect = el.getBoundingClientRect();
+            setContainerSize({
+                width: Math.max(1, rect.width),
+                height: Math.max(1, rect.height),
+            });
         };
+
         update();
-        const ro = new ResizeObserver(update);
-        ro.observe(el);
-        return () => ro.disconnect();
+        const observer = new ResizeObserver(update);
+        observer.observe(el);
+        return () => observer.disconnect();
     }, []);
 
-    // rotation timer
+    // Rotation timer
     useEffect(() => {
         if (!urls || urls.length <= 1) return;
         const id = setInterval(
@@ -74,140 +73,68 @@ export default function IframeEmbed({
         return () => clearInterval(id);
     }, [urls, rotateMs]);
 
-    // compute uniform scale (simple in-render calculation — let React handle memoization)
     const scale = useMemo(() => {
-        if (!windowSize || !containerSize) return 1;
-        if (cover) {
-            return Math.max(
-                containerSize.width / windowSize.width,
-                containerSize.height / windowSize.height,
-            );
-        }
-        return Math.min(
-            1,
-            Math.min(
-                containerSize.width / windowSize.width,
-                containerSize.height / windowSize.height,
-            ),
-        );
-    }, [windowSize, containerSize, cover]);
+        if (containerSize.width <= 0 || containerSize.height <= 0) return 1;
+        const scaleX = containerSize.width / windowSize.width;
+        const scaleY = containerSize.height / windowSize.height;
+        return Math.min(1, Math.min(scaleX, scaleY));
+    }, [containerSize, windowSize]);
 
-    // body scroll lock helpers
-    const lockBodyScroll = useCallback(() => {
-        if (interactingRef.current) return;
-        interactingRef.current = true;
-        savedScrollRef.current = window.scrollY || window.pageYOffset;
-        const body = document.body;
-        body.style.position = 'fixed';
-        body.style.top = `-${savedScrollRef.current}px`;
-        body.style.left = '0';
-        body.style.right = '0';
-    }, []);
-
-    const unlockBodyScroll = useCallback(() => {
-        if (!interactingRef.current) return;
-        interactingRef.current = false;
-        const body = document.body;
-        const saved = savedScrollRef.current ?? 0;
-        body.style.position = '';
-        body.style.top = '';
-        body.style.left = '';
-        body.style.right = '';
-        window.scrollTo(0, saved);
-        savedScrollRef.current = null;
-    }, []);
-
-    // attach pointer handlers on the container element
-    const handlePointerEnter = useCallback(
-        () => lockBodyScroll(),
-        [lockBodyScroll],
-    );
-    const handlePointerLeave = useCallback(
-        () => unlockBodyScroll(),
-        [unlockBodyScroll],
+    const fittedViewportSize = useMemo(
+        () => ({
+            width: Math.max(1, Math.round(windowSize.width * scale)),
+            height: Math.max(1, Math.round(windowSize.height * scale)),
+        }),
+        [windowSize, scale],
     );
 
-    // safety: ensure scroll is unlocked on unmount
-    useEffect(() => {
-        return () => unlockBodyScroll();
-    }, [unlockBodyScroll]);
-
-    const content = useMemo(() => {
-        if (!windowSize) {
-            return (
-                <div className="absolute inset-0">
-                    <iframe
-                        src={urls[0]}
-                        title={`embed-0`}
-                        loading="lazy"
-                        className="w-full h-full border-0"
-                    />
-                </div>
-            );
-        }
-
-        return urls.map((src, i) => {
-            const visible = i === index;
-            const anchorTop = !!cover;
-
-            const outerBase =
-                'absolute left-1/2 transition-opacity duration-300';
-            const outerPos = anchorTop ? 'top-0' : 'top-1/2';
-            const visibility = visible
-                ? 'z-10 opacity-100 pointer-events-auto'
-                : 'z-0 opacity-0 pointer-events-none';
-
-            const outerClass = cn(outerBase, outerPos, visibility);
-            // compute layout-sized (scaled) width/height (do NOT clamp scale here)
-            const scaledW = Math.max(0, Math.round(windowSize.width * scale));
-            const scaledH = Math.max(0, Math.round(windowSize.height * scale));
-
-            // Use modern CSS functions/units to keep the iframe bounded to viewport
-            // while preserving the scaled size. `min()` + `dvw`/`dvh` avoid overflow
-            // on mobile dynamic viewports.
-            const wrapperStyle: React.CSSProperties = anchorTop
-                ? ({
-                      width: `min(${scaledW}px, 100dvw)`,
-                      height: `min(${scaledH}px, 100dvh)`,
-                      transform: 'translateX(-50%)',
-                      transformOrigin: 'top center',
-                      willChange: 'transform',
-                  } as React.CSSProperties)
-                : ({
-                      width: `min(${scaledW}px, 100dvw)`,
-                      height: `min(${scaledH}px, 100dvh)`,
-                      transform: 'translate(-50%, -50%)',
-                      transformOrigin: 'center center',
-                      willChange: 'transform',
-                  } as React.CSSProperties);
-
-            return (
-                <div key={src} className={outerClass} style={wrapperStyle}>
-                    <iframe
-                        src={src}
-                        title={`embed-${i}`}
-                        loading="lazy"
-                        className="w-full h-full border-0 block"
-                    />
-                </div>
-            );
-        });
-    }, [urls, windowSize, index, scale]);
+    if (!urls || urls.length === 0) return null;
 
     return (
         <div
             ref={containerRef}
-            className={cn(
-                'relative h-full w-full overflow-hidden rounded',
-                className,
-            )}
+            className={cn('relative h-full w-full overflow-hidden', className)}
             style={style}
-            onPointerEnter={handlePointerEnter}
-            onPointerLeave={handlePointerLeave}
-            onTouchStart={handlePointerEnter}
-            onTouchEnd={handlePointerLeave}
         >
-            {content}
+            {urls.map((src, i) => {
+                const visible = i === index;
+
+                return (
+                    <div
+                        key={src}
+                        className={cn(
+                            'absolute inset-0 transition-opacity duration-300',
+                            visible
+                                ? 'z-10 opacity-100 pointer-events-auto'
+                                : 'z-0 opacity-0 pointer-events-none',
+                        )}
+                    >
+                        <div
+                            className="absolute top-1/2 left-1/2 overflow-hidden -translate-x-1/2 -translate-y-1/2"
+                            style={{
+                                width: `${fittedViewportSize.width}px`,
+                                height: `${fittedViewportSize.height}px`,
+                            }}
+                        >
+                            <iframe
+                                src={src}
+                                title={`embed-${i}`}
+                                loading="lazy"
+                                scrolling="yes"
+                                className="absolute top-0 left-0 block border-0"
+                                style={{
+                                    width: `${windowSize.width}px`,
+                                    height: `${windowSize.height}px`,
+                                    transform: `scale(${scale})`,
+                                    transformOrigin: 'top left',
+                                    overflow: 'auto',
+                                    WebkitOverflowScrolling: 'touch',
+                                }}
+                            />
+                        </div>
+                    </div>
+                );
+            })}
         </div>
     );
 }
