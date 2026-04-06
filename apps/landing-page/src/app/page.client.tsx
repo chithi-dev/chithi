@@ -529,7 +529,7 @@ export default function HomeClient({ release }: { release: Release }) {
                             server closest to you for optimal performance.
                         </p>
                         <div className="mx-auto">
-                            <div className="relative aspect-3750/2500  w-full overflow-hidden rounded bg-black">
+                            <div className="relative aspect-13/16 md:aspect-3750/2500 w-full overflow-hidden rounded bg-black">
                                 <IframeEmbed urls={iframeUrls} cover={true} />
                             </div>
                             <Link
