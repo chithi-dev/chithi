@@ -528,22 +528,17 @@ export default function HomeClient({ release }: { release: Release }) {
                             instances to start sharing files securely. Find the
                             server closest to you for optimal performance.
                         </p>
-                        <Link
-                            href={PUBLIC_INSTANCE_URL}
-                            className="group relative inline-block w-full max-w-250"
-                        >
-                            <div className="relative aspect-3750/2004 w-full overflow-hidden rounded bg-black">
-                                <div className="relative h-full w-full overflow-hidden rounded">
-                                    <IframeEmbed
-                                        urls={iframeUrls}
-                                        cover={true}
-                                    />
-                                </div>
+                        <div className="mx-auto w-full max-w-250">
+                            <div className="relative aspect-auto md:aspect-3750/2004 w-full overflow-hidden rounded bg-black">
+                                <IframeEmbed urls={iframeUrls} cover={true} />
                             </div>
-                            <div className="mt-4 flex items-center justify-center gap-2 font-bold text-sm text-white transition-colors group-hover:text-purple-400">
+                            <Link
+                                href={PUBLIC_INSTANCE_URL}
+                                className="mt-4 flex items-center justify-center gap-2 font-bold text-sm text-white transition-colors hover:text-purple-400"
+                            >
                                 BROWSE INSTANCES <ArrowRight size={16} />
-                            </div>
-                        </Link>
+                            </Link>
+                        </div>
                     </div>
                 </section>
 
