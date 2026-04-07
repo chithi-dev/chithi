@@ -119,9 +119,12 @@ export default function HomeClient({ release }: { release: Release }) {
                             className="flex items-center gap-2 text-white"
                         >
                             {release?.tag_name && (
-                                <span className="opacity-50">
-                                    /{release.tag_name}
-                                </span>
+                                <>
+                                    <Github size={16} />
+                                    <span className="opacity-50">
+                                        /{release.tag_name}
+                                    </span>
+                                </>
                             )}
                         </a>
                     </div>
