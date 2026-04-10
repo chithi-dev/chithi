@@ -74,12 +74,12 @@ const instances = [
     {
         title: 'chithi.dev',
         url: 'https://chithi.dev',
-        src: '/public_instances/chithi.png',
+        web_src: '/public_instances/desktop/chithi.png',
     },
     {
         title: 'valhalla.chithi.dev',
         url: 'https://valhalla.chithi.dev',
-        src: '/public_instances/valhalla.png',
+        web_src: '/public_instances/desktop/valhalla.png',
     },
 ];
 
@@ -437,7 +437,9 @@ export default function HomeClient({ release }: { release: Release }) {
                                                         className="group relative block h-full w-full"
                                                     >
                                                         <Image
-                                                            src={instance.src}
+                                                            src={
+                                                                instance.web_src
+                                                            }
                                                             alt={instance.title}
                                                             fill
                                                             className="object-cover transition-transform duration-500 group-hover:scale-105 group-hover:opacity-40"
