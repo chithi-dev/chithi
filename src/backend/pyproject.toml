@@ -33,7 +33,7 @@ dependencies = [
     "celery-aio-pool>=0.1.0rc8",
     "celery-types>=0.24.0",
     # Redis for caching
-    "redis[hiredis]>=6.4.0",
+    "redis>=6.4.0",
     # Mandatory type
     "types-aiobotocore-s3>=2.25.2",
     "types-aioboto3>=15.5.0",
