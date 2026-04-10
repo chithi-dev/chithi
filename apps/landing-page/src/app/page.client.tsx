@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { AppBar, Progress, Carousel } from '@skeletonlabs/skeleton-react';
 import {
     Activity,
@@ -9,6 +8,7 @@ import {
     ArrowRight,
     ArrowUp,
     Code,
+    Command,
     Cpu,
     Layout,
     Server,
@@ -28,6 +28,12 @@ const ecosystem = [
         description: 'Encrypted file serving via FastAPI & RustFS.',
         icon: Server,
         path: 'src/backend',
+    },
+    {
+        title: 'CLI',
+        description: 'Command-line interface for automation and scripting.',
+        icon: Command,
+        path: 'src/cli',
     },
     {
         title: 'TUI',
@@ -78,16 +84,8 @@ const instances = [
 ];
 
 export default function HomeClient({ release }: { release: Release }) {
-    const [copied, setCopied] = useState(false);
-
-    const copyCommand = () => {
-        navigator.clipboard.writeText('docker compose up --build');
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
     return (
-        <div className="min-h-screen overflow-x-hidden bg-surface-50-950 font-sans text-surface-900-100 selection:bg-primary-500 selection:text-surface-950">
+        <div className="min-h-screen overflow-x-hidden bg-surface-50-950 font-sans text-surface-900-100">
             {/* App Bar Navigation */}
             <div className="sticky top-0 z-50 border-surface-200-800/50 border-b bg-surface-50-950/80 backdrop-blur-md">
                 <AppBar className="mx-auto w-full max-w-7xl bg-transparent">
@@ -128,7 +126,7 @@ export default function HomeClient({ release }: { release: Release }) {
                 {/* HERO SECTION */}
                 <section className="flex flex-col items-center justify-center pt-24 pb-20 text-center md:pt-40 md:pb-32">
                     <div className="max-w-4xl scroll-reveal">
-                        <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-surface-200-800 bg-surface-100-900/50 px-4 py-1.5 font-medium text-surface-600-400 text-xs tracking-wide">
+                        <div className="badge preset-outlined-surface-200-800 mb-8 rounded-full font-medium tracking-wide">
                             End-to-End Encryption
                         </div>
 
@@ -142,7 +140,7 @@ export default function HomeClient({ release }: { release: Release }) {
                         <p className="mx-auto mb-10 max-w-2xl font-light text-surface-600-400 text-xl leading-relaxed">
                             Self-hostable, open-source, and encrypted by
                             default. Built with RustFS for speed and FastAPI for
-                            reliability. Deploy in hours, not months.
+                            reliability. Take back control of your data.
                         </p>
 
                         <div className="flex flex-wrap items-center justify-center gap-4">
@@ -150,7 +148,7 @@ export default function HomeClient({ release }: { release: Release }) {
                                 href={PUBLIC_INSTANCE_URL}
                                 className="btn preset-filled-primary-500 rounded-full px-8 py-3 font-bold"
                             >
-                                Schedule a Demo
+                                Try a Public Instance
                             </a>
                             <a
                                 href="https://github.com/chithi-dev/chithi"
@@ -166,12 +164,12 @@ export default function HomeClient({ release }: { release: Release }) {
                 <section className="py-24 md:py-32">
                     <div className="mx-auto mb-16 max-w-3xl text-center">
                         <h2 className="h2 mb-4 font-bold tracking-tight">
-                            Deploy Chithi in hours, not months
+                            Self-host in minutes
                         </h2>
                         <p className="font-light text-lg text-surface-600-400 leading-relaxed">
-                            Chithi has multiple deployment options to integrate
-                            with your existing infrastructure. Get started
-                            quickly with zero employee disruption.
+                            Simple, flexible deployment for your home lab or
+                            VPS. Spin up our Docker containers and take back
+                            ownership of your files.
                         </p>
                     </div>
 
@@ -179,18 +177,18 @@ export default function HomeClient({ release }: { release: Release }) {
                         {[
                             {
                                 step: '1',
-                                title: 'Choose deployment',
-                                desc: 'Ingest traffic by integrating directly with your self-hosted Docker pipeline, Traefik, or our managed cloud solution.',
+                                title: 'Spin it up',
+                                desc: 'Grab our pre-configured Docker Compose file or integrate directly with your existing Traefik proxy setup.',
                             },
                             {
                                 step: '2',
-                                title: 'Configure vaults',
-                                desc: 'Start with our encrypted storage templates or import your existing storage volumes and fine-tune your access rules.',
+                                title: 'Mount your storage',
+                                desc: 'Map your local volumes, generate your encryption keys, and instantly create your personal file vault.',
                             },
                             {
                                 step: '3',
-                                title: 'Go live safely',
-                                desc: 'Monitor file transfers in real-time. Share securely with password protection, expirations, and audit trails.',
+                                title: 'Share securely',
+                                desc: 'Send files to anyone. Password-protect links, set expiration dates, and own your traffic end-to-end.',
                             },
                         ].map((feat, i) => (
                             <div
@@ -253,7 +251,7 @@ export default function HomeClient({ release }: { release: Release }) {
                                             </h3>
                                         </div>
                                     </div>
-                                    <div className="badge rounded-full border border-primary-500/30 bg-primary-500/10 px-3 py-1 font-bold text-primary-500 text-xs tracking-wider">
+                                    <div className="badge preset-soft-primary-500 rounded-full font-bold tracking-wider">
                                         EVALUATING
                                     </div>
                                 </div>
@@ -317,7 +315,7 @@ export default function HomeClient({ release }: { release: Release }) {
                 {/* ARCHITECTURE SECTION */}
                 <section className="border-surface-200-800/50 border-t py-24 md:py-32">
                     <div className="mb-16">
-                        <div className="badge mb-6 rounded-full border border-surface-200-800 bg-surface-100-900/50 px-3 py-1 font-medium text-surface-500-400 text-xs uppercase tracking-widest">
+                        <div className="badge preset-outlined-surface-200-800 mb-6 rounded-full font-medium uppercase tracking-widest">
                             Architecture
                         </div>
                         <h2 className="h2 mb-4 font-bold tracking-tight">
@@ -331,7 +329,7 @@ export default function HomeClient({ release }: { release: Release }) {
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
                         {ecosystem.map((item, i) => (
                             <div
                                 key={i}
@@ -362,12 +360,12 @@ export default function HomeClient({ release }: { release: Release }) {
                     <div className="mb-16 grid grid-cols-1 gap-8 md:grid-cols-2 md:items-end">
                         <div>
                             <h2 className="h2 mb-4 font-bold tracking-tight">
-                                Complete Developer Documentation
+                                Open Source & Fully Documented
                             </h2>
                             <p className="font-light text-lg text-surface-600-400 leading-relaxed">
-                                Detailed guides for administrators, developers,
-                                and integrators. Everything you need to get
-                                Chithi up and running.
+                                Detailed guides for self-hosting, contributing,
+                                and hacking on the API. Everything you need to
+                                run Chithi your way.
                             </p>
                         </div>
                     </div>
@@ -404,12 +402,12 @@ export default function HomeClient({ release }: { release: Release }) {
                 <section className="border-surface-200-800/50 border-t py-24 md:py-32">
                     <div className="mx-auto mb-12 max-w-3xl text-center">
                         <h2 className="h2 mb-4 font-bold tracking-tight">
-                            Global Network
+                            Try the Public Instances
                         </h2>
                         <p className="font-light text-lg text-surface-600-400 leading-relaxed">
-                            Experience Chithi immediately. Interact with our
-                            community-hosted public instances directly from your
-                            browser.
+                            Not ready to self-host? Experience Chithi
+                            immediately by interacting with our community-hosted
+                            public instances directly from your browser.
                         </p>
                     </div>
 
@@ -495,12 +493,12 @@ export default function HomeClient({ release }: { release: Release }) {
                 >
                     <div className="mx-auto max-w-4xl space-y-8 rounded-3xl border border-surface-200-800 bg-surface-100-900/30 px-6 py-20 text-center">
                         <h2 className="h1 mx-auto max-w-2xl font-bold tracking-tighter">
-                            Stop leaking info. Go fully encrypted today.
+                            Take back ownership of your files.
                         </h2>
                         <p className="mx-auto max-w-2xl font-light text-lg text-surface-600-400 leading-relaxed">
-                            Join thousands of teams protecting their
-                            organizations from data leaks, analytics tracking,
-                            and corporate espionage.
+                            Join the open-source community protecting their data
+                            from big tech, analytics tracking, and opaque
+                            privacy policies.
                         </p>
 
                         <div className="flex flex-col items-center justify-center gap-6 pt-8 sm:flex-row">
@@ -508,13 +506,13 @@ export default function HomeClient({ release }: { release: Release }) {
                                 href={PUBLIC_INSTANCE_URL}
                                 className="btn preset-filled-primary-500 btn-lg rounded-full px-10 font-bold"
                             >
-                                Start Sharing Securely
+                                Try a Public Instance
                             </Link>
                             <Link
                                 href="#docs"
                                 className="font-medium text-surface-600-400 transition-colors hover:text-white"
                             >
-                                Contact Sales &rarr;
+                                Read the Docs &rarr;
                             </Link>
                         </div>
                     </div>
