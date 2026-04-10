@@ -1,26 +1,19 @@
 'use client';
 
-import AOS from 'aos';
 import { useEffect, useState } from 'react';
-import 'aos/dist/aos.css';
+import { AppBar, Progress, Carousel } from '@skeletonlabs/skeleton-react';
 import {
     Activity,
     ArrowDown,
+    ArrowLeft,
     ArrowRight,
     ArrowUp,
-    BookOpen,
     Check,
-    ChevronDown,
-    ChevronUp,
-    Clock,
     Code,
     Copy,
     Cpu,
-    Gauge,
-    Globe,
     Layout,
     Server,
-    Shield,
     Terminal,
     Zap,
 } from 'lucide-react';
@@ -28,7 +21,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { PUBLIC_INSTANCE_URL } from '@/consts/urls';
 import { GithubIcon as Github } from '@/icons/github';
-import IframeEmbed from './iframe';
 
 type Release = { tag_name?: string } | null;
 
@@ -52,6 +44,7 @@ const ecosystem = [
         path: 'src/frontend',
     },
 ];
+
 const data = [
     {
         title: 'Quick Start',
@@ -73,14 +66,21 @@ const data = [
     },
 ];
 
-const iframeUrls = ['https://chithi.dev', 'https://valhalla.chithi.dev'];
+const instances = [
+    {
+        title: 'chithi.dev',
+        url: 'https://chithi.dev',
+        src: '/public_instances/chithi.png',
+    },
+    {
+        title: 'valhalla.chithi.dev',
+        url: 'https://valhalla.chithi.dev',
+        src: '/public_instances/valhalla.png',
+    },
+];
 
 export default function HomeClient({ release }: { release: Release }) {
     const [copied, setCopied] = useState(false);
-
-    useEffect(() => {
-        AOS.init({ duration: 600, once: true, easing: 'ease-out-quad' });
-    }, []);
 
     const copyCommand = () => {
         navigator.clipboard.writeText('docker compose up --build');
@@ -89,150 +89,124 @@ export default function HomeClient({ release }: { release: Release }) {
     };
 
     return (
-        <div className="min-h-screen overflow-x-hidden bg-[#050505] font-mono text-zinc-300 selection:bg-white selection:text-black">
-            <div
-                className="pointer-events-none fixed inset-0 z-0 opacity-[0.03]"
-                style={{
-                    backgroundImage:
-                        'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)',
-                    backgroundSize: '40px 40px',
-                }}
-            ></div>
-
-            <nav className="relative z-50 border-zinc-900 border-b bg-[#050505]/80 backdrop-blur-sm">
-                <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-                    <div className="flex items-center gap-3">
-                        <Image
-                            width={32}
-                            height={32}
-                            alt="logo"
-                            src="/favicon.svg"
-                        />
-                        <span className="font-bold text-white tracking-tighter">
-                            CHITHI
-                        </span>
-                    </div>
-
-                    <div className="flex items-center gap-6 font-medium text-xs tracking-wide">
-                        <a
-                            href="https://github.com/chithi-dev/chithi"
-                            className="flex items-center gap-2 text-white"
-                        >
-                            {release?.tag_name && (
-                                <>
-                                    <Github size={16} />
-                                    <span className="opacity-50">
-                                        /{release.tag_name}
-                                    </span>
-                                </>
-                            )}
-                        </a>
-                    </div>
-                </div>
-            </nav>
-
-            <main className="relative z-10">
-                {/* --- HERO SECTION --- */}
-                <section className="border-zinc-900 border-b px-6 pt-24 pb-20">
-                    <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 lg:grid-cols-2">
-                        <div data-aos="fade-right">
-                            <div className="mb-8 flex items-center gap-2 text-purple-400 text-xs uppercase tracking-widest">
-                                <div className="h-2 w-2 animate-pulse rounded-full bg-purple-500"></div>
-                                End-to-End Encryption
-                            </div>
-
-                            <h1 className="mb-8 font-bold text-5xl text-white leading-[0.9] tracking-tight md:text-7xl">
-                                SECURE
-                                <br />
-                                FILE SHARING
-                                <br />
-                                <span className="text-zinc-600">
-                                    FOR HUMANS.
+        <div className="min-h-screen overflow-x-hidden bg-surface-50-950 font-sans text-surface-900-100 selection:bg-primary-500 selection:text-surface-950">
+            {/* App Bar Navigation */}
+            <div className="sticky top-0 z-50 border-surface-200-800/50 border-b bg-surface-50-950/80 backdrop-blur-md">
+                <AppBar className="mx-auto w-full max-w-7xl bg-transparent">
+                    <AppBar.Toolbar className="grid-cols-[auto_1fr_auto]">
+                        <AppBar.Lead>
+                            <div className="flex items-center gap-3">
+                                <Image
+                                    width={28}
+                                    height={28}
+                                    alt="logo"
+                                    src="/favicon.svg"
+                                    className="dark:invert-0"
+                                />
+                                <span className="font-bold text-base tracking-tight">
+                                    CHITHI
                                 </span>
-                            </h1>
-
-                            <p className="mb-10 max-w-md text-lg text-zinc-500 leading-relaxed">
-                                Self-hostable, open-source, and encrypted by
-                                default. Built with RustFS for speed and FastAPI
-                                for reliability.
-                            </p>
-
-                            <div className="flex gap-4">
-                                <a
-                                    href={PUBLIC_INSTANCE_URL}
-                                    className="flex h-12 items-center gap-2 rounded-sm bg-white px-6 font-bold text-black text-sm transition-colors hover:bg-zinc-200"
-                                >
-                                    <Globe size={16} /> PUBLIC INSTANCES
-                                </a>
-                                <a
-                                    href="https://github.com/chithi-dev/chithi"
-                                    className="flex h-12 items-center gap-2 rounded-sm border border-zinc-800 px-6 text-sm text-white transition-colors hover:bg-zinc-900"
-                                >
-                                    <Github size={16} /> SOURCE CODE
-                                </a>
                             </div>
+                        </AppBar.Lead>
+                        <AppBar.Headline></AppBar.Headline>
+                        <AppBar.Trail>
+                            <a
+                                href="https://github.com/chithi-dev/chithi"
+                                className="btn btn-sm hover:preset-tonal flex items-center gap-2 rounded-full border border-surface-200-800 px-4 transition-colors"
+                            >
+                                <Github size={16} />
+                                {release?.tag_name && (
+                                    <span className="opacity-50">
+                                        {release.tag_name}
+                                    </span>
+                                )}
+                            </a>
+                        </AppBar.Trail>
+                    </AppBar.Toolbar>
+                </AppBar>
+            </div>
+
+            <main className="relative z-10 mx-auto w-full max-w-7xl px-6">
+                {/* HERO SECTION */}
+                <section className="flex flex-col items-center justify-center pt-24 pb-20 text-center md:pt-40 md:pb-32">
+                    <div className="max-w-4xl scroll-reveal">
+                        <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-surface-200-800 bg-surface-100-900/50 px-4 py-1.5 font-medium text-surface-600-400 text-xs tracking-wide">
+                            <span className="font-bold text-primary-500">
+                                New
+                            </span>
+                            <span className="opacity-50">|</span>
+                            End-to-End Encryption
                         </div>
 
-                        <div className="relative" data-aos="fade-left">
-                            <div className="absolute -inset-1 bg-linear-to-r from-purple-500/20 to-orange-500/20 opacity-50 blur-xl"></div>
-                            <div className="relative overflow-hidden rounded-md border border-zinc-800 bg-[#0a0a0a] font-mono text-xs shadow-2xl md:text-sm">
-                                <div className="flex items-center justify-between border-zinc-800 border-b bg-zinc-900/50 px-4 py-2">
-                                    <div className="flex gap-1.5">
-                                        <div className="h-3 w-3 rounded-full bg-zinc-700"></div>
-                                        <div className="h-3 w-3 rounded-full bg-zinc-700"></div>
-                                        <div className="h-3 w-3 rounded-full bg-zinc-700"></div>
-                                    </div>
-                                    <div className="text-[10px] text-zinc-500">
-                                        user@server:~
-                                    </div>
+                        <h1 className="mb-6 font-bold text-5xl leading-tight tracking-tighter md:text-7xl lg:text-[5rem] lg:leading-[1.1]">
+                            Stop leaking files. <br />
+                            <span className="text-surface-400-600">
+                                Share securely.
+                            </span>
+                        </h1>
+
+                        <p className="mx-auto mb-10 max-w-2xl font-light text-surface-600-400 text-xl leading-relaxed">
+                            Self-hostable, open-source, and encrypted by
+                            default. Built with RustFS for speed and FastAPI for
+                            reliability. Deploy in hours, not months.
+                        </p>
+
+                        <div className="flex flex-wrap items-center justify-center gap-4">
+                            <a
+                                href={PUBLIC_INSTANCE_URL}
+                                className="btn preset-filled-primary-500 rounded-full px-8 py-3 font-bold"
+                            >
+                                Schedule a Demo
+                            </a>
+                            <a
+                                href="https://github.com/chithi-dev/chithi"
+                                className="btn hover:preset-tonal rounded-full border border-surface-200-800 px-8 py-3 font-bold transition-all"
+                            >
+                                View Documentation
+                            </a>
+                        </div>
+                    </div>
+
+                    <div className="mt-20 w-full max-w-5xl scroll-reveal">
+                        <div className="card preset-filled-surface-100-900 mx-auto overflow-hidden rounded-2xl border border-surface-200-800 p-0 font-mono shadow-2xl ring-1 ring-surface-200-800/50">
+                            <div className="flex items-center justify-between border-surface-200-800 border-b bg-surface-50-950/80 px-4 py-3">
+                                <div className="flex gap-2">
+                                    <div className="h-3 w-3 rounded-full bg-error-500/80"></div>
+                                    <div className="h-3 w-3 rounded-full bg-warning-500/80"></div>
+                                    <div className="h-3 w-3 rounded-full bg-success-500/80"></div>
                                 </div>
-                                <div className="space-y-4 p-6">
-                                    <div className="group flex items-center justify-between">
-                                        <code className="text-zinc-400">
-                                            <span className="text-purple-400">
-                                                $
-                                            </span>{' '}
-                                            docker compose up --build
-                                        </code>
-                                        <button
-                                            onClick={copyCommand}
-                                            className="text-zinc-600 transition-colors hover:text-white"
-                                        >
-                                            {copied ? (
-                                                <Check size={14} />
-                                            ) : (
-                                                <Copy size={14} />
-                                            )}
-                                        </button>
+                                <div className="text-surface-400-600 text-xs">
+                                    bash — chithi-install
+                                </div>
+                            </div>
+                            <div className="space-y-5 p-6 text-left text-sm md:text-base">
+                                <div className="group flex items-center justify-between">
+                                    <code>
+                                        <span className="text-primary-500">
+                                            ${' '}
+                                        </span>
+                                        curl -sSL https://chithi.dev/install.sh
+                                        | bash
+                                    </code>
+                                    <button
+                                        onClick={copyCommand}
+                                        className="btn-icon btn-icon-sm hover:preset-tonal"
+                                    >
+                                        {copied ? (
+                                            <Check size={16} />
+                                        ) : (
+                                            <Copy size={16} />
+                                        )}
+                                    </button>
+                                </div>
+                                <div className="space-y-1.5 text-sm text-surface-500-400 opacity-80">
+                                    <div>[+] Fetching latest release...</div>
+                                    <div>[+] Unpacking chithi-backend</div>
+                                    <div className="text-success-500">
+                                        ✔ Zero-knowledge encryption initialized
                                     </div>
-                                    <div className="space-y-1 text-zinc-500">
-                                        <div>
-                                            [+] Building 5.4s (12/12) FINISHED
-                                        </div>
-                                        <div>[+] Running 4/4</div>
-                                        <div className="text-green-500">
-                                            ✔ Container chithi-db Started
-                                        </div>
-                                        <div className="text-green-500">
-                                            ✔ Container chithi-redis Started
-                                        </div>
-                                        <div className="text-green-500">
-                                            ✔ Container chithi-backend Started
-                                        </div>
-                                        <div className="text-green-500">
-                                            ✔ Container chithi-web Started
-                                        </div>
-                                    </div>
-                                    <div className="border-zinc-800/50 border-t pt-2">
-                                        <div className="text-white">
-                                            <span className="text-blue-400">
-                                                ➜
-                                            </span>{' '}
-                                            Local:{' '}
-                                            <span className="text-white underline">
-                                                http://localhost:5173
-                                            </span>
-                                        </div>
+                                    <div className="text-success-500">
+                                        ✔ Services started on port 5173
                                     </div>
                                 </div>
                             </div>
@@ -240,36 +214,48 @@ export default function HomeClient({ release }: { release: Release }) {
                     </div>
                 </section>
 
-                {/* remaining sections unchanged... */}
+                {/* DEPLOYMENT / NUMBERED FEATURES SECTION */}
+                <section className="py-24 md:py-32">
+                    <div className="mx-auto mb-16 max-w-3xl text-center">
+                        <h2 className="h2 mb-4 font-bold tracking-tight">
+                            Deploy Chithi in hours, not months
+                        </h2>
+                        <p className="font-light text-lg text-surface-600-400 leading-relaxed">
+                            Chithi has multiple deployment options to integrate
+                            with your existing infrastructure. Get started
+                            quickly with zero employee disruption.
+                        </p>
+                    </div>
 
-                {/* FEATURES GRID */}
-                <section className="border-zinc-900 border-b px-6 py-24">
-                    <div className="mx-auto grid max-w-7xl grid-cols-1 gap-12 md:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
                         {[
                             {
-                                title: 'ZERO KNOWLEDGE',
-                                desc: 'Files are encrypted client-side using AES-256-GCM before transmission. The server never sees your raw data.',
-                                icon: Shield,
+                                step: '1',
+                                title: 'Choose deployment',
+                                desc: 'Ingest traffic by integrating directly with your self-hosted Docker pipeline, Traefik, or our managed cloud solution.',
                             },
                             {
-                                title: 'RUST PERFORMANCE',
-                                desc: 'Storage backend implemented in Rust handles high-throughput I/O with minimal memory footprint.',
-                                icon: Cpu,
+                                step: '2',
+                                title: 'Configure vaults',
+                                desc: 'Start with our encrypted storage templates or import your existing storage volumes and fine-tune your access rules.',
                             },
                             {
-                                title: 'OPEN SOURCE',
-                                desc: 'Auditable code licensed under MPL-2.0. No tracking, no analytics, complete data sovereignty.',
-                                icon: Github,
+                                step: '3',
+                                title: 'Go live safely',
+                                desc: 'Monitor file transfers in real-time. Share securely with password protection, expirations, and audit trails.',
                             },
                         ].map((feat, i) => (
-                            <div key={i} className="group">
-                                <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900/50 text-zinc-400 transition-all duration-300 group-hover:border-white group-hover:bg-white group-hover:text-black">
-                                    <feat.icon size={20} />
+                            <div
+                                key={i}
+                                className="group flex flex-col space-y-4 rounded-2xl border border-surface-200-800 bg-surface-100-900/30 p-8 transition-all hover:bg-surface-100-900/80"
+                            >
+                                <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-primary-500/10 font-bold font-mono text-lg text-primary-500">
+                                    {feat.step}
                                 </div>
-                                <h3 className="mb-3 font-bold text-lg text-white transition-colors group-hover:text-purple-400">
+                                <h3 className="font-bold text-xl">
                                     {feat.title}
                                 </h3>
-                                <p className="text-sm text-zinc-500 leading-relaxed">
+                                <p className="font-light text-base text-surface-600-400 leading-relaxed">
                                     {feat.desc}
                                 </p>
                             </div>
@@ -278,296 +264,303 @@ export default function HomeClient({ release }: { release: Release }) {
                 </section>
 
                 {/* SPEEDTEST */}
-                <section className="border-zinc-900 border-b bg-[#050505] px-6 py-24">
-                    <div className="mx-auto flex max-w-7xl flex-col items-center gap-16 lg:flex-row">
-                        <div className="flex-1">
-                            <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-lg border border-zinc-800 bg-zinc-900/50 text-zinc-400">
-                                <Gauge size={20} />
-                            </div>
-                            <h2 className="mb-6 font-bold text-3xl text-white">
-                                BUILT-IN SPEEDTEST
+                <section className="border-surface-200-800/50 border-t py-24 md:py-32">
+                    <div className="flex flex-col items-center gap-16 lg:flex-row">
+                        <div className="flex-1 space-y-6">
+                            <h2 className="h2 font-bold tracking-tight">
+                                Built-in Speedtest
                             </h2>
-                            <p className="mb-8 text-lg text-zinc-500 leading-relaxed">
+                            <p className="font-light text-lg text-surface-600-400 leading-relaxed">
                                 Diagnose your network capabilities directly from
                                 the interface. Measure throughput to the server
                                 to ensure optimal file transfer rates before you
-                                start.
+                                start, all within the Chithi dashboard.
                             </p>
+                            <ul className="space-y-4 pt-4 font-light text-sm text-surface-600-400">
+                                <li className="flex items-center gap-3">
+                                    <div className="h-1.5 w-1.5 rounded-full bg-primary-500"></div>
+                                    Real-time bandwidth assessment
+                                </li>
+                                <li className="flex items-center gap-3">
+                                    <div className="h-1.5 w-1.5 rounded-full bg-primary-500"></div>
+                                    Continuous connection evaluation
+                                </li>
+                                <li className="flex items-center gap-3">
+                                    <div className="h-1.5 w-1.5 rounded-full bg-primary-500"></div>
+                                    Server to client latency tracking
+                                </li>
+                            </ul>
                         </div>
                         <div className="w-full flex-1">
-                            <div className="relative overflow-hidden rounded-xl border border-zinc-800 bg-[#090909] p-6 shadow-2xl md:p-8">
-                                <div className="relative z-10 mb-8 flex items-start justify-between">
+                            <div className="card relative space-y-8 overflow-hidden rounded-3xl border border-surface-200-800 bg-surface-100-900/50 p-8">
+                                <div className="flex items-start justify-between">
                                     <div>
-                                        <div className="mb-1 flex items-center gap-2">
+                                        <div className="mb-2 flex items-center gap-3">
                                             <Activity
-                                                className="text-zinc-400"
-                                                size={20}
+                                                className="text-primary-500"
+                                                size={24}
                                             />
-                                            <h3 className="font-bold text-lg text-white">
-                                                Speedtest
+                                            <h3 className="h3 font-bold text-lg">
+                                                Network Status
                                             </h3>
                                         </div>
-                                        <p className="text-[10px] text-zinc-500 md:text-xs">
-                                            Check your internet connection speed
-                                            to the server.
-                                        </p>
                                     </div>
-                                    <div className="animate-pulse font-bold text-[10px] text-zinc-600 tracking-widest">
-                                        UPLOADING...
+                                    <div className="badge rounded-full border border-primary-500/30 bg-primary-500/10 px-3 py-1 font-bold text-primary-500 text-xs tracking-wider">
+                                        EVALUATING
                                     </div>
                                 </div>
 
-                                <div className="relative z-10 mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
-                                    <div className="group relative flex aspect-video flex-col items-center justify-center overflow-hidden rounded-lg border border-zinc-900/50 bg-[#111] p-6">
-                                        <div className="absolute top-4 flex items-center gap-1 font-bold text-[10px] text-cyan-400">
-                                            <ArrowDown size={12} /> Download
-                                            Speed
+                                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                                    <div className="flex flex-col items-start justify-center rounded-2xl border border-surface-200-800 bg-surface-50-950/80 p-6">
+                                        <div className="mb-4 flex items-center gap-2 font-medium text-surface-400-600 text-xs uppercase tracking-widest">
+                                            <ArrowDown
+                                                size={14}
+                                                className="text-secondary-500"
+                                            />{' '}
+                                            Download
                                         </div>
-                                        <div className="relative mt-4 mb-2 h-16 w-32">
-                                            <svg
-                                                viewBox="0 0 100 50"
-                                                className="h-full w-full transform overflow-visible"
-                                            >
-                                                <path
-                                                    d="M 10 50 A 40 40 0 0 1 90 50"
-                                                    fill="none"
-                                                    stroke="#27272a"
-                                                    strokeWidth="8"
-                                                    strokeLinecap="round"
-                                                />
-                                                <path
-                                                    d="M 10 50 A 40 40 0 0 1 90 50"
-                                                    fill="none"
-                                                    stroke="#22d3ee"
-                                                    strokeWidth="8"
-                                                    strokeLinecap="round"
-                                                    strokeDasharray="125.6"
-                                                    strokeDashoffset="30"
-                                                    className="drop-shadow-[0_0_10px_rgba(34,211,238,0.5)]"
-                                                />
-                                            </svg>
-                                        </div>
-                                        <div className="-mt-2.5 text-center">
-                                            <div className="font-bold text-2xl text-white tracking-tight">
-                                                622.5
-                                            </div>
-                                            <div className="font-medium text-[10px] text-zinc-500">
+                                        <div className="mb-1 font-bold text-3xl tracking-tight">
+                                            622.5{' '}
+                                            <span className="font-light text-sm text-surface-600-400">
                                                 Mbps
-                                            </div>
+                                            </span>
                                         </div>
                                     </div>
 
-                                    <div className="group relative flex aspect-video flex-col items-center justify-center overflow-hidden rounded-lg border border-zinc-900/50 bg-[#111] p-6">
-                                        <div className="absolute top-4 flex items-center gap-1 font-bold text-[10px] text-purple-500">
-                                            <ArrowUp size={12} /> Upload Speed
+                                    <div className="flex flex-col items-start justify-center rounded-2xl border border-surface-200-800 bg-surface-50-950/80 p-6">
+                                        <div className="mb-4 flex items-center gap-2 font-medium text-surface-400-600 text-xs uppercase tracking-widest">
+                                            <ArrowUp
+                                                size={14}
+                                                className="text-tertiary-500"
+                                            />{' '}
+                                            Upload
                                         </div>
-                                        <div className="relative mt-4 mb-2 h-16 w-32">
-                                            <svg
-                                                viewBox="0 0 100 50"
-                                                className="h-full w-full transform overflow-visible"
-                                            >
-                                                <path
-                                                    d="M 10 50 A 40 40 0 0 1 90 50"
-                                                    fill="none"
-                                                    stroke="#27272a"
-                                                    strokeWidth="8"
-                                                    strokeLinecap="round"
-                                                />
-                                                <path
-                                                    d="M 10 50 A 40 40 0 0 1 90 50"
-                                                    fill="none"
-                                                    stroke="#a855f7"
-                                                    strokeWidth="8"
-                                                    strokeLinecap="round"
-                                                    strokeDasharray="125.6"
-                                                    strokeDashoffset="80"
-                                                    className="drop-shadow-[0_0_10px_rgba(168,85,247,0.5)]"
-                                                />
-                                            </svg>
-                                        </div>
-                                        <div className="-mt-2.5 text-center">
-                                            <div className="font-bold text-2xl text-white tracking-tight">
-                                                396.6
-                                            </div>
-                                            <div className="font-medium text-[10px] text-zinc-500">
+                                        <div className="mb-1 font-bold text-3xl tracking-tight">
+                                            396.6{' '}
+                                            <span className="font-light text-sm text-surface-600-400">
                                                 Mbps
-                                            </div>
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
 
-                                <div className="relative z-10 mb-8 space-y-2">
-                                    <div className="flex justify-between font-bold text-[10px] text-zinc-500 uppercase tracking-wider">
-                                        <span>Progress</span>
-                                        <span>21%</span>
+                                <div className="space-y-3 pt-2">
+                                    <div className="flex justify-between font-medium text-surface-500-400 text-xs uppercase tracking-widest">
+                                        <span>Test Progress</span>
+                                        <span className="text-primary-500">
+                                            21%
+                                        </span>
                                     </div>
-                                    <div className="h-1.5 overflow-hidden rounded-full bg-zinc-800">
-                                        <div className="h-full w-[21%] rounded-full bg-zinc-400"></div>
-                                    </div>
-                                </div>
-
-                                <div className="relative z-10 space-y-6">
-                                    <div className="flex flex-col gap-3">
-                                        <label className="flex items-center gap-2 font-bold text-[10px] text-zinc-500 uppercase tracking-wide">
-                                            <Clock size={12} /> Test Duration
-                                            (seconds)
-                                        </label>
-                                        <div className="flex h-10 items-center justify-between rounded border border-zinc-800 bg-[#111] px-4 font-mono text-xs text-zinc-400">
-                                            10
-                                            <div className="flex flex-col gap-0.5 opacity-50">
-                                                <ChevronUp size={10} />
-                                                <ChevronDown size={10} />
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex justify-center">
-                                        <button className="flex h-10 items-center gap-2 rounded-full border border-zinc-800 bg-[#151515] px-6 font-bold text-xs text-zinc-400 transition-colors hover:bg-zinc-800">
-                                            <div className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-600 border-t-zinc-300"></div>{' '}
-                                            Testing...
-                                        </button>
-                                    </div>
+                                    <Progress
+                                        value={21}
+                                        max={100}
+                                        className="h-1.5"
+                                    >
+                                        <Progress.Track className="h-1.5 rounded-full bg-surface-200-800">
+                                            <Progress.Range className="rounded-full bg-primary-500" />
+                                        </Progress.Track>
+                                    </Progress>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                {/* ARCHITECTURE */}
-                <section className="border-zinc-900 border-b bg-[#080808] px-6 py-24">
-                    <div className="mx-auto max-w-7xl">
-                        <div className="mb-12 flex items-end justify-between">
-                            <h2 className="font-bold text-2xl text-white">
-                                SYSTEM ARCHITECTURE
-                            </h2>
-                            <span className="text-xs text-zinc-600">
-                                SRC/ STRUCTURE
-                            </span>
+                {/* ARCHITECTURE SECTION */}
+                <section className="border-surface-200-800/50 border-t py-24 md:py-32">
+                    <div className="mb-16">
+                        <div className="badge mb-6 rounded-full border border-surface-200-800 bg-surface-100-900/50 px-3 py-1 font-medium text-surface-500-400 text-xs uppercase tracking-widest">
+                            Architecture
                         </div>
-                        <div className="grid grid-cols-1 gap-1 md:grid-cols-3">
-                            {ecosystem.map((item, i) => (
-                                <div
-                                    key={i}
-                                    className="group border border-zinc-800 bg-[#050505] p-6 transition-colors hover:border-zinc-600"
-                                >
-                                    <div className="mb-8 flex items-start justify-between">
-                                        <item.icon
-                                            size={24}
-                                            className="text-zinc-400 transition-colors group-hover:text-white"
-                                        />
-                                        <span className="rounded-sm border border-zinc-800 px-2 py-1 font-mono text-[10px] text-zinc-600">
-                                            {item.path}
-                                        </span>
-                                    </div>
-                                    <h3 className="mb-2 font-bold text-white">
-                                        {item.title}
-                                    </h3>
-                                    <p className="text-xs text-zinc-500">
-                                        {item.description}
-                                    </p>
+                        <h2 className="h2 mb-4 font-bold tracking-tight">
+                            Full coverage across all systems
+                        </h2>
+                        <p className="max-w-2xl font-light text-lg text-surface-600-400 leading-relaxed">
+                            Chithi comes with modular components supported out
+                            of the box, ensuring seamless integration whether
+                            you need a rich web UI, an embedded TUI, or a
+                            high-performance backend serving API traffic.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                        {ecosystem.map((item, i) => (
+                            <div
+                                key={i}
+                                className="group flex flex-col space-y-4 rounded-2xl border border-surface-200-800 bg-surface-100-900/40 p-8 transition-colors hover:border-surface-300-700"
+                            >
+                                <div className="mb-4 flex items-center justify-between">
+                                    <item.icon
+                                        size={28}
+                                        className="text-surface-400-600 transition-colors group-hover:text-primary-500"
+                                    />
                                 </div>
-                            ))}
-                        </div>
+                                <h3 className="h3 font-bold text-lg">
+                                    {item.title}
+                                </h3>
+                                <p className="font-light text-base text-surface-600-400 leading-relaxed">
+                                    {item.description}
+                                </p>
+                            </div>
+                        ))}
                     </div>
                 </section>
 
                 {/* DOCUMENTATION */}
                 <section
                     id="docs"
-                    className="border-zinc-900 border-b bg-[#050505] px-6 py-24"
+                    className="border-surface-200-800/50 border-t py-24 md:py-32"
                 >
-                    <div className="mx-auto max-w-7xl">
-                        <div className="mb-16">
-                            <h2 className="mb-6 font-bold text-3xl text-white">
-                                DOCUMENTATION
+                    <div className="mb-16 grid grid-cols-1 gap-8 md:grid-cols-2 md:items-end">
+                        <div>
+                            <h2 className="h2 mb-4 font-bold tracking-tight">
+                                Complete Developer Documentation
                             </h2>
-                            <p className="max-w-2xl text-zinc-500">
+                            <p className="font-light text-lg text-surface-600-400 leading-relaxed">
                                 Detailed guides for administrators, developers,
                                 and integrators. Everything you need to get
                                 Chithi up and running.
                             </p>
                         </div>
-                        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-                            {data.map((doc, i) => (
-                                <Link
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+                        {data.map((doc, i) => (
+                            <Link
+                                key={i}
+                                href={doc.href}
+                                className="group flex flex-col rounded-2xl border border-surface-200-800 bg-surface-100-900/30 p-8 transition-all hover:bg-surface-100-900/80"
+                            >
+                                <div className="mb-6">
+                                    <doc.icon
+                                        size={24}
+                                        className="text-surface-500-400"
+                                    />
+                                </div>
+                                <h3 className="h3 mb-2 flex items-center gap-2 font-bold text-lg">
+                                    {doc.title}
+                                    <ArrowRight
+                                        size={18}
+                                        className="-translate-x-2 text-primary-500 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100"
+                                    />
+                                </h3>
+                                <p className="font-light text-base text-surface-600-400 leading-relaxed">
+                                    {doc.desc}
+                                </p>
+                            </Link>
+                        ))}
+                    </div>
+                </section>
+
+                {/* GLOBAL NETWORK / IFRAMES */}
+                <section className="border-surface-200-800/50 border-t py-24 md:py-32">
+                    <div className="mx-auto mb-12 max-w-3xl text-center">
+                        <h2 className="h2 mb-4 font-bold tracking-tight">
+                            Global Network
+                        </h2>
+                        <p className="font-light text-lg text-surface-600-400 leading-relaxed">
+                            Experience Chithi immediately. Interact with our
+                            community-hosted public instances directly from your
+                            browser.
+                        </p>
+                    </div>
+
+                    <div className="mx-auto max-w-5xl px-6">
+                        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 scroll-reveal">
+                            {instances.map((instance, i) => (
+                                <a
                                     key={i}
-                                    href={doc.href}
-                                    className="group block rounded-sm border border-zinc-800 p-6 transition-all hover:bg-zinc-900/40"
+                                    href={instance.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="group relative aspect-video w-full overflow-hidden rounded-2xl border border-surface-200-800 bg-surface-100-900/30 p-2 shadow-xl transition-all hover:border-primary-500/50 hover:shadow-2xl"
                                 >
-                                    <div className="mb-4 flex items-start justify-between">
-                                        <doc.icon
-                                            className="text-zinc-600 transition-colors group-hover:text-white"
-                                            size={24}
+                                    <div className="relative h-full w-full overflow-hidden rounded-xl border border-surface-200-800 bg-surface-900-100">
+                                        <Image
+                                            src={instance.src}
+                                            alt={instance.title}
+                                            fill
+                                            className="object-cover transition-transform duration-500 group-hover:scale-105 group-hover:opacity-40"
                                         />
-                                        <BookOpen
-                                            size={14}
-                                            className="text-zinc-700 transition-colors group-hover:text-purple-400"
-                                        />
+
+                                        {/* Hover Overlay */}
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 backdrop-blur-[2px] transition-opacity duration-300 group-hover:opacity-100">
+                                            <div className="btn preset-filled-primary-500 rounded-full font-bold shadow-2xl">
+                                                Visit {instance.title}{' '}
+                                                <ArrowRight
+                                                    size={16}
+                                                    className="ml-2 inline-block"
+                                                />
+                                            </div>
+                                        </div>
                                     </div>
-                                    <h3 className="mb-2 flex items-center gap-2 font-bold text-white">
-                                        {doc.title}
-                                        <ArrowRight
-                                            size={14}
-                                            className="-ml-2 text-purple-400 opacity-0 transition-all group-hover:ml-0 group-hover:opacity-100"
-                                        />
-                                    </h3>
-                                    <p className="text-xs text-zinc-500 leading-relaxed">
-                                        {doc.desc}
-                                    </p>
-                                </Link>
+                                </a>
                             ))}
                         </div>
                     </div>
                 </section>
 
-                {/* PUBLIC INSTANCE */}
-                <section id="public" className="px-6 py-24">
-                    <div className="mx-auto max-w-5xl text-center">
-                        <h2 className="mb-6 font-bold text-3xl text-white">
-                            GLOBAL NETWORK
+                {/* CTA */}
+                <section
+                    id="public"
+                    className="border-surface-200-800/50 border-t py-24 text-center md:py-32"
+                >
+                    <div className="mx-auto max-w-4xl space-y-8 rounded-3xl border border-surface-200-800 bg-surface-100-900/30 px-6 py-20 text-center">
+                        <h2 className="h1 mx-auto max-w-2xl font-bold tracking-tighter">
+                            Stop leaking info. Go fully encrypted today.
                         </h2>
-                        <p className="mx-auto mb-10 max-w-2xl text-zinc-500">
-                            Choose from a variety of community-hosted public
-                            instances to start sharing files securely. Find the
-                            server closest to you for optimal performance.
+                        <p className="mx-auto max-w-2xl font-light text-lg text-surface-600-400 leading-relaxed">
+                            Join thousands of teams protecting their
+                            organizations from data leaks, analytics tracking,
+                            and corporate espionage.
                         </p>
-                        <div className="mx-auto">
-                            <div className="relative aspect-13/16 md:aspect-3750/2500 w-full overflow-hidden rounded bg-black">
-                                <IframeEmbed urls={iframeUrls} cover={true} />
-                            </div>
+
+                        <div className="flex flex-col items-center justify-center gap-6 pt-8 sm:flex-row">
                             <Link
                                 href={PUBLIC_INSTANCE_URL}
-                                className="mt-4 flex items-center justify-center gap-2 font-bold text-sm text-white transition-colors hover:text-purple-400"
+                                className="btn preset-filled-primary-500 btn-lg rounded-full px-10 font-bold"
                             >
-                                BROWSE INSTANCES <ArrowRight size={16} />
+                                Start Sharing Securely
+                            </Link>
+                            <Link
+                                href="#docs"
+                                className="font-medium text-surface-400-600 transition-colors hover:text-white"
+                            >
+                                Contact Sales &rarr;
                             </Link>
                         </div>
                     </div>
                 </section>
-
-                {/* FOOTER */}
-                <footer className="border-zinc-900 border-t bg-[#050505] px-6 py-12 text-xs">
-                    <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 md:flex-row">
-                        <div className="font-bold text-white">
-                            CHITHI PROJECT
-                        </div>
-                        <div className="flex gap-8 text-zinc-600">
-                            <Link
-                                href="#"
-                                className="transition-colors hover:text-white"
-                            >
-                                PRIVACY
-                            </Link>
-                            <Link
-                                href="#"
-                                className="transition-colors hover:text-white"
-                            >
-                                SECURITY
-                            </Link>
-                        </div>
-                    </div>
-                </footer>
             </main>
+
+            {/* FOOTER */}
+            <footer className="border-surface-200-800 border-t bg-surface-50-950 px-6 py-12">
+                <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 md:flex-row">
+                    <div className="font-bold text-sm text-surface-400-600 tracking-widest">
+                        CHITHI PROJECT
+                    </div>
+                    <div className="flex gap-8 font-medium text-sm text-surface-500-400">
+                        <Link
+                            href="#"
+                            className="transition-colors hover:text-primary-500"
+                        >
+                            Updates
+                        </Link>
+                        <Link
+                            href="#"
+                            className="transition-colors hover:text-primary-500"
+                        >
+                            Privacy Policy
+                        </Link>
+                        <Link
+                            href="#"
+                            className="transition-colors hover:text-primary-500"
+                        >
+                            Terms of Service
+                        </Link>
+                    </div>
+                </div>
+            </footer>
         </div>
     );
 }

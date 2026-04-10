@@ -1,19 +1,19 @@
-import type { NextConfig } from 'next';
+import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-    /* config options here */
-    output: 'standalone',
-    images: {
-        formats: ['image/avif'],
-    },
-    experimental: {
-        optimizeServerReact: true,
-    },
-    compiler: {
-        styledJsx: true,
-    },
-    productionBrowserSourceMaps: true,
-    reactCompiler: true,
+	/* config options here */
+	output: "standalone",
+	images: {
+		formats: ["image/avif"],
+	},
+	experimental: {
+		optimizeServerReact: true,
+	},
+	compiler: {
+		styledJsx: true,
+	},
+	productionBrowserSourceMaps: true,
+	reactCompiler: true,
 };
 
 export default nextConfig;
