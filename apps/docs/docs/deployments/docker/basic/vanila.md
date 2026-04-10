@@ -2,7 +2,7 @@
 icon: lucide/package
 ---
 
-# Vanila (Bring your own reverse proxy)
+# Vanila Basic Deployment (Bring your own reverse proxy)
 
 To host chithi, you need 3 parts.
 

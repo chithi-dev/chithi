@@ -2,7 +2,8 @@
 icon: simple/traefikproxy
 ---
 
-# Traefik
+# Traefik Basic Deployment
+
 
 This is the most straight forward way to host chithi instances.
 

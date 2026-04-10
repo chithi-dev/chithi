@@ -1,10 +1,10 @@
 ---
-icon: simple/traefikproxy
+icon: simple/nginx
 ---
 
-# Traefik with Watchtower Deployment
+# Nginx with Watchtower Deployment
 
-This is the most straight forward way to host chithi instances.
+This is a comprehensive guide to hosting chithi instances using Nginx as the reverse proxy, alongside Watchtower for automatic container updates.
 
 To host chithi, you need 3 parts.
 
@@ -12,58 +12,63 @@ To host chithi, you need 3 parts.
 2. A Postgres Database instance
 3. A Redis Instance
 
-# Docker Compose
+## Nginx Configuration
 
-Here is a ready to use docker file that can be used to deploy your site:
+First, create an `nginx.conf` file in the same directory as your `docker-compose.yml`:
+
+```nginx
+events {}
+
+http {
+    server {
+        listen 80;
+        server_name <your_domain>;
+
+        location /api/ {
+            proxy_pass http://backend:8000/;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location / {
+            proxy_pass http://frontend:3000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+}
+```
+
+## docker-compose.yml
+
+Here is a ready to use docker compose file:
 
 ```yaml
 services:
-    traefik:
-        image: traefik:latest
-        container_name: traefik
+    nginx:
+        image: nginx:latest
+        container_name: nginx
         restart: unless-stopped
         ports:
             - '80:80'
-            - '443:443/tcp'
-            - '443:443/udp'
-        command:
-            - '--providers.docker=true'
-            - '--providers.docker.exposedbydefault=false'
-            - '--entrypoints.web.address=:80'
-            - '--entrypoints.websecure.address=:443'
-
-            # Enable dashboard
-            - '--api.dashboard=true'
-            - '--api.insecure=true'
-
-            # Enable http/3
-            - '--entrypoints.websecure.http3=true'
-
-            # Experimental FastProxy
-            - '--experimental.fastProxy'
-
-            # Info logs
-            - '--log.level=INFO'
-
-            # Global redirect
-            - '--entrypoints.web.http.redirections.entrypoint.to=websecure'
-            - '--entrypoints.web.http.redirections.entrypoint.scheme=https'
-
-            # --- Add these lines for Let's Encrypt ---
-            - '--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json'
-            - '--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web'
-
-            # Disable timeout
-            - '--entrypoints.websecure.transport.respondingTimeouts.readTimeout=0'
-            - '--entrypoints.websecure.transport.respondingTimeouts.idleTimeout=0'
-
-        labels:
-            # Watchtower
-            - 'com.centurylinklabs.watchtower.enable=true'
-
+            - '443:443'
         volumes:
-            - /var/run/docker.sock:/var/run/docker.sock:ro
-            - letsencrypt:/letsencrypt
+            - ./nginx.conf:/etc/nginx/nginx.conf:ro
+        depends_on:
+            - frontend
+            - backend
+
+    watchtower:
+        image: containrrr/watchtower
+        container_name: watchtower
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+        command: --interval 600
+        restart: unless-stopped
 
     postgres:
         image: postgres:18
@@ -80,6 +85,7 @@ services:
             interval: 10s
             timeout: 5s
             retries: 5
+
     volume-permission-helper:
         image: alpine
         volumes:
@@ -93,7 +99,7 @@ services:
         restart: 'no'
 
     rustfs:
-        image: rustfs/rustfs:latest
+        image: rustfs/rustfs:1.0.0-alpha.85
         security_opt:
             - 'no-new-privileges:true'
         container_name: rustfs
@@ -101,10 +107,6 @@ services:
         user: '10001:10001'
         volumes:
             - rustfs:/data
-        labels:
-            # Watchtower
-            - 'com.centurylinklabs.watchtower.enable=true'
-
         environment:
             RUSTFS_ADDRESS: '0.0.0.0:9000'
             RUSTFS_CONSOLE_ADDRESS: '0.0.0.0:9001'
@@ -128,6 +130,7 @@ services:
         depends_on:
             volume-permission-helper:
                 condition: service_completed_successfully
+
     redis:
         image: redis:8.6-alpine
         container_name: redis
@@ -145,23 +148,6 @@ services:
         container_name: backend
         restart: unless-stopped
         command: /bin/sh /app/scripts/start_backend.sh
-        labels:
-            - 'traefik.enable=true'
-            - 'traefik.http.routers.backend.rule=Host(`<your_domain>`) && PathPrefix(`/api`)'
-
-            # This middleware strips /api from the URL before it hits the container
-            - 'traefik.http.middlewares.api-strip.stripprefix.prefixes=/api'
-            - 'traefik.http.routers.backend.middlewares=api-strip'
-            - 'traefik.http.routers.backend.entrypoints=websecure'
-            - 'traefik.http.services.backend.loadbalancer.server.port=8000'
-
-            # Enable letsencrypt
-            - 'traefik.http.routers.backend.tls=true'
-            - 'traefik.http.routers.backend.tls.certresolver=letsencrypt'
-
-            # Watchtower
-            - 'com.centurylinklabs.watchtower.enable=true'
-
         environment: &backend-variable
             POSTGRES_SERVER: postgres
             POSTGRES_PORT: 5432
@@ -173,13 +159,8 @@ services:
             RUSTFS_SECRET_ACCESS_KEY: rustfsadmin
             CELERY_BROKER_URL: redis://redis:6379/0
             CELERY_RESULT_BACKEND: redis://redis:6379/0
-
-            # Redis
             REDIS_ENDPOINT: redis://redis:6379/1
-
-            # Running behind reverse proxy
             ROOT_PATH: /api
-
         depends_on:
             postgres:
                 condition: service_healthy
@@ -187,8 +168,6 @@ services:
                 condition: service_healthy
             rustfs:
                 condition: service_healthy
-        networks:
-            - default
 
     celery:
         image: ghcr.io/chithi-dev/chithi-backend:latest
@@ -208,44 +187,21 @@ services:
         image: ghcr.io/chithi-dev/chithi-frontend-node:latest
         container_name: frontend
         restart: unless-stopped
-        labels:
-            # Traefik
-            - 'traefik.enable=true'
-            - 'traefik.http.routers.frontend.rule=Host(`<your_domain>`)'
-            - 'traefik.http.routers.frontend.priority=1'
-            - 'traefik.http.routers.frontend.entrypoints=websecure'
-            - 'traefik.http.routers.frontend.tls=true'
-            - 'traefik.http.routers.frontend.tls.certresolver=letsencrypt'
-            - 'traefik.http.services.frontend.loadbalancer.server.port=3000'
-            # Watchtower
-            - 'com.centurylinklabs.watchtower.enable=true'
         environment:
-            PUBLIC_BACKEND_API: https://<your_domain>/api
+            PUBLIC_BACKEND_API: http://<your_domain>/api
         depends_on:
             backend:
                 condition: service_started
-
-    watchtower:
-        image: nickfedor/watchtower
-        container_name: watchtower
-        restart: unless-stopped
-        volumes:
-            - /var/run/docker.sock:/var/run/docker.sock
-        environment:
-            - WATCHTOWER_CLEANUP=true
-            - WATCHTOWER_POLL_INTERVAL=60
-            # WATCHTOWER_SCHEDULE: "0 0 4 * * *"   # optional: daily at 4am
 
 volumes:
     postgres_data:
     redis_data:
     rustfs:
-    letsencrypt:
 ```
 
 !!! danger
 
-    Please replace `<your_domain>` with the actual domain you are going to use to point to chithi instance.
+    Please replace `<your_domain>` with the actual domain you are going to use to point to chithi instance in both `nginx.conf` and `docker-compose.yml`.
 
 <small>
     If you still have any issues around hosting your instances, please open a [discussion](https://github.com/chithi-dev/chithi/discussions/categories/q-a)
