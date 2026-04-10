@@ -36,4 +36,4 @@ json_remove_upload_by_key: LuaModule
 json_update_uploaded_bytes_by_key: LuaModule
 rate_limit: LuaModule
 
-__all__: list[str]
+__all__ = ['json_remove_file_by_key','json_remove_upload_by_key','json_update_uploaded_bytes_by_key','rate_limit']
