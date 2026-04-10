@@ -53,10 +53,12 @@ nav = [
         { "Docker" = [
             { "Basic" = [
                 { "Traefik" = "deployments/docker/basic/traefik.md" },
+                { "NGINX" = "deployments/docker/basic/nginx.md" },
                 { "Vanila" = "deployments/docker/basic/vanila.md" },
             ] },
             { "Watchtower" = [
                 { "Traefik" = "deployments/docker/watchtower/traefik.md" },
+                { "NGINX" = "deployments/docker/watchtower/nginx.md" },
                 { "Vanila" = "deployments/docker/watchtower/vanila.md" },
             ] },
         ] },
