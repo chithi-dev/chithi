@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { AppBar, Progress, Carousel } from '@skeletonlabs/skeleton-react';
 import {
     Activity,
@@ -8,9 +8,7 @@ import {
     ArrowLeft,
     ArrowRight,
     ArrowUp,
-    Check,
     Code,
-    Copy,
     Cpu,
     Layout,
     Server,
@@ -131,16 +129,12 @@ export default function HomeClient({ release }: { release: Release }) {
                 <section className="flex flex-col items-center justify-center pt-24 pb-20 text-center md:pt-40 md:pb-32">
                     <div className="max-w-4xl scroll-reveal">
                         <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-surface-200-800 bg-surface-100-900/50 px-4 py-1.5 font-medium text-surface-600-400 text-xs tracking-wide">
-                            <span className="font-bold text-primary-500">
-                                New
-                            </span>
-                            <span className="opacity-50">|</span>
                             End-to-End Encryption
                         </div>
 
                         <h1 className="mb-6 font-bold text-5xl leading-tight tracking-tighter md:text-7xl lg:text-[5rem] lg:leading-[1.1]">
                             Stop leaking files. <br />
-                            <span className="text-surface-400-600">
+                            <span className="text-surface-600-400">
                                 Share securely.
                             </span>
                         </h1>
@@ -164,52 +158,6 @@ export default function HomeClient({ release }: { release: Release }) {
                             >
                                 View Documentation
                             </a>
-                        </div>
-                    </div>
-
-                    <div className="mt-20 w-full max-w-5xl scroll-reveal">
-                        <div className="card preset-filled-surface-100-900 mx-auto overflow-hidden rounded-2xl border border-surface-200-800 p-0 font-mono shadow-2xl ring-1 ring-surface-200-800/50">
-                            <div className="flex items-center justify-between border-surface-200-800 border-b bg-surface-50-950/80 px-4 py-3">
-                                <div className="flex gap-2">
-                                    <div className="h-3 w-3 rounded-full bg-error-500/80"></div>
-                                    <div className="h-3 w-3 rounded-full bg-warning-500/80"></div>
-                                    <div className="h-3 w-3 rounded-full bg-success-500/80"></div>
-                                </div>
-                                <div className="text-surface-400-600 text-xs">
-                                    bash — chithi-install
-                                </div>
-                            </div>
-                            <div className="space-y-5 p-6 text-left text-sm md:text-base">
-                                <div className="group flex items-center justify-between">
-                                    <code>
-                                        <span className="text-primary-500">
-                                            ${' '}
-                                        </span>
-                                        curl -sSL https://chithi.dev/install.sh
-                                        | bash
-                                    </code>
-                                    <button
-                                        onClick={copyCommand}
-                                        className="btn-icon btn-icon-sm hover:preset-tonal"
-                                    >
-                                        {copied ? (
-                                            <Check size={16} />
-                                        ) : (
-                                            <Copy size={16} />
-                                        )}
-                                    </button>
-                                </div>
-                                <div className="space-y-1.5 text-sm text-surface-500-400 opacity-80">
-                                    <div>[+] Fetching latest release...</div>
-                                    <div>[+] Unpacking chithi-backend</div>
-                                    <div className="text-success-500">
-                                        ✔ Zero-knowledge encryption initialized
-                                    </div>
-                                    <div className="text-success-500">
-                                        ✔ Services started on port 5173
-                                    </div>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </section>
@@ -312,7 +260,7 @@ export default function HomeClient({ release }: { release: Release }) {
 
                                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                                     <div className="flex flex-col items-start justify-center rounded-2xl border border-surface-200-800 bg-surface-50-950/80 p-6">
-                                        <div className="mb-4 flex items-center gap-2 font-medium text-surface-400-600 text-xs uppercase tracking-widest">
+                                        <div className="mb-4 flex items-center gap-2 font-medium text-surface-600-400 text-xs uppercase tracking-widest">
                                             <ArrowDown
                                                 size={14}
                                                 className="text-secondary-500"
@@ -328,7 +276,7 @@ export default function HomeClient({ release }: { release: Release }) {
                                     </div>
 
                                     <div className="flex flex-col items-start justify-center rounded-2xl border border-surface-200-800 bg-surface-50-950/80 p-6">
-                                        <div className="mb-4 flex items-center gap-2 font-medium text-surface-400-600 text-xs uppercase tracking-widest">
+                                        <div className="mb-4 flex items-center gap-2 font-medium text-surface-600-400 text-xs uppercase tracking-widest">
                                             <ArrowUp
                                                 size={14}
                                                 className="text-tertiary-500"
@@ -392,7 +340,7 @@ export default function HomeClient({ release }: { release: Release }) {
                                 <div className="mb-4 flex items-center justify-between">
                                     <item.icon
                                         size={28}
-                                        className="text-surface-400-600 transition-colors group-hover:text-primary-500"
+                                        className="text-surface-600-400 transition-colors group-hover:text-primary-500"
                                     />
                                 </div>
                                 <h3 className="h3 font-bold text-lg">
@@ -466,36 +414,76 @@ export default function HomeClient({ release }: { release: Release }) {
                     </div>
 
                     <div className="mx-auto max-w-5xl px-6">
-                        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 scroll-reveal">
-                            {instances.map((instance, i) => (
-                                <a
-                                    key={i}
-                                    href={instance.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="group relative aspect-video w-full overflow-hidden rounded-2xl border border-surface-200-800 bg-surface-100-900/30 p-2 shadow-xl transition-all hover:border-primary-500/50 hover:shadow-2xl"
+                        <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-surface-200-800 bg-surface-100-900/30 p-2 shadow-xl scroll-reveal">
+                            <div className="relative h-full w-full overflow-hidden rounded-xl border border-surface-200-800 bg-surface-900-100">
+                                <Carousel
+                                    autoplay={{ delay: 3500 }}
+                                    loop={true}
+                                    className="group flex h-full w-full flex-col"
+                                    slideCount={0}
                                 >
-                                    <div className="relative h-full w-full overflow-hidden rounded-xl border border-surface-200-800 bg-surface-900-100">
-                                        <Image
-                                            src={instance.src}
-                                            alt={instance.title}
-                                            fill
-                                            className="object-cover transition-transform duration-500 group-hover:scale-105 group-hover:opacity-40"
-                                        />
+                                    <div className="relative h-full w-full overflow-hidden">
+                                        <Carousel.ItemGroup className="flex h-full w-full touch-pan-x snap-x snap-mandatory">
+                                            {instances.map((instance, i) => (
+                                                <Carousel.Item
+                                                    index={i}
+                                                    className="h-full min-w-full shrink-0 grow-0 snap-center"
+                                                >
+                                                    <a
+                                                        href={instance.url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="group relative block h-full w-full"
+                                                    >
+                                                        <Image
+                                                            src={instance.src}
+                                                            alt={instance.title}
+                                                            fill
+                                                            className="object-cover transition-transform duration-500 group-hover:scale-105 group-hover:opacity-40"
+                                                        />
 
-                                        {/* Hover Overlay */}
-                                        <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 backdrop-blur-[2px] transition-opacity duration-300 group-hover:opacity-100">
-                                            <div className="btn preset-filled-primary-500 rounded-full font-bold shadow-2xl">
-                                                Visit {instance.title}{' '}
-                                                <ArrowRight
-                                                    size={16}
-                                                    className="ml-2 inline-block"
-                                                />
-                                            </div>
-                                        </div>
+                                                        {/* Hover Overlay */}
+                                                        <div className="absolute inset-0 flex flex-col items-center justify-center opacity-0 backdrop-blur-[2px] transition-opacity duration-300 group-hover:opacity-100">
+                                                            <div className="btn preset-filled-primary-500 rounded-full font-bold shadow-2xl">
+                                                                Visit{' '}
+                                                                {instance.title}{' '}
+                                                                <ArrowRight
+                                                                    size={16}
+                                                                    className="ml-2 inline-block"
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </a>
+                                                </Carousel.Item>
+                                            ))}
+                                        </Carousel.ItemGroup>
+
+                                        {/* Overlapping controls */}
+                                        <Carousel.Control className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-4 rounded-full border border-surface-200-800 bg-surface-50-950/80 px-4 py-2 opacity-0 shadow-lg backdrop-blur-md transition-opacity duration-300 group-hover:opacity-100">
+                                            <Carousel.PrevTrigger className="btn-icon btn-icon-sm hover:preset-tonal text-surface-500-400 transition-colors hover:text-primary-500">
+                                                <ArrowLeft size={16} />
+                                            </Carousel.PrevTrigger>
+                                            <Carousel.IndicatorGroup className="mt-0">
+                                                <Carousel.Context>
+                                                    {(carousel) =>
+                                                        carousel.pageSnapPoints.map(
+                                                            (_, i) => (
+                                                                <Carousel.Indicator
+                                                                    className="h-2 w-2 cursor-pointer rounded-full bg-surface-300-700 transition-colors hover:bg-primary-500/50 data-current:bg-primary-500"
+                                                                    index={i}
+                                                                />
+                                                            ),
+                                                        )
+                                                    }
+                                                </Carousel.Context>
+                                            </Carousel.IndicatorGroup>
+                                            <Carousel.NextTrigger className="btn-icon btn-icon-sm hover:preset-tonal text-surface-500-400 transition-colors hover:text-primary-500">
+                                                <ArrowRight size={16} />
+                                            </Carousel.NextTrigger>
+                                        </Carousel.Control>
                                     </div>
-                                </a>
-                            ))}
+                                </Carousel>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -524,7 +512,7 @@ export default function HomeClient({ release }: { release: Release }) {
                             </Link>
                             <Link
                                 href="#docs"
-                                className="font-medium text-surface-400-600 transition-colors hover:text-white"
+                                className="font-medium text-surface-600-400 transition-colors hover:text-white"
                             >
                                 Contact Sales &rarr;
                             </Link>
@@ -536,7 +524,7 @@ export default function HomeClient({ release }: { release: Release }) {
             {/* FOOTER */}
             <footer className="border-surface-200-800 border-t bg-surface-50-950 px-6 py-12">
                 <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-6 md:flex-row">
-                    <div className="font-bold text-sm text-surface-400-600 tracking-widest">
+                    <div className="font-bold text-sm text-surface-600-400 tracking-widest">
                         CHITHI PROJECT
                     </div>
                     <div className="flex gap-8 font-medium text-sm text-surface-500-400">

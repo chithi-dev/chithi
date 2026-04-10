@@ -25,14 +25,14 @@
 	/* Surface: Pure Black to White */
 	--color-surface-950: #000000;
 	--color-surface-900: #09090b;
-	--color-surface-800: #121214;
-	--color-surface-700: #18181b;
-	--color-surface-600: #27272a;
-	--color-surface-500: #3f3f46;
-	--color-surface-400: #52525b;
-	--color-surface-300: #71717a;
-	--color-surface-200: #a1a1aa;
-	--color-surface-100: #d4d4d8;
+	--color-surface-800: #18181b;
+	--color-surface-700: #27272a;
+	--color-surface-600: #3f3f46;
+	--color-surface-500: #71717a;
+	--color-surface-400: #a1a1aa;
+	--color-surface-300: #d4d4d8;
+	--color-surface-200: #e4e4e7;
+	--color-surface-100: #f4f4f5;
 	--color-surface-50: #fafafa;
 
 	/* Primary: White Accent (reversing the scale slightly so primary-500 is white) */
@@ -96,4 +96,3 @@ body {
 	animation-timeline: view();
 	animation-range: entry 10% cover 30%;
 }
-
