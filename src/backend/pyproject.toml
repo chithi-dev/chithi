@@ -21,7 +21,7 @@ dependencies = [
     "pyjwt>=2.10.1",
     # Database and ORM
     "sqlmodel>=0.0.27",
-    "sqlalchemy[postgresql-asyncpg]>=2.0.45",
+    "sqlalchemy[postgresql-psycopg]>=2.0.45",
     # Migration Engine
     "alembic>=1.17.2",
     # Cli

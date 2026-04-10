@@ -35,7 +35,7 @@ class Settings(BaseSettings):
             return f"sqlite:///./{self.SQLITE_DB}"
 
         return PostgresDsn.build(
-            scheme="postgresql+asyncpg",
+            scheme="postgresql+psycopg",
             username=self.POSTGRES_USER,
             password=self.POSTGRES_PASSWORD,
             host=self.POSTGRES_SERVER,
