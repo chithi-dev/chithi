@@ -1,6 +1,6 @@
 # First, build the application in the `/app` directory.
 # See `Dockerfile` for details.
-FROM pypy:3.10-slim-bookworm AS builder
+FROM pypy:3.11-slim-bookworm AS builder
 
 # Copy the uv binary from the official image
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -26,7 +26,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 RUN find /app -type d -name '*.egg-info' -exec rm -rf {} +
 
 # Then, use a final image without uv
-FROM pypy:3.10-slim-bookworm
+FROM pypy:3.11-slim-bookworm
 # It is important to use the image that matches the builder, as the path to the
 # Python executable must be the same, e.g., using `python:3.11-slim-bookworm`
 # will fail.

@@ -3,7 +3,7 @@ name = "chithi_backend"
 version = "0.1.0"
 description = "The next generation end to end file sharing server"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.11"
 dependencies = [
     # Fastapi
     "fastapi>=0.127.0",
