@@ -1,6 +1,10 @@
 # First, build the application in the `/app` directory.
 # See `Dockerfile` for details.
-FROM ghcr.io/astral-sh/uv:python3.14-alpine AS builder
+FROM pypy:3.10-slim-bookworm AS builder
+
+# Copy the uv binary from the official image
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 
 # Disable Python downloads, because we want to use the system interpreter
@@ -22,18 +26,17 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 RUN find /app -type d -name '*.egg-info' -exec rm -rf {} +
 
 # Then, use a final image without uv
-FROM python:3.14-alpine
+FROM pypy:3.10-slim-bookworm
 # It is important to use the image that matches the builder, as the path to the
 # Python executable must be the same, e.g., using `python:3.11-slim-bookworm`
 # will fail.
 
 # Copy the application from the builder
-COPY --from=builder --chown=app:app /app /app
+COPY --from=builder /app /app
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 
-ENV HOST=127.0.0.1
+ENV HOST=0.0.0.0
 ENV PORT=8000
 EXPOSE 8000/udp 8000/tcp
-
