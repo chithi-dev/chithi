@@ -75,11 +75,13 @@ const instances = [
         title: 'chithi.dev',
         url: 'https://chithi.dev',
         web_src: '/public_instances/desktop/chithi.png',
+        mobile_src: '/public_instances/mobile/chithi.png',
     },
     {
         title: 'valhalla.chithi.dev',
         url: 'https://valhalla.chithi.dev',
         web_src: '/public_instances/desktop/valhalla.png',
+        mobile_src: '/public_instances/mobile/valhalla.png',
     },
 ];
 
@@ -440,9 +442,17 @@ export default function HomeClient({ release }: { release: Release }) {
                                                             src={
                                                                 instance.web_src
                                                             }
-                                                            alt={instance.title}
+                                                            alt={`${instance.title} Desktop`}
                                                             fill
-                                                            className="object-cover transition-transform duration-500 group-hover:scale-105 group-hover:opacity-40"
+                                                            className="hidden object-cover transition-transform duration-500 group-hover:scale-105 group-hover:opacity-40 md:block"
+                                                        />
+                                                        <Image
+                                                            src={
+                                                                instance.mobile_src
+                                                            }
+                                                            alt={`${instance.title} Mobile`}
+                                                            fill
+                                                            className="block object-cover transition-transform duration-500 group-hover:scale-105 group-hover:opacity-40 md:hidden"
                                                         />
 
                                                         {/* Hover Overlay */}
