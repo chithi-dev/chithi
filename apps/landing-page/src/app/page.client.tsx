@@ -85,9 +85,9 @@ const instances = [
 
 export default function HomeClient({ release }: { release: Release }) {
     return (
-        <div className="min-h-screen overflow-x-hidden bg-surface-50-950 font-sans text-surface-900-100">
+        <div className="min-h-screen overflow-x-hidden font-sans text-surface-900-100">
             {/* App Bar Navigation */}
-            <div className="sticky top-0 z-50 border-surface-200-800/50 border-b bg-surface-50-950/80 backdrop-blur-md">
+            <div className="sticky top-0 z-50 border-surface-200-800/50 border-b bg-transparent backdrop-blur-md">
                 <AppBar className="mx-auto w-full max-w-7xl bg-transparent">
                     <AppBar.Toolbar className="grid-cols-[auto_1fr_auto]">
                         <AppBar.Lead>
@@ -124,7 +124,10 @@ export default function HomeClient({ release }: { release: Release }) {
 
             <main className="relative z-10 mx-auto w-full max-w-7xl px-6">
                 {/* HERO SECTION */}
-                <section className="flex flex-col items-center justify-center pt-24 pb-20 text-center md:pt-40 md:pb-32">
+                <section className="relative flex flex-col items-center justify-center pt-24 pb-20 text-center md:pt-40 md:pb-32">
+                    {/* Ambient Background Glow (Sedna-style) */}
+                    <div className="pointer-events-none absolute left-1/2 top-1/4 -z-10 h-75 w-150 -translate-x-1/2 -translate-y-1/2 rounded-full bg-surface-900-100 opacity-10 blur-[100px] md:opacity-15 md:blur-[150px]" />
+
                     <div className="max-w-4xl scroll-reveal">
                         <div className="badge preset-outlined-surface-200-800 mb-8 rounded-full font-medium tracking-wide">
                             End-to-End Encryption
