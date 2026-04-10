@@ -417,7 +417,7 @@ export default function HomeClient({ release }: { release: Release }) {
                     </div>
 
                     <div className="mx-auto max-w-5xl px-6">
-                        <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-surface-200-800 bg-surface-100-900/30 p-2 shadow-xl scroll-reveal">
+                        <div className="relative aspect-3/6 md:aspect-video w-full overflow-hidden rounded-2xl border border-surface-200-800 bg-surface-100-900/30 p-2 shadow-xl scroll-reveal">
                             <div className="relative h-full w-full overflow-hidden rounded-xl border border-surface-200-800 bg-surface-900-100">
                                 <Carousel
                                     autoplay={{ delay: 3500 }}
