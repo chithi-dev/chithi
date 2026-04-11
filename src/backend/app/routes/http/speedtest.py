@@ -1,11 +1,12 @@
 import os
+import time
 from typing import Annotated, AsyncIterator, Final
 
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import StreamingResponse
 
 from app.converter.bytes import ByteSize
-from app.schemas.speedtest import UploadPayload
+from app.schemas.speedtest import LatencyPayload, UploadPayload
 from app.settings import settings
 
 router = APIRouter(prefix="/speedtest")
@@ -60,6 +61,16 @@ async def speedtest_download(
     )
 
 
+@router.get("/latency", tags=["Speedtest"], response_model=LatencyPayload)
+async def speedtest_latency():
+    """
+    Latency speedtest endpoint.
+
+    Returns the current server timestamp to let clients measure round-trip latency.
+    """
+    return LatencyPayload(timestamp=time.time())
+
+
 @router.post("/upload", tags=["Speedtest"])
 async def speedtest_upload(request: Request):
     """
@@ -70,4 +81,4 @@ async def speedtest_upload(request: Request):
     async for chunk in request.stream():
         bytes_received += len(chunk)
 
-    return UploadPayload(bytes_received=bytes_received)
+    return UploadPayload(bytes_received=bytes_received, timestamp=time.time())
