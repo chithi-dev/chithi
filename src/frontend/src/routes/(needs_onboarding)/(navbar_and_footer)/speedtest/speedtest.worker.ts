@@ -175,8 +175,9 @@ const testUpload = async (duration: number): Promise<number> => {
 			await fetch(endpoints!.UPLOAD, {
 				method: 'POST',
 				body: stream,
+				duplex: 'half',
 				signal
-			});
+			} as RequestInit);
 			totalBytes += uploadedBytes;
 		} catch (error: unknown) {
 			if (error instanceof Error && error.name !== 'AbortError') {
