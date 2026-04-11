@@ -1,6 +1,13 @@
-import { Metadata } from 'next';
+import { Metadata, Viewport } from 'next';
 import HomeClient from './page.client';
 import { octokit } from '@/server/providers/octokit.server';
+
+export const viewport: Viewport = {
+    themeColor: [
+        { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+        { media: '(prefers-color-scheme: dark)', color: '#0b1220' },
+    ],
+};
 
 export const metadata: Metadata = {
     title: {
@@ -23,10 +30,6 @@ export const metadata: Metadata = {
         shortcut: '/favicon.svg',
         apple: '/apple-touch-icon.png',
     },
-    themeColor: [
-        { media: '(prefers-color-scheme: light)', color: '#ffffff' },
-        { media: '(prefers-color-scheme: dark)', color: '#0b1220' },
-    ],
     openGraph: {
         title: 'Chithi — Secure file sharing',
         description:

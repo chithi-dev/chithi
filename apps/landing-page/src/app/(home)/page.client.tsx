@@ -114,11 +114,25 @@ const steps = [
     },
 ];
 export default function HomeClient({ release }: { release: Release }) {
+    const [detectedArchLabel, setDetectedArchLabel] = useState<string>('');
+    const [detectedOSLabel, setDetectedOSLabel] = useState<string>('');
     useEffect(() => {
         AOS.init({
             duration: 800,
             once: true,
         });
+        const a = detectArch();
+        if (a && a !== 'unknown') {
+            setDetectedArchLabel(` (${a})`);
+        }
+        const o = detectOS();
+        if (o && o !== 'unknown') {
+            const displayOS =
+                o === 'macos'
+                    ? 'macOS'
+                    : o.charAt(0).toUpperCase() + o.slice(1);
+            setDetectedOSLabel(` (${displayOS})`);
+        }
     }, []);
 
     const [downloadOS, setDownloadOS] = useState<
@@ -268,10 +282,6 @@ export default function HomeClient({ release }: { release: Release }) {
             window.location.href = '/download';
         }
     };
-    const detectedArchLabel = (() => {
-        const a = detectArch();
-        return a && a !== 'unknown' ? ` (${a})` : '';
-    })();
 
     return (
         <main className="relative z-10 mx-auto w-full max-w-7xl px-6">
@@ -342,7 +352,9 @@ export default function HomeClient({ release }: { release: Release }) {
                             }
                             className="select variant-form-material"
                         >
-                            <option value="auto">Auto-detect</option>
+                            <option value="auto">
+                                Auto-detect{detectedOSLabel}
+                            </option>
                             <option value="windows">Windows</option>
                             <option value="macos">macOS</option>
                             <option value="linux">Linux</option>
@@ -355,7 +367,9 @@ export default function HomeClient({ release }: { release: Release }) {
                             }
                             className="select variant-form-material"
                         >
-                            <option value="auto">Auto-detect{detectedArchLabel}</option>
+                            <option value="auto">
+                                Auto-detect{detectedArchLabel}
+                            </option>
                             <option value="x86_64">x86_64 (amd64)</option>
                             <option value="arm64">arm64 (aarch64)</option>
                             <option value="armv7">armv7 (armhf)</option>
