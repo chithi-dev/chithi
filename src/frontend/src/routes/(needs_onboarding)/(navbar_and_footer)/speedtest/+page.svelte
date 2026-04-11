@@ -17,6 +17,7 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { PieChart, Text } from 'layerchart';
 	import { Play, RotateCw, Activity, ArrowDown, ArrowUp, Timer } from 'lucide-svelte';
+	import { Api } from '#consts/backend';
 	import SpeedtestWorker from './speedtest.worker?worker';
 	import { Progress } from '$lib/components/ui/progress';
 
@@ -82,7 +83,7 @@
 			}
 		};
 
-		worker.postMessage({ type: 'start', duration: testDuration });
+		worker.postMessage({ type: 'start', duration: testDuration, urls: Api.SPEEDTEST });
 	}
 
 	onDestroy(() => {
