@@ -2,7 +2,6 @@
 	import { onDestroy } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
-	import { Api } from '#consts/backend';
 	import {
 		Card,
 		CardContent,
