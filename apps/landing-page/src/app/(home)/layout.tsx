@@ -1,4 +1,5 @@
 import HomeLayoutClient from './layout.client';
+import { octokit } from '@/lib/octokit.server';
 
 export default async function HomeLayout({
     children,
@@ -8,20 +9,11 @@ export default async function HomeLayout({
     // Fetch latest release to show the tag version in the navbar
     let release = null;
     try {
-        const response = await fetch(
-            'https://api.github.com/repos/chithi-dev/chithi/releases/latest',
-            {
-                headers: {
-                    ...(process.env.GITHUB_TOKEN && {
-                        Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
-                    }),
-                },
-                next: { revalidate: 3600 },
-            },
-        );
-        if (response.ok) {
-            release = await response.json();
-        }
+        const { data } = await octokit.rest.repos.getLatestRelease({
+            owner: 'chithi-dev',
+            repo: 'chithi',
+        });
+        release = data;
     } catch (error) {
         console.error('Failed to fetch latest release', error);
     }
