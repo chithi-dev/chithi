@@ -40,8 +40,6 @@ jobs:
 
       - name: Build and push image
         uses: docker/build-push-action@v7
-        env:
-          GITHUB_TOKEN: ${{ secrets.GHP_TOKEN }}
         with:
           context: ./apps/landing-page
           file: ./apps/landing-page/Dockerfile
