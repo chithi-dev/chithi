@@ -1,25 +1,49 @@
 import { AlertTriangle } from 'lucide-react';
 import DownloadView from './page.client';
 import { RequestError } from 'octokit';
-import type { Octokit } from 'octokit';
 import { octokit } from '@/server/providers/octokit.server';
-
-type OctokitRelease = Awaited<
-    ReturnType<Octokit['rest']['repos']['listReleases']>
->['data'][number];
+import type { GithubRelease } from './types';
 
 export default async function DownloadPage() {
-    let allReleases: OctokitRelease[] = [];
+    let allReleases: GithubRelease[] = [];
     try {
-        const octokitReleases = await octokit.paginate(
-            octokit.rest.repos.listReleases,
-            {
-                owner: 'chithi-dev',
-                repo: 'chithi',
-                per_page: 100,
-            },
-        );
-        allReleases = octokitReleases as OctokitRelease[];
+        const data = await octokit.graphql<{
+            repository: {
+                releases: {
+                    nodes: GithubRelease[];
+                };
+            };
+        }>(`
+            query {
+                repository(owner: "chithi-dev", name: "chithi") {
+                    releases(first: 100, orderBy: {field: CREATED_AT, direction: DESC}) {
+                        nodes {
+                            id
+                            name
+                            tagName
+                            publishedAt
+                            author {
+                                login
+                                avatarUrl
+                            }
+                            releaseAssets(first: 100) {
+                                nodes {
+                                    id
+                                    name
+                                    size
+                                    downloadCount
+                                    downloadUrl
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        `);
+
+        if (data?.repository?.releases?.nodes) {
+            allReleases = data.repository.releases.nodes;
+        }
     } catch (error: unknown) {
         const isRateLimited =
             error instanceof RequestError && error.status === 403;

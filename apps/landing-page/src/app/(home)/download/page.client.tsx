@@ -3,16 +3,12 @@
 import { Avatar, Tabs } from '@skeletonlabs/skeleton-react';
 import { DownloadIcon, MonitorIcon, TerminalIcon } from 'lucide-react';
 import { useState } from 'react';
-import type { Octokit } from 'octokit';
-
-type OctokitRelease = Awaited<
-    ReturnType<Octokit['rest']['repos']['listReleases']>
->['data'][number];
+import type { GithubRelease, GithubAsset } from './types';
 
 export default function DownloadView({
     releases,
 }: {
-    releases: OctokitRelease[];
+    releases: GithubRelease[];
 }) {
     const [tabOS, setTabOS] = useState('windows');
     const [selectedReleaseIndex, setSelectedReleaseIndex] = useState(0);
@@ -23,7 +19,7 @@ export default function DownloadView({
 
     const release = releases[selectedReleaseIndex];
 
-    const assets = release.assets ?? [];
+    const assets = release.releaseAssets?.nodes ?? [];
     const windows = assets.filter((a) =>
         a.name.toLowerCase().includes('windows'),
     );
@@ -72,7 +68,7 @@ export default function DownloadView({
                         >
                             {releases.map((rel, index) => (
                                 <option key={rel.id} value={index}>
-                                    {rel.name ?? rel.tag_name ?? `#${rel.id}`}
+                                    {rel.name ?? rel.tagName ?? `#${rel.id}`}
                                 </option>
                             ))}
                         </select>
@@ -81,7 +77,7 @@ export default function DownloadView({
                     <div className="mt-4 flex items-center justify-center gap-4 text-surface-800-200">
                         <Avatar className="size-10">
                             <Avatar.Image
-                                src={release.author?.avatar_url ?? ''}
+                                src={release.author?.avatarUrl ?? ''}
                                 alt={release.author?.login ?? 'author'}
                             />
                             <Avatar.Fallback>
@@ -96,9 +92,9 @@ export default function DownloadView({
                             </span>
                             <span className="opacity-60">
                                 Published on{' '}
-                                {release.published_at
+                                {release.publishedAt
                                     ? new Date(
-                                          release.published_at,
+                                          release.publishedAt,
                                       ).toLocaleDateString()
                                     : 'Unknown'}
                             </span>
@@ -157,17 +153,7 @@ export default function DownloadView({
     );
 }
 
-function AssetGrid({
-    assets,
-}: {
-    assets: {
-        id: number;
-        name: string;
-        size: number;
-        download_count: number;
-        browser_download_url: string;
-    }[];
-}) {
+function AssetGrid({ assets }: { assets: GithubAsset[] }) {
     if (!assets || assets.length === 0) {
         return (
             <div className="card preset-filled-surface-100-900 mx-auto flex max-w-xl flex-col items-center justify-center p-12 text-center opacity-70">
@@ -191,12 +177,12 @@ function AssetGrid({
                                 {(asset.size / 1024 / 1024).toFixed(2)} MB
                             </span>
                             <span className="badge preset-tonal-surface rounded-lg py-1 text-xs">
-                                {asset.download_count} Downloads
+                                {asset.downloadCount} Downloads
                             </span>
                         </div>
                     </div>
                     <a
-                        href={asset.browser_download_url}
+                        href={asset.downloadUrl}
                         className="btn preset-filled w-full font-bold"
                     >
                         <DownloadIcon className="mr-2 size-4" /> Download

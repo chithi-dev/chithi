@@ -5,19 +5,20 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { GithubIcon as Github } from '@/icons/github';
 import { Star, GitBranch } from 'lucide-react';
-import type { Octokit } from 'octokit';
 
-type OctokitRelease = Awaited<
-    ReturnType<Octokit['rest']['repos']['getLatestRelease']>
->['data'];
-type OctokitRepo = Awaited<ReturnType<Octokit['rest']['repos']['get']>>['data'];
+type GithubRepoData = {
+    stargazerCount: number;
+    forkCount: number;
+    latestRelease: {
+        tagName: string;
+    } | null;
+} | null;
 
 type Props = {
-    release?: OctokitRelease | null;
-    repo?: OctokitRepo | null;
+    repo?: GithubRepoData;
 };
 
-export function Navbar({ release, repo }: Props) {
+export function Navbar({ repo }: Props) {
     return (
         <div className="sticky top-0 z-50 border-surface-200-800/50 border-b bg-transparent backdrop-blur-md">
             <AppBar className="mx-auto w-full max-w-7xl bg-transparent">
@@ -43,9 +44,9 @@ export function Navbar({ release, repo }: Props) {
                             className="btn btn-sm hover:preset-tonal flex items-center gap-2 rounded-full border border-surface-200-800 px-4 transition-colors"
                         >
                             <Github size={16} />
-                            {release?.tag_name && (
+                            {repo?.latestRelease?.tagName && (
                                 <span className="opacity-50">
-                                    {release.tag_name}
+                                    {repo.latestRelease.tagName}
                                 </span>
                             )}
                         </a>
@@ -55,7 +56,7 @@ export function Navbar({ release, repo }: Props) {
                         >
                             <Star size={14} />
                             <span className="opacity-60 text-sm">
-                                {repo?.stargazers_count ?? 0}
+                                {repo?.stargazerCount ?? 0}
                             </span>
                         </a>
 
@@ -65,7 +66,7 @@ export function Navbar({ release, repo }: Props) {
                         >
                             <GitBranch size={14} />
                             <span className="opacity-60 text-sm">
-                                {repo?.forks_count ?? 0}
+                                {repo?.forkCount ?? 0}
                             </span>
                         </a>
                     </AppBar.Trail>
@@ -109,16 +110,14 @@ export function Footer() {
 
 export default function HomeLayoutClient({
     children,
-    release,
     repo = null,
 }: Readonly<{
     children: React.ReactNode;
-    release?: OctokitRelease | null;
-    repo?: OctokitRepo | null;
+    repo?: GithubRepoData | null;
 }>) {
     return (
         <div className="min-h-screen overflow-x-hidden font-sans text-surface-900-100">
-            <Navbar release={release} repo={repo} />
+            <Navbar repo={repo} />
             {children}
             <Footer />
         </div>

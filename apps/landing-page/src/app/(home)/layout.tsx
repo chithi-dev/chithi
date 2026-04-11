@@ -7,44 +7,35 @@ export default async function HomeLayout({
     children: React.ReactNode;
 }>) {
     // Inline concurrent fetch of latest release and repo data
-    let release = null;
     let repoData = null;
 
     try {
-        const releasePromise = octokit.rest.repos.getLatestRelease({
-            owner: 'chithi-dev',
-            repo: 'chithi',
-        });
+        const data = await octokit.graphql<{
+            repository: {
+                stargazerCount: number;
+                forkCount: number;
+                latestRelease: {
+                    tagName: string;
+                } | null;
+            };
+        }>(`
+            query {
+                repository(owner: "chithi-dev", name: "chithi") {
+                    stargazerCount
+                    forkCount
+                    latestRelease {
+                        tagName
+                    }
+                }
+            }
+        `);
 
-        const repoPromise = octokit.rest.repos.get({
-            owner: 'chithi-dev',
-            repo: 'chithi',
-        });
-
-        const [releaseRes, repoRes] = await Promise.allSettled([
-            releasePromise,
-            repoPromise,
-        ]);
-
-        if (releaseRes.status === 'fulfilled') {
-            release = releaseRes.value.data;
-        } else {
-            // Not fatal: repository may have no releases or request may fail
-            console.warn('getLatestRelease failed', releaseRes.reason);
-        }
-
-        if (repoRes.status === 'fulfilled') {
-            repoData = repoRes.value.data;
-        } else {
-            console.error('Failed to fetch repository data', repoRes.reason);
+        if (data?.repository) {
+            repoData = data.repository;
         }
     } catch (err) {
         console.error('Unexpected error fetching GitHub data', err);
     }
 
-    return (
-        <HomeLayoutClient release={release} repo={repoData}>
-            {children}
-        </HomeLayoutClient>
-    );
+    return <HomeLayoutClient repo={repoData}>{children}</HomeLayoutClient>;
 }

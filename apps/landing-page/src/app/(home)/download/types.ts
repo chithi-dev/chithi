@@ -1,17 +1,21 @@
-// Define minimal types for the GitHub Release and Assets
-export type Asset = {
-    id: number;
+export type GithubAsset = {
+    id: string;
     name: string;
     size: number;
-    download_count: number;
-    browser_download_url: string;
+    downloadCount: number;
+    downloadUrl: string;
 };
 
-export type Release = {
-    id: number;
+export type GithubRelease = {
+    id: string;
     name: string;
     tagName: string;
-    published_at: string;
-    author: { login: string; avatar_url: string };
-    assets: Asset[];
+    publishedAt: string;
+    author: {
+        login: string;
+        avatarUrl: string;
+    };
+    releaseAssets: {
+        nodes: GithubAsset[];
+    };
 };
