@@ -19,6 +19,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { PUBLIC_INSTANCE_URL } from '@/consts/urls';
 import { GithubIcon as Github } from '@/icons/github';
+import { useEffect } from 'react';
+import AOS from 'aos';
+import 'aos/dist/aos.css';
 
 type Release = { tag_name?: string } | null;
 
@@ -85,7 +88,31 @@ const instances = [
     },
 ];
 
+const steps = [
+    {
+        step: '1',
+        title: 'Spin it up',
+        desc: 'Grab our pre-configured Docker Compose file or integrate directly with your existing Traefik proxy setup.',
+    },
+    {
+        step: '2',
+        title: 'Mount your storage',
+        desc: 'Map your local volumes, generate your encryption keys, and instantly create your personal file vault.',
+    },
+    {
+        step: '3',
+        title: 'Share securely',
+        desc: 'Send files to anyone. Password-protect links, set expiration dates, and own your traffic end-to-end.',
+    },
+];
 export default function HomeClient({ release }: { release: Release }) {
+    useEffect(() => {
+        AOS.init({
+            duration: 800,
+            once: true,
+        });
+    }, []);
+
     return (
         <div className="min-h-screen overflow-x-hidden font-sans text-surface-900-100">
             {/* App Bar Navigation */}
@@ -130,7 +157,7 @@ export default function HomeClient({ release }: { release: Release }) {
                     {/* Ambient Background Glow (Sedna-style) */}
                     <div className="pointer-events-none absolute left-1/2 top-1/4 -z-10 h-75 w-150 -translate-x-1/2 -translate-y-1/2 rounded-full bg-surface-900-100 opacity-10 blur-[100px] md:opacity-15 md:blur-[150px]" />
 
-                    <div className="max-w-4xl scroll-reveal">
+                    <div className="max-w-4xl" data-aos="fade-up">
                         <div className="badge preset-outlined-surface-200-800 mb-8 rounded-full font-medium tracking-wide">
                             End-to-End Encryption
                         </div>
@@ -167,7 +194,10 @@ export default function HomeClient({ release }: { release: Release }) {
 
                 {/* DEPLOYMENT / NUMBERED FEATURES SECTION */}
                 <section className="py-24 md:py-32">
-                    <div className="mx-auto mb-16 max-w-3xl text-center">
+                    <div
+                        className="mx-auto mb-16 max-w-3xl text-center"
+                        data-aos="fade-up"
+                    >
                         <h2 className="h2 mb-4 font-bold tracking-tight">
                             Self-host in minutes
                         </h2>
@@ -179,25 +209,11 @@ export default function HomeClient({ release }: { release: Release }) {
                     </div>
 
                     <div className="grid grid-cols-1 gap-12 md:grid-cols-3">
-                        {[
-                            {
-                                step: '1',
-                                title: 'Spin it up',
-                                desc: 'Grab our pre-configured Docker Compose file or integrate directly with your existing Traefik proxy setup.',
-                            },
-                            {
-                                step: '2',
-                                title: 'Mount your storage',
-                                desc: 'Map your local volumes, generate your encryption keys, and instantly create your personal file vault.',
-                            },
-                            {
-                                step: '3',
-                                title: 'Share securely',
-                                desc: 'Send files to anyone. Password-protect links, set expiration dates, and own your traffic end-to-end.',
-                            },
-                        ].map((feat, i) => (
+                        {steps.map((feat, i) => (
                             <div
                                 key={i}
+                                data-aos="fade-up"
+                                data-aos-delay={i * 100}
                                 className="group flex flex-col space-y-4 rounded-2xl border border-surface-200-800 bg-surface-100-900/30 p-8 transition-all hover:bg-surface-100-900/80"
                             >
                                 <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-primary-500/10 font-bold font-mono text-lg text-primary-500">
@@ -217,7 +233,7 @@ export default function HomeClient({ release }: { release: Release }) {
                 {/* SPEEDTEST */}
                 <section className="border-surface-200-800/50 border-t py-24 md:py-32">
                     <div className="flex flex-col items-center gap-16 lg:flex-row">
-                        <div className="flex-1 space-y-6">
+                        <div className="flex-1 space-y-6" data-aos="fade-right">
                             <h2 className="h2 font-bold tracking-tight">
                                 Built-in Speedtest
                             </h2>
@@ -242,7 +258,7 @@ export default function HomeClient({ release }: { release: Release }) {
                                 </li>
                             </ul>
                         </div>
-                        <div className="w-full flex-1">
+                        <div className="w-full flex-1" data-aos="fade-left">
                             <div className="card relative space-y-8 overflow-hidden rounded-3xl border border-surface-200-800 bg-surface-100-900/50 p-8">
                                 <div className="flex items-start justify-between">
                                     <div>
@@ -319,7 +335,7 @@ export default function HomeClient({ release }: { release: Release }) {
 
                 {/* ARCHITECTURE SECTION */}
                 <section className="border-surface-200-800/50 border-t py-24 md:py-32">
-                    <div className="mb-16">
+                    <div className="mb-16" data-aos="fade-up">
                         <div className="badge preset-outlined-surface-200-800 mb-6 rounded-full font-medium uppercase tracking-widest">
                             Architecture
                         </div>
@@ -338,6 +354,8 @@ export default function HomeClient({ release }: { release: Release }) {
                         {ecosystem.map((item, i) => (
                             <div
                                 key={i}
+                                data-aos="fade-up"
+                                data-aos-delay={i * 100}
                                 className="group flex flex-col space-y-4 rounded-2xl border border-surface-200-800 bg-surface-100-900/40 p-8 transition-colors hover:border-surface-300-700"
                             >
                                 <div className="mb-4 flex items-center justify-between">
@@ -363,7 +381,7 @@ export default function HomeClient({ release }: { release: Release }) {
                     className="border-surface-200-800/50 border-t py-24 md:py-32"
                 >
                     <div className="mb-16 grid grid-cols-1 gap-8 md:grid-cols-2 md:items-end">
-                        <div>
+                        <div data-aos="fade-right">
                             <h2 className="h2 mb-4 font-bold tracking-tight">
                                 Open Source & Fully Documented
                             </h2>
@@ -380,6 +398,8 @@ export default function HomeClient({ release }: { release: Release }) {
                             <Link
                                 key={i}
                                 href={doc.href}
+                                data-aos="fade-up"
+                                data-aos-delay={i * 100}
                                 className="group flex flex-col rounded-2xl border border-surface-200-800 bg-surface-100-900/30 p-8 transition-all hover:bg-surface-100-900/80"
                             >
                                 <div className="mb-6">
@@ -405,7 +425,10 @@ export default function HomeClient({ release }: { release: Release }) {
 
                 {/* GLOBAL NETWORK / IFRAMES */}
                 <section className="border-surface-200-800/50 border-t py-24 md:py-32">
-                    <div className="mx-auto mb-12 max-w-3xl text-center">
+                    <div
+                        className="mx-auto mb-12 max-w-3xl text-center"
+                        data-aos="fade-up"
+                    >
                         <h2 className="h2 mb-4 font-bold tracking-tight">
                             Try the Public Instances
                         </h2>
@@ -417,7 +440,10 @@ export default function HomeClient({ release }: { release: Release }) {
                     </div>
 
                     <div className="mx-auto max-w-5xl px-6">
-                        <div className="relative aspect-3/6 md:aspect-video w-full overflow-hidden rounded-2xl border border-surface-200-800 bg-surface-100-900/30 p-2 shadow-xl scroll-reveal">
+                        <div
+                            className="relative aspect-3/6 md:aspect-video w-full overflow-hidden rounded-2xl border border-surface-200-800 bg-surface-100-900/30 p-2 shadow-xl"
+                            data-aos="fade-up"
+                        >
                             <div className="relative h-full w-full overflow-hidden rounded-xl border border-surface-200-800 bg-surface-900-100">
                                 <Carousel
                                     autoplay={{ delay: 3500 }}
@@ -506,7 +532,10 @@ export default function HomeClient({ release }: { release: Release }) {
                     id="public"
                     className="border-surface-200-800/50 border-t py-24 text-center md:py-32"
                 >
-                    <div className="mx-auto max-w-4xl space-y-8 rounded-3xl border border-surface-200-800 bg-surface-100-900/30 px-6 py-20 text-center">
+                    <div
+                        className="mx-auto max-w-4xl space-y-8 rounded-3xl border border-surface-200-800 bg-surface-100-900/30 px-6 py-20 text-center"
+                        data-aos="zoom-in-up"
+                    >
                         <h2 className="h1 mx-auto max-w-2xl font-bold tracking-tighter">
                             Take back ownership of your files.
                         </h2>

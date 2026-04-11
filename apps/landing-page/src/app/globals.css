@@ -79,23 +79,7 @@ body {
 	font-family: var(--font-inter);
 }
 
-@keyframes fade-on-scroll {
-	0% {
-		opacity: 0;
-		transform: translateY(40px);
-	}
-	100% {
-		opacity: 1;
-		transform: translateY(0);
-	}
-}
-
 ::selection {
 	background: var(--foreground);
 	color: var(--background);
-}
-.scroll-reveal {
-	animation: fade-on-scroll linear both;
-	animation-timeline: view();
-	animation-range: entry 10% cover 30%;
 }

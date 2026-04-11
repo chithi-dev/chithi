@@ -10,6 +10,7 @@
         "format": "biome check --write --unsafe ."
     },
     "dependencies": {
+        "aos": "^2.3.4",
         "next": "^16.2.3",
         "react": "canary",
         "react-dom": "canary"
@@ -22,6 +23,7 @@
         "@skeletonlabs/skeleton": "^4.15.1",
         "@skeletonlabs/skeleton-react": "^4.15.1",
         "@tailwindcss/postcss": "^4",
+        "@types/aos": "^3.0.7",
         "@types/node": "^24.0.0",
         "@types/react": "^19",
         "@types/react-dom": "^19",
