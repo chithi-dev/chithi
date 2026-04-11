@@ -88,4 +88,10 @@ export class Api {
 			}
 		};
 	}
-}
+
+	static get SPEEDTEST() {
+		return {
+			DOWNLOAD: (bytes: number) => this.#url(`speedtest/download?bytes=${bytes}`),
+			UPLOAD: this.#url('speedtest/upload')
+		};
+	}

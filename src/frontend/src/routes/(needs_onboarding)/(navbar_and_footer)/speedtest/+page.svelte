@@ -73,7 +73,7 @@
 			}
 		};
 
-		worker.postMessage({ type: 'start', baseUrl: Api.BASE, duration: testDuration });
+		worker.postMessage({ type: 'start', duration: testDuration });
 	}
 
 	onDestroy(() => {

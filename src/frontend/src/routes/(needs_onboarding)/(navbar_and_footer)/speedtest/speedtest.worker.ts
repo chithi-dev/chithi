@@ -1,8 +1,10 @@
+import { Api } from '#consts/backend';
+
 self.onmessage = async (e: MessageEvent) => {
-	const { type, baseUrl, duration = 10 } = e.data;
+	const { type, duration = 10 } = e.data;
 	if (type === 'start') {
 		try {
-			await runSpeedTest(baseUrl, duration);
+			await runSpeedTest(duration);
 		} catch (err: unknown) {
 			const errorMessage = err instanceof Error ? err.message : String(err);
 			self.postMessage({ type: 'error', error: errorMessage });
@@ -10,10 +12,10 @@ self.onmessage = async (e: MessageEvent) => {
 	}
 };
 
-async function runSpeedTest(baseUrl: string, duration: number) {
+async function runSpeedTest(duration: number) {
 	//  DOWNLOAD
 	self.postMessage({ type: 'phase', phase: 'download' });
-	const downloadSpeed = await testDownload(baseUrl, duration);
+	const downloadSpeed = await testDownload(duration);
 	self.postMessage({ type: 'result', key: 'download', value: downloadSpeed });
 
 	// Short pause
@@ -21,16 +23,16 @@ async function runSpeedTest(baseUrl: string, duration: number) {
 
 	//  UPLOAD
 	self.postMessage({ type: 'phase', phase: 'upload' });
-	const uploadSpeed = await testUpload(baseUrl, duration);
+	const uploadSpeed = await testUpload(duration);
 	self.postMessage({ type: 'result', key: 'upload', value: uploadSpeed });
 
 	self.postMessage({ type: 'finish' });
 }
 
-async function testDownload(baseUrl: string, duration: number): Promise<number> {
+async function testDownload(duration: number): Promise<number> {
 	// 50MB chunk size request
 	const size = 50 * 1024 * 1024;
-	const endpoint = `${baseUrl}/speedtest/download?bytes=${size}`;
+	const endpoint = Api.SPEEDTEST.DOWNLOAD(size);
 
 	let totalLoaded = 0;
 	const startTime = performance.now();
@@ -102,7 +104,7 @@ async function testDownload(baseUrl: string, duration: number): Promise<number> 
 	return finalMbps;
 }
 
-async function testUpload(baseUrl: string, duration: number): Promise<number> {
+async function testUpload(duration: number): Promise<number> {
 	const size = 20 * 1024 * 1024; // 20MB chunks
 	const data = new Uint8Array(size);
 	// Fill slightly to avoid compression optimization
@@ -115,7 +117,7 @@ async function testUpload(baseUrl: string, duration: number): Promise<number> {
 	while ((performance.now() - startTime) / 1000 < duration) {
 		await new Promise<void>((resolve, reject) => {
 			const xhr = new XMLHttpRequest();
-			xhr.open('POST', `${baseUrl}/speedtest/upload`);
+			xhr.open('POST', Api.SPEEDTEST.UPLOAD);
 
 			let currentRequestLoaded = 0;
 
