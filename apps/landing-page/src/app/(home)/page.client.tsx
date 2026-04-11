@@ -150,22 +150,31 @@ export default function HomeClient({ release }: { release: Release }) {
         return 'unknown';
     }
 
-    function detectArch():
-        | 'x86_64'
-        | 'arm64'
-        | 'armv7'
-        | 'i386'
-        | 'unknown' {
+    function detectArch(): 'x86_64' | 'arm64' | 'armv7' | 'i386' | 'unknown' {
         if (typeof navigator === 'undefined') return 'unknown';
-        const ua =
-            (navigator.userAgent || navigator.platform || '').toLowerCase();
+        const ua = (
+            navigator.userAgent ||
+            navigator.platform ||
+            ''
+        ).toLowerCase();
 
         if (ua.includes('aarch64') || ua.includes('arm64')) return 'arm64';
-        if (ua.includes('armv7') || ua.includes('armv7l') || ua.includes('armhf'))
+        if (
+            ua.includes('armv7') ||
+            ua.includes('armv7l') ||
+            ua.includes('armhf')
+        )
             return 'armv7';
-        if (ua.includes('amd64') || ua.includes('x86_64') || ua.includes('wow64') || ua.includes('win64') || ua.includes('x64'))
+        if (
+            ua.includes('amd64') ||
+            ua.includes('x86_64') ||
+            ua.includes('wow64') ||
+            ua.includes('win64') ||
+            ua.includes('x64')
+        )
             return 'x86_64';
-        if (ua.includes('i386') || ua.includes('i686') || ua.includes('ia32')) return 'i386';
+        if (ua.includes('i386') || ua.includes('i686') || ua.includes('ia32'))
+            return 'i386';
         return 'unknown';
     }
 
@@ -206,7 +215,9 @@ export default function HomeClient({ release }: { release: Release }) {
             arch = a;
         }
 
-        const osKey = normalizedOs.includes(':') ? normalizedOs.split(':', 1)[0] : normalizedOs;
+        const osKey = normalizedOs.includes(':')
+            ? normalizedOs.split(':', 1)[0]
+            : normalizedOs;
         const osKeywords = osKeywordsMap[osKey] || [];
         const archKeywords = arch ? archKeywordsMap[arch] || [] : [];
 
@@ -244,7 +255,10 @@ export default function HomeClient({ release }: { release: Release }) {
         }
         const osToUse = downloadOS === 'auto' ? detectOS() : downloadOS;
         const archToUse = downloadArch === 'auto' ? detectArch() : downloadArch;
-        const osAndArch = archToUse && archToUse !== 'unknown' ? `${osToUse}:${archToUse}` : osToUse;
+        const osAndArch =
+            archToUse && archToUse !== 'unknown'
+                ? `${osToUse}:${archToUse}`
+                : osToUse;
         const asset = findAssetForOS(release, osAndArch);
         if (asset) {
             // redirect to the asset (GitHub release file)
@@ -254,7 +268,10 @@ export default function HomeClient({ release }: { release: Release }) {
             window.location.href = '/download';
         }
     };
-
+    const detectedArchLabel = (() => {
+        const a = detectArch();
+        return a && a !== 'unknown' ? ` (${a})` : '';
+    })();
 
     return (
         <main className="relative z-10 mx-auto w-full max-w-7xl px-6">
@@ -338,7 +355,7 @@ export default function HomeClient({ release }: { release: Release }) {
                             }
                             className="select variant-form-material"
                         >
-                            <option value="auto">Auto-detect</option>
+                            <option value="auto">Auto-detect{detectedArchLabel}</option>
                             <option value="x86_64">x86_64 (amd64)</option>
                             <option value="arm64">arm64 (aarch64)</option>
                             <option value="armv7">armv7 (armhf)</option>
