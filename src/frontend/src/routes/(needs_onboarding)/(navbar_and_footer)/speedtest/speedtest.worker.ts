@@ -12,7 +12,15 @@ const reportProgress = (
 let endpoints: { DOWNLOAD: string; UPLOAD: string; LATENCY: string } | null = null;
 
 self.addEventListener('message', async ({ data }: MessageEvent) => {
-	const { type, duration = 10, urls } = data as { type: string; duration?: number; urls?: { DOWNLOAD: string; UPLOAD: string; LATENCY: string } };
+	const {
+		type,
+		duration = 10,
+		urls
+	} = data as {
+		type: string;
+		duration?: number;
+		urls?: { DOWNLOAD: string; UPLOAD: string; LATENCY: string };
+	};
 	if (type !== 'start' || !urls) return;
 
 	endpoints = urls;
@@ -120,7 +128,13 @@ const testDownload = async (duration: number): Promise<number> => {
 
 const testUpload = async (duration: number): Promise<number> => {
 	const size = 20 << 20;
-	const data = crypto.getRandomValues(new Uint8Array(size));
+	const data = new Uint8Array(size);
+	const chunkSize = 65536;
+	for (let i = 0; i < size; i += chunkSize) {
+		const chunk = new Uint8Array(Math.min(chunkSize, size - i));
+		crypto.getRandomValues(chunk);
+		data.set(chunk, i);
+	}
 
 	let totalBytes = 0;
 	const startTime = performance.now();
