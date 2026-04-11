@@ -115,58 +115,70 @@ async function testUpload(duration: number): Promise<number> {
 	let lastUpdate = startTime;
 
 	while ((performance.now() - startTime) / 1000 < duration) {
-		await new Promise<void>((resolve, reject) => {
-			const xhr = new XMLHttpRequest();
-			xhr.open('POST', Api.SPEEDTEST.UPLOAD);
+		const controller = new AbortController();
+		const signal = controller.signal;
+		let uploadedBytes = 0;
 
-			let currentRequestLoaded = 0;
-
-			xhr.upload.onprogress = (e) => {
-				if (e.lengthComputable) {
-					const now = performance.now();
-					currentRequestLoaded = e.loaded;
-
-					const elapsedTotal = (now - startTime) / 1000;
-
-					if (elapsedTotal >= duration) {
-						xhr.abort();
-						return;
-					}
-
-					if (now - lastUpdate > 100) {
-						if (elapsedTotal > 0) {
-							const currentTotal = totalLoaded + e.loaded;
-							const avgBps = (currentTotal * 8) / elapsedTotal;
-							const avgMbps = avgBps / 1_000_000;
-
-							self.postMessage({
-								type: 'progress',
-								phase: 'upload',
-								speed: avgMbps,
-								progress: Math.min(elapsedTotal / duration, 1)
-							});
-						}
-						lastUpdate = now;
-					}
+		const stream = new ReadableStream<Uint8Array>({
+			pull: (controller) => {
+				if (signal.aborted) {
+					controller.close();
+					return;
 				}
-			};
 
-			xhr.onload = () => {
-				totalLoaded += size; // Add full size
-				resolve();
-			};
+				if (uploadedBytes >= size) {
+					controller.close();
+					return;
+				}
 
-			xhr.onerror = () => {
-				reject(new Error('Upload failed'));
-			};
-
-			xhr.onabort = () => {
-				totalLoaded += currentRequestLoaded;
-				resolve();
-			};
-
-			xhr.send(data);
+				const chunkSize = 256 * 1024;
+				const next = Math.min(uploadedBytes + chunkSize, size);
+				controller.enqueue(data.subarray(uploadedBytes, next));
+				uploadedBytes = next;
+			},
+			cancel: () => {
+				// noop
+			}
 		});
+
+		const timeout = setTimeout(
+			() => controller.abort(),
+			Math.max(0, duration * 1000 - (performance.now() - startTime))
+		);
+		const progressTimer = setInterval(() => {
+			const now = performance.now();
+			const elapsedTotal = (now - startTime) / 1000;
+			if (elapsedTotal <= 0) return;
+
+			const currentTotal = totalLoaded + uploadedBytes;
+			const avgBps = (currentTotal * 8) / elapsedTotal;
+			const avgMbps = avgBps / 1_000_000;
+
+			self.postMessage({
+				type: 'progress',
+				phase: 'upload',
+				speed: avgMbps,
+				progress: Math.min(elapsedTotal / duration, 1)
+			});
+			lastUpdate = now;
+		}, 100);
+
+		try {
+			await fetch(Api.SPEEDTEST.UPLOAD, {
+				method: 'POST',
+				body: stream,
+				signal
+			});
+			totalLoaded += uploadedBytes;
+		} catch (error: unknown) {
+			if (error instanceof Error && error.name !== 'AbortError') {
+				throw error;
+			}
+			totalLoaded += uploadedBytes;
+		} finally {
+			clearTimeout(timeout);
+			clearInterval(progressTimer);
+		}
 	}
 
 	const finalDuration = (performance.now() - startTime) / 1000;
