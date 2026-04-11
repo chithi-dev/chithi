@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import HomeClient from './page.client';
-import { octokit } from '@/lib/octokit.server';
+import { octokit } from '@/server/providers/octokit.server';
 
 export const metadata: Metadata = {
     title: {

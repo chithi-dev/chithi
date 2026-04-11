@@ -3,9 +3,17 @@
 import { Avatar, Tabs } from '@skeletonlabs/skeleton-react';
 import { DownloadIcon, MonitorIcon, TerminalIcon } from 'lucide-react';
 import { useState } from 'react';
-import type { Release } from './types';
+import type { Octokit } from 'octokit';
 
-export default function DownloadView({ releases }: { releases: Release[] }) {
+type OctokitRelease = Awaited<
+    ReturnType<Octokit['rest']['repos']['listReleases']>
+>['data'][number];
+
+export default function DownloadView({
+    releases,
+}: {
+    releases: OctokitRelease[];
+}) {
     const [tabOS, setTabOS] = useState('windows');
     const [selectedReleaseIndex, setSelectedReleaseIndex] = useState(0);
 
@@ -15,11 +23,16 @@ export default function DownloadView({ releases }: { releases: Release[] }) {
 
     const release = releases[selectedReleaseIndex];
 
-    const windows = release.assets.filter((a) => a.name.includes('windows'));
-    const macos = release.assets.filter(
-        (a) => a.name.includes('macos') || a.name.includes('darwin'),
+    const assets = release.assets ?? [];
+    const windows = assets.filter((a) =>
+        a.name.toLowerCase().includes('windows'),
     );
-    const linux = release.assets.filter((a) => a.name.includes('linux'));
+    const macos = assets.filter(
+        (a) =>
+            a.name.toLowerCase().includes('macos') ||
+            a.name.toLowerCase().includes('darwin'),
+    );
+    const linux = assets.filter((a) => a.name.toLowerCase().includes('linux'));
 
     return (
         <main className="relative z-10 mx-auto w-full max-w-7xl px-6 pt-24 pb-20 md:pt-40 md:pb-32">
@@ -59,7 +72,7 @@ export default function DownloadView({ releases }: { releases: Release[] }) {
                         >
                             {releases.map((rel, index) => (
                                 <option key={rel.id} value={index}>
-                                    {rel.name || rel.tagName}
+                                    {rel.name ?? rel.tag_name ?? `#${rel.id}`}
                                 </option>
                             ))}
                         </select>
@@ -68,24 +81,26 @@ export default function DownloadView({ releases }: { releases: Release[] }) {
                     <div className="mt-4 flex items-center justify-center gap-4 text-surface-800-200">
                         <Avatar className="size-10">
                             <Avatar.Image
-                                src={release.author.avatar_url}
-                                alt={release.author.login}
+                                src={release.author?.avatar_url ?? ''}
+                                alt={release.author?.login ?? 'author'}
                             />
                             <Avatar.Fallback>
-                                {release.author.login
+                                {(release.author?.login ?? '??')
                                     .substring(0, 2)
                                     .toUpperCase()}
                             </Avatar.Fallback>
                         </Avatar>
                         <div className="flex flex-col text-sm">
                             <span className="font-bold">
-                                {release.author.login}
+                                {release.author?.login ?? 'Unknown'}
                             </span>
                             <span className="opacity-60">
                                 Published on{' '}
-                                {new Date(
-                                    release.published_at,
-                                ).toLocaleDateString()}
+                                {release.published_at
+                                    ? new Date(
+                                          release.published_at,
+                                      ).toLocaleDateString()
+                                    : 'Unknown'}
                             </span>
                         </div>
                     </div>

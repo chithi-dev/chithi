@@ -4,10 +4,20 @@ import { AppBar } from '@skeletonlabs/skeleton-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { GithubIcon as Github } from '@/icons/github';
+import { Star, GitBranch } from 'lucide-react';
+import type { Octokit } from 'octokit';
 
-type Release = { tag_name?: string } | null;
+type OctokitRelease = Awaited<
+    ReturnType<Octokit['rest']['repos']['getLatestRelease']>
+>['data'];
+type OctokitRepo = Awaited<ReturnType<Octokit['rest']['repos']['get']>>['data'];
 
-export function Navbar({ release }: { release: Release }) {
+type Props = {
+    release?: OctokitRelease | null;
+    repo?: OctokitRepo | null;
+};
+
+export function Navbar({ release, repo }: Props) {
     return (
         <div className="sticky top-0 z-50 border-surface-200-800/50 border-b bg-transparent backdrop-blur-md">
             <AppBar className="mx-auto w-full max-w-7xl bg-transparent">
@@ -38,6 +48,25 @@ export function Navbar({ release }: { release: Release }) {
                                     {release.tag_name}
                                 </span>
                             )}
+                        </a>
+                        <a
+                            href="https://github.com/chithi-dev/chithi/stargazers"
+                            className="btn btn-sm ml-2 flex items-center gap-2 rounded-full border border-surface-200-800 px-3 transition-colors"
+                        >
+                            <Star size={14} />
+                            <span className="opacity-60 text-sm">
+                                {repo?.stargazers_count ?? 0}
+                            </span>
+                        </a>
+
+                        <a
+                            href="https://github.com/chithi-dev/chithi/network/members"
+                            className="btn btn-sm ml-2 flex items-center gap-2 rounded-full border border-surface-200-800 px-3 transition-colors"
+                        >
+                            <GitBranch size={14} />
+                            <span className="opacity-60 text-sm">
+                                {repo?.forks_count ?? 0}
+                            </span>
                         </a>
                     </AppBar.Trail>
                 </AppBar.Toolbar>
@@ -81,13 +110,15 @@ export function Footer() {
 export default function HomeLayoutClient({
     children,
     release,
+    repo = null,
 }: Readonly<{
     children: React.ReactNode;
-    release: Release;
+    release?: OctokitRelease | null;
+    repo?: OctokitRepo | null;
 }>) {
     return (
         <div className="min-h-screen overflow-x-hidden font-sans text-surface-900-100">
-            <Navbar release={release} />
+            <Navbar release={release} repo={repo} />
             {children}
             <Footer />
         </div>

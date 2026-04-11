@@ -2,7 +2,7 @@ import { AlertTriangle } from 'lucide-react';
 import DownloadView from './page.client';
 import { RequestError } from 'octokit';
 import type { Octokit } from 'octokit';
-import { octokit } from '@/lib/octokit.server';
+import { octokit } from '@/server/providers/octokit.server';
 
 type OctokitRelease = Awaited<
     ReturnType<Octokit['rest']['repos']['listReleases']>
