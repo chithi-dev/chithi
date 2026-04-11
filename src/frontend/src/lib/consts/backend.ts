@@ -95,3 +95,4 @@ export class Api {
 			UPLOAD: this.#url('speedtest/upload')
 		};
 	}
+}
