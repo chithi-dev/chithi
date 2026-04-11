@@ -78,7 +78,7 @@ const testLatency = async (): Promise<number> => {
 };
 
 const testDownload = async (duration: number): Promise<number> => {
-	const size = 50 << 20;
+	const size = 100 << 20; // 100MB for modern connections
 	const endpoint = new URL(endpoints!.DOWNLOAD);
 	endpoint.searchParams.set('bytes', size.toString());
 
@@ -91,21 +91,15 @@ const testDownload = async (duration: number): Promise<number> => {
 		const signal = AbortSignal.timeout(remainingMs);
 
 		try {
-			const response = await fetch(endpoint, { signal });
+			const response = await fetch(endpoint, { signal, cache: 'no-store' });
 			if (!response.body) throw new Error('No response body');
 
-			const reader = response.body.getReader();
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done || !value) break;
-
-				totalBytes += value.length;
+			// ESNext: Async Iteration over ReadableStream
+			for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
+				totalBytes += chunk.byteLength;
 				const elapsed = getElapsedSeconds(startTime);
 
-				if (elapsed >= duration) {
-					await reader.cancel();
-					break;
-				}
+				if (elapsed >= duration) break;
 
 				if (performance.now() - lastReport > 100) {
 					reportProgress('download', getMbps(totalBytes, elapsed), Math.min(elapsed / duration, 1));
@@ -113,7 +107,7 @@ const testDownload = async (duration: number): Promise<number> => {
 				}
 			}
 		} catch (err: unknown) {
-			if (err instanceof Error && err.name !== 'AbortError') {
+			if (err instanceof Error && err.name !== 'AbortError' && err.name !== 'TimeoutError') {
 				throw err;
 			}
 		}
@@ -127,56 +121,59 @@ const testDownload = async (duration: number): Promise<number> => {
 };
 
 const testUpload = async (duration: number): Promise<number> => {
-	const size = 20 << 20;
-	const data = new Uint8Array(size);
-	for (let i = 0; i < size; i += 65536) {
-		crypto.getRandomValues(data.subarray(i, i + Math.min(65536, size - i)));
+	// Reusable 1MB chunk to eliminate aggressive memory allocations during high-speed tests
+	const chunkSize = 1 << 20;
+	const chunkData = new Uint8Array(chunkSize);
+	for (let i = 0; i < chunkSize; i += 65536) {
+		crypto.getRandomValues(chunkData.subarray(i, i + Math.min(65536, chunkSize - i)));
 	}
 
 	let totalBytes = 0;
 	const startTime = performance.now();
+	let lastReport = startTime;
 
 	while (getElapsedSeconds(startTime) < duration) {
-		await new Promise<void>((resolve) => {
-			const xhr = new XMLHttpRequest();
-			const remainingMs = Math.max(0, duration * 1_000 - (performance.now() - startTime));
+		const remainingMs = Math.max(0, duration * 1_000 - (performance.now() - startTime));
+		const signal = AbortSignal.timeout(remainingMs);
 
-			xhr.open('POST', endpoints!.UPLOAD, true);
-			xhr.timeout = remainingMs;
+		try {
+			// Stream up to 250MB per single request connection to avoid TCP slow-start restarts
+			const maxBytesPerRequest = 250 << 20;
+			let bytesInCurrentRequest = 0;
 
-			let lastUploaded = 0;
-
-			xhr.upload.onprogress = (event) => {
-				if (event.lengthComputable) {
-					lastUploaded = event.loaded;
+			const stream = new ReadableStream({
+				pull(controller) {
 					const elapsed = getElapsedSeconds(startTime);
-					if (elapsed > 0) {
-						reportProgress(
-							'upload',
-							getMbps(totalBytes + lastUploaded, elapsed),
-							Math.min(elapsed / duration, 1)
-						);
+					if (elapsed >= duration || bytesInCurrentRequest >= maxBytesPerRequest) {
+						controller.close();
+						return;
+					}
+
+					// Enqueue the identical 1MB buffer. Supremely memory efficient and fast.
+					controller.enqueue(chunkData);
+					totalBytes += chunkSize;
+					bytesInCurrentRequest += chunkSize;
+
+					if (performance.now() - lastReport > 100) {
+						reportProgress('upload', getMbps(totalBytes, elapsed), Math.min(elapsed / duration, 1));
+						lastReport = performance.now();
 					}
 				}
-			};
+			});
 
-			xhr.onload = () => {
-				totalBytes += lastUploaded;
-				resolve();
-			};
-
-			xhr.onerror = () => {
-				totalBytes += lastUploaded;
-				resolve();
-			};
-
-			xhr.ontimeout = () => {
-				totalBytes += lastUploaded;
-				resolve();
-			};
-
-			xhr.send(data);
-		});
+			await fetch(endpoints!.UPLOAD, {
+				method: 'POST',
+				body: stream,
+				// @ts-expect-error duplex is required when using a ReadableStream body in Fetch
+				duplex: 'half',
+				cache: 'no-store',
+				signal
+			});
+		} catch (err: unknown) {
+			if (err instanceof Error && err.name !== 'TimeoutError' && err.name !== 'AbortError') {
+				throw err;
+			}
+		}
 	}
 
 	const finalElapsed = Math.max(getElapsedSeconds(startTime), 0.001);
