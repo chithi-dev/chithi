@@ -124,6 +124,9 @@ export default function HomeClient({ release }: { release: Release }) {
     const [downloadOS, setDownloadOS] = useState<
         'auto' | 'windows' | 'macos' | 'linux'
     >('auto');
+    const [downloadArch, setDownloadArch] = useState<
+        'auto' | 'x86_64' | 'arm64' | 'armv7' | 'i386'
+    >('auto');
 
     function detectOS(): 'windows' | 'macos' | 'linux' | 'unknown' {
         if (typeof navigator === 'undefined') return 'unknown';
@@ -147,6 +150,25 @@ export default function HomeClient({ release }: { release: Release }) {
         return 'unknown';
     }
 
+    function detectArch():
+        | 'x86_64'
+        | 'arm64'
+        | 'armv7'
+        | 'i386'
+        | 'unknown' {
+        if (typeof navigator === 'undefined') return 'unknown';
+        const ua =
+            (navigator.userAgent || navigator.platform || '').toLowerCase();
+
+        if (ua.includes('aarch64') || ua.includes('arm64')) return 'arm64';
+        if (ua.includes('armv7') || ua.includes('armv7l') || ua.includes('armhf'))
+            return 'armv7';
+        if (ua.includes('amd64') || ua.includes('x86_64') || ua.includes('wow64') || ua.includes('win64') || ua.includes('x64'))
+            return 'x86_64';
+        if (ua.includes('i386') || ua.includes('i686') || ua.includes('ia32')) return 'i386';
+        return 'unknown';
+    }
+
     function findAssetForOS(rel: any, os: string) {
         if (!rel || !rel.assets) return null;
         const assets = rel.assets as {
@@ -162,20 +184,56 @@ export default function HomeClient({ release }: { release: Release }) {
             return null;
         };
 
-        if (os === 'windows') return tryKeywords(['windows', '.exe', 'win']);
-        if (os === 'macos')
-            return tryKeywords(['macos', 'darwin', 'mac', '.dmg', '.pkg']);
-        if (os === 'linux')
-            return tryKeywords([
-                'linux',
-                '.appimage',
-                '.deb',
-                '.rpm',
-                '.tar.gz',
-                '.tar',
-            ]);
+        // Accept an "os" string optionally containing an arch with the format "os:arch".
+        const normalizedOs = (os || '').toLowerCase();
 
-        // fallback: try to find any CLI binary
+        const osKeywordsMap: Record<string, string[]> = {
+            windows: ['windows', '.exe', 'win'],
+            macos: ['macos', 'darwin', 'mac', '.dmg', '.pkg'],
+            linux: ['linux', '.appimage', '.deb', '.rpm', '.tar.gz', '.tar'],
+        };
+
+        const archKeywordsMap: Record<string, string[]> = {
+            x86_64: ['x86_64', 'amd64', 'x64', 'x86-64', '-amd64', '_amd64'],
+            arm64: ['arm64', 'aarch64', 'arm64v8', '-arm64', '_arm64'],
+            armv7: ['armv7', 'armv7l', 'armhf', '-armv7', '_armv7'],
+            i386: ['i386', 'i686', 'ia32', 'x86'],
+        };
+
+        let arch: string | undefined = undefined;
+        if (normalizedOs.includes(':')) {
+            const [o, a] = normalizedOs.split(':', 2);
+            arch = a;
+        }
+
+        const osKey = normalizedOs.includes(':') ? normalizedOs.split(':', 1)[0] : normalizedOs;
+        const osKeywords = osKeywordsMap[osKey] || [];
+        const archKeywords = arch ? archKeywordsMap[arch] || [] : [];
+
+        // Try to match both OS and arch in the filename
+        if (archKeywords.length && osKeywords.length) {
+            const found = assets.find((a) => {
+                const n = name(a.name);
+                const ok = osKeywords.some((k) => n.includes(k));
+                const ak = archKeywords.some((k) => n.includes(k));
+                return ok && ak;
+            });
+            if (found) return found.browser_download_url;
+        }
+
+        // If no combined match, try arch-only (if provided)
+        if (archKeywords.length) {
+            const byArch = tryKeywords(archKeywords);
+            if (byArch) return byArch;
+        }
+
+        // Fallback to OS-only matching
+        if (osKeywords.length) {
+            const byOs = tryKeywords(osKeywords);
+            if (byOs) return byOs;
+        }
+
+        // Final fallback: try to find any CLI binary
         return tryKeywords(['cli', 'chithi', 'chithi-cli']);
     }
 
@@ -185,7 +243,9 @@ export default function HomeClient({ release }: { release: Release }) {
             return;
         }
         const osToUse = downloadOS === 'auto' ? detectOS() : downloadOS;
-        const asset = findAssetForOS(release, osToUse);
+        const archToUse = downloadArch === 'auto' ? detectArch() : downloadArch;
+        const osAndArch = archToUse && archToUse !== 'unknown' ? `${osToUse}:${archToUse}` : osToUse;
+        const asset = findAssetForOS(release, osAndArch);
         if (asset) {
             // redirect to the asset (GitHub release file)
             window.location.href = asset;
@@ -269,6 +329,20 @@ export default function HomeClient({ release }: { release: Release }) {
                             <option value="windows">Windows</option>
                             <option value="macos">macOS</option>
                             <option value="linux">Linux</option>
+                        </select>
+
+                        <select
+                            value={downloadArch}
+                            onChange={(e) =>
+                                setDownloadArch(e.target.value as any)
+                            }
+                            className="select variant-form-material"
+                        >
+                            <option value="auto">Auto-detect</option>
+                            <option value="x86_64">x86_64 (amd64)</option>
+                            <option value="arm64">arm64 (aarch64)</option>
+                            <option value="armv7">armv7 (armhf)</option>
+                            <option value="i386">i386 (x86)</option>
                         </select>
 
                         <button
