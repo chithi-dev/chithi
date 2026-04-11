@@ -129,64 +129,54 @@ const testDownload = async (duration: number): Promise<number> => {
 const testUpload = async (duration: number): Promise<number> => {
 	const size = 20 << 20;
 	const data = new Uint8Array(size);
-	const chunkSize = 65536;
-	for (let i = 0; i < size; i += chunkSize) {
-		const chunk = new Uint8Array(Math.min(chunkSize, size - i));
-		crypto.getRandomValues(chunk);
-		data.set(chunk, i);
+	for (let i = 0; i < size; i += 65536) {
+		crypto.getRandomValues(data.subarray(i, i + Math.min(65536, size - i)));
 	}
 
 	let totalBytes = 0;
 	const startTime = performance.now();
 
 	while (getElapsedSeconds(startTime) < duration) {
-		let uploadedBytes = 0;
-		const remainingMs = Math.max(0, duration * 1_000 - (performance.now() - startTime));
-		const signal = AbortSignal.timeout(remainingMs);
+		await new Promise<void>((resolve) => {
+			const xhr = new XMLHttpRequest();
+			const remainingMs = Math.max(0, duration * 1_000 - (performance.now() - startTime));
 
-		const stream = new ReadableStream<Uint8Array>({
-			pull(controller) {
-				if (uploadedBytes >= size) {
-					controller.close();
-					return;
+			xhr.open('POST', endpoints!.UPLOAD, true);
+			xhr.timeout = remainingMs;
+
+			let lastUploaded = 0;
+
+			xhr.upload.onprogress = (event) => {
+				if (event.lengthComputable) {
+					lastUploaded = event.loaded;
+					const elapsed = getElapsedSeconds(startTime);
+					if (elapsed > 0) {
+						reportProgress(
+							'upload',
+							getMbps(totalBytes + lastUploaded, elapsed),
+							Math.min(elapsed / duration, 1)
+						);
+					}
 				}
+			};
 
-				const chunkSize = 256 << 10;
-				const next = Math.min(uploadedBytes + chunkSize, size);
-				controller.enqueue(data.subarray(uploadedBytes, next));
-				uploadedBytes = next;
-			},
-			cancel() {
-				/* no-op */
-			}
+			xhr.onload = () => {
+				totalBytes += lastUploaded;
+				resolve();
+			};
+
+			xhr.onerror = () => {
+				totalBytes += lastUploaded;
+				resolve();
+			};
+
+			xhr.ontimeout = () => {
+				totalBytes += lastUploaded;
+				resolve();
+			};
+
+			xhr.send(data);
 		});
-
-		const progressTimer = setInterval(() => {
-			const elapsed = getElapsedSeconds(startTime);
-			if (elapsed <= 0) return;
-			reportProgress(
-				'upload',
-				getMbps(totalBytes + uploadedBytes, elapsed),
-				Math.min(elapsed / duration, 1)
-			);
-		}, 100);
-
-		try {
-			await fetch(endpoints!.UPLOAD, {
-				method: 'POST',
-				body: stream,
-				duplex: 'half',
-				signal
-			} as RequestInit);
-			totalBytes += uploadedBytes;
-		} catch (error: unknown) {
-			if (error instanceof Error && error.name !== 'AbortError') {
-				throw error;
-			}
-			totalBytes += uploadedBytes;
-		} finally {
-			clearInterval(progressTimer);
-		}
 	}
 
 	const finalElapsed = Math.max(getElapsedSeconds(startTime), 0.001);
