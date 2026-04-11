@@ -3,8 +3,12 @@ import { Api } from '#consts/backend';
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const getElapsedSeconds = (startTime: number) => (performance.now() - startTime) / 1_000;
 const getMbps = (bytes: number, seconds: number) => (bytes * 8) / seconds / 1_000_000;
-const reportProgress = (phase: 'download' | 'upload', speed: number, progress: number) => {
-	self.postMessage({ type: 'progress', phase, speed, progress });
+const reportProgress = (
+	phase: 'latency' | 'download' | 'upload',
+	value: number,
+	progress: number
+) => {
+	self.postMessage({ type: 'progress', phase, speed: value, progress });
 };
 
 self.addEventListener('message', async ({ data }: MessageEvent) => {
@@ -20,6 +24,12 @@ self.addEventListener('message', async ({ data }: MessageEvent) => {
 });
 
 const runSpeedTest = async (duration: number) => {
+	self.postMessage({ type: 'phase', phase: 'latency' });
+	const latency = await testLatency();
+	self.postMessage({ type: 'result', key: 'latency', value: latency });
+
+	await sleep(500);
+
 	self.postMessage({ type: 'phase', phase: 'download' });
 	const downloadSpeed = await testDownload(duration);
 	self.postMessage({ type: 'result', key: 'download', value: downloadSpeed });
@@ -33,9 +43,34 @@ const runSpeedTest = async (duration: number) => {
 	self.postMessage({ type: 'finish' });
 };
 
+const testLatency = async (): Promise<number> => {
+	const pings = 5;
+	let totalLatency = 0;
+
+	for (let i = 0; i < pings; i++) {
+		const start = performance.now();
+		try {
+			await fetch(Api.SPEEDTEST.LATENCY, {
+				cache: 'no-store'
+			});
+		} catch (e) {
+			/* ignore errors for individual pings */
+		}
+		const elapsed = performance.now() - start;
+		totalLatency += elapsed;
+		reportProgress('latency', elapsed, (i + 1) / pings);
+		await sleep(50);
+	}
+
+	const finalLatency = totalLatency / pings;
+	reportProgress('latency', finalLatency, 1);
+	return finalLatency;
+};
+
 const testDownload = async (duration: number): Promise<number> => {
 	const size = 50 << 20;
-	const endpoint = Api.SPEEDTEST.DOWNLOAD(size);
+	const endpoint = new URL(Api.SPEEDTEST.DOWNLOAD);
+	endpoint.searchParams.set('bytes', size.toString());
 
 	let totalBytes = 0;
 	const startTime = performance.now();
