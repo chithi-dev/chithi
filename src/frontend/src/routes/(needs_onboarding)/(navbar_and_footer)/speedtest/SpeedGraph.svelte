@@ -7,7 +7,8 @@
 		downloadColor = 'var(--color-cyan-400)',
 		uploadColor = 'var(--color-purple-500)',
 		activePhase = null,
-		currentSpeed = 0
+		currentSpeed = 0,
+		testDuration = 10
 	} = $props<{
 		downloadHistory: { progress: number; speed: number }[];
 		uploadHistory: { progress: number; speed: number }[];
@@ -16,6 +17,7 @@
 		uploadColor: string;
 		activePhase: 'download' | 'upload' | null;
 		currentSpeed: number;
+		testDuration?: number;
 	}>();
 
 	const width = 800;
@@ -129,6 +131,20 @@
 			<g class="text-white/5 dark:text-white/10" stroke="currentColor" stroke-width="1">
 				{#each xTicks as tick}
 					<line x1={xScale(tick)} y1="0" x2={xScale(tick)} y2={height} />
+					<!-- X-axis Label -->
+					{#if (tick * testDuration) % 2 === 0 && tick > 0}
+						<text
+							x={xScale(tick) - 2}
+							y={height - 4}
+							fill="currentColor"
+							stroke="none"
+							font-size="10"
+							text-anchor="end"
+							class="font-mono text-muted-foreground/40 select-none"
+						>
+							{tick * testDuration}s
+						</text>
+					{/if}
 				{/each}
 				{#each yTicks as tick}
 					<line x1="0" y1={tick * height} x2={width} y2={tick * height} />

@@ -18,7 +18,6 @@
 	import { Play, RotateCw, Activity, ArrowDown, ArrowUp, Timer } from 'lucide-svelte';
 	import { Api } from '#consts/backend';
 	import SpeedtestWorker from './speedtest.worker?worker';
-	import { Progress } from '$lib/components/ui/progress';
 	import SpeedGauge from './SpeedGauge.svelte';
 	import SpeedGraph from './SpeedGraph.svelte';
 
@@ -29,7 +28,6 @@
 	let latency = $state(new Tween(0, { duration: 300, easing: cubicOut }));
 	let downloadSpeed = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 	let uploadSpeed = $state(new Tween(0, { duration: 500, easing: cubicOut }));
-	let progress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 	let errorMsg = $state('');
 
 	let downloadHistory = $state<{ progress: number; speed: number }[]>([]);
@@ -46,7 +44,6 @@
 		latency.set(0, { duration: 0 });
 		downloadSpeed.set(0, { duration: 0 });
 		uploadSpeed.set(0, { duration: 0 });
-		progress.set(0, { duration: 0 });
 		downloadHistory = [];
 		uploadHistory = [];
 		errorMsg = '';
@@ -58,9 +55,7 @@
 				if (e.data.phase === 'latency') status = 'measuring latency';
 				if (e.data.phase === 'download') status = 'downloading';
 				if (e.data.phase === 'upload') status = 'uploading';
-				progress = new Tween(0, { duration: 500, easing: cubicOut });
 			} else if (type === 'progress') {
-				progress.target = e.data.progress * 100;
 				const currentSpeed = e.data.speed; // speed maps to value
 
 				if (e.data.phase === 'latency') latency.target = currentSpeed;
@@ -84,7 +79,6 @@
 				if (e.data.key === 'upload') uploadSpeed.target = e.data.value;
 			} else if (type === 'finish') {
 				status = 'finished';
-				progress.target = 100;
 			} else if (type === 'error') {
 				status = 'error';
 				errorMsg = e.data.error;
@@ -200,6 +194,7 @@
 					{downloadHistory}
 					{uploadHistory}
 					{maxSpeed}
+					{testDuration}
 					downloadColor={chartConfig.download.color}
 					uploadColor={chartConfig.upload.color}
 					activePhase={status.includes('download')
@@ -216,26 +211,7 @@
 			</div>
 
 			<!-- Status Area -->
-			<div class="relative h-14 w-full">
-				<!-- Progress Bar -->
-				<div
-					class={[
-						'absolute inset-0 flex flex-col justify-center space-y-2 transition-all duration-300',
-						status === 'measuring latency' ||
-						status === 'downloading' ||
-						status === 'uploading' ||
-						status === 'starting'
-							? 'translate-y-0 opacity-100'
-							: 'pointer-events-none translate-y-2 opacity-0'
-					]}
-				>
-					<div class="flex justify-between text-xs text-muted-foreground">
-						<span>Progress</span>
-						<span>{Math.round(progress.current)}%</span>
-					</div>
-					<Progress value={progress.current} class="h-2" />
-				</div>
-
+			<div class="relative h-2 w-full">
 				<!-- Error Message -->
 				<div
 					class={[
