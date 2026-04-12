@@ -1,5 +1,7 @@
 <script lang="ts">
 	import * as d3 from 'd3';
+	import { Tween } from 'svelte/motion';
+	import { cubicOut } from 'svelte/easing';
 
 	let {
 		downloadHistory = [],
@@ -8,6 +10,7 @@
 		uploadColor = 'var(--color-purple-500)',
 		activePhase = null,
 		currentSpeed = 0,
+		currentProgress = 0,
 		testDuration = 10
 	} = $props<{
 		downloadHistory: { progress: number; speed: number }[];
@@ -17,6 +20,7 @@
 		uploadColor: string;
 		activePhase: 'download' | 'upload' | null;
 		currentSpeed: number;
+		currentProgress?: number;
 		testDuration?: number;
 	}>();
 
@@ -29,11 +33,33 @@
 	// Compute a kbps-based dynamic Y domain that starts at 1 kbps
 	// We assume incoming `speed` values (and `maxSpeed`, `currentSpeed`) are in Mbps
 	// and convert them to kbps for axis/tick math so the axis can start at 1 kbps
+	let activeDownloadHistory = $derived(
+		activePhase === 'download' && currentProgress > 0
+			? [
+					...downloadHistory.filter(
+						(d: { progress: number; speed: number }) => d.progress < currentProgress
+					),
+					{ progress: currentProgress, speed: currentSpeed }
+				]
+			: downloadHistory
+	);
+
+	let activeUploadHistory = $derived(
+		activePhase === 'upload' && currentProgress > 0
+			? [
+					...uploadHistory.filter(
+						(d: { progress: number; speed: number }) => d.progress < currentProgress
+					),
+					{ progress: currentProgress, speed: currentSpeed }
+				]
+			: uploadHistory
+	);
+
 	let maxObservedMbps = $derived(
 		Math.max(
 			currentSpeed || 0,
-			d3.max(downloadHistory, (d: { speed: number }) => d.speed) || 0,
-			d3.max(uploadHistory, (d: { speed: number }) => d.speed) || 0
+			d3.max(activeDownloadHistory, (d: { speed: number }) => d.speed) || 0,
+			d3.max(activeUploadHistory, (d: { speed: number }) => d.speed) || 0
 		)
 	);
 
@@ -55,8 +81,13 @@
 		})()
 	);
 
+	let maxScaleTween = new Tween(1, { duration: 500, easing: cubicOut });
+	$effect(() => {
+		maxScaleTween.target = niceMaxKbps;
+	});
+
 	// Y maps speed (in kbps) up to the chosen nice max
-	let yScale = $derived(d3.scaleLinear().domain([0, niceMaxKbps]).range([height, 0]).nice());
+	let yScale = $derived(d3.scaleLinear().domain([0, maxScaleTween.current]).range([height, 0]));
 
 	// helper to format speeds (input in kbps)
 	function formatSpeedKbps(kbps: number) {
@@ -85,10 +116,10 @@
 		.y((d) => yScale(d.speed * 1000))
 		.curve(d3.curveMonotoneX);
 
-	let downloadArea = $derived(areaGen(downloadHistory) || '');
-	let downloadLine = $derived(lineGen(downloadHistory) || '');
-	let uploadArea = $derived(areaGen(uploadHistory) || '');
-	let uploadLine = $derived(lineGen(uploadHistory) || '');
+	let downloadArea = $derived(areaGen(activeDownloadHistory) || '');
+	let downloadLine = $derived(lineGen(activeDownloadHistory) || '');
+	let uploadArea = $derived(areaGen(activeUploadHistory) || '');
+	let uploadLine = $derived(lineGen(activeUploadHistory) || '');
 
 	// Define standard grids
 	const xTicks = d3.range(0, 1.01, 0.05); // 20 vertical segments
@@ -176,13 +207,13 @@
 			</g>
 
 			<!-- Download Timeline -->
-			{#if downloadHistory.length > 0}
+			{#if activeDownloadHistory.length > 0}
 				<path d={downloadArea} fill="url(#dlGrad)" />
 				<path d={downloadLine} fill="none" stroke={downloadColor} stroke-width="2" />
 			{/if}
 
 			<!-- Upload Timeline Overlay -->
-			{#if uploadHistory.length > 0}
+			{#if activeUploadHistory.length > 0}
 				<path d={uploadArea} fill="url(#ulGrad)" />
 				<path
 					d={uploadLine}

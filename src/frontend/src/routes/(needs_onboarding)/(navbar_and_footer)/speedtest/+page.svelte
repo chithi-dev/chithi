@@ -28,6 +28,7 @@
 	let latency = $state(new Tween(0, { duration: 300, easing: cubicOut }));
 	let downloadSpeed = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 	let uploadSpeed = $state(new Tween(0, { duration: 500, easing: cubicOut }));
+	let progress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 	let errorMsg = $state('');
 
 	let downloadHistory = $state<{ progress: number; speed: number }[]>([]);
@@ -44,6 +45,7 @@
 		latency.set(0, { duration: 0 });
 		downloadSpeed.set(0, { duration: 0 });
 		uploadSpeed.set(0, { duration: 0 });
+		progress.set(0, { duration: 0 });
 		downloadHistory = [];
 		uploadHistory = [];
 		errorMsg = '';
@@ -55,7 +57,9 @@
 				if (e.data.phase === 'latency') status = 'measuring latency';
 				if (e.data.phase === 'download') status = 'downloading';
 				if (e.data.phase === 'upload') status = 'uploading';
+				progress = new Tween(0, { duration: 500, easing: cubicOut });
 			} else if (type === 'progress') {
+				progress.target = e.data.progress * 100;
 				const currentSpeed = e.data.speed; // speed maps to value
 
 				if (e.data.phase === 'latency') latency.target = currentSpeed;
@@ -79,6 +83,7 @@
 				if (e.data.key === 'upload') uploadSpeed.target = e.data.value;
 			} else if (type === 'finish') {
 				status = 'finished';
+				progress.target = 100;
 			} else if (type === 'error') {
 				status = 'error';
 				errorMsg = e.data.error;
@@ -207,6 +212,7 @@
 						: status.includes('upload')
 							? uploadSpeed.current
 							: 0}
+					currentProgress={progress.current / 100}
 				/>
 			</div>
 
