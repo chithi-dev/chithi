@@ -28,27 +28,14 @@ async def rate_limiter_guard(request: HTTPConnection, redis_client: RedisDep) ->
     if not limits:
         return
 
-    client_ip: str = "unknown"
-    for header in (
-        "x-forwarded-for",
-        "cf-connecting-ip",
-        "true-client-ip",
-        "x-real-ip",
-        "x-client-ip",
-    ):
-        if header in request.headers:
-            client_ip = request.headers[header].split(",")[0].strip()
-            break
-    else:
-        if request.client and request.client.host:
-            client_ip = request.client.host
-
+    client_host: str = request.client.host if request.client else "unknown"
+    user_id: str = request.headers.get("X-Forwarded-For", client_host).split(",")[0]
     now: float = time.time()
 
     endpoint_name: str = getattr(endpoint, "__name__", "unknown")
 
     for limit, window in limits:
-        key = f"rl:{client_ip}:{endpoint_name}:{window}"
+        key = f"rl:{user_id}:{endpoint_name}:{window}"
 
         is_limited = bool(
             redis_client.eval(
