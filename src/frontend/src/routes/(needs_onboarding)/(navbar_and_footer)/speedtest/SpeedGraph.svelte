@@ -4,7 +4,6 @@
 	let {
 		downloadHistory = [],
 		uploadHistory = [],
-		maxSpeed = 100,
 		downloadColor = 'var(--color-cyan-400)',
 		uploadColor = 'var(--color-purple-500)',
 		activePhase = null,
@@ -25,25 +24,63 @@
 	// X maps progress from 0 to 1
 	let xScale = $derived(d3.scaleLinear().domain([0, 1]).range([0, width]));
 
-	// Y maps speed safely up to maxSpeed
-	let yScale = $derived(
-		d3
-			.scaleLinear()
-			.domain([0, Math.max(maxSpeed, 10)]) // dynamically scale with a minimum of 10
-			.range([height, 0])
+	// Compute a kbps-based dynamic Y domain that starts at 1 kbps
+	// We assume incoming `speed` values (and `maxSpeed`, `currentSpeed`) are in Mbps
+	// and convert them to kbps for axis/tick math so the axis can start at 1 kbps
+	let maxObservedMbps = $derived(
+		Math.max(
+			currentSpeed || 0,
+			d3.max(downloadHistory, (d: { speed: number }) => d.speed) || 0,
+			d3.max(uploadHistory, (d: { speed: number }) => d.speed) || 0
+		)
 	);
+
+	// convert to kbps and ensure at least 1
+	let maxObservedKbps = $derived(Math.max(1, Math.ceil(maxObservedMbps * 1000)));
+
+	// choose a "nice" ceiling using 1-2-5 scaling (e.g. 1, 2, 5, 10, 20, 50...)
+	let niceMaxKbps = $derived(
+		(() => {
+			const val = maxObservedKbps;
+			const mag = Math.pow(10, Math.floor(Math.log10(val)));
+			const norm = val / mag;
+			let step;
+			if (norm <= 1.0) step = 1;
+			else if (norm <= 2.0) step = 2;
+			else if (norm <= 5.0) step = 5;
+			else step = 10;
+			return step * mag;
+		})()
+	);
+
+	// Y maps speed (in kbps) up to the chosen nice max
+	let yScale = $derived(d3.scaleLinear().domain([0, niceMaxKbps]).range([height, 0]).nice());
+
+	// helper to format speeds (input in kbps)
+	function formatSpeedKbps(kbps: number) {
+		if (!isFinite(kbps)) return '0 kbps';
+		if (kbps >= 1000) {
+			const mbps = kbps / 1000;
+			return mbps % 1 === 0 ? `${mbps} Mbps` : `${mbps.toFixed(1)} Mbps`;
+		}
+		// If the Y-axis top is very small (1 or 2 kbps), show 1 decimal place to prevent duplicated integer labels
+		if (niceMaxKbps < 5 && kbps % 1 !== 0) {
+			return `${kbps.toFixed(1)} kbps`;
+		}
+		return `${Math.round(kbps)} kbps`;
+	}
 
 	const areaGen = d3
 		.area<{ progress: number; speed: number }>()
 		.x((d) => xScale(d.progress))
 		.y0(height)
-		.y1((d) => yScale(d.speed))
+		.y1((d) => yScale(d.speed * 1000))
 		.curve(d3.curveMonotoneX);
 
 	const lineGen = d3
 		.line<{ progress: number; speed: number }>()
 		.x((d) => xScale(d.progress))
-		.y((d) => yScale(d.speed))
+		.y((d) => yScale(d.speed * 1000))
 		.curve(d3.curveMonotoneX);
 
 	let downloadArea = $derived(areaGen(downloadHistory) || '');
@@ -63,7 +100,7 @@
 			<span
 				class="rounded bg-background/50 px-2 py-0.5 text-xs font-semibold text-muted-foreground tabular-nums shadow backdrop-blur-sm"
 			>
-				{currentSpeed.toFixed(1)} Mbps
+				{formatSpeedKbps(currentSpeed * 1000)}
 			</span>
 		{:else}
 			<span
@@ -95,6 +132,20 @@
 				{/each}
 				{#each yTicks as tick}
 					<line x1="0" y1={tick * height} x2={width} y2={tick * height} />
+					<!-- Y-axis Label -->
+					{#if tick < 1}
+						<text
+							x={width - 4}
+							y={tick * height - 4}
+							fill="currentColor"
+							stroke="none"
+							font-size="10"
+							text-anchor="end"
+							class="font-mono text-muted-foreground/40 select-none"
+						>
+							{formatSpeedKbps(niceMaxKbps - tick * niceMaxKbps)}
+						</text>
+					{/if}
 				{/each}
 				<!-- Grid Base Line Top -->
 				<line
