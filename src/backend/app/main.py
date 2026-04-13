@@ -2,10 +2,9 @@ import asyncio
 from contextlib import asynccontextmanager
 
 import redis.asyncio as redis
-from fastapi import Depends, FastAPI
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.guards.rate_limit import rate_limiter_guard
 from app.managers import WebSocketManager
 from app.settings import settings
 from app.states.app import AppState, GlobalState
@@ -59,7 +58,6 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     root_path=settings.ROOT_PATH,
     openapi_url="/openapi.json",
-    dependencies=[Depends(rate_limiter_guard)],
     lifespan=lifespan,
 )
 app.add_middleware(

@@ -3,12 +3,12 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
-from fastapi_limiter.depends import RateLimiter
-from pyrate_limiter import Duration, Limiter, Rate
+from pyrate_limiter import Duration, Rate
 from sqlmodel import or_, select
 
 from app import security
 from app.deps import SessionDep
+from app.guards.rate_limit import get_rate_limiter
 from app.models import User
 from app.schemas.token import Token
 from app.settings import settings
@@ -19,7 +19,7 @@ router = APIRouter()
 @router.post(
     "/login",
     dependencies=[
-        Depends(RateLimiter(limiter=Limiter(Rate(3, Duration.SECOND * 1)))),
+        Depends(get_rate_limiter(Rate(3, Duration.SECOND * 1))),
     ],
 )
 async def login_endpoint(
