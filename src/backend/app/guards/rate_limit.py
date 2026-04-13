@@ -1,11 +1,16 @@
 import inspect
 from time import time_ns
 
+from app.settings import settings
 from fastapi_limiter.depends import RateLimiter
 from pyrate_limiter import BucketFactory, Limiter, Rate, RateItem
 from pyrate_limiter.buckets.redis_bucket import RedisBucket
+from redis.asyncio import ConnectionPool as AsyncConnectionPool
+from redis.asyncio import Redis as AsyncRedis
 
-from app.states.app import GlobalState
+
+pool = AsyncConnectionPool.from_url(settings.REDIS_ENDPOINT)
+redis_db = AsyncRedis(connection_pool=pool)
 
 
 class RedisBucketFactory(BucketFactory):
@@ -19,8 +24,7 @@ class RedisBucketFactory(BucketFactory):
     async def get(self, item: RateItem) -> RedisBucket:
         bucket_key = f"rate_limit:{item.name}"
         if bucket_key not in self._buckets:
-            redis = GlobalState._client()
-            res = RedisBucket.init(self.rates, redis, bucket_key)
+            res = RedisBucket.init(self.rates, redis_db, bucket_key)
             if inspect.isawaitable(res):
                 res = await res
             self._buckets[bucket_key] = res
