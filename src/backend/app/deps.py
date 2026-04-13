@@ -2,7 +2,6 @@ from typing import Annotated, AsyncGenerator
 
 import aioboto3
 import jwt
-import redis.asyncio as redis
 from botocore.exceptions import ClientError
 from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -18,6 +17,7 @@ from app.models import User
 from app.pagination import PaginationInput
 from app.schemas.token import TokenPayload
 from app.settings import settings
+from app.singletons.redis import RedisClient
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -74,15 +74,8 @@ async def get_s3_client() -> AsyncGenerator[S3Client, None]:
 
 
 async def get_redis():
-    client = redis.from_url(
-        settings.REDIS_ENDPOINT,
-        encoding="utf-8",
-        decode_responses=True,
-    )
-    try:
-        yield client
-    finally:
-        await client.aclose()
+    redis_client = RedisClient.get()
+    yield redis_client
 
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]

@@ -3,7 +3,6 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-import redis.asyncio as redis
 from pydantic import BaseModel
 from redis.asyncio import Redis
 
@@ -175,23 +174,13 @@ class AppState(GlobalState, BaseModel):
     async def evict_files(
         cls, file_keys: list[str], freed_bytes: int, redis_client: Redis | None = None
     ) -> None:
-
-        async def _evict(client: Redis) -> None:
-            current = await cls.get(redis_client=client)
-            key_set = set(file_keys)
-            current.active_uploads = [
-                u for u in current.active_uploads if u.upload_key not in key_set
-            ]
-            current.total_space_used = max(0, current.total_space_used - freed_bytes)
-            await cls.set(current, redis_client=client)
-
-        if redis_client is not None:
-            await _evict(redis_client)
-        else:
-            async with redis.from_url(
-                settings.REDIS_ENDPOINT, encoding="utf-8", decode_responses=True
-            ) as client:
-                await _evict(client)
+        current = await cls.get(redis_client=redis_client)
+        key_set = set(file_keys)
+        current.active_uploads = [
+            u for u in current.active_uploads if u.upload_key not in key_set
+        ]
+        current.total_space_used = max(0, current.total_space_used - freed_bytes)
+        await cls.set(current, redis_client=redis_client)
 
     @classmethod
     async def patch(cls, **kwargs: Any) -> AppState:
@@ -203,7 +192,7 @@ class AppState(GlobalState, BaseModel):
         return updated
 
     @classmethod
-    async def cleanup_active_uploads(cls, redis_client: Redis | None = None) -> None:
+    async def cleanup_active_uploads(cls) -> None:
         """Prune `active_uploads` entries that are clearly stale on startup.
 
         Rules:
@@ -223,7 +212,7 @@ class AppState(GlobalState, BaseModel):
         from app.settings import settings
 
         try:
-            current = await cls.get(redis_client=redis_client)
+            current = await cls.get()
         except Exception:
             logging.exception("Failed to read app state from Redis during cleanup")
             return
@@ -324,7 +313,7 @@ class AppState(GlobalState, BaseModel):
         if len(pruned) != len(current.active_uploads):
             try:
                 updated = current.model_copy(update={"active_uploads": pruned})
-                await cls.set(updated, redis_client=redis_client)
+                await cls.set(updated)
             except Exception:
                 logging.exception("Failed to persist pruned app state during cleanup")
 

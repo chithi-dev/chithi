@@ -1,28 +1,22 @@
 import asyncio
 from contextlib import asynccontextmanager
 
-import redis.asyncio as redis
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.managers import WebSocketManager
 from app.settings import settings
+from app.singletons.redis import RedisClient
 from app.states.app import AppState, GlobalState
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    redis_client = redis.from_url(
-        settings.REDIS_ENDPOINT,
-        encoding="utf-8",
-        decode_responses=True,
-    )
-
     # Initialise shared Redis client and start periodic state sync task
-    GlobalState.init_redis(redis_client)
+    GlobalState.init_redis()
 
     # Prune stale uploads persisted in Redis from previous runs
-    await AppState.cleanup_active_uploads(redis_client)
+    await AppState.cleanup_active_uploads()
 
     async def _state_sync_loop() -> None:
         try:
@@ -37,7 +31,7 @@ async def lifespan(app: FastAPI):
 
     # Start WebSocket manager pub/sub listener
     ws_manager = WebSocketManager()
-    await ws_manager.start(redis_client)
+    await ws_manager.start()
     app.state.ws_manager = ws_manager
 
     yield
@@ -52,7 +46,7 @@ async def lifespan(app: FastAPI):
             pass
 
     await ws_manager.stop()
-    await redis_client.aclose()
+    await RedisClient.aclose()
 
 
 app = FastAPI(

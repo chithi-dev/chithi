@@ -1,3 +1,4 @@
+from app.singletons.redis import RedisClient
 from typing import Any, Awaitable, ClassVar, cast
 
 import redis.asyncio as redis
@@ -7,8 +8,9 @@ class GlobalState:
     _redis: ClassVar[redis.Redis]
 
     @classmethod
-    def init_redis(cls, redis_client: redis.Redis) -> None:
+    def init_redis(cls) -> None:
         """Set the shared Redis client. Called once at startup."""
+        redis_client = RedisClient.get()
         cls._redis = redis_client
 
     @classmethod

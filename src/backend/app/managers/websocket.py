@@ -5,6 +5,7 @@ from contextlib import suppress
 import redis.asyncio as redis
 from fastapi import WebSocket, WebSocketDisconnect
 from redis.asyncio.client import PubSub
+from app.singletons.redis import RedisClient
 
 from app.settings import settings
 from app.states.app import AppState
@@ -40,8 +41,9 @@ class WebSocketManager:
         for ws in stale:
             self._connections.discard(ws)
 
-    async def start(self, redis_client: redis.Redis) -> None:
+    async def start(self) -> None:
         """Subscribe to the state channel and start the background listener."""
+        redis_client = RedisClient.get()
         self._pubsub = redis_client.pubsub()
         await self._pubsub.subscribe(settings.STATE_CHANNEL)
         self._listener_task = asyncio.create_task(self._listen())
