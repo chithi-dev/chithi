@@ -87,7 +87,7 @@ class Settings(BaseSettings):
     MAX_RESULTS_PER_PAGE: int = 50
 
     # Security
-    EXTRA_TRUSTED_PROXY_NETWORKS: list[str]
+    EXTRA_TRUSTED_PROXY_NETWORKS: list[str] = []
 
     #   EXTRA_TRUSTED_PROXY_NETWORKS.append(ip_network("203.0.113.0/24"))
     @computed_field
