@@ -1,13 +1,12 @@
 import inspect
 from time import time_ns
 
-from app.settings import settings
 from fastapi_limiter.depends import RateLimiter
 from pyrate_limiter import BucketFactory, Limiter, Rate, RateItem
 from pyrate_limiter.buckets.redis_bucket import RedisBucket
-from redis.asyncio import ConnectionPool as AsyncConnectionPool
-from redis.asyncio import Redis as AsyncRedis
+from redis.asyncio import ConnectionPool as AsyncConnectionPool, Redis as AsyncRedis
 
+from app.settings import settings
 
 pool = AsyncConnectionPool.from_url(settings.REDIS_ENDPOINT)
 redis_db = AsyncRedis(connection_pool=pool)
