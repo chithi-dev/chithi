@@ -1,5 +1,4 @@
 import secrets
-from ipaddress import IPv4Network, IPv6Network, ip_network
 from typing import Literal
 
 from pydantic import PostgresDsn, computed_field
@@ -85,15 +84,6 @@ class Settings(BaseSettings):
 
     # Pagination
     MAX_RESULTS_PER_PAGE: int = 50
-
-    # Security
-    EXTRA_TRUSTED_PROXY_NETWORKS: list[str] = []
-
-    #   EXTRA_TRUSTED_PROXY_NETWORKS.append(ip_network("203.0.113.0/24"))
-    @computed_field
-    @property
-    def EXTRA_TRUSTED_PROXY_IP(self) -> list[IPv4Network | IPv6Network]:
-        return [ip_network(i) for i in self.EXTRA_TRUSTED_PROXY_NETWORKS]
 
 
 settings = Settings()  # type: ignore
