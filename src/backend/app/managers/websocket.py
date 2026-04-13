@@ -1,13 +1,12 @@
 import asyncio
+import contextlib
 import logging
-from contextlib import suppress
 
-import redis.asyncio as redis
 from fastapi import WebSocket, WebSocketDisconnect
 from redis.asyncio.client import PubSub
-from app.singletons.redis import RedisClient
 
 from app.settings import settings
+from app.singletons.redis import RedisClient
 from app.states.app import AppState
 
 logger = logging.getLogger(__name__)
@@ -52,7 +51,7 @@ class WebSocketManager:
         """Unsubscribe and cancel the background listener."""
         if self._listener_task is not None:
             self._listener_task.cancel()
-            with suppress(asyncio.CancelledError):
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._listener_task
         if self._pubsub is not None:
             await self._pubsub.unsubscribe(settings.STATE_CHANNEL)
