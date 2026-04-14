@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import (
     APIRouter,
@@ -95,7 +95,7 @@ async def upload_file(
         ContentType=file.content_type or "application/octet-stream",
     )
     upload_id = resp["UploadId"]
-    parts = []
+    parts: list[Any] = []
     part_number = 1
     uploaded_size = 0
 
@@ -134,7 +134,14 @@ async def upload_file(
                 Body=chunk,
             )
 
-            parts.append({"PartNumber": part_number, "ETag": part["ETag"]})
+            etag = part.get("ETag")
+            if not etag:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Missing ETag from S3 upload part response",
+                )
+
+            parts.append({"PartNumber": part_number, "ETag": etag})
             part_number += 1
             uploaded_size += len(chunk)
 

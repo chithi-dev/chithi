@@ -44,6 +44,8 @@ jobs:
           context: ./apps/landing-page
           file: ./apps/landing-page/Dockerfile
           push: true
+          secrets: |
+            github_token=${{ secrets.GHP_TOKEN }}
           tags: |
             ghcr.io/${{ github.repository }}-landing-page:latest
             ghcr.io/${{ github.repository }}-landing-page:${{ github.sha }}

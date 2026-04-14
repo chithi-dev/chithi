@@ -22,9 +22,9 @@ async def rate_limiter_guard(request: HTTPConnection, redis_client: RedisDep):
     for limit, window in endpoint._rate_limits:
         key = f"rl:{user_id}:{endpoint.__name__}:{window}"
 
-        is_limited = await redis_client.eval(
+        is_limited = redis_client.eval(
             rate_limit.code, 1, key, str(now), str(window), str(limit)
-        )  # type: ignore[misc]
+        )
 
         if is_limited:
             raise HTTPException(

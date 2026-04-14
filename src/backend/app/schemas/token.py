@@ -1,6 +1,6 @@
-from sqlmodel import SQLModel
-
 from typing import Literal
+
+from sqlmodel import SQLModel
 
 
 class Token(SQLModel):

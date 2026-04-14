@@ -2,7 +2,7 @@
 icon: lucide/package
 ---
 
-# Vanila (Bring your own reverse proxy)
+# Vanila with Watchtower Deployment (Bring your own reverse proxy)
 
 To host chithi, you need 3 parts.
 
@@ -176,6 +176,31 @@ Now you can use a caddyfile like:
 
     handle {
         reverse_proxy localhost:3000
+    }
+}
+```
+
+Or you can use Nginx configuration like:
+
+```nginx
+server {
+    listen 80;
+    server_name <your_domain>;
+
+    location /api/ {
+        proxy_pass http://localhost:8000/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 ```

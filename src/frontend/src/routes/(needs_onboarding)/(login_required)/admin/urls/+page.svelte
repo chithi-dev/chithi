@@ -1,55 +1,27 @@
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
+	import * as Pagination from '$lib/components/ui/pagination';
 	import { useFilesQuery, type FileInfo } from '#queries/files';
 	import { toast } from 'svelte-sonner';
 	import { page } from '$app/state';
 	import UrlMetricsCard from './url_metrics_card.svelte';
 	import OutstandingUrlsCard from './outstanding_urls_card.svelte';
 
-	const { files, revokeFile } = useFilesQuery();
+	let currentPage = $state(1);
+	const pageSize = 20;
 
-	let filesData = $derived(files.data ?? []);
-	let totalUrls = $derived(filesData.length);
-	let totalBytes = $derived(filesData.reduce((sum, file) => sum + (file.size ?? 0), 0));
+	const { files, revokeFile } = useFilesQuery(() => currentPage, pageSize);
 
-	function isExpired(file: FileInfo) {
-		const expiredByDate = file.expires_at
-			? new Date(file.expires_at).getTime() <= Date.now()
-			: false;
-		const expiredByDownloads =
-			file.expire_after_n_download !== undefined &&
-			file.download_count !== undefined &&
-			file.download_count >= file.expire_after_n_download;
-		return expiredByDate || expiredByDownloads;
-	}
-
-	let activeUrls = $derived(filesData.filter((file) => !isExpired(file)).length);
-	let linksWithDownloadCaps = $derived(
-		filesData.filter((file) => file.expire_after_n_download !== undefined).length
-	);
-
-	let expiringSoon = $derived(
-		filesData.filter((file) => {
-			if (!file.expires_at || isExpired(file)) return false;
-			const msRemaining = new Date(file.expires_at).getTime() - Date.now();
-			return msRemaining > 0 && msRemaining <= 24 * 60 * 60 * 1000;
-		}).length
-	);
-
+	let totalItems = $derived(files.data?.total_items ?? 0);
+	let totalBytes = $derived(files.data?.meta?.total_bytes ?? 0);
+	let activeUrls = $derived(files.data?.meta?.active_urls ?? 0);
+	let linksWithDownloadCaps = $derived(files.data?.meta?.links_with_download_caps ?? 0);
+	let expiringSoon = $derived(files.data?.meta?.expiring_soon ?? 0);
 	let latestExpiryMs = $derived(
-		filesData.reduce((latest, file) => {
-			if (isExpired(file) || !file.expires_at) return latest;
-			const expiresAtMs = new Date(file.expires_at).getTime();
-			return Number.isFinite(expiresAtMs) ? Math.max(latest, expiresAtMs) : latest;
-		}, 0)
+		files.data?.meta?.latest_expiry ? files.data.meta.latest_expiry * 1000 : 0
 	);
-
-	let hasIndefiniteActiveUrls = $derived(
-		filesData.some(
-			(file) => !isExpired(file) && !file.expires_at && file.expire_after_n_download === undefined
-		)
-	);
+	let hasIndefiniteActiveUrls = $derived(activeUrls > 0 && !latestExpiryMs);
 
 	function formatDuration(ms: number) {
 		if (ms <= 0) return 'Now';
@@ -116,13 +88,41 @@
 
 <div class="space-y-6">
 	<UrlMetricsCard
-		{totalUrls}
+		totalUrls={totalItems}
 		{timeToClearLabel}
 		{totalBytes}
 		{linksWithDownloadCaps}
 		{expiringSoon}
 	/>
 	<OutstandingUrlsCard {files} {isRevoking} {openRevokeDialog} {formatDate} />
+
+	<div class="flex items-center justify-end py-4">
+		<Pagination.Root count={totalItems} perPage={pageSize} bind:page={currentPage}>
+			{#snippet children({ pages, currentPage })}
+				<Pagination.Content>
+					<Pagination.Item>
+						<Pagination.PrevButton />
+					</Pagination.Item>
+					{#each pages as page (page.key)}
+						{#if page.type === 'page'}
+							<Pagination.Item>
+								<Pagination.Link {page} isActive={currentPage === page.value}>
+									{page.value}
+								</Pagination.Link>
+							</Pagination.Item>
+						{:else}
+							<Pagination.Item>
+								<Pagination.Ellipsis />
+							</Pagination.Item>
+						{/if}
+					{/each}
+					<Pagination.Item>
+						<Pagination.NextButton />
+					</Pagination.Item>
+				</Pagination.Content>
+			{/snippet}
+		</Pagination.Root>
+	</div>
 
 	<Dialog.Root bind:open={isRevokeDialogOpen}>
 		<Dialog.Content>

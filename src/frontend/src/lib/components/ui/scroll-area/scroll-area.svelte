@@ -1,10 +1,7 @@
 <script lang="ts">
 	import { ScrollArea as ScrollAreaPrimitive } from 'bits-ui';
-	import { Scrollbar } from './index';
+	import { Scrollbar } from './index.js';
 	import { cn, type WithoutChild } from '$lib/utils.js';
-	import { createVirtualizer, type VirtualizerOptions } from '@tanstack/svelte-virtual';
-	import type { VirtualItem } from '@tanstack/virtual-core';
-	import type { Snippet } from 'svelte';
 
 	let {
 		ref = $bindable(null),
@@ -13,8 +10,6 @@
 		orientation = 'vertical',
 		scrollbarXClasses = '',
 		scrollbarYClasses = '',
-		virtualOptions,
-		item,
 		children,
 		...restProps
 	}: WithoutChild<ScrollAreaPrimitive.RootProps> & {
@@ -22,20 +17,7 @@
 		scrollbarXClasses?: string | undefined;
 		scrollbarYClasses?: string | undefined;
 		viewportRef?: HTMLElement | null;
-		virtualOptions?:
-			| Omit<VirtualizerOptions<HTMLElement, HTMLElement>, 'getScrollElement'>
-			| undefined;
-		item?: Snippet<[VirtualItem]> | undefined;
 	} = $props();
-
-	const virtualizer = $derived(
-		virtualOptions && viewportRef
-			? createVirtualizer({ ...virtualOptions, getScrollElement: () => viewportRef })
-			: null
-	);
-
-	const virtualItems = $derived($virtualizer?.getVirtualItems() ?? []);
-	const totalSize = $derived($virtualizer?.getTotalSize() ?? 0);
 </script>
 
 <ScrollAreaPrimitive.Root
@@ -47,21 +29,9 @@
 	<ScrollAreaPrimitive.Viewport
 		bind:ref={viewportRef}
 		data-slot="scroll-area-viewport"
-		class="size-full rounded-[inherit] ring-ring/10 outline-ring/50 transition-[color,box-shadow] focus-visible:ring-4 focus-visible:outline-1 dark:ring-ring/20 dark:outline-ring/40"
+		class="cn-scroll-area-viewport size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
 	>
-		{#if virtualizer && item}
-			<div style="height: {totalSize}px; position: relative;">
-				{#each virtualItems as row (row.index)}
-					<div
-						style="position: absolute; top: 0; transform: translateY({row.start}px); width: 100%; height: {row.size}px;"
-					>
-						{@render item(row)}
-					</div>
-				{/each}
-			</div>
-		{:else}
-			{@render children?.()}
-		{/if}
+		{@render children?.()}
 	</ScrollAreaPrimitive.Viewport>
 	{#if orientation === 'vertical' || orientation === 'both'}
 		<Scrollbar orientation="vertical" class={scrollbarYClasses} />

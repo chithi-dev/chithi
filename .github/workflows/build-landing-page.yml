@@ -53,3 +53,4 @@ jobs:
               run: npm run build
               env:
                   NODE_OPTIONS: --max-old-space-size=4096
+                  GITHUB_TOKEN: ${{ secrets.GHP_TOKEN }}

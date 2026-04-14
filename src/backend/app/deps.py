@@ -15,6 +15,7 @@ from types_aiobotocore_s3 import S3Client
 from app import security
 from app.db import get_session
 from app.models import User
+from app.pagination import PaginationInput
 from app.schemas.token import TokenPayload
 from app.settings import settings
 
@@ -92,5 +93,13 @@ TokenDep = Annotated[
 CurrentUser = Annotated[User, Depends(get_current_user)]
 S3Dep = Annotated[S3Client, Depends(get_s3_client)]
 RedisDep = Annotated[Redis, Depends(get_redis)]
+PaginationDep = Annotated[PaginationInput, Depends()]
 
-__all__ = ["SessionDep", "CurrentUser", "TokenDep", "S3Dep", "RedisDep"]
+__all__ = [
+    "SessionDep",
+    "CurrentUser",
+    "TokenDep",
+    "S3Dep",
+    "RedisDep",
+    "PaginationDep",
+]

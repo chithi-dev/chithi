@@ -13,7 +13,9 @@ const nextConfig: NextConfig = {
         styledJsx: true,
     },
     productionBrowserSourceMaps: true,
-    reactCompiler: true,
+    reactCompiler: {
+        compilationMode: 'annotation',
+    },
 };
 
 export default nextConfig;

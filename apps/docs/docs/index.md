@@ -9,7 +9,6 @@ icon: lucide/rocket
 </div>
 
 <div align='center'>
-    <img alt="GitHub License" src="https://img.shields.io/github/license/baseplate-admin/chithi">
     <img alt="GitHub Issues or Pull Requests" src="https://img.shields.io/github/issues-closed/baseplate-admin/chithi">
     <img alt="GitHub repo size" src="https://img.shields.io/github/repo-size/baseplate-admin/chithi">
 </div>

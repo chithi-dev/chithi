@@ -1,4 +1,7 @@
 @import "tailwindcss";
+@import "@skeletonlabs/skeleton";
+@import "@skeletonlabs/skeleton-react";
+@import "@skeletonlabs/skeleton/themes/cerberus";
 
 @theme {
 	--font-mono: var(--font-jetbrains-mono);
@@ -17,10 +20,66 @@
 	}
 }
 
+/* Override Cerberus to match Sedna's stark minimalist design */
+[data-theme="cerberus"] {
+	/* Surface: Pure Black to White */
+	--color-surface-950: #000000;
+	--color-surface-900: #09090b;
+	--color-surface-800: #18181b;
+	--color-surface-700: #27272a;
+	--color-surface-600: #3f3f46;
+	--color-surface-500: #71717a;
+	--color-surface-400: #a1a1aa;
+	--color-surface-300: #d4d4d8;
+	--color-surface-200: #e4e4e7;
+	--color-surface-100: #f4f4f5;
+	--color-surface-50: #fafafa;
+
+	/* Primary: White Accent (reversing the scale slightly so primary-500 is white) */
+	--color-primary-950: #000000;
+	--color-primary-900: #09090b;
+	--color-primary-800: #18181b;
+	--color-primary-700: #27272a;
+	--color-primary-600: #3f3f46;
+	--color-primary-500: #ffffff;
+	--color-primary-400: #e4e4e7;
+	--color-primary-300: #d4d4d8;
+	--color-primary-200: #a1a1aa;
+	--color-primary-100: #71717a;
+	--color-primary-50: #52525b;
+
+	/* Ensure text on primary-500 (white buttons) is black */
+	--color-primary-contrast-500: #000000;
+
+	/* Secondary: Subtle Blue */
+	--color-secondary-950: #020617;
+	--color-secondary-900: #0f172a;
+	--color-secondary-800: #1e293b;
+	--color-secondary-700: #334155;
+	--color-secondary-600: #475569;
+	--color-secondary-500: #3b82f6;
+	--color-secondary-400: #60a5fa;
+	--color-secondary-300: #93c5fd;
+	--color-secondary-200: #bfdbfe;
+	--color-secondary-100: #dbeafe;
+	--color-secondary-50: #eff6ff;
+	--color-secondary-contrast-500: #ffffff;
+
+	/* Tertiary: Subtle Violet */
+	--color-tertiary-500: #8b5cf6;
+
+	/* Base overrides */
+	--body-background-color: var(--color-surface-50);
+	--body-background-color-dark: var(--color-surface-950);
+}
+
 body {
 	background: var(--background);
 	color: var(--foreground);
 	font-family: var(--font-inter);
-	overflow-x: hidden;
 }
 
+::selection {
+	background: var(--foreground);
+	color: var(--background);
+}

@@ -12,12 +12,33 @@ export type FileInfo = {
 	download_count?: number;
 };
 
-export const useFilesQuery = () => {
+export type PaginatedFiles = {
+	items: FileInfo[];
+	total_items: number;
+	start_index: number;
+	end_index: number;
+	total_pages: number;
+	current_page: number;
+	current_page_size: number;
+	meta: {
+		total_bytes: number;
+		active_urls: number;
+		links_with_download_caps: number;
+		expiring_soon: number;
+		latest_expiry?: number;
+	};
+};
+
+export const useFilesQuery = (page: () => number = () => 1, pageSize: number = 20) => {
 	const queryClient = useQueryClient();
 	const query = createQuery(() => ({
-		queryKey: ['admin-files'],
+		queryKey: ['admin-files', page(), pageSize],
 		queryFn: async () => {
-			const res = await fetch(Api.ADMIN.FILES, {
+			const url = new URL(Api.ADMIN.FILES, window.location.origin);
+			url.searchParams.set('page', page().toString());
+			url.searchParams.set('page_size', pageSize.toString());
+
+			const res = await fetch(url.toString(), {
 				credentials: 'include'
 			});
 
@@ -27,7 +48,7 @@ export const useFilesQuery = () => {
 				}
 				throw new Error(`Failed to fetch files: ${res.statusText}`);
 			}
-			return res.json() as Promise<FileInfo[]>;
+			return res.json() as Promise<PaginatedFiles>;
 		},
 		refetchInterval: 1000, // 1 second
 		retry: true

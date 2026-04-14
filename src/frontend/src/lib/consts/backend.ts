@@ -88,4 +88,12 @@ export class Api {
 			}
 		};
 	}
+
+	static get SPEEDTEST() {
+		return {
+			DOWNLOAD: this.#url('speedtest/download'),
+			UPLOAD: this.#url('speedtest/upload'),
+			LATENCY: this.#url('speedtest/latency')
+		};
+	}
 }

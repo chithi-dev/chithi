@@ -2,7 +2,6 @@
 	import { onDestroy } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
-	import { Api } from '#consts/backend';
 	import {
 		Card,
 		CardContent,
@@ -18,13 +17,15 @@
 	import { Separator } from '$lib/components/ui/separator';
 	import { PieChart, Text } from 'layerchart';
 	import { Play, RotateCw, Activity, ArrowDown, ArrowUp, Timer } from 'lucide-svelte';
+	import { Api } from '#consts/backend';
 	import SpeedtestWorker from './speedtest.worker?worker';
 	import { Progress } from '$lib/components/ui/progress';
 
 	let worker: Worker | undefined;
-	let status = $state<'idle' | 'downloading' | 'uploading' | 'finished' | 'error' | 'starting'>(
-		'idle'
-	);
+	let status = $state<
+		'idle' | 'measuring latency' | 'downloading' | 'uploading' | 'finished' | 'error' | 'starting'
+	>('idle');
+	let latency = $state(new Tween(0, { duration: 300, easing: cubicOut }));
 	let downloadSpeed = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 	let uploadSpeed = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 	let progress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
@@ -38,6 +39,7 @@
 		worker = new SpeedtestWorker();
 
 		status = 'starting';
+		latency = new Tween(0, { duration: 300, easing: cubicOut });
 		downloadSpeed = new Tween(0, { duration: 500, easing: cubicOut });
 		uploadSpeed = new Tween(0, { duration: 500, easing: cubicOut });
 		progress = new Tween(0, { duration: 500, easing: cubicOut });
@@ -47,21 +49,29 @@
 		worker.onmessage = (e) => {
 			const { type } = e.data;
 			if (type === 'phase') {
+				if (e.data.phase === 'latency') status = 'measuring latency';
 				if (e.data.phase === 'download') status = 'downloading';
 				if (e.data.phase === 'upload') status = 'uploading';
 				progress = new Tween(0, { duration: 500, easing: cubicOut });
 			} else if (type === 'progress') {
 				progress.target = e.data.progress * 100;
-				const currentSpeed = e.data.speed;
+				const currentSpeed = e.data.speed; // speed maps to value
 
-				if (e.data.phase === 'download') downloadSpeed.target = currentSpeed;
-				if (e.data.phase === 'upload') uploadSpeed.target = currentSpeed;
-
-				// Adjust gauge scale if speed exceeds current max (with hysteresis)
-				if (currentSpeed > maxSpeed * 0.9) {
-					maxSpeed = Math.max(maxSpeed * 2, Math.ceil(currentSpeed / 100) * 100 * 1.5);
+				if (e.data.phase === 'latency') latency.target = currentSpeed;
+				if (e.data.phase === 'download') {
+					downloadSpeed.target = currentSpeed;
+					if (currentSpeed > maxSpeed * 0.9) {
+						maxSpeed = Math.max(maxSpeed * 2, Math.ceil(currentSpeed / 100) * 100 * 1.5);
+					}
+				}
+				if (e.data.phase === 'upload') {
+					uploadSpeed.target = currentSpeed;
+					if (currentSpeed > maxSpeed * 0.9) {
+						maxSpeed = Math.max(maxSpeed * 2, Math.ceil(currentSpeed / 100) * 100 * 1.5);
+					}
 				}
 			} else if (type === 'result') {
+				if (e.data.key === 'latency') latency.target = e.data.value;
 				if (e.data.key === 'download') downloadSpeed.target = e.data.value;
 				if (e.data.key === 'upload') uploadSpeed.target = e.data.value;
 			} else if (type === 'finish') {
@@ -73,7 +83,7 @@
 			}
 		};
 
-		worker.postMessage({ type: 'start', baseUrl: Api.BASE, duration: testDuration });
+		worker.postMessage({ type: 'start', duration: testDuration, urls: Api.SPEEDTEST });
 	}
 
 	onDestroy(() => {
@@ -82,12 +92,19 @@
 
 	// Chart Config
 	const chartConfig = {
+		latency: { label: 'Latency', color: 'var(--color-emerald-400)' },
 		download: { label: 'Download', color: 'var(--color-cyan-400)' },
 		upload: { label: 'Upload', color: 'var(--color-purple-500)' }
 	} satisfies Chart.ChartConfig;
 </script>
 
-{#snippet RadialGauge(id: string, value: number, max: number, activeColor: string)}
+{#snippet RadialGauge(
+	id: string,
+	value: number,
+	max: number,
+	activeColor: string,
+	unit: string = 'Mbps'
+)}
 	<Chart.Container config={chartConfig} class="mx-auto aspect-square w-full">
 		<PieChart
 			data={[
@@ -116,7 +133,7 @@
 					dy={-20}
 				/>
 				<Text
-					value="Mbps"
+					value={unit}
 					textAnchor="middle"
 					verticalAnchor="middle"
 					class="fill-muted-foreground text-sm font-medium"
@@ -161,7 +178,26 @@
 		</CardHeader>
 		<CardContent class="space-y-8 py-4">
 			<!-- Gauges Container -->
-			<div class="grid grid-cols-1 gap-8 lg:grid-cols-2">
+			<div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
+				<!-- Latency Gauge -->
+				<div
+					class="flex flex-col items-center justify-center gap-4 rounded-xl border bg-muted/30 p-6 transition-colors"
+				>
+					<div class="flex items-center gap-2 font-semibold text-foreground">
+						<Activity class="h-4 w-4 text-emerald-400" />
+						Latency
+					</div>
+					<div class="relative h-48 w-48 xl:h-56 xl:w-56">
+						{@render RadialGauge(
+							'latency',
+							latency.current,
+							Math.max(500, latency.current * 1.5),
+							chartConfig.latency.color,
+							'ms'
+						)}
+					</div>
+				</div>
+
 				<!-- Download Gauge -->
 				<div
 					class="flex flex-col items-center justify-center gap-4 rounded-xl border bg-muted/30 p-6 transition-colors"
@@ -170,7 +206,7 @@
 						<ArrowDown class="h-4 w-4 text-cyan-400" />
 						Download Speed
 					</div>
-					<div class="relative h-56 w-56">
+					<div class="relative h-48 w-48 xl:h-56 xl:w-56">
 						{@render RadialGauge(
 							'download',
 							downloadSpeed.current,
@@ -188,7 +224,7 @@
 						<ArrowUp class="h-4 w-4 text-purple-500" />
 						Upload Speed
 					</div>
-					<div class="relative h-56 w-56">
+					<div class="relative h-48 w-48 xl:h-56 xl:w-56">
 						{@render RadialGauge('upload', uploadSpeed.current, maxSpeed, chartConfig.upload.color)}
 					</div>
 				</div>
@@ -200,7 +236,10 @@
 				<div
 					class={[
 						'absolute inset-0 flex flex-col justify-center space-y-2 transition-all duration-300',
-						status === 'downloading' || status === 'uploading' || status === 'starting'
+						status === 'measuring latency' ||
+						status === 'downloading' ||
+						status === 'uploading' ||
+						status === 'starting'
 							? 'translate-y-0 opacity-100'
 							: 'pointer-events-none translate-y-2 opacity-0'
 					]}
