@@ -5,11 +5,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any, Awaitable, cast
 
-from app.lua import (
-    json_remove_file_by_key,
-    json_remove_upload_by_key,
-    json_update_uploaded_bytes_by_key,
-)
+from app import lua
 from app.schemas.reverse import (
     ActiveUpload,
     AddHostOut,
@@ -206,7 +202,7 @@ class RoomState(GlobalState):
         key = _room_key(room_id)
         client = cls._client()
         result_or_awaitable = client.eval(
-            json_remove_file_by_key.code, 1, key, file_key
+            lua.json_remove_file_by_key.code, 1, key, file_key
         )
         result = await cast(Awaitable[Any], result_or_awaitable)
         if result is None:
@@ -257,7 +253,7 @@ class RoomState(GlobalState):
         key = _room_key(room_id)
         await cls._client().execute_command(
             "EVAL",
-            json_update_uploaded_bytes_by_key.code,
+            lua.json_update_uploaded_bytes_by_key.code,
             1,
             key,
             upload_key,
@@ -268,7 +264,7 @@ class RoomState(GlobalState):
     async def remove_active_upload(cls, room_id: str, upload_key: str) -> None:
         key = _room_key(room_id)
         await cls._client().execute_command(
-            "EVAL", json_remove_upload_by_key.code, 1, key, upload_key
+            "EVAL", lua.json_remove_upload_by_key.code, 1, key, upload_key
         )
 
     @classmethod

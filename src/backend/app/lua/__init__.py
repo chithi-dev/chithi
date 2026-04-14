@@ -23,20 +23,20 @@ def _load_lua_file(path: Path) -> LuaModule:
 
 
 # Weak cache allows GC when unused
-_cache: "weakref.WeakValueDictionary[str, LuaModule]" = weakref.WeakValueDictionary()
-
+_cache: weakref.WeakValueDictionary[str, LuaModule] = weakref.WeakValueDictionary()
 _paths: dict[str, Path] = {file.stem: file for file in BASE_DIR.glob("*.lua")}
 
 
 def __getattr__(name: str) -> LuaModule:
-    """Lazy load Lua modules on attribute access."""
+    try:
+        module = _cache[name]
+    except KeyError:
+        try:
+            path = _paths[name]
+        except KeyError:
+            raise AttributeError(name) from None
 
-    if name not in _paths:
-        raise AttributeError(name)
-
-    module = _cache.get(name)
-    if module is None:
-        module = _load_lua_file(_paths[name])
+        module = _load_lua_file(path)
         _cache[name] = module
 
     return module
