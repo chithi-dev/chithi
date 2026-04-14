@@ -13,7 +13,7 @@
 
 	import LoginForm from './login_form.svelte';
 	import AnimatedGrid from '$lib/components/AnimatedGrid.svelte';
-	import { validateRedirectUrl } from '$lib/utils';
+	import { validateRedirectUrl } from '$lib/functions/urls';
 
 	const nextUrl = $derived.by(() => {
 		const next = page.url.searchParams.get('next') ?? '/';

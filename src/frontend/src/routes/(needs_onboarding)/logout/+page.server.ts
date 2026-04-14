@@ -1,6 +1,6 @@
 import { logout } from '$lib/remote/auth.remote';
 import { redirect } from '@sveltejs/kit';
-import { validateRedirectUrl } from '$lib/utils';
+import { validateRedirectUrl } from '$lib/functions/urls';
 
 export const actions = {
 	default: async ({ url }) => {
