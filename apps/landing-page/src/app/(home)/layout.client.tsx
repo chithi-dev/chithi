@@ -3,8 +3,8 @@
 import { AppBar } from '@skeletonlabs/skeleton-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { GithubIcon as Github } from '@/icons/github';
 import { Star, GitBranch } from 'lucide-react';
+import { SiGithub } from '@icons-pack/react-simple-icons';
 
 type GithubRepoData = {
     stargazerCount: number;
@@ -43,7 +43,7 @@ export function Navbar({ repo }: Props) {
                             href="https://github.com/chithi-dev/chithi"
                             className="btn btn-sm hover:preset-tonal flex items-center gap-2 rounded-full border border-surface-200-800 px-4 transition-colors"
                         >
-                            <Github size={16} />
+                            <SiGithub size={16} />
                             {repo?.latestRelease?.tagName && (
                                 <span className="opacity-50">
                                     {repo.latestRelease.tagName}

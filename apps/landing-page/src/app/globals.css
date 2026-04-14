@@ -8,10 +8,7 @@
 	--font-sans: var(--font-inter);
 }
 
-:root {
-	--background: #ffffff;
-	--foreground: #171717;
-}
+@custom-variant dark (&:where(.dark, .dark *));
 
 @media (prefers-color-scheme: dark) {
 	:root {
@@ -79,7 +76,3 @@ body {
 	font-family: var(--font-inter);
 }
 
-::selection {
-	background: var(--foreground);
-	color: var(--background);
-}

@@ -37,6 +37,9 @@ dependencies = [
     # Mandatory type
     "types-aiobotocore-s3>=2.25.2",
     "types-aioboto3>=15.5.0",
+    # Rate limiting
+    "pyrate-limiter>=4.1.0",
+    "fastapi-limiter>=0.2.0",
 ]
 
 [dependency-groups]

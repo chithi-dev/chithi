@@ -71,7 +71,7 @@ const data = [
         title: 'API Reference',
         desc: 'OpenAPI/Swagger documentation.',
         icon: Code,
-        href: '/scalar',
+        href: '/schemas',
     },
     {
         title: 'Architecture',

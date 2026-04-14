@@ -15,11 +15,11 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Separator } from '$lib/components/ui/separator';
-	import { PieChart, Text } from 'layerchart';
 	import { Play, RotateCw, Activity, ArrowDown, ArrowUp, Timer } from 'lucide-svelte';
 	import { Api } from '#consts/backend';
 	import SpeedtestWorker from './speedtest.worker?worker';
-	import { Progress } from '$lib/components/ui/progress';
+	import SpeedGauge from './SpeedGauge.svelte';
+	import SpeedGraph from './SpeedGraph.svelte';
 
 	let worker: Worker | undefined;
 	let status = $state<
@@ -31,6 +31,9 @@
 	let progress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 	let errorMsg = $state('');
 
+	let downloadHistory = $state<{ progress: number; speed: number }[]>([]);
+	let uploadHistory = $state<{ progress: number; speed: number }[]>([]);
+
 	let maxSpeed = $state(100); // Dynamic scale for the gauge
 	let testDuration = $state(10);
 
@@ -39,10 +42,12 @@
 		worker = new SpeedtestWorker();
 
 		status = 'starting';
-		latency = new Tween(0, { duration: 300, easing: cubicOut });
-		downloadSpeed = new Tween(0, { duration: 500, easing: cubicOut });
-		uploadSpeed = new Tween(0, { duration: 500, easing: cubicOut });
-		progress = new Tween(0, { duration: 500, easing: cubicOut });
+		latency.set(0, { duration: 0 });
+		downloadSpeed.set(0, { duration: 0 });
+		uploadSpeed.set(0, { duration: 0 });
+		progress.set(0, { duration: 0 });
+		downloadHistory = [];
+		uploadHistory = [];
 		errorMsg = '';
 		maxSpeed = 100;
 
@@ -60,12 +65,14 @@
 				if (e.data.phase === 'latency') latency.target = currentSpeed;
 				if (e.data.phase === 'download') {
 					downloadSpeed.target = currentSpeed;
+					downloadHistory.push({ progress: e.data.progress, speed: currentSpeed });
 					if (currentSpeed > maxSpeed * 0.9) {
 						maxSpeed = Math.max(maxSpeed * 2, Math.ceil(currentSpeed / 100) * 100 * 1.5);
 					}
 				}
 				if (e.data.phase === 'upload') {
 					uploadSpeed.target = currentSpeed;
+					uploadHistory.push({ progress: e.data.progress, speed: currentSpeed });
 					if (currentSpeed > maxSpeed * 0.9) {
 						maxSpeed = Math.max(maxSpeed * 2, Math.ceil(currentSpeed / 100) * 100 * 1.5);
 					}
@@ -97,52 +104,6 @@
 		upload: { label: 'Upload', color: 'var(--color-purple-500)' }
 	} satisfies Chart.ChartConfig;
 </script>
-
-{#snippet RadialGauge(
-	id: string,
-	value: number,
-	max: number,
-	activeColor: string,
-	unit: string = 'Mbps'
-)}
-	<Chart.Container config={chartConfig} class="mx-auto aspect-square w-full">
-		<PieChart
-			data={[
-				{ key: 'value', value: value, color: activeColor },
-				{
-					key: 'remaining',
-					value: Math.max(0, max - value),
-					color: `color-mix(in srgb, ${activeColor} 35%, white)`
-				}
-			]}
-			key="key"
-			value="value"
-			c="color"
-			innerRadius={0.75}
-			padding={0}
-			range={[-90, 90]}
-			props={{ pie: { sort: null } }}
-			cornerRadius={10}
-		>
-			{#snippet aboveMarks()}
-				<Text
-					value={String(value.toFixed(1))}
-					textAnchor="middle"
-					verticalAnchor="middle"
-					class="fill-foreground text-4xl font-bold"
-					dy={-20}
-				/>
-				<Text
-					value={unit}
-					textAnchor="middle"
-					verticalAnchor="middle"
-					class="fill-muted-foreground text-sm font-medium"
-					dy={15}
-				/>
-			{/snippet}
-		</PieChart>
-	</Chart.Container>
-{/snippet}
 
 <div class="flex h-full w-full flex-col justify-center">
 	<Card class="mx-auto w-full border-border bg-card transition-all duration-200">
@@ -179,7 +140,7 @@
 		<CardContent class="space-y-8 py-4">
 			<!-- Gauges Container -->
 			<div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
-				<!-- Latency Gauge -->
+				<!-- Latency Text -->
 				<div
 					class="flex flex-col items-center justify-center gap-4 rounded-xl border bg-muted/30 p-6 transition-colors"
 				>
@@ -187,14 +148,13 @@
 						<Activity class="h-4 w-4 text-emerald-400" />
 						Latency
 					</div>
-					<div class="relative h-48 w-48 xl:h-56 xl:w-56">
-						{@render RadialGauge(
-							'latency',
-							latency.current,
-							Math.max(500, latency.current * 1.5),
-							chartConfig.latency.color,
-							'ms'
-						)}
+					<div class="flex h-36 w-full items-center justify-center md:h-48 xl:h-56">
+						<div class="flex items-baseline gap-1">
+							<span class="text-6xl font-bold text-foreground tabular-nums"
+								>{latency.current.toFixed(0)}</span
+							>
+							<span class="text-xl font-medium text-muted-foreground">ms</span>
+						</div>
 					</div>
 				</div>
 
@@ -206,13 +166,12 @@
 						<ArrowDown class="h-4 w-4 text-cyan-400" />
 						Download Speed
 					</div>
-					<div class="relative h-48 w-48 xl:h-56 xl:w-56">
-						{@render RadialGauge(
-							'download',
-							downloadSpeed.current,
-							maxSpeed,
-							chartConfig.download.color
-						)}
+					<div class="relative w-48 xl:w-56">
+						<SpeedGauge
+							value={downloadSpeed.current}
+							activeColor={chartConfig.download.color}
+							unit="Mbps"
+						/>
 					</div>
 				</div>
 
@@ -224,33 +183,41 @@
 						<ArrowUp class="h-4 w-4 text-purple-500" />
 						Upload Speed
 					</div>
-					<div class="relative h-48 w-48 xl:h-56 xl:w-56">
-						{@render RadialGauge('upload', uploadSpeed.current, maxSpeed, chartConfig.upload.color)}
+					<div class="relative w-48 xl:w-56">
+						<SpeedGauge
+							value={uploadSpeed.current}
+							activeColor={chartConfig.upload.color}
+							unit="Mbps"
+						/>
 					</div>
 				</div>
 			</div>
 
-			<!-- Status Area -->
-			<div class="relative h-14 w-full">
-				<!-- Progress Bar -->
-				<div
-					class={[
-						'absolute inset-0 flex flex-col justify-center space-y-2 transition-all duration-300',
-						status === 'measuring latency' ||
-						status === 'downloading' ||
-						status === 'uploading' ||
-						status === 'starting'
-							? 'translate-y-0 opacity-100'
-							: 'pointer-events-none translate-y-2 opacity-0'
-					]}
-				>
-					<div class="flex justify-between text-xs text-muted-foreground">
-						<span>Progress</span>
-						<span>{Math.round(progress.current)}%</span>
-					</div>
-					<Progress value={progress.current} class="h-2" />
-				</div>
+			<!-- Dynamic Graph -->
+			<div class="w-full pt-4">
+				<SpeedGraph
+					{downloadHistory}
+					{uploadHistory}
+					{maxSpeed}
+					{testDuration}
+					downloadColor={chartConfig.download.color}
+					uploadColor={chartConfig.upload.color}
+					activePhase={status.includes('download')
+						? 'download'
+						: status.includes('upload')
+							? 'upload'
+							: null}
+					currentSpeed={status.includes('download')
+						? downloadSpeed.current
+						: status.includes('upload')
+							? uploadSpeed.current
+							: 0}
+					currentProgress={progress.current / 100}
+				/>
+			</div>
 
+			<!-- Status Area -->
+			<div class="relative h-2 w-full">
 				<!-- Error Message -->
 				<div
 					class={[

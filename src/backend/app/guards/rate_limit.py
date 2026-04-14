@@ -1,33 +1,30 @@
-import time
+import inspect
+from time import time_ns
 
-from fastapi import HTTPException
-from starlette.requests import HTTPConnection
+from fastapi_limiter.depends import RateLimiter
+from pyrate_limiter import BucketFactory, Limiter, Rate, RateItem
+from pyrate_limiter.buckets.redis_bucket import RedisBucket
 
-from app.deps import RedisDep
-from app.lua import rate_limit
+from app.singletons.redis import RedisClient
 
 
-async def rate_limiter_guard(request: HTTPConnection, redis_client: RedisDep):
-    if request.scope.get("type") == "websocket":
-        return
+class RedisBucketFactory(BucketFactory):
+    def __init__(self, *rates: Rate):
+        self.rates = list(rates)
+        self._buckets = {}
 
-    endpoint = request.scope.get("endpoint")
-    if not endpoint or not hasattr(endpoint, "_rate_limits"):
-        return
+    def wrap_item(self, name: str, weight: int = 1) -> RateItem:
+        return RateItem(name, time_ns() // 1_000_000, weight=weight)
 
-    client_host = request.client.host if request.client else "unknown"
-    user_id = request.headers.get("X-Forwarded-For", client_host).split(",")[0]
-    now = time.time()
+    async def get(self, item: RateItem) -> RedisBucket:
+        bucket_key = f"rate_limit:{item.name}"
+        if bucket_key not in self._buckets:
+            res = RedisBucket.init(self.rates, RedisClient.get(), bucket_key)
+            if inspect.isawaitable(res):
+                res = await res
+            self._buckets[bucket_key] = res
+        return self._buckets[bucket_key]
 
-    for limit, window in endpoint._rate_limits:
-        key = f"rl:{user_id}:{endpoint.__name__}:{window}"
 
-        is_limited = redis_client.eval(
-            rate_limit.code, 1, key, str(now), str(window), str(limit)
-        )
-
-        if is_limited:
-            raise HTTPException(
-                status_code=429,
-                detail=f"Rate limit exceeded: {limit} requests per {window}s.",
-            )
+def get_rate_limiter(*rates: Rate) -> RateLimiter:
+    return RateLimiter(limiter=Limiter(RedisBucketFactory(*rates)))

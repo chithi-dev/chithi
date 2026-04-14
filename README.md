@@ -1,6 +1,6 @@
 <div align='center'>
     <img height=100 src="https://raw.githubusercontent.com/baseplate-admin/chithi/main/assets/logo.svg"/>
-    <h2> Chithi ( চিঠি ) </h2>
+    <h2> Chithi </h2>
 </div>
 
 

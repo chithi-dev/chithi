@@ -30,7 +30,7 @@ export default async function RootLayout({
                 <link rel="icon" href="/favicon.svg" />
             </head>
             <body
-                className={`${inter.variable} ${jetbrainsMono.variable} bg-surface-50-950 text-surface-950-50 antialiased selection:bg-primary-500 selection:text-white`}
+                className={`${inter.variable} ${jetbrainsMono.variable} bg-surface-50-950 text-surface-950-50 antialiased selection:bg-primary-500 selection:text-[#171717]`}
             >
                 <StyledJsxRegistry>
                     <Providers>{children}</Providers>
