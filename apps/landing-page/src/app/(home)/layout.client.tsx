@@ -41,7 +41,7 @@ export function Navbar({ repo }: Props) {
                     <AppBar.Trail>
                         <a
                             href="https://github.com/chithi-dev/chithi"
-                            className="btn btn-sm hover:preset-tonal flex items-center gap-2 rounded-full border border-surface-200-800 px-4 transition-colors"
+                            className="btn btn-sm ml-2 flex items-center gap-2 rounded-full border border-surface-200-800 px-3 transition-colors"
                         >
                             <SiGithub size={16} />
                             {repo?.latestRelease?.tagName && (
