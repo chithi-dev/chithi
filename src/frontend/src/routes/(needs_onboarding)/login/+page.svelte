@@ -17,15 +17,11 @@
 
 	const nextUrl = $derived.by(() => {
 		const next = page.url.searchParams.get('next') ?? '/';
-		try {
-			const url = validateRedirectUrl(next, page.url.origin);
-			if (url.startsWith('/admin')) {
-				return '/';
-			}
-			return url;
-		} catch {
+		const url = validateRedirectUrl(next, page.url.origin);
+		if (url.startsWith('/admin')) {
 			return '/';
 		}
+		return url;
 	});
 
 	let { data } = $props();
