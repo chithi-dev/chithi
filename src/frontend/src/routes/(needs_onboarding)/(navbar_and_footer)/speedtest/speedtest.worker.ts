@@ -121,60 +121,55 @@ const testDownload = async (duration: number): Promise<number> => {
 };
 
 const testUpload = async (duration: number): Promise<number> => {
-	// Reusable 1MB chunk to eliminate aggressive memory allocations during high-speed tests
-	const chunkSize = 1 << 20;
-	const chunkData = new Uint8Array(chunkSize);
-	for (let i = 0; i < chunkSize; i += 65536) {
-		crypto.getRandomValues(chunkData.subarray(i, i + Math.min(65536, chunkSize - i)));
-	}
-
 	let totalBytes = 0;
 	const startTime = performance.now();
 	let lastReport = startTime;
 
-	while (getElapsedSeconds(startTime) < duration) {
-		const remainingMs = Math.max(0, duration * 1_000 - (performance.now() - startTime));
-		const signal = AbortSignal.timeout(remainingMs);
+	// Larger payload and concurrent connections to saturate the upload link
+	const payloadSize = 5 * 1024 * 1024; // 5 MB
+	const buffer = new Uint8Array(payloadSize);
+	crypto.getRandomValues(buffer.subarray(0, 65536));
+	const payload = new Blob([buffer], { type: 'application/octet-stream' });
 
-		try {
-			// Stream up to 250MB per single request connection to avoid TCP slow-start restarts
-			const maxBytesPerRequest = 250 << 20;
-			let bytesInCurrentRequest = 0;
+	// Base concurrent connections on CPU cores, fallback to 6
+	let concurrentConnections = navigator.hardwareConcurrency;
+	concurrentConnections ||= 6;
 
-			const stream = new ReadableStream({
-				pull(controller) {
-					const elapsed = getElapsedSeconds(startTime);
-					if (elapsed >= duration || bytesInCurrentRequest >= maxBytesPerRequest) {
-						controller.close();
-						return;
-					}
+	const uploadStream = async () => {
+		while (getElapsedSeconds(startTime) < duration) {
+			const remainingMs = Math.max(0, duration * 1_000 - (performance.now() - startTime));
+			if (remainingMs <= 0) break;
 
-					// Enqueue the identical 1MB buffer. Supremely memory efficient and fast.
-					controller.enqueue(chunkData);
-					totalBytes += chunkSize;
-					bytesInCurrentRequest += chunkSize;
+			const signal = AbortSignal.timeout(remainingMs);
 
-					if (performance.now() - lastReport > 100) {
-						reportProgress('upload', getMbps(totalBytes, elapsed), Math.min(elapsed / duration, 1));
-						lastReport = performance.now();
-					}
+			try {
+				await fetch(endpoints!.UPLOAD, {
+					method: 'POST',
+					body: payload,
+					cache: 'no-store',
+					signal
+				});
+
+				totalBytes += payloadSize;
+				const elapsed = getElapsedSeconds(startTime);
+
+				if (performance.now() - lastReport > 100) {
+					reportProgress('upload', getMbps(totalBytes, elapsed), Math.min(elapsed / duration, 1));
+					lastReport = performance.now();
 				}
-			});
-
-			await fetch(endpoints!.UPLOAD, {
-				method: 'POST',
-				body: stream,
-				// @ts-expect-error duplex is required when using a ReadableStream body in Fetch
-				duplex: 'half',
-				cache: 'no-store',
-				signal
-			});
-		} catch (err: unknown) {
-			if (err instanceof Error && err.name !== 'TimeoutError' && err.name !== 'AbortError') {
-				throw err;
+			} catch (err: unknown) {
+				if (err instanceof Error && err.name !== 'TimeoutError' && err.name !== 'AbortError') {
+					throw err;
+				}
 			}
 		}
-	}
+	};
+
+	await Promise.all(
+		Array(concurrentConnections)
+			.fill(0)
+			.map(() => uploadStream())
+	);
 
 	const finalElapsed = Math.max(getElapsedSeconds(startTime), 0.001);
 	const finalSpeed = getMbps(totalBytes, finalElapsed);
