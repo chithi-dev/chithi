@@ -11,20 +11,15 @@ const resolveFetch = (fetch?: typeof globalThis.fetch) => fetch ?? globalThis.fe
 const fetchUser = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
 	if (browser && user_store.is_authenticated === false) return null;
 
-	let runtimeFetch: typeof globalThis.fetch | null = null;
-	try {
-		runtimeFetch = resolveFetch(fetch);
-	} catch {
-		await logoutRemote();
-		return null;
-	}
+	let runtimeFetch = resolveFetch(fetch);
 
 	const res = await runtimeFetch(Api.USER, {
 		credentials: 'include'
 	});
 
-	if (!res.ok || res.status === 401) {
+	if (!res.ok || [401, 403].includes(res.status)) {
 		if (browser) user_store.unauthenticate();
+		await logoutRemote();
 		return null;
 	}
 
