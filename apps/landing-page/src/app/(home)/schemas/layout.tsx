@@ -7,7 +7,7 @@ export default async function SchemasLayout({
 }: {
     children: ReactNode;
 }) {
-    const res = await fetch(OPENAPI_URL, { next: { revalidate: 3600 } });
+    const res = await fetch(OPENAPI_URL);
     if (!res.ok) {
         throw new Error(`Failed to fetch OpenAPI spec: ${res.status}`);
     }

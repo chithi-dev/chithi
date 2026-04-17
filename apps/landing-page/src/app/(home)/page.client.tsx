@@ -146,19 +146,27 @@ export default function HomeClient({ release }: { release: Release }) {
         if (typeof navigator === 'undefined') return 'unknown';
         const ua =
             navigator.userAgent || navigator.vendor || (window as any).opera;
-        const s = ua.toLowerCase();
-        if (s.includes('windows')) return 'windows';
+        const tokenize = (s?: string) =>
+            new Set(
+                (s ?? '')
+                    .toLowerCase()
+                    .split(/[^a-z0-9]+/)
+                    .filter(Boolean),
+            );
+        const tokens = tokenize(ua);
+        if (tokens.has('windows')) return 'windows';
         if (
-            s.includes('mac') ||
-            s.includes('darwin') ||
-            s.includes('iphone') ||
-            s.includes('ipad')
+            tokens.has('mac') ||
+            tokens.has('macintosh') ||
+            tokens.has('darwin') ||
+            tokens.has('iphone') ||
+            tokens.has('ipad')
         )
             return 'macos';
         if (
-            s.includes('linux') ||
-            s.includes('ubuntu') ||
-            s.includes('android')
+            tokens.has('linux') ||
+            tokens.has('ubuntu') ||
+            tokens.has('android')
         )
             return 'linux';
         return 'unknown';
@@ -171,23 +179,27 @@ export default function HomeClient({ release }: { release: Release }) {
             navigator.platform ||
             ''
         ).toLowerCase();
+        const tokenize = (s?: string) =>
+            new Set(
+                (s ?? '')
+                    .toLowerCase()
+                    .split(/[^a-z0-9]+/)
+                    .filter(Boolean),
+            );
+        const tokens = tokenize(ua);
 
-        if (ua.includes('aarch64') || ua.includes('arm64')) return 'arm64';
-        if (
-            ua.includes('armv7') ||
-            ua.includes('armv7l') ||
-            ua.includes('armhf')
-        )
+        if (tokens.has('aarch64') || tokens.has('arm64')) return 'arm64';
+        if (tokens.has('armv7') || tokens.has('armv7l') || tokens.has('armhf'))
             return 'armv7';
         if (
-            ua.includes('amd64') ||
-            ua.includes('x86_64') ||
-            ua.includes('wow64') ||
-            ua.includes('win64') ||
-            ua.includes('x64')
+            tokens.has('amd64') ||
+            tokens.has('x86_64') ||
+            tokens.has('wow64') ||
+            tokens.has('win64') ||
+            tokens.has('x64')
         )
             return 'x86_64';
-        if (ua.includes('i386') || ua.includes('i686') || ua.includes('ia32'))
+        if (tokens.has('i386') || tokens.has('i686') || tokens.has('ia32'))
             return 'i386';
         return 'unknown';
     }
@@ -198,10 +210,30 @@ export default function HomeClient({ release }: { release: Release }) {
             name: string;
             browser_download_url: string;
         }[];
-        const name = (n: string) => n.toLowerCase();
+
+        const tokenize = (s?: string) =>
+            new Set(
+                (s ?? '')
+                    .toLowerCase()
+                    .split(/[^a-z0-9]+/)
+                    .filter(Boolean),
+            );
+
+        const normalizeKeyword = (k: string) =>
+            k.toLowerCase().replace(/^[.]/, '');
+
+        const matchesKeyword = (assetName: string, kw: string) => {
+            const tokens = tokenize(assetName);
+            const nk = normalizeKeyword(kw);
+            if (tokens.has(nk)) return true;
+            const parts = nk.split(/[-_.:]+/).filter(Boolean);
+            if (parts.some((p) => tokens.has(p))) return true;
+            return assetName.toLowerCase().includes(nk);
+        };
+
         const tryKeywords = (keywords: string[]) => {
             for (const k of keywords) {
-                const found = assets.find((a) => name(a.name).includes(k));
+                const found = assets.find((a) => matchesKeyword(a.name, k));
                 if (found) return found.browser_download_url;
             }
             return null;
@@ -238,9 +270,9 @@ export default function HomeClient({ release }: { release: Release }) {
         // Try to match both OS and arch in the filename
         if (archKeywords.length && osKeywords.length) {
             const found = assets.find((a) => {
-                const n = name(a.name);
-                const ok = osKeywords.some((k) => n.includes(k));
-                const ak = archKeywords.some((k) => n.includes(k));
+                const n = a.name;
+                const ok = osKeywords.some((k) => matchesKeyword(n, k));
+                const ak = archKeywords.some((k) => matchesKeyword(n, k));
                 return ok && ak;
             });
             if (found) return found.browser_download_url;

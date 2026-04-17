@@ -1,0 +1,7 @@
+$fonts: 'inter', 'jetbrains-mono';
+
+@each $font in $fonts {
+	@at-root {
+		@import url('@fontsource-variable/#{$font}');
+	}
+}

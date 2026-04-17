@@ -28,7 +28,7 @@ export default function SchemasPage() {
                     <Link
                         key={schema.id}
                         href={schema.href}
-                        className="group relative flex flex-col items-center text-center p-10 bg-surface-100-900 border border-surface-200-800 rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-lg w-full sm:w-[380px]"
+                        className="group relative flex flex-col items-center text-center p-10 bg-surface-100-900 border border-surface-200-800 rounded-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-lg w-full sm:w-95"
                     >
                         <div
                             className={`${schema.colorClass} rounded-2xl w-16 h-16 flex items-center justify-center text-white mb-6 shadow-sm transition-transform group-hover:scale-110`}

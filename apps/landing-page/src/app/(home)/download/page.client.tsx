@@ -20,15 +20,28 @@ export default function DownloadView({
     const release = releases[selectedReleaseIndex];
 
     const assets = release.releaseAssets?.nodes ?? [];
-    const windows = assets.filter((a) =>
-        a.name.toLowerCase().includes('windows'),
-    );
-    const macos = assets.filter(
-        (a) =>
-            a.name.toLowerCase().includes('macos') ||
-            a.name.toLowerCase().includes('darwin'),
-    );
-    const linux = assets.filter((a) => a.name.toLowerCase().includes('linux'));
+
+    // Tokenize asset names into a Set for reliable platform detection.
+    const tokenizeName = (name?: string) =>
+        new Set(
+            (name ?? '')
+                .toLowerCase()
+                .split(/[^a-z0-9]+/)
+                .filter(Boolean),
+        );
+
+    const windows = assets.filter((a) => {
+        const tokens = tokenizeName(a.name);
+        return tokens.has('windows') || tokens.has('win');
+    });
+    const macos = assets.filter((a) => {
+        const tokens = tokenizeName(a.name);
+        return tokens.has('macos') || tokens.has('darwin') || tokens.has('mac');
+    });
+    const linux = assets.filter((a) => {
+        const tokens = tokenizeName(a.name);
+        return tokens.has('linux');
+    });
 
     return (
         <main className="relative z-10 mx-auto w-full max-w-7xl px-6 pt-24 pb-20 md:pt-40 md:pb-32">
