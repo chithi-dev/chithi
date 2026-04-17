@@ -79,10 +79,6 @@
 }
 
 @theme inline {
-	/* Map font-family tokens directly */
-	--font-sans: var(--font-sans);
-	--font-mono: var(--font-mono);
-
 	--radius-sm: calc(var(--radius) - 4px);
 	--radius-md: calc(var(--radius) - 2px);
 	--radius-lg: var(--radius);
@@ -134,13 +130,11 @@
 		@apply border-border outline-ring/50;
 	}
 	html {
-		/* Optimize for variable fonts */
-		font-variation-settings: 'wght' 400;
-		scroll-behavior: smooth;
+		@apply scroll-smooth;
 	}
+
 	body {
 		@apply bg-background text-foreground antialiased;
-		font-family: var(--font-sans);
 	}
 
 	/* Use JetBrains Mono for inline code and preformatted blocks */
