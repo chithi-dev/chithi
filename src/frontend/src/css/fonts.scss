@@ -1,2 +1,7 @@
-@use "@fontsource-variable/geist";
-@use "@fontsource-variable/jetbrains-mono";
+$fonts: "geist", "jetbrains-mono";
+
+@each $font in $fonts {
+  @at-root {
+    @import url("@fontsource-variable/#{$font}");
+  }
+}
