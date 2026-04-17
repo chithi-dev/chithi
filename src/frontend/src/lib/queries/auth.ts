@@ -17,7 +17,8 @@ const fetchUser = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
 		credentials: 'include'
 	});
 
-	if (!res.ok || [401, 403].includes(res.status)) {
+	const AUTH_ERRORS = new Set([401, 403]);
+	if (!res.ok || AUTH_ERRORS.has(res.status)) {
 		if (browser) user_store.unauthenticate();
 		await logoutRemote();
 		return null;
