@@ -78,7 +78,7 @@ const testLatency = async (): Promise<number> => {
 };
 
 const testDownload = async (duration: number): Promise<number> => {
-	const size = 100 << 20; // 100MB for modern connections
+	const size = 100 << 20; // 100MB | 1 << 20 = 1024 * 1024 = 1,048,576
 	const endpoint = new URL(endpoints!.DOWNLOAD);
 	endpoint.searchParams.set('bytes', size.toString());
 
@@ -88,18 +88,26 @@ const testDownload = async (duration: number): Promise<number> => {
 
 	while (getElapsedSeconds(startTime) < duration) {
 		const remainingMs = Math.max(0, duration * 1_000 - (performance.now() - startTime));
-		const signal = AbortSignal.timeout(remainingMs);
+		const controller = new AbortController();
+		const timeoutId = setTimeout(() => controller.abort(), remainingMs);
+		const signal = controller.signal;
 
 		try {
 			const response = await fetch(endpoint, { signal, cache: 'no-store' });
 			if (!response.body) throw new Error('No response body');
 
-			// ESNext: Async Iteration over ReadableStream
-			for await (const chunk of response.body as unknown as AsyncIterable<Uint8Array>) {
-				totalBytes += chunk.byteLength;
+			const reader = response.body.getReader();
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+
+				totalBytes += value.byteLength;
 				const elapsed = getElapsedSeconds(startTime);
 
-				if (elapsed >= duration) break;
+				if (elapsed >= duration) {
+					reader.cancel();
+					break;
+				}
 
 				if (performance.now() - lastReport > 100) {
 					reportProgress('download', getMbps(totalBytes, elapsed), Math.min(elapsed / duration, 1));
@@ -110,6 +118,8 @@ const testDownload = async (duration: number): Promise<number> => {
 			if (err instanceof Error && err.name !== 'AbortError' && err.name !== 'TimeoutError') {
 				throw err;
 			}
+		} finally {
+			clearTimeout(timeoutId);
 		}
 	}
 
@@ -125,8 +135,9 @@ const testUpload = async (duration: number): Promise<number> => {
 	const startTime = performance.now();
 	let lastReport = startTime;
 
-	// Use a large payload so XHR can track progress continuously over one connection
-	const payloadSize = 50 * 1024 * 1024; // 50 MB
+	// On iOS Safari, Web Workers have very strict memory limits that can silently kill the process.
+	// We use a smaller payload (e.g., 5MB) generated dynamically to prevent iOS memory limit crashes (Jetsam).
+	const payloadSize = 5 << 20; // 5 MB | 1 << 20 = 1024 * 1024 = 1,048,576
 	const buffer = new Uint8Array(payloadSize);
 	crypto.getRandomValues(buffer.subarray(0, 65536));
 	const payload = new Blob([buffer], { type: 'application/octet-stream' });
