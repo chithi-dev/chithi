@@ -1,6 +1,2 @@
-// Geist
-@each $i in ("geist",'jetbrains-mono') {
-  @at-root {
-    @import "@fontsource-variable/#{$i}";
-  }
-}
+@use "@fontsource-variable/geist";
+@use "@fontsource-variable/jetbrains-mono";
