@@ -1,7 +1,7 @@
-$fonts: "geist", "jetbrains-mono";
+$fonts: 'geist', 'jetbrains-mono';
 
 @each $font in $fonts {
-  @at-root {
-    @import url("@fontsource-variable/#{$font}");
-  }
+	@at-root {
+		@import url('@fontsource-variable/#{$font}');
+	}
 }

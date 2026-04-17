@@ -13,7 +13,8 @@
 		"prepare": "svelte-kit sync || echo ''",
 		"preview": "vite preview",
 		"test": "npm run test:unit -- --run",
-		"test:unit": "vitest"
+		"test:unit": "vitest",
+		"update-ui": "node scripts/update-ui.js"
 	},
 	"devDependencies": {
 		"@codemirror/commands": "^6.10.3",
@@ -27,7 +28,7 @@
 		"@fontsource-variable/jetbrains-mono": "^5.2.8",
 		"@icons-pack/svelte-simple-icons": "^7.1.0",
 		"@internationalized/date": "^3.12.0",
-		"@lucide/svelte": "^1.7.0",
+		"@lucide/svelte": "^1.8.0",
 		"@sveltejs/adapter-auto": "^7.0.1",
 		"@sveltejs/adapter-node": "^5.5.4",
 		"@sveltejs/kit": "^2.55.0",
