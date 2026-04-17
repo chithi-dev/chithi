@@ -119,66 +119,11 @@
 	--color-sidebar-ring: var(--sidebar-ring);
 
 	/* Custom animation  */
-	--animate-blob: blob 7s infinite;
-	--animate-pulse-slow: pulse-slow 8s ease-in-out infinite;
-	--animate-float: float 10s linear infinite;
-	--animate-twinkle: twinkle 4s ease-in-out infinite;
 	--animate-dash: dash 0.5s linear infinite;
 
 	@keyframes dash {
 		to {
 			stroke-dashoffset: 20;
-		}
-	}
-
-	@keyframes blob {
-		0% {
-			transform: translate(0px, 0px) scale(1);
-		}
-		33% {
-			transform: translate(30px, -50px) scale(1.1);
-		}
-		66% {
-			transform: translate(-20px, 20px) scale(0.9);
-		}
-		100% {
-			transform: translate(0px, 0px) scale(1);
-		}
-	}
-
-	@keyframes pulse-slow {
-		0%,
-		100% {
-			opacity: 1;
-		}
-		50% {
-			opacity: 0.8;
-		}
-	}
-
-	@keyframes float {
-		0% {
-			transform: translateY(0px) translateX(0px);
-			opacity: 0;
-		}
-		50% {
-			opacity: 1;
-		}
-		100% {
-			transform: translateY(-100px) translateX(20px);
-			opacity: 0;
-		}
-	}
-
-	@keyframes twinkle {
-		0%,
-		100% {
-			opacity: 0.2;
-			transform: scale(0.8);
-		}
-		50% {
-			opacity: 1;
-			transform: scale(1.2);
 		}
 	}
 }

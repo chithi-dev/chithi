@@ -6,6 +6,7 @@
 	import { Check } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Skeleton } from '$lib/components/ui/skeleton';
+	import AnimatedGrid from '$lib/components/AnimatedGrid.svelte';
 
 	// Steps
 	import Step1 from './stage_1.svelte';
@@ -33,18 +34,7 @@
 <div
 	class="relative flex min-h-svh items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-zinc-950"
 >
-	<!-- Detailed Background Elements -->
-	<div class="absolute inset-0 z-0">
-		<div
-			class="absolute -top-24 -left-24 h-125 w-125 rounded-full bg-blue-500/10 blur-[120px] dark:bg-primary/20"
-		></div>
-		<div
-			class="absolute -right-24 -bottom-24 h-125 w-125 rounded-full bg-indigo-500/10 blur-[120px] dark:bg-indigo-500/10"
-		></div>
-		<div
-			class="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] mask-[radial-gradient(ellipse_at_center,black,transparent_90%)] bg-size-[40px_40px] dark:bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)]"
-		></div>
-	</div>
+	<AnimatedGrid />
 
 	<!-- Step Content Container -->
 	<div class="z-10 w-full max-w-100 transition-all duration-500 {step === 2 ? 'max-w-xl' : ''}">

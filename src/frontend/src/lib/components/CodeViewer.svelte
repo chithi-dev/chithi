@@ -179,15 +179,4 @@
 	});
 </script>
 
-<div class="cm-wrapper" bind:this={container}></div>
-
-<style>
-	.cm-wrapper {
-		height: 100%;
-		overflow: hidden;
-
-		:global(.cm-editor) {
-			height: 100%;
-		}
-	}
-</style>
+<div class="h-full overflow-hidden [&_.cm-editor]:h-full" bind:this={container}></div>

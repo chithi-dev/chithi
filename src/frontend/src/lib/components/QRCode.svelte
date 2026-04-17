@@ -41,10 +41,13 @@
 	});
 </script>
 
-<!-- I dont like the fact that canvas is a image and people can right click canvas to get the image  -->
-<!-- So i am making the canvas unclickable using the same technique facebook/instagram uses  -->
 <div
-	class="grid h-fit w-fit after:col-start-1 after:row-start-1 after:h-full after:w-full after:content-['']"
+	class={cn(
+		`grid h-fit w-fit`,
+		// I dont like the fact that canvas is a image and people can right click canvas to get the image
+		// So i am making the canvas unclickable using the same technique facebook/instagram uses
+		`after:col-start-1 after:row-start-1 after:h-full after:w-full after:content-['']`
+	)}
 >
 	<canvas bind:this={canvas} class={cn(klass, 'col-start-1 row-start-1')}></canvas>
 </div>
