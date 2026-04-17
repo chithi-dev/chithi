@@ -14,7 +14,7 @@
 		"preview": "vite preview",
 		"test": "npm run test:unit -- --run",
 		"test:unit": "vitest",
-		"update-ui": "node scripts/update-ui.js"
+		"update-ui": "node --experimental-strip-types scripts/update-ui.ts"
 	},
 	"devDependencies": {
 		"@codemirror/commands": "^6.10.3",
