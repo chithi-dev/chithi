@@ -126,7 +126,7 @@ const testUpload = async (duration: number): Promise<number> => {
 	let lastReport = startTime;
 
 	// Use a large payload so XHR can track progress continuously over one connection
-	const payloadSize = 25 * 1024 * 1024; // 25 MB
+	const payloadSize = 50 * 1024 * 1024; // 50 MB
 	const buffer = new Uint8Array(payloadSize);
 	crypto.getRandomValues(buffer.subarray(0, 65536));
 	const payload = new Blob([buffer], { type: 'application/octet-stream' });
@@ -160,7 +160,7 @@ const testUpload = async (duration: number): Promise<number> => {
 			xhr.onabort = () => resolve();
 
 			// Cache busting parameter to prevent any caching optimisations
-			xhr.open('POST', `${endpoints!.UPLOAD}?r=${Math.random()}`, true);
+			xhr.open('POST', `${endpoints!.UPLOAD}`, true);
 			xhr.send(payload);
 		});
 	}
