@@ -1,16 +1,13 @@
-const hostPattern = /^(?<token>[^:]+):(?<key>[^:]+)$/;
+const SEP = ':';
 
-export const isHost = (host: string): boolean => !!host?.includes(':') && hostPattern.test(host);
+export const isHost = (h = '') => h.indexOf(SEP) !== -1;
 
-export const extractEncryptionKey = (host: string) => {
-	if (!host) return null;
-	if (!host.includes(':')) return host;
-
-	return hostPattern.exec(host)?.groups?.key ?? host;
+export const extractHostToken = (h = '') => {
+	const i = h.indexOf(SEP);
+	return i === -1 ? '' : h.slice(0, i);
 };
 
-export const extractHostToken = (host: string): string => {
-	if (!host?.includes(':')) return '';
-
-	return hostPattern.exec(host)?.groups?.token ?? '';
+export const extractEncryptionKey = (h = '') => {
+	const i = h.indexOf(SEP);
+	return i === -1 ? null : h.slice(i + 1);
 };
