@@ -125,51 +125,45 @@ const testUpload = async (duration: number): Promise<number> => {
 	const startTime = performance.now();
 	let lastReport = startTime;
 
-	// Larger payload and concurrent connections to saturate the upload link
-	const payloadSize = 5 * 1024 * 1024; // 5 MB
+	// Use a large payload so XHR can track progress continuously over one connection
+	const payloadSize = 25 * 1024 * 1024; // 25 MB
 	const buffer = new Uint8Array(payloadSize);
 	crypto.getRandomValues(buffer.subarray(0, 65536));
 	const payload = new Blob([buffer], { type: 'application/octet-stream' });
 
-	// Base concurrent connections on CPU cores, fallback to 6
-	let concurrentConnections = navigator.hardwareConcurrency;
-	concurrentConnections ||= 6;
+	while (getElapsedSeconds(startTime) < duration) {
+		await new Promise<void>((resolve) => {
+			const xhr = new XMLHttpRequest();
+			let lastLoaded = 0;
 
-	const uploadStream = async () => {
-		while (getElapsedSeconds(startTime) < duration) {
-			const remainingMs = Math.max(0, duration * 1_000 - (performance.now() - startTime));
-			if (remainingMs <= 0) break;
+			xhr.upload.onprogress = (e) => {
+				// Add only the new bytes uploaded since the last progress event
+				const diff = e.loaded - lastLoaded;
+				totalBytes += diff;
+				lastLoaded = e.loaded;
 
-			const signal = AbortSignal.timeout(remainingMs);
-
-			try {
-				await fetch(endpoints!.UPLOAD, {
-					method: 'POST',
-					body: payload,
-					cache: 'no-store',
-					signal
-				});
-
-				totalBytes += payloadSize;
 				const elapsed = getElapsedSeconds(startTime);
+
+				if (elapsed >= duration) {
+					xhr.abort();
+					return; // onabort will then handle resolving the promise
+				}
 
 				if (performance.now() - lastReport > 100) {
 					reportProgress('upload', getMbps(totalBytes, elapsed), Math.min(elapsed / duration, 1));
 					lastReport = performance.now();
 				}
-			} catch (err: unknown) {
-				if (err instanceof Error && err.name !== 'TimeoutError' && err.name !== 'AbortError') {
-					throw err;
-				}
-			}
-		}
-	};
+			};
 
-	await Promise.all(
-		Array(concurrentConnections)
-			.fill(0)
-			.map(() => uploadStream())
-	);
+			xhr.onload = () => resolve();
+			xhr.onerror = () => resolve();
+			xhr.onabort = () => resolve();
+
+			// Cache busting parameter to prevent any caching optimisations
+			xhr.open('POST', `${endpoints!.UPLOAD}?r=${Math.random()}`, true);
+			xhr.send(payload);
+		});
+	}
 
 	const finalElapsed = Math.max(getElapsedSeconds(startTime), 0.001);
 	const finalSpeed = getMbps(totalBytes, finalElapsed);
