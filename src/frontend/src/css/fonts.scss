@@ -1,13 +1,2 @@
-// Geist
-@each $i in (100, 200, 300, 400, 500, 600, 700, 800, 900) {
-  @at-root {
-    @import url("@fontsource/geist/#{$i}.css");
-  }
-}
-
-// Jetbrains Mono
-@each $i in (100, 200, 300, 400, 500, 600, 700, 800) {
-  @at-root {
-    @import url("@fontsource/jetbrains-mono/#{$i}.css");
-  }
-}
+@use "@fontsource-variable/geist";
+@use "@fontsource-variable/jetbrains-mono";
