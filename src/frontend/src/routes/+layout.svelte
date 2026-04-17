@@ -1,7 +1,11 @@
 <script lang="ts">
-	import '#css/fonts.scss';
+
 	import '#css/nprogress.scss';
 	import '#css/tailwind.css';
+
+	// Fonts import
+	import "@fontsource/geist";
+import "@fontsource/jetbrains-mono";
 
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
