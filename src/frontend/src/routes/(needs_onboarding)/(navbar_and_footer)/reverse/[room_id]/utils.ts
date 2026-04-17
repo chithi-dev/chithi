@@ -1,13 +1,28 @@
-const SEP = ':';
+const SEPARATOR = ':';
 
-export const isHost = (h = '') => h.indexOf(SEP) !== -1;
+const splitHost = (host: string) => {
+	const separatorIndex = host.indexOf(SEPARATOR);
 
-export const extractHostToken = (h = '') => {
-	const i = h.indexOf(SEP);
-	return i === -1 ? '' : h.slice(0, i);
+	if (separatorIndex === -1) {
+		return null;
+	}
+
+	const token = host.slice(0, separatorIndex);
+	const key = host.slice(separatorIndex + 1);
+
+	return { token, key };
 };
 
-export const extractEncryptionKey = (h = '') => {
-	const i = h.indexOf(SEP);
-	return i === -1 ? null : h.slice(i + 1);
+export const isHost = (host: string): boolean => {
+	return host.includes(SEPARATOR);
+};
+
+export const extractHostToken = (host: string): string => {
+	const parsed = splitHost(host);
+	return parsed?.token ?? '';
+};
+
+export const extractEncryptionKey = (host: string): string | null => {
+	const parsed = splitHost(host);
+	return parsed?.key ?? null;
 };
