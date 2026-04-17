@@ -8,7 +8,7 @@ export const octokit = new Octokit({
             return fetch(url, {
                 ...opts,
                 next: {
-                    revalidate: 10, // Cache for 10 seconds to prevent rate limits
+                    revalidate: 1, // Cache for 1 second to prevent rate limits | 2000 request per minute
                 },
             });
         },
