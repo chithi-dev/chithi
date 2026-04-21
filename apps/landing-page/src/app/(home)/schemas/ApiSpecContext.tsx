@@ -1,23 +1,21 @@
-'use client';
+"use client";
 
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, ReactNode, useContext } from "react";
 
-const ApiSpecContext = createContext<any>(null);
+const ApiSpecContext = createContext<object | null>(null);
 
 export function ApiSpecProvider({
-    spec,
-    children,
+	spec,
+	children,
 }: {
-    spec: any;
-    children: ReactNode;
+	spec: object;
+	children: ReactNode;
 }) {
-    return (
-        <ApiSpecContext.Provider value={spec}>
-            {children}
-        </ApiSpecContext.Provider>
-    );
+	return (
+		<ApiSpecContext.Provider value={spec}>{children}</ApiSpecContext.Provider>
+	);
 }
 
 export function useApiSpec() {
-    return useContext(ApiSpecContext);
+	return useContext(ApiSpecContext);
 }
