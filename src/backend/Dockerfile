@@ -27,8 +27,12 @@ FROM python:3.14-alpine
 # Python executable must be the same, e.g., using `python:3.11-slim-bookworm`
 # will fail.
 
-# Copy the application from the builder
-COPY --from=builder --chown=app:app /app /app
+## Create a non-root user and group for running the application
+RUN addgroup -S chithi \
+    && adduser -S -G chithi -h /app -s /bin/sh chithi
+
+# Copy the application from the builder and make it owned by the chithi user
+COPY --from=builder --chown=chithi:chithi /app /app
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
@@ -36,4 +40,8 @@ ENV PATH="/app/.venv/bin:$PATH"
 ENV HOST=127.0.0.1
 ENV PORT=8000
 EXPOSE 8000/udp 8000/tcp
+
+# Use a non-root user
+WORKDIR /app
+USER chithi
 
