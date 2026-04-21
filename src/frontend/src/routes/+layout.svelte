@@ -25,11 +25,7 @@
 
 	let SvelteQueryDevtools = $state<Component<any> | null>(null);
 
-	if (import.meta.env.DEV) {
-		loadDevtools().then((c) => {
-			SvelteQueryDevtools = c;
-		});
-	}
+	SvelteQueryDevtools = await loadDevtools();
 
 	// NProgress
 	$effect.pre(() => {
