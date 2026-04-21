@@ -2,6 +2,7 @@
 	import { fly } from 'svelte/transition';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import { dev } from '$app/environment';
 	import {
 		Info,
 		GitCommitHorizontal,
@@ -12,21 +13,20 @@
 		ChevronLeft
 	} from 'lucide-svelte';
 	import favicon from '$lib/assets/logo.svg';
-	import AnimatedGrid from '$lib/components/AnimatedGrid.svelte';
+	import FancyGrid from '$lib/components/FancyGrid.svelte';
 
-	const version = __APP_VERSION__;
-	const commit = __COMMIT_SHA__;
+	const version = __APP_VERSION__ ?? '0.0.0-dev';
+	const commit = __COMMIT_SHA__ ?? 'unknown';
 	const repo = 'https://github.com/chithi-dev/chithi';
-	const commitUrl = `${repo}/commit/${commit}`;
+	const commitUrl = commit === 'unknown' ? repo : `${repo}/commit/${commit}`;
 
-	const isDevelopment = version.startsWith('v0.0.0');
 	const shortCommit = commit.slice(0, 12);
 </script>
 
 <div
 	class="relative flex min-h-svh items-center justify-center overflow-hidden bg-card p-4 transition-colors duration-500"
 >
-	<AnimatedGrid />
+	<FancyGrid />
 
 	<a
 		href="/"
@@ -82,82 +82,67 @@
 					</div>
 					System Specifications
 				</Card.Title>
-				<Card.Description>
-					These values are embedded at build time so you can identify exactly which instance is
-					running.
-				</Card.Description>
+				<Card.Description>These values are embedded at build time.</Card.Description>
 			</Card.Header>
 
-			<Card.Content class="grid gap-4">
-				<div class="grid gap-4 sm:grid-cols-3">
-					<div
-						class="group relative flex flex-col gap-1 overflow-hidden rounded-xl border border-border/60 bg-background/60 p-4 sm:col-span-2"
-					>
-						<div class="flex items-center justify-between gap-3">
-							<div
-								class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
-							>
-								<Tag class="h-3 w-3" />
-								Build Signature
-							</div>
-							{#if isDevelopment}
-								<div
-									class="rounded-full bg-yellow-500/10 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-yellow-600 ring-1 ring-yellow-500/30 dark:text-yellow-400"
-								>
-									UNSTABLE
-								</div>
-							{:else}
-								<div
-									class="rounded-full bg-green-500/10 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-green-600 ring-1 ring-green-500/30 dark:text-green-400"
-								>
-									STABLE
-								</div>
-							{/if}
-						</div>
-						<div
-							class="mt-2 font-mono text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
-						>
-							{version}
-						</div>
-
-						<div
-							class="pointer-events-none absolute -right-6 -bottom-6 opacity-[0.04] transition-opacity group-hover:opacity-[0.07]"
-						>
-							<ShieldCheck class="h-24 w-24" />
-						</div>
-					</div>
-
-					<div
-						class="flex flex-col justify-between rounded-xl border border-border/60 bg-background/60 p-4"
-					>
+			<Card.Content class="grid gap-4 sm:grid-cols-2">
+				<div
+					class="group relative flex flex-col gap-1 overflow-hidden rounded-xl border border-border/60 bg-background/60 p-4"
+				>
+					<div class="flex items-center justify-between gap-3">
 						<div
 							class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
 						>
-							<ShieldCheck class="h-3 w-3" />
-							Deployment
+							<Tag class="h-3 w-3" />
+							Build Signature
 						</div>
-						<div class="mt-3 flex items-center gap-2 text-sm font-medium text-foreground">
-							<div class="h-1.5 w-1.5 animate-pulse rounded-full bg-primary"></div>
-							{isDevelopment ? 'Local Node' : 'Production Cluster'}
-						</div>
-						<p class="mt-2 text-xs text-muted-foreground">
-							{isDevelopment
-								? 'Built for fast local iteration and testing.'
-								: 'Built for hardened uptime and multi-user traffic.'}
-						</p>
+						{#if dev}
+							<div
+								class="rounded-full bg-yellow-500/10 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-yellow-600 ring-1 ring-yellow-500/30 dark:text-yellow-400"
+							>
+								UNSTABLE
+							</div>
+						{:else}
+							<div
+								class="rounded-full bg-green-500/10 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-green-600 ring-1 ring-green-500/30 dark:text-green-400"
+							>
+								STABLE
+							</div>
+						{/if}
+					</div>
+					<div
+						class="mt-2 font-mono text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
+					>
+						{version}
+					</div>
+					<p class="mt-2 text-xs text-muted-foreground">
+						{dev
+							? 'Running in local mode for rapid iteration.'
+							: 'Running in production mode for uptime and scale.'}
+					</p>
+
+					<div
+						class="pointer-events-none absolute -right-6 -bottom-6 opacity-[0.04] transition-opacity group-hover:opacity-[0.07]"
+					>
+						<ShieldCheck class="h-24 w-24" />
 					</div>
 				</div>
 
-				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+				<div
+					class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40"
+				>
 					<div
-						class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40"
+						class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
 					>
-						<div
-							class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
-						>
-							<GitCommitHorizontal class="h-3 w-3" />
-							Source Revision
-						</div>
+						<GitCommitHorizontal class="h-3 w-3" />
+						{dev ? 'Local Development' : 'Source Revision'}
+					</div>
+					{#if dev}
+						<p class="text-sm font-semibold text-foreground">Running from your local workspace.</p>
+						<p class="text-xs text-muted-foreground">
+							Revision links are shown on production builds.
+						</p>
+					{:else}
 						<a
 							href={commitUrl}
 							target="_blank"
@@ -170,33 +155,10 @@
 								class="h-3 w-3 shrink-0 opacity-40 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100"
 							/>
 						</a>
-						<p class="truncate font-mono text-xs text-muted-foreground">{commit}</p>
-					</div>
-
-					<div
-						class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40"
-					>
-						<div
-							class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
-						>
-							<ExternalLink class="h-3 w-3" />
-							Project Links
-						</div>
-						<a
-							href={repo}
-							target="_blank"
-							rel="noopener noreferrer"
-							class="group flex items-center gap-2 text-sm font-semibold text-primary transition-colors hover:text-primary/80"
-						>
-							<span class="truncate">github.com/chithi-dev/chithi</span>
-							<ExternalLink
-								class="h-3 w-3 shrink-0 opacity-40 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100"
-							/>
-						</a>
 						<p class="text-xs text-muted-foreground">
-							Read docs for deployment notes and configuration references.
+							Open this revision in GitHub for full diff and metadata.
 						</p>
-					</div>
+					{/if}
 				</div>
 			</Card.Content>
 
@@ -224,16 +186,5 @@
 				</Button>
 			</Card.Footer>
 		</Card.Root>
-
-		<div class="flex justify-center pt-1">
-			<Button
-				variant="ghost"
-				href="/"
-				class="group gap-2 text-xs font-semibold tracking-[0.3em] text-muted-foreground uppercase transition-colors hover:text-foreground"
-			>
-				<House class="h-4 w-4 transition-transform duration-300 group-hover:-translate-y-0.5" />
-				Back to Terminal
-			</Button>
-		</div>
 	</div>
 </div>

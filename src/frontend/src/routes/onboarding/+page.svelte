@@ -6,7 +6,7 @@
 	import { Check } from 'lucide-svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import AnimatedGrid from '$lib/components/AnimatedGrid.svelte';
+	import FancyGrid from '$lib/components/FancyGrid.svelte';
 	import { OnboardingStep } from './enums';
 
 	// Steps
@@ -35,7 +35,7 @@
 <div
 	class="relative flex min-h-svh items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-zinc-950"
 >
-	<AnimatedGrid />
+	<FancyGrid />
 
 	<!-- Step Content Container -->
 	<div

@@ -12,7 +12,7 @@
 	import { fly } from 'svelte/transition';
 
 	import LoginForm from './login_form.svelte';
-	import AnimatedGrid from '$lib/components/AnimatedGrid.svelte';
+	import FancyGrid from '$lib/components/FancyGrid.svelte';
 	import { validateRedirectUrl } from '$lib/functions/urls';
 
 	const nextUrl = $derived.by(() => {
@@ -30,7 +30,7 @@
 <div
 	class="relative flex min-h-svh items-center justify-center overflow-hidden bg-card p-4 transition-colors duration-500"
 >
-	<AnimatedGrid />
+	<FancyGrid />
 
 	<a
 		href={nextUrl}
