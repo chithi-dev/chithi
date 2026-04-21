@@ -133,7 +133,7 @@ export default function HomeClient({ release }: { release: Release }) {
                     : o.charAt(0).toUpperCase() + o.slice(1);
             setDetectedOSLabel(` (${displayOS})`);
         }
-    }, []);
+    }, [detectOS, detectArch]);
 
     const [downloadOS, setDownloadOS] = useState<
         'auto' | 'windows' | 'macos' | 'linux'
@@ -257,7 +257,7 @@ export default function HomeClient({ release }: { release: Release }) {
 
         let arch: string | undefined = undefined;
         if (normalizedOs.includes(':')) {
-            const [o, a] = normalizedOs.split(':', 2);
+            const [_o, a] = normalizedOs.split(':', 2);
             arch = a;
         }
 
@@ -324,20 +324,21 @@ export default function HomeClient({ release }: { release: Release }) {
 
                 <div className="max-w-4xl" data-aos="fade-up">
                     <div className="badge preset-outlined-surface-200-800 mb-8 rounded-full font-medium tracking-wide">
-                        End-to-End Encryption
+                        Open Source & Privacy-first
                     </div>
 
                     <h1 className="mb-6 font-bold text-5xl leading-tight tracking-tighter md:text-7xl lg:text-[5rem] lg:leading-[1.1]">
-                        Stop leaking files. <br />
+                        Encrypted file sharing you control. <br />
                         <span className="text-surface-600-400">
-                            Share securely.
+                            Self-hosted. Open-source.
                         </span>
                     </h1>
 
                     <p className="mx-auto mb-10 max-w-2xl font-light text-surface-600-400 text-xl leading-relaxed">
-                        Self-hostable, open-source, and encrypted by default.
-                        Built with RustFS for speed and FastAPI for reliability.
-                        Take back control of your data.
+                        Open-source, self-hostable, and encrypted by default.
+                        Built with RustFS for performance and FastAPI for
+                        reliability. Run it anywhere, inspect the code, and
+                        contribute.
                     </p>
 
                     <div className="flex flex-wrap items-center justify-center gap-4">
@@ -370,10 +371,10 @@ export default function HomeClient({ release }: { release: Release }) {
                     <h2 className="h2 mb-4 font-bold tracking-tight">
                         Download CLI binaries
                     </h2>
-                    <p className="font-light text-lg text-surface-600-400 leading-relaxed mb-6">
-                        Grab the latest Chithi CLI for your platform.
-                        Auto-detect tries to select the best binary for your
-                        device.
+                    <p className="mb-6 font-light text-lg text-surface-600-400 leading-relaxed">
+                        Official CLI releases are published on GitHub. Select
+                        your OS and architecture (or let us auto-detect), or
+                        build from source for maximum transparency.
                     </p>
 
                     <div className="flex items-center justify-center gap-3">
@@ -417,7 +418,7 @@ export default function HomeClient({ release }: { release: Release }) {
 
                         <Link
                             href="/download"
-                            className="font-medium text-surface-600-400 hover:text-white ml-2"
+                            className="ml-2 font-medium text-surface-600-400 hover:text-white"
                         >
                             Advanced downloads ↗
                         </Link>
@@ -441,9 +442,9 @@ export default function HomeClient({ release }: { release: Release }) {
                         Self-host in minutes
                     </h2>
                     <p className="font-light text-lg text-surface-600-400 leading-relaxed">
-                        Simple, flexible deployment for your home lab or VPS.
-                        Spin up our Docker containers and take back ownership of
-                        your files.
+                        Deploy with Docker Compose, Helm, or build from source.
+                        Community-maintained examples and configs make it easy
+                        to run on a home server, VPS, or cloud.
                     </p>
                 </div>
 
@@ -623,9 +624,9 @@ export default function HomeClient({ release }: { release: Release }) {
                             Open Source & Fully Documented
                         </h2>
                         <p className="font-light text-lg text-surface-600-400 leading-relaxed">
-                            Detailed guides for self-hosting, contributing, and
-                            hacking on the API. Everything you need to run
-                            Chithi your way.
+                            Comprehensive docs, examples, and contribution
+                            guides — everything you need to run, customize, and
+                            contribute to Chithi.
                         </p>
                     </div>
                 </div>

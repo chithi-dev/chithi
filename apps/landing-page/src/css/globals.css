@@ -4,8 +4,8 @@
 @import "@skeletonlabs/skeleton/themes/cerberus";
 
 @theme {
-	--font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
-	--font-sans: 'Inter Variable', Inter, ui-sans-serif, system-ui;
+	--font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+	--font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui;
 }
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -75,4 +75,3 @@ body {
 	color: var(--foreground);
 	font-family: var(--font-sans);
 }
-
