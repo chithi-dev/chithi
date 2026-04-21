@@ -4,7 +4,7 @@ import { Octokit } from "octokit";
 export const octokit = new Octokit({
 	auth: process.env.GITHUB_TOKEN || undefined,
 	request: {
-		fetch: (url: string, opts: any) => {
+		fetch: (url: string, opts: [string, RequestInit]) => {
 			return fetch(url, {
 				...opts,
 				next: {

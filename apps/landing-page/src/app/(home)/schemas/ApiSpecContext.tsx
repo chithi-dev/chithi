@@ -2,13 +2,13 @@
 
 import { createContext, ReactNode, useContext } from "react";
 
-const ApiSpecContext = createContext<any>(null);
+const ApiSpecContext = createContext<object | null>(null);
 
 export function ApiSpecProvider({
 	spec,
 	children,
 }: {
-	spec: any;
+	spec: object;
 	children: ReactNode;
 }) {
 	return (
