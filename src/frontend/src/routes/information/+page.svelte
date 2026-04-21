@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { fly } from 'svelte/transition';
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
+	import { dev } from '$app/environment';
 	import {
 		Info,
 		GitCommitHorizontal,
@@ -8,192 +10,181 @@
 		BookOpen,
 		ExternalLink,
 		ShieldCheck,
-		House
+		ChevronLeft
 	} from 'lucide-svelte';
 	import favicon from '$lib/assets/logo.svg';
-	import AnimatedGrid from '$lib/components/AnimatedGrid.svelte';
+	import FancyGrid from '$lib/components/FancyGrid.svelte';
 
-	const version = __APP_VERSION__;
-	const commit = __COMMIT_SHA__;
+	const version = __APP_VERSION__ ?? '0.0.0-dev';
+	const commit = __COMMIT_SHA__ ?? 'unknown';
 	const repo = 'https://github.com/chithi-dev/chithi';
-	const commitUrl = `${repo}/commit/${commit}`;
+	const commitUrl = commit === 'unknown' ? repo : `${repo}/commit/${commit}`;
 
-	const isDevelopment = version.startsWith('v0.0.0');
+	const shortCommit = commit.slice(0, 12);
 </script>
 
 <div
-	class="relative flex min-h-svh items-center justify-center overflow-hidden bg-slate-50 p-4 transition-colors duration-500 dark:bg-zinc-950"
+	class="relative flex min-h-svh items-center justify-center overflow-hidden bg-card p-4 transition-colors duration-500"
 >
-	<AnimatedGrid />
+	<FancyGrid />
 
-	<div class="z-10 w-full max-w-xl space-y-10">
-		<!-- Brand Section with Fancy Glow -->
-		<div class="flex flex-col items-center space-y-6 text-center">
+	<a
+		href="/"
+		class="group absolute top-6 left-6 z-20 flex items-center gap-2 rounded-full border border-border/60 bg-background/50 px-4 py-2 text-xs font-medium text-muted-foreground backdrop-blur-md transition-all hover:border-primary/50 hover:bg-background hover:text-foreground sm:top-8 sm:left-8"
+	>
+		<ChevronLeft class="size-4 shrink-0 transition-transform group-hover:-translate-x-1" />
+		Back to Terminal
+	</a>
+
+	<div in:fly={{ y: 20, duration: 700 }} class="z-10 w-full max-w-2xl space-y-8">
+		<div class="flex flex-col items-center gap-5 text-center">
 			<div class="group relative">
-				<!-- Multiple Glow Layers -->
 				<div
-					class="absolute -inset-6 animate-pulse rounded-full bg-primary/10 blur-3xl transition-all duration-700 group-hover:bg-primary/20"
+					class="absolute -inset-4 rounded-3xl bg-primary/20 opacity-30 blur-2xl transition-all duration-500 group-hover:opacity-60"
 				></div>
 				<div
-					class="absolute -inset-2 rounded-full bg-linear-to-tr from-primary via-blue-500 to-indigo-600 opacity-20 blur-lg transition-all duration-500 group-hover:opacity-40 group-hover:blur-xl"
-				></div>
-
-				<!-- Logo Container -->
-				<div
-					class="relative flex h-28 w-28 items-center justify-center rounded-4xl border border-white/40 bg-white/20 shadow-2xl backdrop-blur-3xl transition-transform duration-500 group-hover:scale-105 dark:border-zinc-700/40 dark:bg-zinc-900/30"
+					class="relative flex h-24 w-24 items-center justify-center rounded-3xl border border-primary/20 bg-background/70 shadow-lg ring-1 ring-primary/20 backdrop-blur-2xl transition-transform duration-500 group-hover:scale-105"
 				>
 					<img
 						src={favicon}
 						alt="Chithi Logo"
-						class="h-16 w-16 drop-shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)] transition-all duration-500 group-hover:scale-110 group-hover:rotate-3"
+						class="h-14 w-14 transition-transform group-hover:scale-105"
 					/>
 				</div>
 			</div>
 
-			<div class="space-y-3">
-				<h1
-					class="bg-linear-to-b from-slate-900 to-slate-600 bg-clip-text text-5xl font-black tracking-tight text-transparent sm:text-6xl dark:from-white dark:to-zinc-500"
-				>
-					Chithi
+			<div class="space-y-2">
+				<p class="text-xs font-semibold tracking-[0.28em] text-muted-foreground uppercase">
+					SYSTEM INFORMATION
+				</p>
+				<h1 class="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+					Chithi Instance
 				</h1>
-				<p class="max-w-100 text-lg font-medium text-slate-500 dark:text-zinc-400">
-					The future of private, secure, and ephemeral file sharing.
+				<p class="mx-auto max-w-xl text-sm text-muted-foreground sm:text-base">
+					Version, source revision, and runtime metadata for this deployment.
 				</p>
 			</div>
 		</div>
 
 		<Card.Root
-			class="relative overflow-hidden border-slate-200/60 bg-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.1)] backdrop-blur-3xl transition-all duration-500 hover:shadow-[0_20px_60px_rgba(0,0,0,0.15)] dark:border-zinc-800/50 dark:bg-zinc-900/40"
+			class="relative overflow-hidden border border-border/60 bg-card/75 shadow-[0_12px_40px_rgb(0,0,0,0.06)] backdrop-blur-2xl"
 		>
-			<!-- Animated Top Border -->
 			<div
-				class="absolute top-0 left-0 h-0.5 w-full bg-linear-to-r from-transparent via-primary to-transparent opacity-60"
+				class="absolute top-0 left-0 h-px w-full bg-linear-to-r from-transparent via-primary/50 to-transparent"
 			></div>
 
-			<Card.Header class="pb-4">
-				<Card.Title class="flex items-center gap-2.5 text-xl font-bold tracking-tight">
+			<Card.Header class="space-y-2 pb-2">
+				<Card.Title class="flex items-center gap-2.5 text-xl font-semibold tracking-tight">
 					<div
-						class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary"
+						class="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary"
 					>
-						<Info class="h-5 w-5" />
+						<Info class="h-4 w-4" />
 					</div>
 					System Specifications
 				</Card.Title>
+				<Card.Description>These values are embedded at build time.</Card.Description>
 			</Card.Header>
 
-			<Card.Content class="grid gap-6">
-				<!-- Version High-Tech Display -->
+			<Card.Content class="grid gap-4 sm:grid-cols-2">
 				<div
-					class="group relative flex flex-col gap-1 overflow-hidden rounded-2xl border border-slate-200/50 bg-slate-50/40 p-5 transition-all hover:bg-slate-100/60 dark:border-zinc-800/50 dark:bg-zinc-950/40 dark:hover:bg-zinc-900/40"
+					class="group relative flex flex-col gap-1 overflow-hidden rounded-xl border border-border/60 bg-background/60 p-4"
 				>
-					<div class="flex items-center justify-between">
+					<div class="flex items-center justify-between gap-3">
 						<div
-							class="flex items-center gap-2 text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase dark:text-zinc-500"
+							class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
 						>
 							<Tag class="h-3 w-3" />
 							Build Signature
 						</div>
-						{#if isDevelopment}
+						{#if dev}
 							<div
-								class="rounded-full bg-yellow-500/10 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-yellow-600 ring-1 ring-yellow-500/20 dark:text-yellow-500"
+								class="rounded-full bg-yellow-500/10 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-yellow-600 ring-1 ring-yellow-500/30 dark:text-yellow-400"
 							>
 								UNSTABLE
 							</div>
 						{:else}
 							<div
-								class="rounded-full bg-green-500/10 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-green-600 ring-1 ring-green-500/20 dark:text-green-400"
+								class="rounded-full bg-green-500/10 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-green-600 ring-1 ring-green-500/30 dark:text-green-400"
 							>
 								STABLE
 							</div>
 						{/if}
 					</div>
 					<div
-						class="mt-2 font-mono text-3xl font-black tracking-tighter text-slate-900 dark:text-white"
+						class="mt-2 font-mono text-2xl font-semibold tracking-tight text-foreground sm:text-3xl"
 					>
 						{version}
 					</div>
+					<p class="mt-2 text-xs text-muted-foreground">
+						{dev
+							? 'Running in local mode for rapid iteration.'
+							: 'Running in production mode for uptime and scale.'}
+					</p>
 
-					<!-- Decorative Element -->
 					<div
-						class="absolute -right-4 -bottom-4 opacity-[0.03] transition-opacity group-hover:opacity-[0.07]"
+						class="pointer-events-none absolute -right-6 -bottom-6 opacity-[0.04] transition-opacity group-hover:opacity-[0.07]"
 					>
 						<ShieldCheck class="h-24 w-24" />
 					</div>
 				</div>
 
-				<!-- Secondary Metrics -->
-				<div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+				<div
+					class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40"
+				>
 					<div
-						class="flex flex-col gap-2 rounded-2xl border border-slate-200/50 bg-slate-50/40 p-4 transition-all hover:bg-slate-100/60 dark:border-zinc-800/50 dark:bg-zinc-950/40 dark:hover:bg-zinc-900/40"
+						class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
 					>
-						<div
-							class="flex items-center gap-2 text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase dark:text-zinc-500"
-						>
-							<GitCommitHorizontal class="h-3 w-3" />
-							Source Index
-						</div>
+						<GitCommitHorizontal class="h-3 w-3" />
+						{dev ? 'Local Development' : 'Source Revision'}
+					</div>
+					{#if dev}
+						<p class="text-sm font-semibold text-foreground">Running from your local workspace.</p>
+						<p class="text-xs text-muted-foreground">
+							Revision links are shown on production builds.
+						</p>
+					{:else}
 						<a
 							href={commitUrl}
 							target="_blank"
 							rel="noopener noreferrer"
-							class="group flex items-center gap-2 font-mono text-sm font-bold text-primary transition-colors hover:text-primary/70"
+							title={commit}
+							class="group flex items-center gap-2 font-mono text-sm font-semibold text-primary transition-colors hover:text-primary/80"
 						>
-							<span class="truncate">{commit}</span>
+							<span class="truncate">{shortCommit}</span>
 							<ExternalLink
 								class="h-3 w-3 shrink-0 opacity-40 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100"
 							/>
 						</a>
-					</div>
-
-					<div
-						class="flex flex-col gap-2 rounded-2xl border border-slate-200/50 bg-slate-50/40 p-4 transition-all hover:bg-slate-100/60 dark:border-zinc-800/50 dark:bg-zinc-950/40 dark:hover:bg-zinc-900/40"
-					>
-						<div
-							class="flex items-center gap-2 text-[10px] font-bold tracking-[0.2em] text-slate-400 uppercase dark:text-zinc-500"
-						>
-							<ShieldCheck class="h-3 w-3" />
-							Deployment
-						</div>
-						<div class="flex items-center gap-1.5 text-sm font-bold text-slate-900 dark:text-white">
-							<div class="h-1.5 w-1.5 animate-pulse rounded-full bg-primary"></div>
-							{isDevelopment ? 'Local Node' : 'Production Cluster'}
-						</div>
-					</div>
+						<p class="text-xs text-muted-foreground">
+							Open this revision in GitHub for full diff and metadata.
+						</p>
+					{/if}
 				</div>
 			</Card.Content>
 
-			<Card.Footer class="pt-2">
+			<Card.Footer class="grid gap-2 border-t border-border/50 bg-muted/40 py-4 sm:grid-cols-2">
 				<Button
 					variant="outline"
-					class="h-12 w-full gap-2 rounded-xl border-slate-200/60 bg-white/50 text-base font-bold transition-all hover:border-primary/50 hover:bg-primary/5 hover:text-primary dark:border-zinc-800/60 dark:bg-zinc-950/50 dark:hover:bg-primary/10"
+					class="h-11 w-full gap-2 border-border/70 bg-background/70 font-semibold hover:border-primary/50 hover:bg-primary/5 hover:text-primary"
+					href={repo}
+					target="_blank"
+					rel="noopener noreferrer"
+				>
+					<ExternalLink class="h-4 w-4" />
+					Repository
+				</Button>
+
+				<Button
+					variant="outline"
+					class="h-11 w-full gap-2 border-border/70 bg-background/70 font-semibold hover:border-primary/50 hover:bg-primary/5 hover:text-primary"
 					href="https://docs.chithi.dev"
 					target="_blank"
+					rel="noopener noreferrer"
 				>
-					<BookOpen class="h-5 w-5" />
+					<BookOpen class="h-4 w-4" />
 					Documentation
 				</Button>
 			</Card.Footer>
 		</Card.Root>
-
-		<!-- Bottom Navigation -->
-		<div class="flex flex-col items-center gap-6 text-center">
-			<div
-				class="h-px w-12 bg-linear-to-r from-transparent via-slate-300 to-transparent dark:via-zinc-700"
-			></div>
-			<Button
-				variant="ghost"
-				href="/"
-				class="group gap-3 text-xs font-bold tracking-[0.3em] text-slate-400 uppercase transition-all hover:text-primary dark:text-zinc-500"
-			>
-				<House class="h-4 w-4 transition-transform duration-300 group-hover:-translate-y-0.5" />
-				Back to Terminal
-			</Button>
-		</div>
 	</div>
 </div>
-
-<style>
-	:root {
-		--primary-rgb: 59, 130, 246; /* Default blue primary */
-	}
-</style>
