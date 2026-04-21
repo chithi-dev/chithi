@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from sqlmodel import or_, select
 
 from app.celery import celery
-from app.db import AsyncSessionLocal
+from app.db import get_session
 from app.deps import get_s3_client
 from app.models.files import File
 from app.settings import settings
@@ -11,7 +11,7 @@ from app.settings import settings
 
 @celery.task
 async def delete_expired_file(file_id: str):
-    async with AsyncSessionLocal() as session:
+    async for session in get_session():
         now = datetime.now(timezone.utc)
 
         statement = select(File).where(
@@ -47,3 +47,5 @@ async def delete_expired_file(file_id: str):
         await session.commit()
 
         return f"Processed {len(files_to_delete)} deletions."
+
+
