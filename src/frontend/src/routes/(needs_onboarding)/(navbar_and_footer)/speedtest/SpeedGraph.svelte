@@ -124,6 +124,178 @@
 	// Define standard grids
 	const xTicks = d3.range(0, 1.01, 0.05); // 20 vertical segments
 	const yTicks = d3.range(0, 1.01, 0.2); // 5 horizontal segments
+
+	let svgNode: SVGSVGElement | null = $state(null);
+
+	$effect(() => {
+		if (!svgNode) return;
+		const svg = d3.select(svgNode);
+
+		const defs = svg.selectAll('defs').data([0]).join('defs');
+
+		// Download Gradient
+		const dlGrad = defs
+			.selectAll('linearGradient#dlGrad')
+			.data([0])
+			.join('linearGradient')
+			.attr('id', 'dlGrad')
+			.attr('x1', '0%')
+			.attr('y1', '0%')
+			.attr('x2', '0%')
+			.attr('y2', '100%');
+		dlGrad
+			.selectAll('stop.start')
+			.data([0])
+			.join('stop')
+			.attr('class', 'start')
+			.attr('offset', '0%')
+			.attr('stop-color', downloadColor)
+			.attr('stop-opacity', '0.4');
+		dlGrad
+			.selectAll('stop.end')
+			.data([0])
+			.join('stop')
+			.attr('class', 'end')
+			.attr('offset', '100%')
+			.attr('stop-color', downloadColor)
+			.attr('stop-opacity', '0.0');
+
+		// Upload Gradient
+		const ulGrad = defs
+			.selectAll('linearGradient#ulGrad')
+			.data([0])
+			.join('linearGradient')
+			.attr('id', 'ulGrad')
+			.attr('x1', '0%')
+			.attr('y1', '0%')
+			.attr('x2', '0%')
+			.attr('y2', '100%');
+		ulGrad
+			.selectAll('stop.start')
+			.data([0])
+			.join('stop')
+			.attr('class', 'start')
+			.attr('offset', '0%')
+			.attr('stop-color', uploadColor)
+			.attr('stop-opacity', '0.4');
+		ulGrad
+			.selectAll('stop.end')
+			.data([0])
+			.join('stop')
+			.attr('class', 'end')
+			.attr('offset', '100%')
+			.attr('stop-color', uploadColor)
+			.attr('stop-opacity', '0.0');
+
+		// Background Grid Group
+		const grid = svg
+			.selectAll('g.bg-grid')
+			.data([0])
+			.join('g')
+			.attr('class', 'bg-grid text-border')
+			.attr('stroke', 'currentColor')
+			.attr('stroke-width', '1');
+
+		// X Ticks
+		grid
+			.selectAll('line.x-tick')
+			.data(xTicks)
+			.join('line')
+			.attr('class', 'x-tick')
+			.attr('x1', (d) => xScale(d))
+			.attr('y1', 0)
+			.attr('x2', (d) => xScale(d))
+			.attr('y2', height);
+
+		// X Labels
+		grid
+			.selectAll('text.x-label')
+			.data(xTicks.filter((t) => (t * testDuration) % 2 === 0 && t > 0))
+			.join('text')
+			.attr('class', 'x-label font-mono text-muted-foreground select-none')
+			.attr('x', (d) => xScale(d) - 2)
+			.attr('y', height - 4)
+			.attr('fill', 'currentColor')
+			.attr('stroke', 'none')
+			.attr('font-size', '10')
+			.attr('text-anchor', 'end')
+			.text((d) => `${d * testDuration}s`);
+
+		// Y Ticks
+		grid
+			.selectAll('line.y-tick')
+			.data(yTicks)
+			.join('line')
+			.attr('class', 'y-tick')
+			.attr('x1', 0)
+			.attr('y1', (d) => d * height)
+			.attr('x2', width)
+			.attr('y2', (d) => d * height);
+
+		// Y Labels
+		grid
+			.selectAll('text.y-label')
+			.data(yTicks.filter((t) => t < 1))
+			.join('text')
+			.attr('class', 'y-label font-mono text-muted-foreground select-none')
+			.attr('x', width - 4)
+			.attr('y', (d) => d * height - 4)
+			.attr('fill', 'currentColor')
+			.attr('stroke', 'none')
+			.attr('font-size', '10')
+			.attr('text-anchor', 'end')
+			.text((d) => formatSpeedKbps(niceMaxKbps - d * niceMaxKbps));
+
+		// Grid Base Line Top
+		grid
+			.selectAll('line.base-line')
+			.data([0])
+			.join('line')
+			.attr('class', 'base-line text-border')
+			.attr('x1', 0)
+			.attr('y1', 0)
+			.attr('x2', width)
+			.attr('y2', 0)
+			.attr('stroke', 'currentColor')
+			.attr('stroke-width', '2');
+
+		// Download Timeline
+		svg
+			.selectAll('path.dl-area')
+			.data(activeDownloadHistory.length > 0 ? [downloadArea] : [])
+			.join('path')
+			.attr('class', 'dl-area')
+			.attr('d', (d) => d)
+			.attr('fill', 'url(#dlGrad)');
+		svg
+			.selectAll('path.dl-line')
+			.data(activeDownloadHistory.length > 0 ? [downloadLine] : [])
+			.join('path')
+			.attr('class', 'dl-line')
+			.attr('d', (d) => d)
+			.attr('fill', 'none')
+			.attr('stroke', downloadColor)
+			.attr('stroke-width', '2');
+
+		// Upload Timeline
+		svg
+			.selectAll('path.ul-area')
+			.data(activeUploadHistory.length > 0 ? [uploadArea] : [])
+			.join('path')
+			.attr('class', 'ul-area')
+			.attr('d', (d) => d)
+			.attr('fill', 'url(#ulGrad)');
+		svg
+			.selectAll('path.ul-line')
+			.data(activeUploadHistory.length > 0 ? [uploadLine] : [])
+			.join('path')
+			.attr('class', 'ul-line')
+			.attr('d', (d) => d)
+			.attr('fill', 'none')
+			.attr('stroke', uploadColor)
+			.attr('stroke-width', '2')
+			.attr('stroke-dasharray', '4 4');
+	});
 </script>
 
 <div class="relative w-full overflow-hidden rounded-xl border bg-muted/30 shadow-inner">
@@ -146,83 +318,11 @@
 
 	<!-- The Main Graph Canvas -->
 	<div class="h-48 w-full md:h-64 lg:h-72">
-		<svg viewBox="0 0 {width} {height}" class="block h-full w-full" preserveAspectRatio="none">
-			<defs>
-				<linearGradient id="dlGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-					<stop offset="0%" stop-color={downloadColor} stop-opacity="0.4" />
-					<stop offset="100%" stop-color={downloadColor} stop-opacity="0.0" />
-				</linearGradient>
-				<linearGradient id="ulGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-					<stop offset="0%" stop-color={uploadColor} stop-opacity="0.4" />
-					<stop offset="100%" stop-color={uploadColor} stop-opacity="0.0" />
-				</linearGradient>
-			</defs>
-
-			<!-- Background Grid -->
-			<g class="text-border" stroke="currentColor" stroke-width="1">
-				{#each xTicks as tick}
-					<line x1={xScale(tick)} y1="0" x2={xScale(tick)} y2={height} />
-					<!-- X-axis Label -->
-					{#if (tick * testDuration) % 2 === 0 && tick > 0}
-						<text
-							x={xScale(tick) - 2}
-							y={height - 4}
-							fill="currentColor"
-							stroke="none"
-							font-size="10"
-							text-anchor="end"
-							class="font-mono text-muted-foreground select-none"
-						>
-							{tick * testDuration}s
-						</text>
-					{/if}
-				{/each}
-				{#each yTicks as tick}
-					<line x1="0" y1={tick * height} x2={width} y2={tick * height} />
-					<!-- Y-axis Label -->
-					{#if tick < 1}
-						<text
-							x={width - 4}
-							y={tick * height - 4}
-							fill="currentColor"
-							stroke="none"
-							font-size="10"
-							text-anchor="end"
-							class="font-mono text-muted-foreground select-none"
-						>
-							{formatSpeedKbps(niceMaxKbps - tick * niceMaxKbps)}
-						</text>
-					{/if}
-				{/each}
-				<!-- Grid Base Line Top -->
-				<line
-					x1="0"
-					y1="0"
-					x2={width}
-					y2="0"
-					stroke="currentColor"
-					stroke-width="2"
-					class="text-border"
-				/>
-			</g>
-
-			<!-- Download Timeline -->
-			{#if activeDownloadHistory.length > 0}
-				<path d={downloadArea} fill="url(#dlGrad)" />
-				<path d={downloadLine} fill="none" stroke={downloadColor} stroke-width="2" />
-			{/if}
-
-			<!-- Upload Timeline Overlay -->
-			{#if activeUploadHistory.length > 0}
-				<path d={uploadArea} fill="url(#ulGrad)" />
-				<path
-					d={uploadLine}
-					fill="none"
-					stroke={uploadColor}
-					stroke-width="2"
-					stroke-dasharray="4 4"
-				/>
-			{/if}
-		</svg>
+		<svg
+			viewBox="0 0 {width} {height}"
+			class="block h-full w-full"
+			preserveAspectRatio="none"
+			bind:this={svgNode}
+		></svg>
 	</div>
 </div>
