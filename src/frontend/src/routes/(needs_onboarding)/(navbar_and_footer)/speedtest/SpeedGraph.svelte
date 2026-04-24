@@ -6,8 +6,8 @@
 	let {
 		downloadHistory = [],
 		uploadHistory = [],
-		downloadColor = 'var(--primary)',
-		uploadColor = 'var(--secondary)',
+		downloadColor = 'hsl(var(--primary))',
+		uploadColor = 'hsl(var(--secondary))',
 		activePhase = null,
 		currentSpeed = 0,
 		currentProgress = 0,
@@ -126,9 +126,7 @@
 	const yTicks = d3.range(0, 1.01, 0.2); // 5 horizontal segments
 </script>
 
-<div
-	class="relative w-full overflow-hidden rounded-xl border bg-black/5 shadow-inner dark:bg-[#121212]/80"
->
+<div class="relative w-full overflow-hidden rounded-xl border bg-muted/30 shadow-inner">
 	<!-- Display Current Max Scale Top Right-->
 	<div class="pointer-events-none absolute top-2 right-4 z-10 flex items-center justify-end">
 		{#if activePhase}
@@ -161,7 +159,7 @@
 			</defs>
 
 			<!-- Background Grid -->
-			<g class="text-black/5 dark:text-white/10" stroke="currentColor" stroke-width="1">
+			<g class="text-border" stroke="currentColor" stroke-width="1">
 				{#each xTicks as tick}
 					<line x1={xScale(tick)} y1="0" x2={xScale(tick)} y2={height} />
 					<!-- X-axis Label -->
@@ -173,7 +171,7 @@
 							stroke="none"
 							font-size="10"
 							text-anchor="end"
-							class="font-mono text-black/60 select-none dark:text-white/40"
+							class="font-mono text-muted-foreground select-none"
 						>
 							{tick * testDuration}s
 						</text>
@@ -190,7 +188,7 @@
 							stroke="none"
 							font-size="10"
 							text-anchor="end"
-							class="font-mono text-black/60 select-none dark:text-white/40"
+							class="font-mono text-muted-foreground select-none"
 						>
 							{formatSpeedKbps(niceMaxKbps - tick * niceMaxKbps)}
 						</text>
@@ -204,7 +202,7 @@
 					y2="0"
 					stroke="currentColor"
 					stroke-width="2"
-					class="text-black/10 dark:text-white/20"
+					class="text-border"
 				/>
 			</g>
 

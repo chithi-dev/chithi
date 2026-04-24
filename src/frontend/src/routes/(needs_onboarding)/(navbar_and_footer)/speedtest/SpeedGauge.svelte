@@ -5,8 +5,8 @@
 
 	let {
 		value = 0,
-		activeColor = 'var(--primary)',
-		inactiveColor = 'var(--secondary)',
+		activeColor = 'hsl(var(--primary))',
+		inactiveColor = 'hsl(var(--muted))',
 		unit = 'Mbps'
 	} = $props<{
 		value: number;
