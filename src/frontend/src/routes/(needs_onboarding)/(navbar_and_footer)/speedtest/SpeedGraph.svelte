@@ -131,170 +131,123 @@
 		if (!svgNode) return;
 		const svg = d3.select(svgNode);
 
+		var applyAttrs = (sel: any, attrs: Record<string, any>) =>
+			Object.entries(attrs).forEach(([k, v]) => sel.attr(k, v));
+
+		// Gradients
 		const defs = svg.selectAll('defs').data([0]).join('defs');
+		[
+			['dlGrad', downloadColor],
+			['ulGrad', uploadColor]
+		].forEach(([id, color]) => {
+			defs
+				.selectAll(`linearGradient#${id}`)
+				.data([0])
+				.join('linearGradient')
+				.call(applyAttrs, { id, x1: '0%', y1: '0%', x2: '0%', y2: '100%' })
+				.selectAll('stop')
+				.data(['0.4', '0.0'])
+				.join('stop')
+				.call(applyAttrs, {
+					offset: (d: string, i: number) => (i ? '100%' : '0%'),
+					'stop-color': color,
+					'stop-opacity': String
+				});
+		});
 
-		// Download Gradient
-		const dlGrad = defs
-			.selectAll('linearGradient#dlGrad')
-			.data([0])
-			.join('linearGradient')
-			.attr('id', 'dlGrad')
-			.attr('x1', '0%')
-			.attr('y1', '0%')
-			.attr('x2', '0%')
-			.attr('y2', '100%');
-		dlGrad
-			.selectAll('stop.start')
-			.data([0])
-			.join('stop')
-			.attr('class', 'start')
-			.attr('offset', '0%')
-			.attr('stop-color', downloadColor)
-			.attr('stop-opacity', '0.4');
-		dlGrad
-			.selectAll('stop.end')
-			.data([0])
-			.join('stop')
-			.attr('class', 'end')
-			.attr('offset', '100%')
-			.attr('stop-color', downloadColor)
-			.attr('stop-opacity', '0.0');
+		// Base Grid
+		const grid = svg.selectAll('g.bg-grid').data([0]).join('g').call(applyAttrs, {
+			class: 'bg-grid text-border',
+			stroke: 'currentColor',
+			'stroke-width': '1'
+		});
 
-		// Upload Gradient
-		const ulGrad = defs
-			.selectAll('linearGradient#ulGrad')
-			.data([0])
-			.join('linearGradient')
-			.attr('id', 'ulGrad')
-			.attr('x1', '0%')
-			.attr('y1', '0%')
-			.attr('x2', '0%')
-			.attr('y2', '100%');
-		ulGrad
-			.selectAll('stop.start')
-			.data([0])
-			.join('stop')
-			.attr('class', 'start')
-			.attr('offset', '0%')
-			.attr('stop-color', uploadColor)
-			.attr('stop-opacity', '0.4');
-		ulGrad
-			.selectAll('stop.end')
-			.data([0])
-			.join('stop')
-			.attr('class', 'end')
-			.attr('offset', '100%')
-			.attr('stop-color', uploadColor)
-			.attr('stop-opacity', '0.0');
-
-		// Background Grid Group
-		const grid = svg
-			.selectAll('g.bg-grid')
-			.data([0])
-			.join('g')
-			.attr('class', 'bg-grid text-border')
-			.attr('stroke', 'currentColor')
-			.attr('stroke-width', '1');
-
-		// X Ticks
 		grid
 			.selectAll('line.x-tick')
 			.data(xTicks)
 			.join('line')
-			.attr('class', 'x-tick')
-			.attr('x1', (d) => xScale(d))
-			.attr('y1', 0)
-			.attr('x2', (d) => xScale(d))
-			.attr('y2', height);
-
-		// X Labels
+			.call(applyAttrs, { class: 'x-tick', x1: xScale, y1: 0, x2: xScale, y2: height });
 		grid
 			.selectAll('text.x-label')
 			.data(xTicks.filter((t) => (t * testDuration) % 2 === 0 && t > 0))
 			.join('text')
-			.attr('class', 'x-label font-mono text-muted-foreground select-none')
-			.attr('x', (d) => xScale(d) - 2)
-			.attr('y', height - 4)
-			.attr('fill', 'currentColor')
-			.attr('stroke', 'none')
-			.attr('font-size', '10')
-			.attr('text-anchor', 'end')
-			.text((d) => `${d * testDuration}s`);
+			.text((d) => `${d * testDuration}s`)
+			.call(applyAttrs, {
+				class: 'x-label font-mono text-muted-foreground select-none',
+				x: (d: number) => xScale(d) - 2,
+				y: height - 4,
+				fill: 'currentColor',
+				stroke: 'none',
+				'font-size': '10',
+				'text-anchor': 'end'
+			});
 
-		// Y Ticks
 		grid
 			.selectAll('line.y-tick')
 			.data(yTicks)
 			.join('line')
-			.attr('class', 'y-tick')
-			.attr('x1', 0)
-			.attr('y1', (d) => d * height)
-			.attr('x2', width)
-			.attr('y2', (d) => d * height);
-
-		// Y Labels
+			.call(applyAttrs, {
+				class: 'y-tick',
+				x1: 0,
+				y1: (d: number) => d * height,
+				x2: width,
+				y2: (d: number) => d * height
+			});
 		grid
 			.selectAll('text.y-label')
 			.data(yTicks.filter((t) => t < 1))
 			.join('text')
-			.attr('class', 'y-label font-mono text-muted-foreground select-none')
-			.attr('x', width - 4)
-			.attr('y', (d) => d * height - 4)
-			.attr('fill', 'currentColor')
-			.attr('stroke', 'none')
-			.attr('font-size', '10')
-			.attr('text-anchor', 'end')
-			.text((d) => formatSpeedKbps(niceMaxKbps - d * niceMaxKbps));
+			.text((d) => formatSpeedKbps(niceMaxKbps - d * niceMaxKbps))
+			.call(applyAttrs, {
+				class: 'y-label font-mono text-muted-foreground select-none',
+				x: width - 4,
+				y: (d: number) => d * height - 4,
+				fill: 'currentColor',
+				stroke: 'none',
+				'font-size': '10',
+				'text-anchor': 'end'
+			});
 
-		// Grid Base Line Top
-		grid
-			.selectAll('line.base-line')
-			.data([0])
-			.join('line')
-			.attr('class', 'base-line text-border')
-			.attr('x1', 0)
-			.attr('y1', 0)
-			.attr('x2', width)
-			.attr('y2', 0)
-			.attr('stroke', 'currentColor')
-			.attr('stroke-width', '2');
+		grid.selectAll('line.base-line').data([0]).join('line').call(applyAttrs, {
+			class: 'base-line text-border',
+			x1: 0,
+			y1: 0,
+			x2: width,
+			y2: 0,
+			stroke: 'currentColor',
+			'stroke-width': '2'
+		});
 
-		// Download Timeline
-		svg
-			.selectAll('path.dl-area')
-			.data(activeDownloadHistory.length > 0 ? [downloadArea] : [])
-			.join('path')
-			.attr('class', 'dl-area')
-			.attr('d', (d) => d)
-			.attr('fill', 'url(#dlGrad)');
-		svg
-			.selectAll('path.dl-line')
-			.data(activeDownloadHistory.length > 0 ? [downloadLine] : [])
-			.join('path')
-			.attr('class', 'dl-line')
-			.attr('d', (d) => d)
-			.attr('fill', 'none')
-			.attr('stroke', downloadColor)
-			.attr('stroke-width', '2');
+		// Timelines
+		var draw = (
+			type: string,
+			active: boolean,
+			area: string,
+			line: string,
+			color: string,
+			dash?: string | null
+		) => {
+			svg
+				.selectAll(`path.${type}-area`)
+				.data(active ? [area] : [])
+				.join('path')
+				.call(applyAttrs, { class: `${type}-area`, d: String, fill: `url(#${type}Grad)` });
+			svg
+				.selectAll(`path.${type}-line`)
+				.data(active ? [line] : [])
+				.join('path')
+				.call(applyAttrs, {
+					class: `${type}-line`,
+					d: String,
+					fill: 'none',
+					stroke: color,
+					'stroke-width': '2',
+					'stroke-dasharray': dash || null
+				});
+		};
 
-		// Upload Timeline
-		svg
-			.selectAll('path.ul-area')
-			.data(activeUploadHistory.length > 0 ? [uploadArea] : [])
-			.join('path')
-			.attr('class', 'ul-area')
-			.attr('d', (d) => d)
-			.attr('fill', 'url(#ulGrad)');
-		svg
-			.selectAll('path.ul-line')
-			.data(activeUploadHistory.length > 0 ? [uploadLine] : [])
-			.join('path')
-			.attr('class', 'ul-line')
-			.attr('d', (d) => d)
-			.attr('fill', 'none')
-			.attr('stroke', uploadColor)
-			.attr('stroke-width', '2')
-			.attr('stroke-dasharray', '4 4');
+		draw('dl', activeDownloadHistory.length > 0, downloadArea, downloadLine, downloadColor);
+		draw('ul', activeUploadHistory.length > 0, uploadArea, uploadLine, uploadColor, '4 4');
 	});
 </script>
 
