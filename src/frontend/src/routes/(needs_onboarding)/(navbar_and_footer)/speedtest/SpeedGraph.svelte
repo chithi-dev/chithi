@@ -6,8 +6,8 @@
 	let {
 		downloadHistory = [],
 		uploadHistory = [],
-		downloadColor = 'var(--color-cyan-400)',
-		uploadColor = 'var(--color-purple-500)',
+		downloadColor = 'hsl(var(--primary))',
+		uploadColor = 'hsl(var(--secondary))',
 		activePhase = null,
 		currentSpeed = 0,
 		currentProgress = 0,
@@ -16,8 +16,8 @@
 		downloadHistory: { progress: number; speed: number }[];
 		uploadHistory: { progress: number; speed: number }[];
 		maxSpeed: number;
-		downloadColor: string;
-		uploadColor: string;
+		downloadColor?: string;
+		uploadColor?: string;
 		activePhase: 'download' | 'upload' | null;
 		currentSpeed: number;
 		currentProgress?: number;
@@ -124,9 +124,134 @@
 	// Define standard grids
 	const xTicks = d3.range(0, 1.01, 0.05); // 20 vertical segments
 	const yTicks = d3.range(0, 1.01, 0.2); // 5 horizontal segments
+
+	let svgNode: SVGSVGElement | null = $state(null);
+
+	$effect(() => {
+		if (!svgNode) return;
+		const svg = d3.select(svgNode);
+
+		var applyAttrs = (sel: any, attrs: Record<string, any>) =>
+			Object.entries(attrs).forEach(([k, v]) => sel.attr(k, v));
+
+		// Gradients
+		const defs = svg.selectAll('defs').data([0]).join('defs');
+		[
+			['dlGrad', downloadColor],
+			['ulGrad', uploadColor]
+		].forEach(([id, color]) => {
+			defs
+				.selectAll(`linearGradient#${id}`)
+				.data([0])
+				.join('linearGradient')
+				.call(applyAttrs, { id, x1: '0%', y1: '0%', x2: '0%', y2: '100%' })
+				.selectAll('stop')
+				.data(['0.4', '0.0'])
+				.join('stop')
+				.call(applyAttrs, {
+					offset: (d: string, i: number) => (i ? '100%' : '0%'),
+					'stop-color': color,
+					'stop-opacity': String
+				});
+		});
+
+		// Base Grid
+		const grid = svg.selectAll('g.bg-grid').data([0]).join('g').call(applyAttrs, {
+			class: 'bg-grid text-border',
+			stroke: 'currentColor',
+			'stroke-width': '1'
+		});
+
+		grid
+			.selectAll('line.x-tick')
+			.data(xTicks)
+			.join('line')
+			.call(applyAttrs, { class: 'x-tick', x1: xScale, y1: 0, x2: xScale, y2: height });
+		grid
+			.selectAll('text.x-label')
+			.data(xTicks.filter((t) => (t * testDuration) % 2 === 0 && t > 0))
+			.join('text')
+			.text((d) => `${d * testDuration}s`)
+			.call(applyAttrs, {
+				class: 'x-label font-mono text-muted-foreground select-none',
+				x: (d: number) => xScale(d) - 2,
+				y: height - 4,
+				fill: 'currentColor',
+				stroke: 'none',
+				'font-size': '10',
+				'text-anchor': 'end'
+			});
+
+		grid
+			.selectAll('line.y-tick')
+			.data(yTicks)
+			.join('line')
+			.call(applyAttrs, {
+				class: 'y-tick',
+				x1: 0,
+				y1: (d: number) => d * height,
+				x2: width,
+				y2: (d: number) => d * height
+			});
+		grid
+			.selectAll('text.y-label')
+			.data(yTicks.filter((t) => t < 1))
+			.join('text')
+			.text((d) => formatSpeedKbps(niceMaxKbps - d * niceMaxKbps))
+			.call(applyAttrs, {
+				class: 'y-label font-mono text-muted-foreground select-none',
+				x: width - 4,
+				y: (d: number) => d * height - 4,
+				fill: 'currentColor',
+				stroke: 'none',
+				'font-size': '10',
+				'text-anchor': 'end'
+			});
+
+		grid.selectAll('line.base-line').data([0]).join('line').call(applyAttrs, {
+			class: 'base-line text-border',
+			x1: 0,
+			y1: 0,
+			x2: width,
+			y2: 0,
+			stroke: 'currentColor',
+			'stroke-width': '2'
+		});
+
+		// Timelines
+		var draw = (
+			type: string,
+			active: boolean,
+			area: string,
+			line: string,
+			color: string,
+			dash?: string | null
+		) => {
+			svg
+				.selectAll(`path.${type}-area`)
+				.data(active ? [area] : [])
+				.join('path')
+				.call(applyAttrs, { class: `${type}-area`, d: String, fill: `url(#${type}Grad)` });
+			svg
+				.selectAll(`path.${type}-line`)
+				.data(active ? [line] : [])
+				.join('path')
+				.call(applyAttrs, {
+					class: `${type}-line`,
+					d: String,
+					fill: 'none',
+					stroke: color,
+					'stroke-width': '2',
+					'stroke-dasharray': dash || null
+				});
+		};
+
+		draw('dl', activeDownloadHistory.length > 0, downloadArea, downloadLine, downloadColor);
+		draw('ul', activeUploadHistory.length > 0, uploadArea, uploadLine, uploadColor, '4 4');
+	});
 </script>
 
-<div class="relative w-full overflow-hidden rounded-xl border bg-[#121212]/80 shadow-inner">
+<div class="relative w-full overflow-hidden rounded-xl border bg-muted/30 shadow-inner">
 	<!-- Display Current Max Scale Top Right-->
 	<div class="pointer-events-none absolute top-2 right-4 z-10 flex items-center justify-end">
 		{#if activePhase}
@@ -146,83 +271,11 @@
 
 	<!-- The Main Graph Canvas -->
 	<div class="h-48 w-full md:h-64 lg:h-72">
-		<svg viewBox="0 0 {width} {height}" class="block h-full w-full" preserveAspectRatio="none">
-			<defs>
-				<linearGradient id="dlGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-					<stop offset="0%" stop-color={downloadColor} stop-opacity="0.4" />
-					<stop offset="100%" stop-color={downloadColor} stop-opacity="0.0" />
-				</linearGradient>
-				<linearGradient id="ulGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-					<stop offset="0%" stop-color={uploadColor} stop-opacity="0.4" />
-					<stop offset="100%" stop-color={uploadColor} stop-opacity="0.0" />
-				</linearGradient>
-			</defs>
-
-			<!-- Background Grid -->
-			<g class="text-white/5 dark:text-white/10" stroke="currentColor" stroke-width="1">
-				{#each xTicks as tick}
-					<line x1={xScale(tick)} y1="0" x2={xScale(tick)} y2={height} />
-					<!-- X-axis Label -->
-					{#if (tick * testDuration) % 2 === 0 && tick > 0}
-						<text
-							x={xScale(tick) - 2}
-							y={height - 4}
-							fill="currentColor"
-							stroke="none"
-							font-size="10"
-							text-anchor="end"
-							class="font-mono text-muted-foreground/40 select-none"
-						>
-							{tick * testDuration}s
-						</text>
-					{/if}
-				{/each}
-				{#each yTicks as tick}
-					<line x1="0" y1={tick * height} x2={width} y2={tick * height} />
-					<!-- Y-axis Label -->
-					{#if tick < 1}
-						<text
-							x={width - 4}
-							y={tick * height - 4}
-							fill="currentColor"
-							stroke="none"
-							font-size="10"
-							text-anchor="end"
-							class="font-mono text-muted-foreground/40 select-none"
-						>
-							{formatSpeedKbps(niceMaxKbps - tick * niceMaxKbps)}
-						</text>
-					{/if}
-				{/each}
-				<!-- Grid Base Line Top -->
-				<line
-					x1="0"
-					y1="0"
-					x2={width}
-					y2="0"
-					stroke="currentColor"
-					stroke-width="2"
-					class="text-white/10 dark:text-white/20"
-				/>
-			</g>
-
-			<!-- Download Timeline -->
-			{#if activeDownloadHistory.length > 0}
-				<path d={downloadArea} fill="url(#dlGrad)" />
-				<path d={downloadLine} fill="none" stroke={downloadColor} stroke-width="2" />
-			{/if}
-
-			<!-- Upload Timeline Overlay -->
-			{#if activeUploadHistory.length > 0}
-				<path d={uploadArea} fill="url(#ulGrad)" />
-				<path
-					d={uploadLine}
-					fill="none"
-					stroke={uploadColor}
-					stroke-width="2"
-					stroke-dasharray="4 4"
-				/>
-			{/if}
-		</svg>
+		<svg
+			viewBox="0 0 {width} {height}"
+			class="block h-full w-full"
+			preserveAspectRatio="none"
+			bind:this={svgNode}
+		></svg>
 	</div>
 </div>

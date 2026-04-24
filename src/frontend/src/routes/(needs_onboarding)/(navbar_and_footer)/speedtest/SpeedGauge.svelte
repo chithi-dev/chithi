@@ -5,11 +5,13 @@
 
 	let {
 		value = 0,
-		activeColor = '#4ade80',
+		activeColor = 'hsl(var(--primary))',
+		inactiveColor = 'hsl(var(--muted))',
 		unit = 'Mbps'
 	} = $props<{
 		value: number;
-		activeColor: string;
+		activeColor?: string;
+		inactiveColor?: string;
 		unit?: string;
 	}>();
 
@@ -42,7 +44,7 @@
 			{
 				key: 'remaining',
 				value: remainingValue,
-				color: `color-mix(in srgb, ${activeColor} 15%, transparent)`
+				color: inactiveColor
 			}
 		]}
 		key="key"
