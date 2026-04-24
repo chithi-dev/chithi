@@ -6,8 +6,8 @@
 	let {
 		downloadHistory = [],
 		uploadHistory = [],
-		downloadColor = 'var(--color-cyan-400)',
-		uploadColor = 'var(--color-purple-500)',
+		downloadColor = 'var(--primary)',
+		uploadColor = 'var(--secondary)',
 		activePhase = null,
 		currentSpeed = 0,
 		currentProgress = 0,
@@ -16,8 +16,8 @@
 		downloadHistory: { progress: number; speed: number }[];
 		uploadHistory: { progress: number; speed: number }[];
 		maxSpeed: number;
-		downloadColor: string;
-		uploadColor: string;
+		downloadColor?: string;
+		uploadColor?: string;
 		activePhase: 'download' | 'upload' | null;
 		currentSpeed: number;
 		currentProgress?: number;
@@ -126,7 +126,9 @@
 	const yTicks = d3.range(0, 1.01, 0.2); // 5 horizontal segments
 </script>
 
-<div class="relative w-full overflow-hidden rounded-xl border bg-[#121212]/80 shadow-inner">
+<div
+	class="relative w-full overflow-hidden rounded-xl border bg-black/5 shadow-inner dark:bg-[#121212]/80"
+>
 	<!-- Display Current Max Scale Top Right-->
 	<div class="pointer-events-none absolute top-2 right-4 z-10 flex items-center justify-end">
 		{#if activePhase}
@@ -159,7 +161,7 @@
 			</defs>
 
 			<!-- Background Grid -->
-			<g class="text-white/5 dark:text-white/10" stroke="currentColor" stroke-width="1">
+			<g class="text-black/5 dark:text-white/10" stroke="currentColor" stroke-width="1">
 				{#each xTicks as tick}
 					<line x1={xScale(tick)} y1="0" x2={xScale(tick)} y2={height} />
 					<!-- X-axis Label -->
@@ -171,7 +173,7 @@
 							stroke="none"
 							font-size="10"
 							text-anchor="end"
-							class="font-mono text-muted-foreground/40 select-none"
+							class="font-mono text-black/60 select-none dark:text-white/40"
 						>
 							{tick * testDuration}s
 						</text>
@@ -188,7 +190,7 @@
 							stroke="none"
 							font-size="10"
 							text-anchor="end"
-							class="font-mono text-muted-foreground/40 select-none"
+							class="font-mono text-black/60 select-none dark:text-white/40"
 						>
 							{formatSpeedKbps(niceMaxKbps - tick * niceMaxKbps)}
 						</text>
@@ -202,7 +204,7 @@
 					y2="0"
 					stroke="currentColor"
 					stroke-width="2"
-					class="text-white/10 dark:text-white/20"
+					class="text-black/10 dark:text-white/20"
 				/>
 			</g>
 
