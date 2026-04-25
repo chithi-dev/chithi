@@ -1,7 +1,7 @@
 from datetime import timedelta
 from uuid import UUID
 
-from sqlalchemy import Connection, FromClause, event, Boolean
+from sqlalchemy import Boolean, Connection, FromClause, event
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapper
 from sqlmodel import BigInteger, Column, Field, Integer, SQLModel, String, select, text
