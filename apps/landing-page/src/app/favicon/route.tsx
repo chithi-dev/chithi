@@ -6,7 +6,7 @@ export const revalidate = false;
 
 export async function GET() {
     try {
-        return new ImageResponse(<Favicon />, {
+        return new ImageResponse(<Favicon width={32} height={32} />, {
             width: 32,
             height: 32,
         });
