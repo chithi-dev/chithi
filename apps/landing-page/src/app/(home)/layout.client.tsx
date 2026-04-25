@@ -63,7 +63,7 @@ export function Navbar({ repo }: Props) {
                                 width={28}
                                 height={28}
                                 alt="logo"
-                                src="/favicon.svg"
+                                src="/favicon"
                                 className="dark:invert-0"
                             />
                             <span className="font-bold text-base tracking-tight">
