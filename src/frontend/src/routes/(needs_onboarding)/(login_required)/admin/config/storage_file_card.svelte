@@ -127,7 +127,9 @@
 						Enable or disable file uploads on this instance. Existing files can still be downloaded.
 					</Item.Description>
 				</Item.Content>
-				<Item.Actions class="flex w-full items-center justify-end gap-2 md:w-auto md:min-w-75">
+				<Item.Actions
+					class="flex w-full items-center justify-end gap-2 md:w-auto md:min-w-75 [&_[data-slot=switch-thumb][data-state=checked]]:translate-x-[calc(100%-2px)] [&_[data-slot=switch-thumb][data-state=unchecked]]:translate-x-0 [&_[data-slot=switch][data-state=checked]]:bg-primary [&_[data-slot=switch][data-state=unchecked]]:bg-input"
+				>
 					<Switch
 						checked={configData.allow_uploads}
 						onCheckedChange={(checked) => save({ allow_uploads: checked })}
