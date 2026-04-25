@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Sidebar from '$lib/components/ui/sidebar/index';
-	import { Settings, UserPen, Link } from '@lucide/svelte';
+	import { Settings, UserPen, Link, Users } from '@lucide/svelte';
 	import favicon from '$lib/assets/logo.svg';
 	const items = [
 		{
@@ -17,6 +17,11 @@
 			title: 'Outstanding Urls',
 			url: '/admin/urls',
 			icon: Link
+		},
+		{
+			title: 'Users',
+			url: '/admin/users',
+			icon: Users
 		}
 	];
 </script>

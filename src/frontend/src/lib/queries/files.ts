@@ -29,10 +29,12 @@ export type PaginatedFiles = {
 	};
 };
 
+const queryKey = ['admin-files'];
+
 export const useFilesQuery = (page: () => number = () => 1, pageSize: number = 20) => {
 	const queryClient = useQueryClient();
 	const query = createQuery(() => ({
-		queryKey: ['admin-files', page(), pageSize],
+		queryKey: [...queryKey, page(), pageSize],
 		queryFn: async () => {
 			const url = new URL(Api.ADMIN.FILES, window.location.origin);
 			url.searchParams.set('page', page().toString());
@@ -61,7 +63,7 @@ export const useFilesQuery = (page: () => number = () => 1, pageSize: number = 2
 		});
 
 		if (res.ok) {
-			await queryClient.invalidateQueries({ queryKey: ['admin-files'] });
+			await queryClient.invalidateQueries({ queryKey: [...queryKey] });
 		} else {
 			throw new Error('Failed to revoke file');
 		}
