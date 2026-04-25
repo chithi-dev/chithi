@@ -1,14 +1,13 @@
 import { SVGProps } from 'react';
 const FaviconIcon = (props: SVGProps<SVGSVGElement>) => (
     <svg
-        width={130}
-        height={130}
+        width={32}
+        height={32}
         viewBox="0 0 130 130"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         {...props}
     >
-        <rect x={5} y={5} width={120} height={120} stroke="black" />
         <rect
             x={2.5}
             y={2.5}
