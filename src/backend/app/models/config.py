@@ -1,7 +1,7 @@
 from datetime import timedelta
 from uuid import UUID
 
-from sqlalchemy import Connection, FromClause, event
+from sqlalchemy import Connection, FromClause, event, Boolean
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapper
 from sqlmodel import BigInteger, Column, Field, Integer, SQLModel, String, select, text
@@ -52,7 +52,10 @@ class ConfigIn(SQLModel):
 
     allowed_file_types: list[str] = Field(default=[], sa_column=Column(ARRAY(String)))
     banned_file_types: list[str] = Field(default=[], sa_column=Column(ARRAY(String)))
-    allow_uploads: bool = Field(default=True)
+    allow_uploads: bool = Field(
+        default=True,
+        sa_column=Column(Boolean, server_default=text("true"), nullable=False),
+    )
 
 
 class Config(ConfigIn, table=True):
