@@ -3,8 +3,8 @@
 import { SiGithub } from '@icons-pack/react-simple-icons';
 import { AppBar } from '@skeletonlabs/skeleton-react';
 import { GitBranch, Star } from 'lucide-react';
-import Image from 'next/image';
 import Link from 'next/link';
+import Favicon from '@/icons/favicon';
 
 type GithubRepoData = {
     stargazerCount: number;
@@ -59,13 +59,7 @@ export function Navbar({ repo }: Props) {
                             className="flex items-center gap-3"
                             aria-label="Go to homepage"
                         >
-                            <Image
-                                width={28}
-                                height={28}
-                                alt="logo"
-                                src="/favicon"
-                                className="dark:invert-0"
-                            />
+                            <Favicon width={28} height={28} />
                             <span className="font-bold text-base tracking-tight">
                                 CHITHI
                             </span>

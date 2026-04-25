@@ -1,5 +1,5 @@
 import { SVGProps } from 'react';
-const SVGComponent = (props: SVGProps<SVGSVGElement>) => (
+const FaviconIcon = (props: SVGProps<SVGSVGElement>) => (
     <svg
         width={130}
         height={130}
@@ -69,4 +69,6 @@ const SVGComponent = (props: SVGProps<SVGSVGElement>) => (
         </defs>
     </svg>
 );
-export default SVGComponent;
+
+FaviconIcon.displayname = 'favicon-icon';
+export default FaviconIcon;
