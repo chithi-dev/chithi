@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from sqlmodel import select
 
 from app.deps import CurrentUser, SessionDep
-from app.models.config import Config, ConfigIn
+from app.models.config import Config, ConfigUpdate
 
 router = APIRouter()
 
@@ -13,7 +13,7 @@ router = APIRouter()
 async def change_config(
     _: CurrentUser,  # Only check for login here
     session: SessionDep,
-    config_in: ConfigIn,
+    config_in: ConfigUpdate,
 ):
     config_object = select(Config)
     result = await session.exec(config_object)
