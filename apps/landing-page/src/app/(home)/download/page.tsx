@@ -1,6 +1,6 @@
 import { AlertTriangle } from 'lucide-react';
 import { RequestError } from 'octokit';
-import { octokit } from '$providers/octokit.server';
+import { octokit } from '$/providers/octokit.server';
 import DownloadView from './page.client';
 import type { GithubRelease } from './types';
 
