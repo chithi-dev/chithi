@@ -11,11 +11,15 @@ class GlobalState:
     def init_redis(cls) -> None:
         """Set the shared Redis client. Called once at startup."""
         redis_client = RedisClient.get()
-        cls._redis = redis_client
+        GlobalState._redis = redis_client
 
     @classmethod
     def _client(cls, redis_client: redis.Redis | None = None) -> redis.Redis:
-        return redis_client or cls._redis
+        if redis_client is not None:
+            return redis_client
+        if getattr(GlobalState, "_redis", None) is None:
+            GlobalState.init_redis()
+        return GlobalState._redis
 
     @classmethod
     async def _json_get(
