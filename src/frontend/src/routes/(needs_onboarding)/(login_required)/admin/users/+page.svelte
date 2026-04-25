@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { useAuth } from '#queries/auth';
 	import { useUsersQuery } from '#queries/admin_users';
-	import * as Dialog from '$lib/components/ui/dialog';
 	import * as Table from '$lib/components/ui/table';
 	import * as Card from '$lib/components/ui/card';
 	import * as Pagination from '$lib/components/ui/pagination';
@@ -9,15 +8,15 @@
 	import { Trash2, UserPlus } from 'lucide-svelte';
 	import { toast } from 'svelte-sonner';
 	import CreateUserDialog from './create_user_dialog.svelte';
+	import DeleteUserDialog from './delete_user_dialog.svelte';
 
 	let currentPage = $state(1);
 	const pageSize = 20;
 
 	const { user } = useAuth();
-	const { users, deleteUser } = useUsersQuery(() => currentPage, pageSize);
+	const { users } = useUsersQuery(() => currentPage, pageSize);
 
 	let isCreateDialogOpen = $state(false);
-	let isDeleting = $state(false);
 	let isDeleteDialogOpen = $state(false);
 	let userToDelete = $state<string | null>(null);
 
@@ -30,20 +29,6 @@
 		}
 		userToDelete = userId;
 		isDeleteDialogOpen = true;
-	}
-
-	async function handleDelete(userId: string) {
-		isDeleting = true;
-		try {
-			await deleteUser(userId);
-			toast.success('User deleted successfully.');
-			isDeleteDialogOpen = false;
-			userToDelete = null;
-		} catch (e: any) {
-			toast.error(e.message || 'Failed to delete user.');
-		} finally {
-			isDeleting = false;
-		}
 	}
 </script>
 
@@ -99,7 +84,7 @@
 								<Button
 									variant="ghost"
 									size="icon"
-									disabled={u.id === user.data?.id || isDeleting}
+									disabled={u.id === user.data?.id}
 									onclick={() => requestDelete(u.id)}
 								>
 									<Trash2 class="h-4 w-4 cursor-pointer text-destructive" />
@@ -143,25 +128,4 @@
 
 <CreateUserDialog bind:open={isCreateDialogOpen} />
 
-<Dialog.Root bind:open={isDeleteDialogOpen}>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Are you absolutely sure?</Dialog.Title>
-			<Dialog.Description>
-				This action cannot be undone. This will permanently delete the user account.
-			</Dialog.Description>
-		</Dialog.Header>
-		<Dialog.Footer>
-			<Button variant="outline" onclick={() => (isDeleteDialogOpen = false)}>Cancel</Button>
-			<Button
-				variant="destructive"
-				disabled={isDeleting}
-				onclick={() => {
-					if (userToDelete) handleDelete(userToDelete);
-				}}
-			>
-				{isDeleting ? 'Deleting...' : 'Delete User'}
-			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+<DeleteUserDialog bind:open={isDeleteDialogOpen} bind:userId={userToDelete} />

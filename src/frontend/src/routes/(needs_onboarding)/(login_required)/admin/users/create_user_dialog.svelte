@@ -64,7 +64,7 @@
 							{...props}
 							type="text"
 							bind:value={$formData.username}
-							placeholder="johndoe"
+							placeholder="Enter your username here"
 							required
 						/>
 					{/snippet}
@@ -80,7 +80,7 @@
 							{...props}
 							type="email"
 							bind:value={$formData.email}
-							placeholder="john@example.com"
+							placeholder="Enter your mail here"
 						/>
 					{/snippet}
 				</Form.Control>
@@ -91,7 +91,13 @@
 				<Form.Control>
 					{#snippet children({ props })}
 						<Form.Label>Password</Form.Label>
-						<Input {...props} type="password" bind:value={$formData.password} required />
+						<Input
+							{...props}
+							type="password"
+							placeholder="Enter your password here"
+							bind:value={$formData.password}
+							required
+						/>
 					{/snippet}
 				</Form.Control>
 				<Form.FieldErrors />
