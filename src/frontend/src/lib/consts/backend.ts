@@ -65,6 +65,9 @@ export class Api {
 		return {
 			CONFIG: this.#url('admin/config'),
 			USER_UPDATE: this.#url('admin/user'),
+			USERS: this.#url('admin/users'),
+			USER_CREATE: this.#url('admin/user'),
+			USER_DELETE: (id: string) => this.#url(`admin/user/${id}`),
 			FILES: this.#url('admin/files'),
 			FILE_REVOKE: (id: string) => this.#url(`admin/files/${id}`)
 		};
