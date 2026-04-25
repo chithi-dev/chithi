@@ -77,6 +77,12 @@ async def upload_file(
             detail="Configuration not found",
         )
 
+    if not config.allow_uploads:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Uploads are disabled on this instance",
+        )
+
     total_limit = config.total_storage_limit
     max_file_size_limit = config.max_file_size_limit
     current_used = 0

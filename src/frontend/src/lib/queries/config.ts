@@ -41,6 +41,9 @@ type ConfigIn = {
 	// File type restrictions
 	allowed_file_types?: string[];
 	banned_file_types?: string[];
+
+	// Features
+	allow_uploads?: boolean;
 };
 
 export const useConfigQuery = () => {

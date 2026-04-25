@@ -19,6 +19,7 @@ class ConfigUpdate(SQLModel):
     time_configs: list[int] | None = None
     allowed_file_types: list[str] | None = None
     banned_file_types: list[str] | None = None
+    allow_uploads: bool | None = None
 
 
 class ConfigIn(SQLModel):
@@ -51,6 +52,7 @@ class ConfigIn(SQLModel):
 
     allowed_file_types: list[str] = Field(default=[], sa_column=Column(ARRAY(String)))
     banned_file_types: list[str] = Field(default=[], sa_column=Column(ARRAY(String)))
+    allow_uploads: bool = Field(default=True)
 
 
 class Config(ConfigIn, table=True):
