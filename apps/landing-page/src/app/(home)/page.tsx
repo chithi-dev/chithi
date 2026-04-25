@@ -1,5 +1,5 @@
 import { Metadata, Viewport } from "next";
-import { octokit } from "@/server/providers/octokit.server";
+import { octokit } from "$providers/octokit.server";
 import HomeClient from "./page.client";
 
 export const viewport: Viewport = {

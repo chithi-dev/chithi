@@ -4,7 +4,29 @@ import { Avatar, Tabs } from '@skeletonlabs/skeleton-react';
 import { DownloadIcon, MonitorIcon, TerminalIcon, Cpu } from 'lucide-react';
 import * as SIIcons from '@icons-pack/react-simple-icons';
 import { useState } from 'react';
+import type { ElementType } from 'react';
 import type { GithubAsset, GithubRelease } from './types';
+
+const resolveSIIcon = (names: string[], fallback: ElementType): ElementType => {
+    for (const n of names) {
+        const comp = SIIcons[n as keyof typeof SIIcons];
+        if (comp) return comp as unknown as ElementType;
+    }
+    return fallback;
+};
+
+const WindowsTabIcon = resolveSIIcon(
+    ['SiWindows', 'Windows', 'MicrosoftWindows', 'Windows10'],
+    MonitorIcon,
+);
+const MacTabIcon = resolveSIIcon(
+    ['SiApple', 'Apple', 'MacOS', 'Macintosh'],
+    TerminalIcon,
+);
+const LinuxTabIcon = resolveSIIcon(
+    ['SiLinux', 'Linux', 'Tux', 'SiUbuntu', 'Ubuntu'],
+    TerminalIcon,
+);
 
 export default function DownloadView({
     releases,
@@ -124,21 +146,24 @@ export default function DownloadView({
                     <Tabs.List className="mb-8 w-full justify-center space-x-2 md:space-x-8">
                         <Tabs.Trigger
                             value="windows"
-                            className="btn preset-tonal data-[state=active]:preset-filled min-w-32 flex-1 md:flex-none"
+                            className="btn min-w-32 flex-1 md:flex-none text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100 data-[state=active]:text-surface-950 dark:data-[state=active]:text-surface-50 transition-colors"
                         >
-                            <MonitorIcon className="mr-2 size-4" /> Windows
+                            <WindowsTabIcon className="mr-2 size-5" />
+                            <span className="font-semibold">Windows</span>
                         </Tabs.Trigger>
                         <Tabs.Trigger
                             value="macos"
-                            className="btn preset-tonal data-[state=active]:preset-filled min-w-32 flex-1 md:flex-none"
+                            className="btn min-w-32 flex-1 md:flex-none text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100 data-[state=active]:text-surface-950 dark:data-[state=active]:text-surface-50 transition-colors"
                         >
-                            <TerminalIcon className="mr-2 size-4" /> macOS
+                            <MacTabIcon className="mr-2 size-5" />
+                            <span className="font-semibold">macOS</span>
                         </Tabs.Trigger>
                         <Tabs.Trigger
                             value="linux"
-                            className="btn preset-tonal data-[state=active]:preset-filled min-w-32 flex-1 md:flex-none"
+                            className="btn min-w-32 flex-1 md:flex-none text-surface-600 hover:text-surface-900 dark:text-surface-400 dark:hover:text-surface-100 data-[state=active]:text-surface-950 dark:data-[state=active]:text-surface-50 transition-colors"
                         >
-                            <TerminalIcon className="mr-2 size-4" /> Linux
+                            <LinuxTabIcon className="mr-2 size-5" />
+                            <span className="font-semibold">Linux</span>
                         </Tabs.Trigger>
                         <Tabs.Indicator className="rounded bg-primary-500" />
                     </Tabs.List>
@@ -230,10 +255,13 @@ function AssetGrid({ assets }: { assets: GithubAsset[] }) {
         return 'unknown';
     };
 
-    const resolveIcon = (names: string[], fallback: any) => {
+    const resolveIcon = (
+        names: string[],
+        fallback: ElementType,
+    ): ElementType => {
         for (const n of names) {
-            const comp = (SIIcons as any)[n];
-            if (comp) return comp;
+            const comp = SIIcons[n as keyof typeof SIIcons];
+            if (comp) return comp as unknown as ElementType;
         }
         return fallback;
     };
@@ -294,17 +322,15 @@ function AssetGrid({ assets }: { assets: GithubAsset[] }) {
                             </div>
                             <div className="mt-3 flex items-center gap-2">
                                 <span className="badge preset-tonal-surface rounded-lg py-1 text-xs inline-flex items-center gap-2">
-                                    {
-                                        (() => {
-                                            const OSIcon =
-                                                os === 'windows'
-                                                    ? WindowsIcon
-                                                    : os === 'macos'
-                                                        ? MacIcon
-                                                        : LinuxIcon;
-                                            return <OSIcon className="size-4" />;
-                                        })()
-                                    }
+                                    {(() => {
+                                        const OSIcon =
+                                            os === 'windows'
+                                                ? WindowsIcon
+                                                : os === 'macos'
+                                                  ? MacIcon
+                                                  : LinuxIcon;
+                                        return <OSIcon className="size-4" />;
+                                    })()}
                                     {osDisplay}
                                 </span>
                                 <span className="badge preset-tonal-surface rounded-lg py-1 text-xs inline-flex items-center gap-2">

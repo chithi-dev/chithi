@@ -32,6 +32,19 @@
 	--color-surface-100: #f4f4f5;
 	--color-surface-50: #fafafa;
 
+	/* Surface Contrast */
+	--color-surface-contrast-950: #ffffff;
+	--color-surface-contrast-900: #ffffff;
+	--color-surface-contrast-800: #ffffff;
+	--color-surface-contrast-700: #ffffff;
+	--color-surface-contrast-600: #ffffff;
+	--color-surface-contrast-500: #ffffff;
+	--color-surface-contrast-400: #000000;
+	--color-surface-contrast-300: #000000;
+	--color-surface-contrast-200: #000000;
+	--color-surface-contrast-100: #000000;
+	--color-surface-contrast-50: #000000;
+
 	/* Primary: White Accent (reversing the scale slightly so primary-500 is white) */
 	--color-primary-950: #000000;
 	--color-primary-900: #09090b;
