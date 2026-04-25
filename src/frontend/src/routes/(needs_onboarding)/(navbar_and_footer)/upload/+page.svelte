@@ -10,6 +10,7 @@
 	import { markdown_to_html } from '$lib/markdown/markdown';
 	import { Button } from '$lib/components/ui/button';
 	import { fly, fade } from 'svelte/transition';
+	import { CloudOff } from 'lucide-svelte';
 
 	import Stage1 from './stage_1.svelte';
 	import Stage2 from './stage_2.svelte';
@@ -341,6 +342,21 @@
 				</div>
 				<div class="col-span-1">
 					{@render rightColumnSkeleton()}
+				</div>
+			{:else if configData.data?.allow_uploads === false}
+				<div
+					class="col-span-1 flex min-h-100 flex-col items-center justify-center p-4 text-center lg:col-span-2 lg:p-8"
+				>
+					<div class="mb-4 rounded-full bg-muted/50 p-4 lg:mb-6 lg:p-6">
+						<CloudOff class="h-10 w-10 text-muted-foreground lg:h-12 lg:w-12" />
+					</div>
+					<h2 class="mb-2 text-2xl font-bold md:text-xl lg:mb-4 lg:text-3xl">Uploads Disabled</h2>
+					<p
+						class="max-w-lg text-muted-foreground md:mb-4 md:text-sm lg:text-lg lg:leading-relaxed"
+					>
+						The administrator of this instance has temporarily disabled new file uploads. Existing
+						files can still be downloaded.
+					</p>
 				</div>
 			{:else if stage === UploadStage.Stage_1}
 				<div in:fly={{ x: -20, duration: 400 }}>
