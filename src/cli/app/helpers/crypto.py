@@ -5,19 +5,18 @@ import os
 import struct
 from pathlib import Path
 from typing import Tuple
-import struct
-
-from app.constants.crypto import (
-    CHUNK_SIZE,
-    ENC_CHUNK_SIZE,
-    HKDF_IV_STR,
-    HKDF_SALT_STR,
-    AES_KEY_STR,
-)
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
 from tqdm import tqdm
+
+from app.constants.crypto import (
+    AES_KEY_STR,
+    CHUNK_SIZE,
+    ENC_CHUNK_SIZE,
+    HKDF_IV_STR,
+    HKDF_SALT_STR,
+)
 
 
 def generate_ikm() -> bytes:
