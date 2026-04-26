@@ -1,13 +1,11 @@
-"""HTTP client for communicating with the Chithi backend."""
-
 from pathlib import Path
 from typing import BinaryIO, cast
 
 import requests
 from tqdm import tqdm
 
-from app.settings import settings
 from app.builder.urls import UrlBuilder
+from app.settings import settings
 
 # Stream in 8 MiB chunks (matches S3 multipart minimum)
 STREAM_CHUNK_SIZE = 8 * 1024 * 1024

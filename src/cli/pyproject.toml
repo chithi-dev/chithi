@@ -20,12 +20,18 @@ dependencies = [
     # Console Lib
     "rich>=14.3.2",
     "qrcode>=8.2",
+    "types-requests>=2.33.0.20260408",
+    "types-tqdm>=4.67.3.20260408",
 ]
 
 
 [dependency-groups]
 build = ["nuitka>=2.8.9", "zstandard>=0.25.0"]
-dev = ["poethepoet>=0.39.0"]
+dev = [
+    "poethepoet>=0.39.0",
+    "pyrefly>=0.62.0",
+    "ruff>=0.15.12",
+]
 
 [tool.poe.tasks]
 nuitka-build = "python build.py"
@@ -41,3 +47,16 @@ default-groups = ['build', 'dev']
 
 [project.scripts]
 chithi = "app.__main__:main"
+
+[tool.ruff.lint]
+extend-select = ["I"] 
+
+[tool.ruff.format]
+skip-magic-trailing-comma = false  # Avoids conflict with isort.split-on-trailing-comma
+
+[tool.ruff.lint.isort]
+split-on-trailing-comma = true  # Keep this aligned with format.skip-magic-trailing-comma
+combine-as-imports = true
+
+[tool.pyrefly]
+strict = true
