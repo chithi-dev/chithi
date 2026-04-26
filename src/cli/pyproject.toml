@@ -20,6 +20,8 @@ dependencies = [
     # Console Lib
     "rich>=14.3.2",
     "qrcode>=8.2",
+    
+    # Types
     "types-requests>=2.33.0.20260408",
     "types-tqdm>=4.67.3.20260408",
     "types-qrcode>=8.2.0.20260408",
