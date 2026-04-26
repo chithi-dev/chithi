@@ -61,7 +61,7 @@ class Client:
         self._session.close()
 
     @classmethod
-    def resolve(cls, initial_url: str | None = None) -> Client:
+    def resolve(cls, initial_url: str | None = None) -> "Client":
         """Resolve URLs via UrlBuilder and return a Client."""
         urls = UrlBuilder.resolve(initial_url)
         return cls(urls)
