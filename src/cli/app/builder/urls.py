@@ -1,6 +1,8 @@
 from urllib.parse import urljoin, urlparse
-from app.settings import settings
+
 import typer
+
+from app.settings import settings
 
 
 class UrlBuilder:
@@ -21,7 +23,7 @@ class UrlBuilder:
         return url
 
     @classmethod
-    def resolve(cls, initial_url: str | None = None) -> "UrlBuilder":
+    def resolve(cls, initial_url: str | None = None) -> UrlBuilder:
         url_candidate = initial_url or settings.INSTANCE_URL
 
         if url_candidate:
