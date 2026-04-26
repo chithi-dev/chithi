@@ -1,5 +1,3 @@
-"""ZIP compress/extract helpers (supports WinZip AES-256)."""
-
 import os
 import tempfile
 from pathlib import Path

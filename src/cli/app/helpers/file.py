@@ -1,5 +1,3 @@
-"""File-system helpers (temp-file cleanup, etc.)."""
-
 from pathlib import Path
 
 

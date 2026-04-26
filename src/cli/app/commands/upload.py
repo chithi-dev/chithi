@@ -1,12 +1,15 @@
+import os
+import tempfile
 from pathlib import Path
 from typing import Annotated
-import tempfile
-import os
-from rich.console import Console
 
 import typer
-from app import archive, client, crypto
+from rich.console import Console
+
+from app import client
 from app.builder.urls import UrlBuilder
+from app.helpers.archive import compress
+from app.helpers.crypto import encrypt, generate_ikm, ikm_to_base64url
 from app.helpers.file import cleanup
 from app.helpers.print import print_compact_qr
 
@@ -49,10 +52,10 @@ def upload(
 
             try:
                 # Processing: Compress -> Encrypt -> Upload
-                archive.compress(path, tmp_zip, password=password)
-                ikm = crypto.generate_ikm()
-                crypto.encrypt(tmp_zip, tmp_enc, ikm=ikm, password=password)
-                key_secret = crypto.ikm_to_base64url(ikm)
+                compress(path, tmp_zip, password=password)
+                ikm = generate_ikm()
+                encrypt(tmp_zip, tmp_enc, ikm=ikm, password=password)
+                key_secret = ikm_to_base64url(ikm)
 
                 result = c.upload_file(
                     tmp_enc,
