@@ -46,18 +46,6 @@ class NuitkaBuilder:
         args.append("--clang")
         self._run(args)
 
-    def build_freebsd(self):
-        args = self.base_args.copy()
-
-        args.extend(
-            [
-                "--clang",
-                "--lto=auto",
-            ]
-        )
-
-        self._run(args)
-
     def _run(self, args):
         if self.output_name:
             args.append(f"--output-filename={self.output_name}")
@@ -83,7 +71,5 @@ if __name__ == "__main__":
 
     if platform.system().lower() == "windows":
         builder.build_windows(debug=args.debug)
-    elif platform.system().lower() == "freebsd":
-        builder.build_freebsd()
     else:
         builder.build_linux()

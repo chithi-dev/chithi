@@ -47,10 +47,6 @@ jobs:
             target: macos-arm64
             asset_name: chithi-cli-macos-arm64
 
-          - os: ubuntu-latest
-            target: freebsd-amd64
-            asset_name: chithi-cli-freebsd-amd64
-
     defaults:
       run:
         working-directory: ./src/cli
@@ -59,69 +55,31 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
 
-      # ------------------------
-      # Normal environments setup
-      # ------------------------
       - name: Install uv
-        if: matrix.target != 'freebsd-amd64'
         uses: astral-sh/setup-uv@v8.1.0
 
       - name: Install dependencies
-        if: matrix.target != 'freebsd-amd64'
         run: uv sync --frozen
 
-      # ------------------------
-      # FreeBSD build (VM)
-      # ------------------------
-      - name: Build on FreeBSD
-        if: matrix.target == 'freebsd-amd64'
-        uses: vmactions/freebsd-vm@v1
-        with:
-          release: 14.0
-          usesh: true
-          prepare: |
-            pkg install -y curl clang gmake
-
-            # Install uv (standalone binary)
-            fetch -o /usr/local/bin/uv https://astral.sh/uv/install.sh
-            chmod +x /usr/local/bin/uv
-
-          run: |
-            cd /github/workspace/src/cli
-
-            # Let uv manage Python version (same as other platforms)
-            uv python install
-
-            uv sync --frozen
-            uv run python build.py --output ${{ matrix.asset_name }}
-
-            # Move artifact out of VM
-            cp ${{ matrix.asset_name }} /github/workspace/
-
-      # ------------------------
-      # Normal build
-      # ------------------------
       - name: Build Binary
-        if: matrix.target != 'freebsd-amd64'
         run: uv run python build.py --output ${{ matrix.asset_name }}
 
-      # ------------------------
-      # macOS packaging
-      # ------------------------
       - name: Package macOS app
         if: startsWith(matrix.target, 'macos')
         run: |
+          # Define the binary and the app structure
           BINARY_NAME="${{ matrix.asset_name }}"
           APP_NAME="${BINARY_NAME}.app"
-
+          
+          # Create the macOS App Bundle structure
           mkdir -p "${APP_NAME}/Contents/MacOS"
+          
+          # Move the generated binary into the bundle
           mv "$BINARY_NAME" "${APP_NAME}/Contents/MacOS/"
-
+          
+          # Zip the bundle
           zip -r "${BINARY_NAME}.zip" "$APP_NAME"
-
-      # ------------------------
-      # Upload artifacts
-      # ------------------------
+      
       - name: Upload CI Artifact
         uses: actions/upload-artifact@v7
         with:
@@ -129,14 +87,9 @@ jobs:
           path: |
             src/cli/${{ matrix.asset_name }}
             src/cli/${{ matrix.asset_name }}.zip
-            ${{ matrix.asset_name }}
           if-no-files-found: error
 
-      # ------------------------
-      # Test CLI (skip FreeBSD)
-      # ------------------------
       - name: Test CLI
-        if: matrix.target != 'freebsd-amd64'
         shell: bash
         run: |
           if [[ "${{ matrix.target }}" == macos* ]]; then
@@ -146,9 +99,6 @@ jobs:
             ./${{ matrix.asset_name }} --help || { echo 'CLI failed'; exit 1; }
           fi
 
-      # ------------------------
-      # Release upload
-      # ------------------------
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v3
         if: startsWith(github.ref, 'refs/tags/')
@@ -156,4 +106,3 @@ jobs:
           files: |
             src/cli/${{ matrix.asset_name }}
             src/cli/${{ matrix.asset_name }}.zip
-            ${{ matrix.asset_name }}
