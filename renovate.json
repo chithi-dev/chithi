@@ -4,9 +4,13 @@
     "config:recommended"
   ],
   "ignoreDeps": ["cryptography"],
-      "lockFileMaintenance": {
-        "enabled": true
-    },
+  "lockFileMaintenance": {
+    "enabled": true
+  },
+  "timezone": "Asia/Dhaka",
+  "schedule": [
+    "at 10:00 on friday"
+  ],
   "packageRules": [
     {
       "groupName": "all dependencies",
