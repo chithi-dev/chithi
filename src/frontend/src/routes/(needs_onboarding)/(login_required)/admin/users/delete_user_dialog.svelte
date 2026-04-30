@@ -4,10 +4,7 @@
 	import { useUsersQuery } from '#queries/admin_users';
 	import { toast } from 'svelte-sonner';
 
-	let {
-		open = $bindable(false),
-		userId = $bindable(null)
-	} = $props<{
+	let { open = $bindable(false), userId = $bindable(null) } = $props<{
 		open: boolean;
 		userId: string | null;
 	}>();
