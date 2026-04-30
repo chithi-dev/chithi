@@ -1,5 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +13,9 @@ from app.states.app import AppState, GlobalState
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Store base directory
+    app.state.base_dir = Path(__file__).resolve().parent.parent
+
     # Initialise shared Redis client and start periodic state sync task
     GlobalState.init_redis()
 

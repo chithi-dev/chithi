@@ -93,6 +93,6 @@ async def delete_file(
     if not file_object:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="File not found")
 
-    background_tasks.add_task(delete_expired_file.delay, str(id))
+    background_tasks.add_task(delete_expired_file.delay, id)
 
     return FileOut(key=file_object.key)
