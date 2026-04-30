@@ -110,7 +110,6 @@ from app.routes.http.speedtest import router as speedtest_router
 
 app.include_router(speedtest_router)
 
-
 from app.routes.ws.state import router as ws_router
 
 app.include_router(ws_router)
@@ -122,3 +121,7 @@ app.include_router(reverse_router)
 from app.routes.ws.reverse import router as ws_reverse_router
 
 app.include_router(ws_reverse_router)
+
+from app.routes.http.instance import router as instance_router
+
+app.include_router(instance_router)

@@ -22,7 +22,7 @@ async def get_instance_information(
     redis_version = info["redis_version"]
 
     # Postgres Execution
-    postgres_version = await session.scalar(text("SELECT version()"))
+    postgres_version = await session.scalar(text("SHOW server_version"))
 
     # Python Execution
     python_version = platform.python_version()
