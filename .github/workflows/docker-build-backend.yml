@@ -39,7 +39,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '25'
-          cache: 'npm'
+
       - name: Inject Version
         run: node --experimental-strip-types build/inject-version.ts
 
