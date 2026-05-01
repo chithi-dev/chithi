@@ -6,3 +6,6 @@ class InformationOut(SQLModel):
     fastapi_version: str
     redis_version: str
     postgres_version: str
+    version: str
+    commit: str
+    is_release: bool
