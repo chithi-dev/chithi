@@ -8,7 +8,8 @@
 		Link,
 		BookOpenText,
 		Gauge,
-		Info
+		Info,
+		Server
 	} from 'lucide-svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { toggleMode } from 'mode-watcher';
@@ -98,6 +99,12 @@
 			href: '/speedtest',
 			name: 'Speedtest',
 			icon: Gauge,
+			order: 3
+		},
+		{
+			href: '/backend-information',
+			name: 'Backend Infrastructure',
+			icon: Server,
 			order: 2
 		},
 		{

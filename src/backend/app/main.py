@@ -1,5 +1,6 @@
 import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +13,9 @@ from app.states.app import AppState, GlobalState
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Store base directory
+    app.state.base_dir = Path(__file__).resolve().parent.parent
+
     # Initialise shared Redis client and start periodic state sync task
     GlobalState.init_redis()
 
@@ -106,7 +110,6 @@ from app.routes.http.speedtest import router as speedtest_router
 
 app.include_router(speedtest_router)
 
-
 from app.routes.ws.state import router as ws_router
 
 app.include_router(ws_router)
@@ -118,3 +121,7 @@ app.include_router(reverse_router)
 from app.routes.ws.reverse import router as ws_reverse_router
 
 app.include_router(ws_reverse_router)
+
+from app.routes.http.instance import router as instance_router
+
+app.include_router(instance_router)
