@@ -102,25 +102,18 @@
 			order: 3
 		},
 		{
-			href: '/backend-information',
+			href: '/informations/backend',
 			name: 'Backend Infrastructure',
 			icon: Server,
 			order: 2
 		},
 		{
-			href: '/information',
+			href: '/informations/frontend',
 			name: 'Information about the instance',
 			icon: Info,
 			order: 1
 		}
 	]);
-	let isDark = $state<boolean>(mode.current === 'dark');
-
-	function handleCheckedChange(checked: boolean) {
-		if ((checked && mode.current !== 'dark') || (!checked && mode.current === 'dark')) {
-			toggleMode();
-		}
-	}
 
 	const donationPlatforms = [
 		{
