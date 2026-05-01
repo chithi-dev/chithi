@@ -4,8 +4,8 @@ import platform
 
 from fastapi import (
     APIRouter,
-    __version__ as fastapi_version,
     Request,
+    __version__ as fastapi_version,
 )
 from sqlalchemy import text
 
