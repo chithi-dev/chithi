@@ -27,6 +27,7 @@ class NuitkaBuilder:
             # "--enable-plugin=upx",
             "--disable-bytecode-cache",
             "--assume-yes-for-downloads",
+            "--experimental=deferred-annotations",
         ]
 
     def build_windows(self, debug: bool = False) -> None:
