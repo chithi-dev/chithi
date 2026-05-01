@@ -41,6 +41,10 @@ export class Api {
 		return this.#url('onboarding');
 	}
 
+	static get INSTANCE() {
+		return this.#url('instance/information');
+	}
+
 	static get UPLOAD() {
 		return this.#url('upload');
 	}
