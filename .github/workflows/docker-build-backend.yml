@@ -41,6 +41,7 @@ jobs:
           node-version: '25'
 
       - name: Inject Version
+        working-directory: ./src/backend
         run: node --experimental-strip-types build/inject-version.ts
 
 
