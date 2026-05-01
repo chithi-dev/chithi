@@ -11,5 +11,12 @@ export const load: PageLoad = async () => {
 		}
 	});
 
-	return { ...pageTags };
+	return {
+		...pageTags,
+		header: {
+			subtitle: 'SYSTEM INFORMATION',
+			title: 'Chithi Instance',
+			description: 'Version, source revision, and runtime metadata for this deployment.'
+		}
+	};
 };

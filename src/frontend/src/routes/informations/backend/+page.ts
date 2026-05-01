@@ -11,5 +11,12 @@ export const load: PageLoad = async () => {
 		}
 	});
 
-	return { ...pageTags };
+	return {
+		...pageTags,
+		header: {
+			subtitle: 'BACKEND INFRASTRUCTURE',
+			title: 'Chithi Backend',
+			description: 'Runtime environment, service versions, and architectural metadata.'
+		}
+	};
 };
