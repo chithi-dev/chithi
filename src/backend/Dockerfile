@@ -9,8 +9,6 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 # for an example.
 ENV UV_PYTHON_DOWNLOADS=0
 
-# Remove the typescript folder
-RUN rm build
 
 WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -20,6 +18,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-default-groups
+
+# Remove the python build folder
+RUN rm -rf /app/build
 
 # Remove the .egg-info file that are created from setuptools
 RUN find /app -type d -name '*.egg-info' -exec rm -rf {} +
