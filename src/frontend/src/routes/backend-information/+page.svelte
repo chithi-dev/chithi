@@ -104,7 +104,7 @@
 					<div
 						class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
 					>
-						<SiPython class="h-3 w-3" />
+						<SiPython size="12" />
 						Python Runtime
 					</div>
 					<p class="text-sm font-semibold text-foreground">{info.python_version}</p>
@@ -117,7 +117,7 @@
 					<div
 						class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
 					>
-						<SiFastapi class="h-3 w-3" />
+						<SiFastapi size="12" />
 						FastAPI Framework
 					</div>
 					<p class="text-sm font-semibold text-foreground">{info.fastapi_version}</p>
@@ -130,7 +130,7 @@
 					<div
 						class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
 					>
-						<SiRedis class="h-3 w-3" />
+						<SiRedis size="12" />
 						Redis Cache
 					</div>
 					<p class="text-sm font-semibold text-foreground">{info.redis_version}</p>
@@ -143,7 +143,7 @@
 					<div
 						class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
 					>
-						<SiPostgresql class="h-3 w-3" />
+						<SiPostgresql size="12" />
 						PostgreSQL DB
 					</div>
 					<p class="text-sm font-semibold text-foreground">{info.postgres_version}</p>
@@ -219,7 +219,7 @@
 					target="_blank"
 					rel="noopener noreferrer"
 				>
-					<SiGithub class="h-4 w-4" />
+					<SiGithub size="16" />
 					Repository
 				</Button>
 
