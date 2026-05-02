@@ -99,19 +99,13 @@
 			href: '/speedtest',
 			name: 'Speedtest',
 			icon: Gauge,
-			order: 3
+			order: 1
 		},
 		{
-			href: '/informations/backend',
-			name: 'Backend Infrastructure',
-			icon: Server,
-			order: 2
-		},
-		{
-			href: '/informations/frontend',
+			href: '/informations',
 			name: 'Information about the instance',
 			icon: Info,
-			order: 1
+			order: 2
 		}
 	]);
 
