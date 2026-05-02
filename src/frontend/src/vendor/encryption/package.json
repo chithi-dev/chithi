@@ -1,0 +1,15 @@
+{
+  "name": "chithi-wasm",
+  "type": "module",
+  "version": "0.1.0",
+  "files": [
+    "chithi_wasm_bg.wasm",
+    "chithi_wasm.js",
+    "chithi_wasm.d.ts"
+  ],
+  "main": "chithi_wasm.js",
+  "types": "chithi_wasm.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

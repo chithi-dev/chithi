@@ -58,11 +58,7 @@ export async function deriveAESKeyFromIKM(
 		32,
 		1
 	);
-	// Import key as exportable so we can pass raw key material to workers for parallel encryption
-	return await crypto.subtle.importKey('raw', derivedBits as any, { name: 'AES-GCM' }, true, [
-		'encrypt',
-		'decrypt'
-	]);
+	return derivedBits as Uint8Array;
 }
 
 export async function argon2Derive(
@@ -94,12 +90,3 @@ export type InnerEncryptionMeta = {
 };
 
 export const CHUNK_SIZE = 64 * 1024; // 64KB
-
-export function getChunkIv(baseIv: Uint8Array, chunkIndex: number): Uint8Array {
-	const iv = new Uint8Array(baseIv);
-	const view = new DataView(iv.buffer, iv.byteOffset, iv.byteLength);
-	// XOR the chunk index into the last 4 bytes (big-endian)
-	const last4 = view.getUint32(8, false);
-	view.setUint32(8, last4 ^ chunkIndex, false);
-	return iv;
-}
