@@ -4,10 +4,44 @@ export const memory: WebAssembly.Memory;
 export const compress: (a: any, b: number, c: number) => [number, number, number, number];
 export const create_7z: (a: any, b: number, c: number) => [number, number, number, number];
 export const decompress: (a: number, b: number, c: number, d: number, e: any) => [number, number];
-export const decrypt_chunk: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number, number];
-export const decrypt_chunks_parallel: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number, number, number];
-export const encrypt_chunk: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => [number, number, number, number];
-export const encrypt_chunks_parallel: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => [number, number, number, number];
+export const decrypt_chunk: (
+	a: number,
+	b: number,
+	c: number,
+	d: number,
+	e: number,
+	f: number,
+	g: number
+) => [number, number, number, number];
+export const decrypt_chunks_parallel: (
+	a: number,
+	b: number,
+	c: number,
+	d: number,
+	e: number,
+	f: number,
+	g: number,
+	h: number
+) => [number, number, number, number];
+export const encrypt_chunk: (
+	a: number,
+	b: number,
+	c: number,
+	d: number,
+	e: number,
+	f: number,
+	g: number
+) => [number, number, number, number];
+export const encrypt_chunks_parallel: (
+	a: number,
+	b: number,
+	c: number,
+	d: number,
+	e: number,
+	f: number,
+	g: number,
+	h: number
+) => [number, number, number, number];
 export const __wbg_wbg_rayon_poolbuilder_free: (a: number, b: number) => void;
 export const initThreadPool: (a: number) => any;
 export const wbg_rayon_poolbuilder_build: (a: number) => void;

@@ -60,17 +60,16 @@ export function decompress(src, pwd, f) {
  * @param {Uint8Array} key
  * @param {Uint8Array} base_iv
  * @param {number} index
- * @param {boolean} _decompress
  * @returns {Uint8Array}
  */
-export function decrypt_chunk(data, key, base_iv, index, _decompress) {
+export function decrypt_chunk(data, key, base_iv, index) {
 	const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
 	const len0 = WASM_VECTOR_LEN;
 	const ptr1 = passArray8ToWasm0(key, wasm.__wbindgen_malloc);
 	const len1 = WASM_VECTOR_LEN;
 	const ptr2 = passArray8ToWasm0(base_iv, wasm.__wbindgen_malloc);
 	const len2 = WASM_VECTOR_LEN;
-	const ret = wasm.decrypt_chunk(ptr0, len0, ptr1, len1, ptr2, len2, index, _decompress);
+	const ret = wasm.decrypt_chunk(ptr0, len0, ptr1, len1, ptr2, len2, index);
 	if (ret[3]) {
 		throw takeFromExternrefTable0(ret[2]);
 	}
@@ -84,7 +83,6 @@ export function decrypt_chunk(data, key, base_iv, index, _decompress) {
  * @param {Uint8Array} key
  * @param {Uint8Array} base_iv
  * @param {number} start_index
- * @param {boolean} decompress
  * @param {Function | null} [progress_callback]
  * @returns {Uint8Array}
  */
@@ -93,7 +91,6 @@ export function decrypt_chunks_parallel(
 	key,
 	base_iv,
 	start_index,
-	decompress,
 	progress_callback
 ) {
 	const ptr0 = passArray8ToWasm0(flattened_chunks, wasm.__wbindgen_malloc);
@@ -110,7 +107,6 @@ export function decrypt_chunks_parallel(
 		ptr2,
 		len2,
 		start_index,
-		decompress,
 		isLikeNone(progress_callback) ? 0 : addToExternrefTable0(progress_callback)
 	);
 	if (ret[3]) {
@@ -126,17 +122,16 @@ export function decrypt_chunks_parallel(
  * @param {Uint8Array} key
  * @param {Uint8Array} base_iv
  * @param {number} index
- * @param {boolean} _compress
  * @returns {Uint8Array}
  */
-export function encrypt_chunk(data, key, base_iv, index, _compress) {
+export function encrypt_chunk(data, key, base_iv, index) {
 	const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
 	const len0 = WASM_VECTOR_LEN;
 	const ptr1 = passArray8ToWasm0(key, wasm.__wbindgen_malloc);
 	const len1 = WASM_VECTOR_LEN;
 	const ptr2 = passArray8ToWasm0(base_iv, wasm.__wbindgen_malloc);
 	const len2 = WASM_VECTOR_LEN;
-	const ret = wasm.encrypt_chunk(ptr0, len0, ptr1, len1, ptr2, len2, index, _compress);
+	const ret = wasm.encrypt_chunk(ptr0, len0, ptr1, len1, ptr2, len2, index);
 	if (ret[3]) {
 		throw takeFromExternrefTable0(ret[2]);
 	}
@@ -150,7 +145,6 @@ export function encrypt_chunk(data, key, base_iv, index, _compress) {
  * @param {Uint8Array} key
  * @param {Uint8Array} base_iv
  * @param {number} start_index
- * @param {boolean} compress
  * @param {Function | null} [progress_callback]
  * @returns {Uint8Array}
  */
@@ -159,7 +153,6 @@ export function encrypt_chunks_parallel(
 	key,
 	base_iv,
 	start_index,
-	compress,
 	progress_callback
 ) {
 	const ptr0 = passArray8ToWasm0(flattened_chunks, wasm.__wbindgen_malloc);
@@ -176,7 +169,6 @@ export function encrypt_chunks_parallel(
 		ptr2,
 		len2,
 		start_index,
-		compress,
 		isLikeNone(progress_callback) ? 0 : addToExternrefTable0(progress_callback)
 	);
 	if (ret[3]) {
