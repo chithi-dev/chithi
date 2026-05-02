@@ -72,6 +72,9 @@ importers:
       octokit:
         specifier: ^5.0.5
         version: 5.0.5
+      sass:
+        specifier: ^1.99.0
+        version: 1.99.0
       sass-embedded:
         specifier: ^1.99.0
         version: 1.99.0
@@ -4149,7 +4152,6 @@ snapshots:
   chokidar@4.0.3:
     dependencies:
       readdirp: 4.1.2
-    optional: true
 
   chokidar@5.0.0:
     dependencies:
@@ -5010,8 +5012,7 @@ snapshots:
 
   react@19.3.0-canary-f4e0d4ed-20260429: {}
 
-  readdirp@4.1.2:
-    optional: true
+  readdirp@4.1.2: {}
 
   readdirp@5.0.0: {}
 
@@ -5186,7 +5187,6 @@ snapshots:
       source-map-js: 1.2.1
     optionalDependencies:
       '@parcel/watcher': 2.5.6
-    optional: true
 
   scheduler@0.28.0-canary-f4e0d4ed-20260429: {}
 
