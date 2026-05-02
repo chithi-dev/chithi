@@ -106,7 +106,7 @@ export interface InitOutput {
 	readonly __wbindgen_exn_store: (a: number) => void;
 	readonly __externref_table_alloc: () => number;
 	readonly __wbindgen_externrefs: WebAssembly.Table;
-	readonly __externref_table_dealloc: (a: number) => void;
+	readonly __externref_table_dealloc: (a: number) => number;
 	readonly __wbindgen_free: (a: number, b: number, c: number) => void;
 	readonly __wbindgen_start: () => void;
 }

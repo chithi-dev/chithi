@@ -50,7 +50,9 @@ export async function downloadAndDecryptFile(
 	const { stream: decryptedStream } = await createDecryptedStream(
 		streamWithProgress,
 		key,
-		password
+		password,
+		undefined,
+		undefined
 	);
 
 	const decReader = decryptedStream.getReader();

@@ -78,8 +78,7 @@ pub fn encrypt_chunk(
         .into());
     }
 
-    // Compression is intentionally handled externally (e.g. sevenz).
-    // This function only encrypts raw chunk bytes without compression.
+    // Encryption only, no compression.
     let iv = get_chunk_iv(base_iv, index);
     let cipher = ChaCha20Poly1305::new(key.into());
     let nonce = Nonce::from_slice(&iv);
@@ -108,8 +107,7 @@ pub fn decrypt_chunk(
         .into());
     }
 
-    // Decompression is intentionally handled externally (e.g. sevenz).
-    // This function only decrypts and returns raw chunk bytes without decompression.
+    // Decryption only, no decompression.
     let iv = get_chunk_iv(base_iv, index);
     let cipher = ChaCha20Poly1305::new(key.into());
     let nonce = Nonce::from_slice(&iv);
@@ -388,12 +386,12 @@ pub fn compress(entries: &JsValue, pwd: Option<String>) -> Result<Vec<u8>, JsVal
         let reader = std::io::Cursor::new(buf);
         writer
             .push_archive_entry(entry, Some(reader))
-            .map_err(|e| JsValue::from_str(&format!("sevenz append error: {}", e)))?;
+            .map_err(|e| JsValue::from_str(&format!("sevenz_rust2 append error: {}", e)))?;
     }
 
     let finished = writer
         .finish()
-        .map_err(|e| JsValue::from_str(&format!("sevenz finish error: {}", e)))?;
+        .map_err(|e| JsValue::from_str(&format!("sevenz_rust2 finish error: {}", e)))?;
 
     // finished is Cursor<Vec<u8>>; extract inner Vec<u8>
     Ok(finished.into_inner())
@@ -403,3 +401,5 @@ pub fn compress(entries: &JsValue, pwd: Option<String>) -> Result<Vec<u8>, JsVal
 pub fn create_7z(entries: &JsValue, pwd: Option<String>) -> Result<Vec<u8>, JsValue> {
     compress(entries, pwd)
 }
+
+

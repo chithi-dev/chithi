@@ -1,23 +1,12 @@
 # Chithi WASM Pipeline
 
-This crate provides a high-performance, multi-threaded WASM-based encryption and compression pipeline for Chithi.
+This crate provides a high-performance, multi-threaded WASM-based encryption pipeline for Chithi.
 
 ## Features
 
-- **Compression**: LZMA2 via `lzma-rs`.
 - **Encryption**: ChaCha20-Poly1305 (Exclusive).
 - **Parallelism**: Multi-core support via `rayon` and `wasm-bindgen-rayon`.
 - **Hardware Acceleration**: Optimized for SIMD128.
-
-## Direct Helpers
-
-You can also call the raw compression helpers directly from WASM:
-
-- `compress(entries, pwd)` for 7z archive creation, with an optional password.
-- `create_7z(entries, pwd)` for the same archive creation path.
-- `decompress(src, pwd, f)` for 7z extraction, including password-protected archives.
-
-If extraction fails because the archive needs a password, the WASM binding throws a `Password needed` error.
 
 ## Progress Reporting
 
@@ -33,12 +22,12 @@ const encrypted = wasm.encrypt_chunks_parallel(
     key,
     baseIv,
     0,
-    true,
     onProgress,
 );
 ```
 
 When a progress callback is supplied, the operation reports progress from `0` to `100`. The progress-aware path runs sequentially so the callback can fire reliably from WASM.
+
 
 ## Building
 

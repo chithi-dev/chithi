@@ -193,8 +193,7 @@ export async function createEncryptedStream(
 	password?: string,
 	originalSize?: number,
 	onProgress?: (processed: number, total?: number) => void,
-	ikm_override?: Uint8Array,
-	useCompression = true
+	ikm_override?: Uint8Array
 ) {
 	const ikm = ikm_override ?? crypto.getRandomValues(new Uint8Array(32));
 	const { keyMaterial, baseIv } = await deriveSecrets(ikm, password);
@@ -307,8 +306,7 @@ export async function createEncryptedStream(
 					{
 						type: 'encrypt',
 						index,
-						chunk: buffer,
-						useCompression
+						chunk: buffer
 					},
 					[buffer]
 				);
@@ -332,8 +330,7 @@ export async function createEncryptedStream(
 					{
 						type: 'encrypt',
 						index,
-						chunk: buffer,
-						useCompression
+						chunk: buffer
 					},
 					[buffer]
 				);
@@ -347,8 +344,7 @@ export async function createEncryptedStream(
 					{
 						type: 'encrypt',
 						index: 0,
-						chunk: empty.buffer,
-						useCompression
+						chunk: empty.buffer
 					},
 					[empty.buffer]
 				);
@@ -373,8 +369,7 @@ export async function createDecryptedStream(
 	keySecret: string,
 	password?: string,
 	originalSize?: number,
-	onProgress?: (processed: number, total?: number) => void,
-	useCompression = true
+	onProgress?: (processed: number, total?: number) => void
 ) {
 	const ikm = base64urlToBytes(keySecret);
 	const { keyMaterial, baseIv } = await deriveSecrets(ikm, password);
@@ -502,8 +497,7 @@ export async function createDecryptedStream(
 					{
 						type: 'decrypt',
 						index,
-						chunk: transfer,
-						useCompression
+						chunk: transfer
 					},
 					[transfer]
 				);
@@ -519,6 +513,7 @@ export async function createDecryptedStream(
 
 	return { stream };
 }
+
 
 export function createMultipartStream(
 	boundary: string,
