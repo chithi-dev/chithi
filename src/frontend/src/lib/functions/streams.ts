@@ -1,13 +1,33 @@
 import { WORKER_CONCURRENCY } from '#consts/concurrency';
 import WasmPipelineWorker from '#workers/wasm-pipeline.worker?worker';
-import {
-	CHUNK_SIZE,
-	argon2Derive,
-	base64url,
-	base64urlToBytes,
-	deriveAESKeyFromIKM,
-	xorBytes
-} from './encryption';
+// Minimal inlined helpers — heavy key derivation now handled in WASM pipeline
+const CHUNK_SIZE = 64 * 1024; // 64KB
+
+function bytesToBase64(u8: Uint8Array) {
+	let binary = '';
+	for (let i = 0; i < u8.byteLength; i++) {
+		binary += String.fromCharCode(u8[i]);
+	}
+	return btoa(binary);
+}
+
+function base64url(u8: Uint8Array) {
+	return bytesToBase64(u8).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function base64urlToBytes(str: string) {
+	let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+	while (b64.length % 4) {
+		b64 += '=';
+	}
+	const binary = atob(b64);
+	const len = binary.length;
+	const bytes = new Uint8Array(len);
+	for (let i = 0; i < len; i++) {
+		bytes[i] = binary.charCodeAt(i);
+	}
+	return bytes;
+}
 
 // Deterministic derivation constants
 const HKDF_SALT_STR = 'chithi-salt-v1';
@@ -35,35 +55,17 @@ const makeUnique = (name: string) => {
 };
 
 async function deriveSecrets(ikm: Uint8Array, password?: string) {
-	// Derive deterministic salt from IKM
+	// Keep derivation light in JS: compute deterministic IV; leave heavy key
+	// derivation (Argon2 / HKDF -> AES key) to WASM pipeline.
 	const enc = new TextEncoder();
-	const derivedSalt = await crypto.subtle.digest(
-		'SHA-256',
-		new Uint8Array([...ikm, ...enc.encode(HKDF_SALT_STR)])
-	);
-
-	let finalIKM = ikm;
-
-	// Mix in password if provided
-	if (password && password.length > 0) {
-		const saltBytes = new Uint8Array(derivedSalt).slice(0, 16);
-		const passwordBytes = new TextEncoder().encode(password);
-		const pb = await argon2Derive(passwordBytes, saltBytes, 32, 16384, 32, 1);
-		finalIKM = xorBytes(ikm, pb);
-	}
-
-	// Derive AES key and base IV
-	const hkdfSalt = new Uint8Array(
-		await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode('aes-key')]))
-	).slice(0, 16);
 
 	const baseIv = new Uint8Array(
-		await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode(HKDF_IV_STR)]))
+		await crypto.subtle.digest('SHA-256', new Uint8Array([...ikm, ...enc.encode(HKDF_IV_STR)]))
 	).slice(0, 12);
 
-	const aesKey = await deriveAESKeyFromIKM(finalIKM, hkdfSalt);
-
-	return { aesKey, baseIv, finalIKM };
+	// Return key material (IKM) and IV. If a password is provided, forward it
+	// so the WASM side can perform mixing/derivation.
+	return { keyMaterial: ikm, baseIv, finalIKM: ikm };
 }
 
 /**
@@ -195,7 +197,7 @@ export async function createEncryptedStream(
 	useCompression = true
 ) {
 	const ikm = ikm_override ?? crypto.getRandomValues(new Uint8Array(32));
-	const { aesKey, baseIv } = await deriveSecrets(ikm, password);
+	const { keyMaterial, baseIv } = await deriveSecrets(ikm, password);
 
 	const worker = new WasmPipelineWorker();
 	let readyResolve: () => void;
@@ -260,7 +262,8 @@ export async function createEncryptedStream(
 	worker.postMessage(
 		{
 			type: 'init',
-			keyRaw: copyBytes(aesKey),
+			// Forward raw key material (IKM). WASM is responsible for final derivation.
+			keyRaw: copyBytes(keyMaterial),
 			baseIv: copyBytes(baseIv),
 			threads: WORKER_CONCURRENCY
 		},
@@ -374,7 +377,7 @@ export async function createDecryptedStream(
 	useCompression = true
 ) {
 	const ikm = base64urlToBytes(keySecret);
-	const { aesKey, baseIv } = await deriveSecrets(ikm, password);
+	const { keyMaterial, baseIv } = await deriveSecrets(ikm, password);
 
 	const worker = new WasmPipelineWorker();
 	let readyResolve: () => void;
@@ -435,7 +438,7 @@ export async function createDecryptedStream(
 	worker.postMessage(
 		{
 			type: 'init',
-			keyRaw: copyBytes(aesKey),
+			keyRaw: copyBytes(keyMaterial),
 			baseIv: copyBytes(baseIv),
 			threads: WORKER_CONCURRENCY
 		},

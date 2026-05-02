@@ -5,7 +5,11 @@ use chacha20poly1305::{
 use js_sys::Function;
 use js_sys::{Array, Uint8Array};
 use rayon::prelude::*;
-use sevenz_rust2::{ArchiveEntry, ArchiveWriter};
+use sevenz_rust2::encoder_options::AesEncoderOptions;
+use sevenz_rust2::{
+    ArchiveEntry, ArchiveReader, ArchiveWriter, EncoderConfiguration, EncoderMethod,
+    Error as SevenzError, Password,
+};
 use std::io::Cursor;
 use thiserror::Error;
 use wasm_bindgen::JsValue;
@@ -29,6 +33,19 @@ pub enum PipelineError {
 impl From<PipelineError> for JsValue {
     fn from(err: PipelineError) -> JsValue {
         JsValue::from_str(&err.to_string())
+    }
+}
+
+fn map_sevenz_error(err: SevenzError, password: &str) -> JsValue {
+    let password_needed = matches!(
+        err,
+        SevenzError::PasswordRequired | SevenzError::MaybeBadPassword(_)
+    ) || (password.is_empty() && matches!(err, SevenzError::BadSignature(_)));
+
+    if password_needed {
+        JsValue::from_str("Password needed")
+    } else {
+        JsValue::from_str(&format!("7z decompression error: {err}"))
     }
 }
 
@@ -157,6 +174,55 @@ fn report_progress(
         callback
             .call1(&JsValue::NULL, &JsValue::from_f64(progress))
             .map(|_| ())?;
+    }
+
+    Ok(())
+}
+
+#[wasm_bindgen]
+pub fn decompress(src: &[u8], pwd: &str, f: &Function) -> Result<(), JsValue> {
+    let cursor = Cursor::new(src);
+    let password = if pwd.is_empty() {
+        Password::empty()
+    } else {
+        Password::new(pwd)
+    };
+
+    let mut reader = ArchiveReader::new(cursor, password).map_err(|e| map_sevenz_error(e, pwd))?;
+    let archive = reader.archive().clone();
+
+    for entry in &archive.files {
+        let data = if entry.has_stream() {
+            reader
+                .read_file(entry.name())
+                .map_err(|e| map_sevenz_error(e, pwd))?
+        } else {
+            Vec::new()
+        };
+
+        let item = js_sys::Object::new();
+        js_sys::Reflect::set(
+            &item,
+            &JsValue::from_str("name"),
+            &JsValue::from_str(entry.name()),
+        )?;
+        js_sys::Reflect::set(
+            &item,
+            &JsValue::from_str("data"),
+            &Uint8Array::from(data.as_slice()),
+        )?;
+        js_sys::Reflect::set(
+            &item,
+            &JsValue::from_str("isDirectory"),
+            &JsValue::from_bool(entry.is_directory()),
+        )?;
+        js_sys::Reflect::set(
+            &item,
+            &JsValue::from_str("hasStream"),
+            &JsValue::from_bool(entry.has_stream()),
+        )?;
+
+        f.call1(&JsValue::NULL, &item)?;
     }
 
     Ok(())
@@ -301,12 +367,19 @@ pub fn decrypt_chunks_parallel(
 // Create a .7z archive in memory from JS-provided entries.
 // `entries` should be an array of objects: { name: string, data: Uint8Array }
 #[wasm_bindgen]
-pub fn create_7z(entries: &JsValue) -> Result<Vec<u8>, JsValue> {
+pub fn compress(entries: &JsValue, pwd: Option<String>) -> Result<Vec<u8>, JsValue> {
     let arr = Array::from(entries);
 
     let cursor = Cursor::new(Vec::new());
     let mut writer = ArchiveWriter::new(cursor)
         .map_err(|e| JsValue::from_str(&format!("sevenz init error: {}", e)))?;
+
+    if let Some(password) = pwd.as_deref().filter(|password| !password.is_empty()) {
+        writer.set_content_methods(vec![
+            EncoderConfiguration::new(EncoderMethod::LZMA2),
+            AesEncoderOptions::new(Password::new(password)).into(),
+        ]);
+    }
 
     for v in arr.iter() {
         let name_js =
@@ -334,4 +407,9 @@ pub fn create_7z(entries: &JsValue) -> Result<Vec<u8>, JsValue> {
 
     // finished is Cursor<Vec<u8>>; extract inner Vec<u8>
     Ok(finished.into_inner())
+}
+
+#[wasm_bindgen]
+pub fn create_7z(entries: &JsValue, pwd: Option<String>) -> Result<Vec<u8>, JsValue> {
+    compress(entries, pwd)
 }

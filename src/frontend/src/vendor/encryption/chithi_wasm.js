@@ -2,62 +2,54 @@
 import { startWorkers } from './snippets/wasm-bindgen-rayon-38edf6e439f6d70d/src/workerHelpers.js';
 
 /**
- * Compresses multiple entries into a 7z archive in WebAssembly environment.
- *
- * This function creates a compressed archive from multiple file entries,
- * designed specifically for WASM targets.
- *
- * # Arguments
- * * `entries` - Vector of JavaScript strings representing file names/paths
- * * `datas` - Vector of Uint8Arrays containing the file data corresponding to entries
- * @param {string[]} entries
- * @param {Uint8Array[]} datas
+ * @param {any} entries
+ * @param {string | null} [pwd]
  * @returns {Uint8Array}
  */
-export function compress(entries, datas) {
-	const ptr0 = passArrayJsValueToWasm0(entries, wasm.__wbindgen_malloc);
-	const len0 = WASM_VECTOR_LEN;
-	const ptr1 = passArrayJsValueToWasm0(datas, wasm.__wbindgen_malloc);
-	const len1 = WASM_VECTOR_LEN;
-	const ret = wasm.compress(ptr0, len0, ptr1, len1);
-	if (ret[2]) {
-		throw takeFromExternrefTable0(ret[1]);
+export function compress(entries, pwd) {
+	var ptr0 = isLikeNone(pwd)
+		? 0
+		: passStringToWasm0(pwd, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+	var len0 = WASM_VECTOR_LEN;
+	const ret = wasm.compress(entries, ptr0, len0);
+	if (ret[3]) {
+		throw takeFromExternrefTable0(ret[2]);
 	}
-	return takeFromExternrefTable0(ret[0]);
+	var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+	wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
+	return v2;
 }
 
 /**
  * @param {any} entries
+ * @param {string | null} [pwd]
  * @returns {Uint8Array}
  */
-export function create_7z(entries) {
-	const ret = wasm.create_7z(entries);
+export function create_7z(entries, pwd) {
+	var ptr0 = isLikeNone(pwd)
+		? 0
+		: passStringToWasm0(pwd, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+	var len0 = WASM_VECTOR_LEN;
+	const ret = wasm.create_7z(entries, ptr0, len0);
 	if (ret[3]) {
 		throw takeFromExternrefTable0(ret[2]);
 	}
-	var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+	var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
 	wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
-	return v1;
+	return v2;
 }
 
 /**
- * Decompresses a 7z archive in WebAssembly environment.
- *
- * This function is specifically designed for WASM targets and uses JavaScript interop
- * to handle the decompression process with a callback function.
- *
- * # Arguments
- * * `src` - Uint8Array containing the compressed archive data
- * * `pwd` - Password string for encrypted archives (use empty string for unencrypted)
- * * `f` - JavaScript callback function to handle extracted entries
  * @param {Uint8Array} src
  * @param {string} pwd
  * @param {Function} f
  */
 export function decompress(src, pwd, f) {
-	const ptr0 = passStringToWasm0(pwd, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+	const ptr0 = passArray8ToWasm0(src, wasm.__wbindgen_malloc);
 	const len0 = WASM_VECTOR_LEN;
-	const ret = wasm.decompress(src, ptr0, len0, f);
+	const ptr1 = passStringToWasm0(pwd, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+	const len1 = WASM_VECTOR_LEN;
+	const ret = wasm.decompress(ptr0, len0, ptr1, len1, f);
 	if (ret[1]) {
 		throw takeFromExternrefTable0(ret[0]);
 	}
@@ -282,15 +274,14 @@ function __wbg_get_imports() {
 				return ret;
 			}, arguments);
 		},
-		__wbg_call_a6d9545202d34317: function () {
-			return handleError(function (arg0, arg1, arg2, arg3) {
-				const ret = arg0.call(arg1, arg2, arg3);
-				return ret;
-			}, arguments);
-		},
 		__wbg_from_ff141b1e4c69b979: function (arg0) {
 			const ret = Array.from(arg0);
 			return ret;
+		},
+		__wbg_getRandomValues_783a29df2108885b: function () {
+			return handleError(function (arg0) {
+				globalThis.crypto.getRandomValues(arg0);
+			}, arguments);
 		},
 		__wbg_get_41476db20fef99a8: function () {
 			return handleError(function (arg0, arg1) {
@@ -320,6 +311,10 @@ function __wbg_get_imports() {
 			const ret = arg0.length;
 			return ret;
 		},
+		__wbg_new_2fad8ca02fd00684: function () {
+			const ret = new Object();
+			return ret;
+		},
 		__wbg_new_8454eee672b2ba6e: function (arg0) {
 			const ret = new Uint8Array(arg0);
 			return ret;
@@ -335,12 +330,11 @@ function __wbg_get_imports() {
 		__wbg_prototypesetcall_fd4050e806e1d519: function (arg0, arg1, arg2) {
 			Uint8Array.prototype.set.call(getArrayU8FromWasm0(arg0, arg1), arg2);
 		},
-		__wbg_set_b0d9dc239ecdb765: function (arg0, arg1, arg2) {
-			arg0.set(getArrayU8FromWasm0(arg1, arg2));
-		},
-		__wbg_slice_7632f6581cb8bb25: function (arg0, arg1, arg2) {
-			const ret = arg0.slice(arg1 >>> 0, arg2 >>> 0);
-			return ret;
+		__wbg_set_5337f8ac82364a3f: function () {
+			return handleError(function (arg0, arg1, arg2) {
+				const ret = Reflect.set(arg0, arg1, arg2);
+				return ret;
+			}, arguments);
 		},
 		__wbg_startWorkers_8b582d57e92bd2d4: function (arg0, arg1, arg2) {
 			const ret = startWorkers(arg0, arg1, wbg_rayon_PoolBuilder.__wrap(arg2));
@@ -361,6 +355,10 @@ function __wbg_get_imports() {
 		__wbg_static_accessor_WINDOW_6aeee9b51652ee0f: function () {
 			const ret = typeof window === 'undefined' ? null : window;
 			return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
+		},
+		__wbg_subarray_fbe3cef290e1fa43: function (arg0, arg1, arg2) {
+			const ret = arg0.subarray(arg1 >>> 0, arg2 >>> 0);
+			return ret;
 		},
 		__wbindgen_cast_0000000000000001: function (arg0) {
 			// Cast intrinsic for `F64 -> Externref`.
@@ -446,16 +444,6 @@ function passArray8ToWasm0(arg, malloc) {
 	const ptr = malloc(arg.length * 1, 1) >>> 0;
 	getUint8ArrayMemory0().set(arg, ptr / 1);
 	WASM_VECTOR_LEN = arg.length;
-	return ptr;
-}
-
-function passArrayJsValueToWasm0(array, malloc) {
-	const ptr = malloc(array.length * 4, 4) >>> 0;
-	for (let i = 0; i < array.length; i++) {
-		const add = addToExternrefTable0(array[i]);
-		getDataViewMemory0().setUint32(ptr + 4 * i, add, true);
-	}
-	WASM_VECTOR_LEN = array.length;
 	return ptr;
 }
 

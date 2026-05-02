@@ -13,8 +13,11 @@ This crate provides a high-performance, multi-threaded WASM-based encryption and
 
 You can also call the raw compression helpers directly from WASM:
 
-- `compress(data)` for LZMA2 compression.
-- `decompress(data)` for LZMA2 decompression.
+- `compress(entries, pwd)` for 7z archive creation, with an optional password.
+- `create_7z(entries, pwd)` for the same archive creation path.
+- `decompress(src, pwd, f)` for 7z extraction, including password-protected archives.
+
+If extraction fails because the archive needs a password, the WASM binding throws a `Password needed` error.
 
 ## Progress Reporting
 
