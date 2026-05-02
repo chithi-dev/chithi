@@ -199,12 +199,16 @@ export async function createEncryptedStream(
 
 	const worker = new WasmPipelineWorker();
 	let readyResolve: () => void;
-	const readyPromise = new Promise<void>((r) => (readyResolve = r));
+	let readyReject: (reason?: any) => void;
+	const readyPromise = new Promise<void>((resolve, reject) => {
+		readyResolve = resolve;
+		readyReject = reject;
+	});
 
 	const pendingChunks = new Map<number, Uint8Array>();
 	let nextChunkToEnqueue = 0;
 	let processedTotal = 0;
-	let streamController: TransformStreamDefaultController<Uint8Array>;
+	let streamController: TransformStreamDefaultController<Uint8Array> | undefined;
 	let resolveAll: () => void;
 	let rejectAll: (e: any) => void;
 	const allDonePromise = new Promise<void>((res, rej) => {
@@ -230,26 +234,37 @@ export async function createEncryptedStream(
 			while (pendingChunks.has(nextChunkToEnqueue)) {
 				const chunk = pendingChunks.get(nextChunkToEnqueue)!;
 				pendingChunks.delete(nextChunkToEnqueue);
-				streamController.enqueue(chunk);
+				streamController?.enqueue(chunk);
 				nextChunkToEnqueue++;
 			}
 			if (inputEnded && activeCount === 0) {
 				resolveAll();
 			}
 		} else if (data.type === 'error') {
+			const error = new Error(data.message);
 			rejectAll(new Error(data.message));
-			streamController.error(new Error(data.message));
+			if (streamController) {
+				streamController.error(error);
+			} else {
+				readyReject(error);
+			}
 		}
+	};
+
+	const copyBytes = (bytes: Uint8Array) => {
+		const clone = new Uint8Array(bytes.byteLength);
+		clone.set(bytes);
+		return clone.buffer;
 	};
 
 	worker.postMessage(
 		{
 			type: 'init',
-			keyRaw: aesKey.buffer,
-			baseIv: baseIv.buffer,
+			keyRaw: copyBytes(aesKey),
+			baseIv: copyBytes(baseIv),
 			threads: WORKER_CONCURRENCY
 		},
-		[aesKey.buffer, baseIv.buffer]
+		[]
 	);
 
 	await readyPromise;
@@ -363,7 +378,11 @@ export async function createDecryptedStream(
 
 	const worker = new WasmPipelineWorker();
 	let readyResolve: () => void;
-	const readyPromise = new Promise<void>((r) => (readyResolve = r));
+	let readyReject: (reason?: any) => void;
+	const readyPromise = new Promise<void>((resolve, reject) => {
+		readyResolve = resolve;
+		readyReject = reject;
+	});
 
 	const pendingChunks = new Map<number, Uint8Array>();
 	let nextChunkToEnqueue = 0;
@@ -376,7 +395,7 @@ export async function createDecryptedStream(
 	});
 	let activeCount = 0;
 	let inputEnded = false;
-	let streamController: ReadableStreamDefaultController<Uint8Array>;
+	let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
 
 	worker.onmessage = (ev) => {
 		const data = ev.data;
@@ -388,7 +407,7 @@ export async function createDecryptedStream(
 			while (pendingChunks.has(nextChunkToEnqueue)) {
 				const chunk = pendingChunks.get(nextChunkToEnqueue)!;
 				pendingChunks.delete(nextChunkToEnqueue);
-				streamController.enqueue(chunk);
+				streamController?.enqueue(chunk);
 				nextChunkToEnqueue++;
 				processedTotal += chunk.length;
 				if (onProgress) onProgress(processedTotal, originalSize);
@@ -397,19 +416,30 @@ export async function createDecryptedStream(
 				resolveAll();
 			}
 		} else if (data.type === 'error') {
+			const error = new Error(data.message);
 			rejectAll(new Error(data.message));
-			streamController.error(new Error(data.message));
+			if (streamController) {
+				streamController.error(error);
+			} else {
+				readyReject(error);
+			}
 		}
+	};
+
+	const copyBytes = (bytes: Uint8Array) => {
+		const clone = new Uint8Array(bytes.byteLength);
+		clone.set(bytes);
+		return clone.buffer;
 	};
 
 	worker.postMessage(
 		{
 			type: 'init',
-			keyRaw: aesKey.buffer,
-			baseIv: baseIv.buffer,
+			keyRaw: copyBytes(aesKey),
+			baseIv: copyBytes(baseIv),
 			threads: WORKER_CONCURRENCY
 		},
-		[aesKey.buffer, baseIv.buffer]
+		[]
 	);
 
 	await readyPromise;

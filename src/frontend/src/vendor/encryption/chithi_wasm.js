@@ -2,35 +2,65 @@
 import { startWorkers } from './snippets/wasm-bindgen-rayon-38edf6e439f6d70d/src/workerHelpers.js';
 
 /**
- * @param {Uint8Array} data
+ * Compresses multiple entries into a 7z archive in WebAssembly environment.
+ *
+ * This function creates a compressed archive from multiple file entries,
+ * designed specifically for WASM targets.
+ *
+ * # Arguments
+ * * `entries` - Vector of JavaScript strings representing file names/paths
+ * * `datas` - Vector of Uint8Arrays containing the file data corresponding to entries
+ * @param {string[]} entries
+ * @param {Uint8Array[]} datas
  * @returns {Uint8Array}
  */
-export function compress(data) {
-	const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
+export function compress(entries, datas) {
+	const ptr0 = passArrayJsValueToWasm0(entries, wasm.__wbindgen_malloc);
 	const len0 = WASM_VECTOR_LEN;
-	const ret = wasm.compress(ptr0, len0);
-	if (ret[3]) {
-		throw takeFromExternrefTable0(ret[2]);
+	const ptr1 = passArrayJsValueToWasm0(datas, wasm.__wbindgen_malloc);
+	const len1 = WASM_VECTOR_LEN;
+	const ret = wasm.compress(ptr0, len0, ptr1, len1);
+	if (ret[2]) {
+		throw takeFromExternrefTable0(ret[1]);
 	}
-	var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
-	wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
-	return v2;
+	return takeFromExternrefTable0(ret[0]);
 }
 
 /**
- * @param {Uint8Array} data
+ * @param {any} entries
  * @returns {Uint8Array}
  */
-export function decompress(data) {
-	const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
-	const len0 = WASM_VECTOR_LEN;
-	const ret = wasm.decompress(ptr0, len0);
+export function create_7z(entries) {
+	const ret = wasm.create_7z(entries);
 	if (ret[3]) {
 		throw takeFromExternrefTable0(ret[2]);
 	}
-	var v2 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
+	var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
 	wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
-	return v2;
+	return v1;
+}
+
+/**
+ * Decompresses a 7z archive in WebAssembly environment.
+ *
+ * This function is specifically designed for WASM targets and uses JavaScript interop
+ * to handle the decompression process with a callback function.
+ *
+ * # Arguments
+ * * `src` - Uint8Array containing the compressed archive data
+ * * `pwd` - Password string for encrypted archives (use empty string for unencrypted)
+ * * `f` - JavaScript callback function to handle extracted entries
+ * @param {Uint8Array} src
+ * @param {string} pwd
+ * @param {Function} f
+ */
+export function decompress(src, pwd, f) {
+	const ptr0 = passStringToWasm0(pwd, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+	const len0 = WASM_VECTOR_LEN;
+	const ret = wasm.decompress(src, ptr0, len0, f);
+	if (ret[1]) {
+		throw takeFromExternrefTable0(ret[0]);
+	}
 }
 
 /**
@@ -38,17 +68,17 @@ export function decompress(data) {
  * @param {Uint8Array} key
  * @param {Uint8Array} base_iv
  * @param {number} index
- * @param {boolean} decompress
+ * @param {boolean} _decompress
  * @returns {Uint8Array}
  */
-export function decrypt_chunk(data, key, base_iv, index, decompress) {
+export function decrypt_chunk(data, key, base_iv, index, _decompress) {
 	const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
 	const len0 = WASM_VECTOR_LEN;
 	const ptr1 = passArray8ToWasm0(key, wasm.__wbindgen_malloc);
 	const len1 = WASM_VECTOR_LEN;
 	const ptr2 = passArray8ToWasm0(base_iv, wasm.__wbindgen_malloc);
 	const len2 = WASM_VECTOR_LEN;
-	const ret = wasm.decrypt_chunk(ptr0, len0, ptr1, len1, ptr2, len2, index, decompress);
+	const ret = wasm.decrypt_chunk(ptr0, len0, ptr1, len1, ptr2, len2, index, _decompress);
 	if (ret[3]) {
 		throw takeFromExternrefTable0(ret[2]);
 	}
@@ -104,17 +134,17 @@ export function decrypt_chunks_parallel(
  * @param {Uint8Array} key
  * @param {Uint8Array} base_iv
  * @param {number} index
- * @param {boolean} compress
+ * @param {boolean} _compress
  * @returns {Uint8Array}
  */
-export function encrypt_chunk(data, key, base_iv, index, compress) {
+export function encrypt_chunk(data, key, base_iv, index, _compress) {
 	const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
 	const len0 = WASM_VECTOR_LEN;
 	const ptr1 = passArray8ToWasm0(key, wasm.__wbindgen_malloc);
 	const len1 = WASM_VECTOR_LEN;
 	const ptr2 = passArray8ToWasm0(base_iv, wasm.__wbindgen_malloc);
 	const len2 = WASM_VECTOR_LEN;
-	const ret = wasm.encrypt_chunk(ptr0, len0, ptr1, len1, ptr2, len2, index, compress);
+	const ret = wasm.encrypt_chunk(ptr0, len0, ptr1, len1, ptr2, len2, index, _compress);
 	if (ret[3]) {
 		throw takeFromExternrefTable0(ret[2]);
 	}
@@ -252,6 +282,26 @@ function __wbg_get_imports() {
 				return ret;
 			}, arguments);
 		},
+		__wbg_call_a6d9545202d34317: function () {
+			return handleError(function (arg0, arg1, arg2, arg3) {
+				const ret = arg0.call(arg1, arg2, arg3);
+				return ret;
+			}, arguments);
+		},
+		__wbg_from_ff141b1e4c69b979: function (arg0) {
+			const ret = Array.from(arg0);
+			return ret;
+		},
+		__wbg_get_41476db20fef99a8: function () {
+			return handleError(function (arg0, arg1) {
+				const ret = Reflect.get(arg0, arg1);
+				return ret;
+			}, arguments);
+		},
+		__wbg_get_unchecked_be562b1421656321: function (arg0, arg1) {
+			const ret = arg0[arg1 >>> 0];
+			return ret;
+		},
 		__wbg_instanceof_Window_4153c1818a1c0c0b: function (arg0) {
 			let result;
 			try {
@@ -260,6 +310,36 @@ function __wbg_get_imports() {
 				result = false;
 			}
 			const ret = result;
+			return ret;
+		},
+		__wbg_length_0a6ce016dc1460b0: function (arg0) {
+			const ret = arg0.length;
+			return ret;
+		},
+		__wbg_length_ba3c032602efe310: function (arg0) {
+			const ret = arg0.length;
+			return ret;
+		},
+		__wbg_new_8454eee672b2ba6e: function (arg0) {
+			const ret = new Uint8Array(arg0);
+			return ret;
+		},
+		__wbg_new_from_slice_5a173c243af2e823: function (arg0, arg1) {
+			const ret = new Uint8Array(getArrayU8FromWasm0(arg0, arg1));
+			return ret;
+		},
+		__wbg_new_with_length_9011f5da794bf5d9: function (arg0) {
+			const ret = new Uint8Array(arg0 >>> 0);
+			return ret;
+		},
+		__wbg_prototypesetcall_fd4050e806e1d519: function (arg0, arg1, arg2) {
+			Uint8Array.prototype.set.call(getArrayU8FromWasm0(arg0, arg1), arg2);
+		},
+		__wbg_set_b0d9dc239ecdb765: function (arg0, arg1, arg2) {
+			arg0.set(getArrayU8FromWasm0(arg1, arg2));
+		},
+		__wbg_slice_7632f6581cb8bb25: function (arg0, arg1, arg2) {
+			const ret = arg0.slice(arg1 >>> 0, arg2 >>> 0);
 			return ret;
 		},
 		__wbg_startWorkers_8b582d57e92bd2d4: function (arg0, arg1, arg2) {
@@ -366,6 +446,16 @@ function passArray8ToWasm0(arg, malloc) {
 	const ptr = malloc(arg.length * 1, 1) >>> 0;
 	getUint8ArrayMemory0().set(arg, ptr / 1);
 	WASM_VECTOR_LEN = arg.length;
+	return ptr;
+}
+
+function passArrayJsValueToWasm0(array, malloc) {
+	const ptr = malloc(array.length * 4, 4) >>> 0;
+	for (let i = 0; i < array.length; i++) {
+		const add = addToExternrefTable0(array[i]);
+		getDataViewMemory0().setUint32(ptr + 4 * i, add, true);
+	}
+	WASM_VECTOR_LEN = array.length;
 	return ptr;
 }
 

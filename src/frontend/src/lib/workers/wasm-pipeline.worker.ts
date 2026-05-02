@@ -36,9 +36,16 @@ self.addEventListener('message', async (ev: MessageEvent) => {
 	try {
 		if (msg.type === 'init') {
 			await init();
-			// Initialize thread pool with provided number of threads or hardware concurrency
-			const threads = msg.threads ?? navigator.hardwareConcurrency ?? 4;
-			await initThreadPool(threads);
+			// Some browsers/environments cannot clone WebAssembly.Memory for worker pools.
+			// Fall back to single-thread mode rather than failing all uploads.
+			const threads = navigator.hardwareConcurrency ?? msg.threads ?? 4;
+			if (threads > 1) {
+				try {
+					await initThreadPool(threads);
+				} catch {
+					// Ignore and continue without rayon workers.
+				}
+			}
 
 			keyRaw = new Uint8Array(msg.keyRaw);
 			baseIv = new Uint8Array(msg.baseIv);
@@ -76,13 +83,18 @@ self.addEventListener('message', async (ev: MessageEvent) => {
 				(self as any).postMessage({ type: 'error', index: msg.index, message: String(e) });
 			}
 		} else if (msg.type === 'encrypt_parallel' || msg.type === 'decrypt_parallel') {
+			// Create flattened buffer with 4-byte little-endian length prefixes
 			let totalSize = 0;
-			for (const c of msg.chunks) totalSize += c.byteLength;
+			for (const c of msg.chunks) totalSize += c.byteLength + 4;
 			const flattened = new Uint8Array(totalSize);
+			const view = new DataView(flattened.buffer, flattened.byteOffset, flattened.byteLength);
 			let offset = 0;
 			for (const c of msg.chunks) {
+				const len = c.byteLength;
+				view.setUint32(offset, len, true); // little-endian
+				offset += 4;
 				flattened.set(new Uint8Array(c), offset);
-				offset += c.byteLength;
+				offset += len;
 			}
 
 			const onProgress = (p: number) => {

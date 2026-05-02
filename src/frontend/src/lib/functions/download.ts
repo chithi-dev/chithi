@@ -87,7 +87,7 @@ export async function downloadAndDecryptFile(
 		}
 	});
 
-	const downloadName = filename.toLowerCase().endsWith('.zip') ? filename : `${filename}.zip`;
+	const downloadName = filename.toLowerCase().endsWith('.7z') ? filename : `${filename}.7z`;
 
 	if ((window as any).showSaveFilePicker) {
 		const handle = await (window as any).showSaveFilePicker({
@@ -103,7 +103,7 @@ export async function downloadAndDecryptFile(
 			if (done) break;
 			chunks.push(value);
 		}
-		const blob = new Blob(chunks as any, { type: 'application/zip' });
+		const blob = new Blob(chunks as any, { type: 'application/x-7z-compressed' });
 		const url = window.URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = url;

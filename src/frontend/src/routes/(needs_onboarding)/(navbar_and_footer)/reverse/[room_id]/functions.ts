@@ -1,10 +1,10 @@
 import type { ReceiveState } from './types';
 
 /**
- * Strips .zip extension if present
+ * Strips .7z extension if present
  */
 export const getDisplayFilename = (filename: string) =>
-	filename.endsWith('.zip') ? filename.slice(0, -4) : filename;
+	filename.endsWith('.7z') ? filename.slice(0, -3) : filename;
 
 /**
  * Handles incoming binary chunks for a streaming file transfer.

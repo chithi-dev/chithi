@@ -12,6 +12,18 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
 
+  volume-permission-helper:
+    image: alpine
+    volumes:
+      - ./data:/data
+    command: >
+      sh -c "
+        chown -R 10001:10001 /data &&
+        echo 'Volume Permissions fixed' &&
+        exit 0
+      "
+    restart: "no"
+
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: pgadmin4

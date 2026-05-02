@@ -3,10 +3,12 @@ use chacha20poly1305::{
     aead::{Aead, KeyInit},
 };
 use js_sys::Function;
-use lzma_rs::{lzma2_compress, lzma2_decompress};
+use js_sys::{Array, Uint8Array};
 use rayon::prelude::*;
+use sevenz_rust2::{ArchiveEntry, ArchiveWriter};
 use std::io::Cursor;
 use thiserror::Error;
+use wasm_bindgen::JsValue;
 use wasm_bindgen::prelude::*;
 
 // Expose rayon thread pool initialization for WASM
@@ -18,10 +20,6 @@ pub enum PipelineError {
     Encryption(String),
     #[error("Decryption error: {0}")]
     Decryption(String),
-    #[error("Compression error: {0}")]
-    Compression(String),
-    #[error("Decompression error: {0}")]
-    Decompression(String),
     #[error("Invalid key length: expected 32, got {actual}")]
     InvalidKeyLength { actual: usize },
     #[error("Invalid IV length: expected 12, got {actual}")]
@@ -46,37 +44,13 @@ fn get_chunk_iv(base_iv: &[u8], chunk_index: u32) -> [u8; 12] {
     iv
 }
 
-fn compress_bytes(data: &[u8]) -> Result<Vec<u8>, PipelineError> {
-    let mut compressed = Vec::new();
-    lzma2_compress(&mut Cursor::new(data), &mut compressed)
-        .map_err(|e| PipelineError::Compression(e.to_string()))?;
-    Ok(compressed)
-}
-
-fn decompress_bytes(data: &[u8]) -> Result<Vec<u8>, PipelineError> {
-    let mut decompressed = Vec::new();
-    lzma2_decompress(&mut Cursor::new(data), &mut decompressed)
-        .map_err(|e| PipelineError::Decompression(e.to_string()))?;
-    Ok(decompressed)
-}
-
-#[wasm_bindgen]
-pub fn compress(data: &[u8]) -> Result<Vec<u8>, JsValue> {
-    compress_bytes(data).map_err(Into::into)
-}
-
-#[wasm_bindgen]
-pub fn decompress(data: &[u8]) -> Result<Vec<u8>, JsValue> {
-    decompress_bytes(data).map_err(Into::into)
-}
-
 #[wasm_bindgen]
 pub fn encrypt_chunk(
     data: &[u8],
     key: &[u8],
     base_iv: &[u8],
     index: u32,
-    compress: bool,
+    _compress: bool,
 ) -> Result<Vec<u8>, JsValue> {
     if key.len() != 32 {
         return Err(PipelineError::InvalidKeyLength { actual: key.len() }.into());
@@ -88,20 +62,14 @@ pub fn encrypt_chunk(
         .into());
     }
 
-    let mut processed_data = data.to_vec();
-
-    // 1. Compression
-    if compress {
-        processed_data = compress_bytes(data)?;
-    }
-
-    // 2. Encryption (ChaCha20Poly1305)
+    // Compression is intentionally handled externally (e.g. sevenz).
+    // This function now encrypts raw chunk bytes only.
     let iv = get_chunk_iv(base_iv, index);
     let cipher = ChaCha20Poly1305::new(key.into());
     let nonce = Nonce::from_slice(&iv);
 
     let encrypted = cipher
-        .encrypt(nonce, processed_data.as_slice())
+        .encrypt(nonce, data)
         .map_err(|e| PipelineError::Encryption(e.to_string()))?;
 
     Ok(encrypted)
@@ -113,7 +81,7 @@ pub fn decrypt_chunk(
     key: &[u8],
     base_iv: &[u8],
     index: u32,
-    decompress: bool,
+    _decompress: bool,
 ) -> Result<Vec<u8>, JsValue> {
     if key.len() != 32 {
         return Err(PipelineError::InvalidKeyLength { actual: key.len() }.into());
@@ -125,21 +93,17 @@ pub fn decrypt_chunk(
         .into());
     }
 
-    // 1. Decryption (ChaCha20Poly1305)
+    // Decompression is intentionally handled externally (e.g. sevenz).
+    // This function now decrypts and returns raw chunk bytes only.
     let iv = get_chunk_iv(base_iv, index);
     let cipher = ChaCha20Poly1305::new(key.into());
     let nonce = Nonce::from_slice(&iv);
 
-    let decrypted = cipher
+    let decrypted: Vec<u8> = cipher
         .decrypt(nonce, data)
         .map_err(|e| PipelineError::Decryption(e.to_string()))?;
 
-    // 2. Decompression
-    if decompress {
-        decompress_bytes(&decrypted).map_err(Into::into)
-    } else {
-        Ok(decrypted)
-    }
+    Ok(decrypted)
 }
 
 // Helper functions to convert between flattened and nested vectors
@@ -332,4 +296,42 @@ pub fn decrypt_chunks_parallel(
     };
 
     Ok(flatten_chunks(&decrypted_chunks))
+}
+
+// Create a .7z archive in memory from JS-provided entries.
+// `entries` should be an array of objects: { name: string, data: Uint8Array }
+#[wasm_bindgen]
+pub fn create_7z(entries: &JsValue) -> Result<Vec<u8>, JsValue> {
+    let arr = Array::from(entries);
+
+    let cursor = Cursor::new(Vec::new());
+    let mut writer = ArchiveWriter::new(cursor)
+        .map_err(|e| JsValue::from_str(&format!("sevenz init error: {}", e)))?;
+
+    for v in arr.iter() {
+        let name_js =
+            js_sys::Reflect::get(&v, &JsValue::from_str("name")).map_err(|e| JsValue::from(e))?;
+        let name = name_js
+            .as_string()
+            .ok_or_else(|| JsValue::from_str("entry.name must be string"))?;
+
+        let data_js =
+            js_sys::Reflect::get(&v, &JsValue::from_str("data")).map_err(|e| JsValue::from(e))?;
+        let u8arr = Uint8Array::new(&data_js);
+        let mut buf = vec![0u8; u8arr.length() as usize];
+        u8arr.copy_to(&mut buf[..]);
+
+        let entry = ArchiveEntry::new_file(&name);
+        let reader = std::io::Cursor::new(buf);
+        writer
+            .push_archive_entry(entry, Some(reader))
+            .map_err(|e| JsValue::from_str(&format!("sevenz append error: {}", e)))?;
+    }
+
+    let finished = writer
+        .finish()
+        .map_err(|e| JsValue::from_str(&format!("sevenz finish error: {}", e)))?;
+
+    // finished is Cursor<Vec<u8>>; extract inner Vec<u8>
+    Ok(finished.into_inner())
 }

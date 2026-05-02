@@ -390,7 +390,7 @@
 				await new Promise((r) => setTimeout(r, 600));
 				isEncrypting = false;
 
-				const filename = `${entry.file.name}.zip`;
+				const filename = `${entry.file.name}.7z`;
 
 				const fileEntry = await uploadFileXhr(encryptedBlob, filename, (pct) => {
 					entry.progress.target = pct;

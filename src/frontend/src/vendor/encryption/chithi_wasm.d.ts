@@ -1,16 +1,39 @@
 /* tslint:disable */
 /* eslint-disable */
 
-export function compress(data: Uint8Array): Uint8Array;
+/**
+ * Compresses multiple entries into a 7z archive in WebAssembly environment.
+ *
+ * This function creates a compressed archive from multiple file entries,
+ * designed specifically for WASM targets.
+ *
+ * # Arguments
+ * * `entries` - Vector of JavaScript strings representing file names/paths
+ * * `datas` - Vector of Uint8Arrays containing the file data corresponding to entries
+ */
+export function compress(entries: string[], datas: Uint8Array[]): Uint8Array;
 
-export function decompress(data: Uint8Array): Uint8Array;
+export function create_7z(entries: any): Uint8Array;
+
+/**
+ * Decompresses a 7z archive in WebAssembly environment.
+ *
+ * This function is specifically designed for WASM targets and uses JavaScript interop
+ * to handle the decompression process with a callback function.
+ *
+ * # Arguments
+ * * `src` - Uint8Array containing the compressed archive data
+ * * `pwd` - Password string for encrypted archives (use empty string for unencrypted)
+ * * `f` - JavaScript callback function to handle extracted entries
+ */
+export function decompress(src: Uint8Array, pwd: string, f: Function): void;
 
 export function decrypt_chunk(
 	data: Uint8Array,
 	key: Uint8Array,
 	base_iv: Uint8Array,
 	index: number,
-	decompress: boolean
+	_decompress: boolean
 ): Uint8Array;
 
 export function decrypt_chunks_parallel(
@@ -27,7 +50,7 @@ export function encrypt_chunk(
 	key: Uint8Array,
 	base_iv: Uint8Array,
 	index: number,
-	compress: boolean
+	_compress: boolean
 ): Uint8Array;
 
 export function encrypt_chunks_parallel(
@@ -56,8 +79,7 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
 	readonly memory: WebAssembly.Memory;
-	readonly compress: (a: number, b: number) => [number, number, number, number];
-	readonly decompress: (a: number, b: number) => [number, number, number, number];
+	readonly create_7z: (a: any) => [number, number, number, number];
 	readonly decrypt_chunk: (
 		a: number,
 		b: number,
@@ -106,6 +128,8 @@ export interface InitOutput {
 	readonly wbg_rayon_poolbuilder_numThreads: (a: number) => number;
 	readonly wbg_rayon_poolbuilder_receiver: (a: number) => number;
 	readonly wbg_rayon_start_worker: (a: number) => void;
+	readonly compress: (a: number, b: number, c: number, d: number) => [number, number, number];
+	readonly decompress: (a: any, b: number, c: number, d: any) => [number, number];
 	readonly __wbindgen_malloc: (a: number, b: number) => number;
 	readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
 	readonly __wbindgen_exn_store: (a: number) => void;
