@@ -2,10 +2,9 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import * as Pagination from '$lib/components/ui/pagination';
-	import { useFilesQuery, type FileInfo } from '#queries/files';
+	import { useFilesQuery } from '#queries/files';
 	import { toast } from 'svelte-sonner';
 	import { page } from '$app/state';
-	import UrlMetricsCard from './url_metrics_card.svelte';
 	import OutstandingUrlsCard from './outstanding_urls_card.svelte';
 
 	let currentPage = $state(1);
@@ -14,33 +13,6 @@
 	const { files, revokeFile } = useFilesQuery(() => currentPage, pageSize);
 
 	let totalItems = $derived(files.data?.total_items ?? 0);
-	let totalBytes = $derived(files.data?.meta?.total_bytes ?? 0);
-	let activeUrls = $derived(files.data?.meta?.active_urls ?? 0);
-	let linksWithDownloadCaps = $derived(files.data?.meta?.links_with_download_caps ?? 0);
-	let expiringSoon = $derived(files.data?.meta?.expiring_soon ?? 0);
-	let latestExpiryMs = $derived(
-		files.data?.meta?.latest_expiry ? files.data.meta.latest_expiry * 1000 : 0
-	);
-	let hasIndefiniteActiveUrls = $derived(activeUrls > 0 && !latestExpiryMs);
-
-	function formatDuration(ms: number) {
-		if (ms <= 0) return 'Now';
-		const totalMinutes = Math.ceil(ms / 60000);
-		const days = Math.floor(totalMinutes / (60 * 24));
-		const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
-		const minutes = totalMinutes % 60;
-
-		if (days > 0) return `${days}d ${hours}h`;
-		if (hours > 0) return `${hours}h ${minutes}m`;
-		return `${minutes}m`;
-	}
-
-	let timeToClearLabel = $derived.by(() => {
-		if (activeUrls === 0) return 'Cleared';
-		if (hasIndefiniteActiveUrls) return 'Indefinite';
-		if (!latestExpiryMs) return 'Unknown';
-		return formatDuration(latestExpiryMs - Date.now());
-	});
 
 	// States
 	let isRevoking = $state(false);
@@ -87,13 +59,6 @@
 </div>
 
 <div class="space-y-6">
-	<UrlMetricsCard
-		totalUrls={totalItems}
-		{timeToClearLabel}
-		{totalBytes}
-		{linksWithDownloadCaps}
-		{expiringSoon}
-	/>
 	<OutstandingUrlsCard {files} {isRevoking} {openRevokeDialog} {formatDate} />
 
 	<div class="flex items-center justify-end py-4">
