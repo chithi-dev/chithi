@@ -21,12 +21,14 @@ interface PipelineMessage {
 	type: 'encrypt' | 'decrypt';
 	index: number;
 	chunk: ArrayBuffer;
+	useCompression: boolean;
 }
 
 interface ParallelPipelineMessage {
 	type: 'encrypt_parallel' | 'decrypt_parallel';
 	startIndex: number;
 	chunks: ArrayBuffer[];
+	useCompression: boolean;
 }
 
 self.addEventListener('message', async (ev: MessageEvent) => {
@@ -65,8 +67,8 @@ self.addEventListener('message', async (ev: MessageEvent) => {
 			try {
 				const result =
 					msg.type === 'encrypt'
-						? encrypt_chunk(chunk, keyRaw, baseIv, msg.index)
-						: decrypt_chunk(chunk, keyRaw, baseIv, msg.index);
+						? encrypt_chunk(chunk, keyRaw, baseIv, msg.index, msg.useCompression)
+						: decrypt_chunk(chunk, keyRaw, baseIv, msg.index, msg.useCompression);
 
 				const buffer = result.buffer;
 				(self as any).postMessage(
@@ -106,8 +108,8 @@ self.addEventListener('message', async (ev: MessageEvent) => {
 			try {
 				const result =
 					msg.type === 'encrypt_parallel'
-						? encrypt_chunks_parallel(flattened, keyRaw, baseIv, msg.startIndex, onProgress)
-						: decrypt_chunks_parallel(flattened, keyRaw, baseIv, msg.startIndex, onProgress);
+						? encrypt_chunks_parallel(flattened, keyRaw, baseIv, msg.startIndex, msg.useCompression, onProgress)
+						: decrypt_chunks_parallel(flattened, keyRaw, baseIv, msg.startIndex, msg.useCompression, onProgress);
 
 				const buffer = result.buffer;
 				(self as any).postMessage(

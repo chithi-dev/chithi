@@ -52,7 +52,8 @@ export async function downloadAndDecryptFile(
 		key,
 		password,
 		undefined,
-		undefined
+		undefined,
+		false
 	);
 
 	const decReader = decryptedStream.getReader();
