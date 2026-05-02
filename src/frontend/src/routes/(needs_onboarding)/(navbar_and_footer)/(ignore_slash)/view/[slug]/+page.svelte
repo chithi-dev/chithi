@@ -11,7 +11,6 @@
 		KeyRound,
 		Eye,
 		File,
-		Folder,
 		ExternalLink,
 		Image as ImageIcon,
 		FileCode,
@@ -24,13 +23,12 @@
 	import { fly, fade } from 'svelte/transition';
 	import { Api } from '#consts/backend';
 	import { PasswordRequiredError } from '#functions/download';
-	import { createDecryptedStream } from '#functions/streams';
+	import { createDecryptedStream, unpackStream } from '#functions/streams';
 	import { formatFileSize } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';
 	import { Progress } from '$lib/components/ui/progress';
 	import { cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
-	import { ZipReader, BlobReader, BlobWriter, type Entry } from '@zip.js/zip.js';
 	import { getMimeType } from '#functions/mime';
 	import { createViewableText } from '$lib/functions/viewer';
 	import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
@@ -40,7 +38,7 @@
 	let fileParam = $derived(page.url.searchParams.get('file'));
 
 	let status = $state<
-		'checking' | 'ready' | 'needs_password' | 'error' | 'downloading' | 'unzipping' | 'listing'
+		'checking' | 'ready' | 'needs_password' | 'error' | 'downloading' | 'unpacking' | 'listing'
 	>('checking');
 
 	let errorMsg = $state('');
@@ -49,8 +47,7 @@
 	let password = $state('');
 	let downloadProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 
-	let zipEntries = $state<Entry[]>([]);
-	let decryptedBlob = $state<Blob | null>(null);
+	let unpackedFiles = $state<{ filename: string; blob: Blob }[]>([]);
 
 	// Viewer state
 	let viewingFile = $state<{ text: string | null; url: string | null; filename: string } | null>(
@@ -101,35 +98,52 @@
 
 	async function handlePasswordSubmit() {
 		if (!key) return;
-		await fetchAndUnzip();
+		await fetchAndUnpack();
 	}
 
-	async function fetchAndUnzip() {
+	async function fetchAndUnpack() {
 		if (!key || !slug) return;
 		const previousStatus = status;
 		status = 'downloading';
 		downloadProgress = new Tween(0, { duration: 500, easing: cubicOut });
 
 		try {
-			const blob = await downloadFileBlob(
-				slug,
-				key,
-				password,
-				fileSize,
-				(p) => (downloadProgress.target = p)
-			);
-			decryptedBlob = blob;
+			const res = await fetch(Api.DOWNLOAD(slug));
+			if (!res.ok) throw new Error('Download failed');
+			if (!res.body) throw new Error('No response body');
 
-			status = 'unzipping';
-			const reader = new ZipReader(new BlobReader(blob));
-			zipEntries = await reader.getEntries();
+			let loaded = 0;
+			const reader = res.body.getReader();
+			const streamWithProgress = new ReadableStream({
+				async pull(controller) {
+					const { done, value } = await reader.read();
+					if (done) {
+						controller.close();
+						return;
+					}
+					loaded += value.byteLength;
+					if (fileSize > 0) downloadProgress.target = Math.round((loaded / fileSize) * 100);
+					controller.enqueue(value);
+				},
+				cancel(reason) {
+					return reader.cancel(reason);
+				}
+			});
+
+			const { stream: decryptedStream } = await createDecryptedStream(
+				streamWithProgress,
+				key,
+				password
+			);
+
+			status = 'unpacking';
+			unpackedFiles = await unpackStream(decryptedStream);
 			status = 'listing';
 			toast.success('Files extracted successfully');
 
-			// Auto-open file from URL param if it exactly matches an entry
 			if (fileParam) {
-				const match = zipEntries.find((e) => e.filename === fileParam);
-				if (match) openEntry(match);
+				const match = unpackedFiles.find((f) => f.filename === fileParam);
+				if (match) openFile(match);
 			}
 		} catch (e: any) {
 			console.error(e);
@@ -149,65 +163,6 @@
 		}
 	}
 
-	async function downloadFileBlob(
-		slug: string,
-		key: string,
-		password: string,
-		totalSize: number,
-		onProgress: (percent: number) => void
-	): Promise<Blob> {
-		const res = await fetch(Api.DOWNLOAD(slug));
-		if (!res.ok) throw new Error('Download failed');
-		if (!res.body) throw new Error('No response body');
-
-		let loaded = 0;
-		const reader = res.body.getReader();
-		const streamWithProgress = new ReadableStream({
-			async pull(controller) {
-				const { done, value } = await reader.read();
-				if (done) {
-					controller.close();
-					return;
-				}
-				loaded += value.byteLength;
-				if (totalSize > 0) onProgress(Math.round((loaded / totalSize) * 100));
-				controller.enqueue(value);
-			},
-			cancel(reason) {
-				return reader.cancel(reason);
-			}
-		});
-
-		const { stream: decryptedStream } = await createDecryptedStream(
-			streamWithProgress,
-			key,
-			password
-		);
-		const decReader = decryptedStream.getReader();
-		let firstChunk: Uint8Array | undefined;
-
-		try {
-			const { done, value } = await decReader.read();
-			if (!done) firstChunk = value;
-		} catch (e: any) {
-			if (e.name === 'OperationError') {
-				await reader.cancel('Wrong password');
-				throw new PasswordRequiredError();
-			}
-			throw e;
-		}
-
-		const chunks: Uint8Array[] = [];
-		if (firstChunk) chunks.push(firstChunk);
-		while (true) {
-			const { done, value } = await decReader.read();
-			if (done) break;
-			chunks.push(value);
-		}
-
-		return new Blob(chunks as BlobPart[], { type: 'application/zip' });
-	}
-
 	function setFileParam(name: string | null) {
 		const url = new URL(page.url);
 		if (name) {
@@ -218,21 +173,17 @@
 		goto(url.toString(), { replaceState: true, keepFocus: true, noScroll: true });
 	}
 
-	async function openEntry(entry: Entry) {
-		if (entry.directory || !entry.getData) return;
-		const mime = getMimeType(entry.filename);
-		const rawBlob = await entry.getData(new BlobWriter(mime));
-
-		const text = await createViewableText(rawBlob, entry.filename);
+	async function openFile(file: { filename: string; blob: Blob }) {
+		const text = await createViewableText(file.blob, file.filename);
 		if (text !== null) {
-			viewingFile = { text, url: null, filename: entry.filename };
-			setFileParam(entry.filename);
+			viewingFile = { text, url: null, filename: file.filename };
+			setFileParam(file.filename);
 			return;
 		}
 
-		const url = URL.createObjectURL(rawBlob);
-		viewingFile = { text: null, url, filename: entry.filename };
-		setFileParam(entry.filename);
+		const url = URL.createObjectURL(file.blob);
+		viewingFile = { text: null, url, filename: file.filename };
+		setFileParam(file.filename);
 	}
 
 	function closeViewer() {
@@ -248,13 +199,11 @@
 		navigator.clipboard.writeText(url.toString());
 	}
 
-	async function saveEntry(entry: Entry) {
-		if (entry.directory || !entry.getData) return;
-		const blob = await entry.getData(new BlobWriter());
-		const url = URL.createObjectURL(blob);
+	async function saveFile(file: { filename: string; blob: Blob }) {
+		const url = URL.createObjectURL(file.blob);
 		const a = document.createElement('a');
 		a.href = url;
-		a.download = entry.filename.split('/').pop() || 'file';
+		a.download = file.filename.split('/').pop() || 'file';
 		a.style.display = 'none';
 		document.body.appendChild(a);
 		a.click();
@@ -262,18 +211,10 @@
 		document.body.removeChild(a);
 	}
 
-	function handleDownloadOriginal() {
-		if (!decryptedBlob) return;
-		const downloadName = filename.toLowerCase().endsWith('.zip') ? filename : `${filename}.zip`;
-		const url = URL.createObjectURL(decryptedBlob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = downloadName;
-		a.style.display = 'none';
-		document.body.appendChild(a);
-		a.click();
-		URL.revokeObjectURL(url);
-		document.body.removeChild(a);
+	function handleDownloadAll() {
+		if (unpackedFiles.length > 0) {
+			saveFile(unpackedFiles[0]);
+		}
 	}
 </script>
 
@@ -314,12 +255,12 @@
 				{/if}
 			{/if}
 
-			{#if status === 'ready' || status === 'needs_password' || status === 'downloading' || status === 'unzipping'}
+			{#if status === 'ready' || status === 'needs_password' || status === 'downloading' || status === 'unpacking'}
 				<div class="w-full max-w-lg">
 					<Card.Header class="px-0 text-center">
-						<Card.Title class="text-2xl font-bold">View Archive</Card.Title>
+						<Card.Title class="text-2xl font-bold">View Payload</Card.Title>
 						<Card.Description class="text-muted-foreground">
-							Decrypt and view contents of this archive directly in your browser.
+							Decrypt and view contents directly in your browser.
 						</Card.Description>
 					</Card.Header>
 
@@ -336,12 +277,12 @@
 									/>
 									<Button class="rounded-l-none" onclick={handlePasswordSubmit}>Unlock</Button>
 								</div>
-								<p class="text-xs text-muted-foreground">Enter password to decrypt the archive.</p>
+								<p class="text-xs text-muted-foreground">Enter password to decrypt the payload.</p>
 							</div>
 						{:else}
 							<div class="mb-6 flex items-center gap-4 rounded-lg border bg-background/50 p-4">
 								<div class="rounded bg-primary/10 p-2 text-primary">
-									{#if status === 'downloading' || status === 'unzipping'}
+									{#if status === 'downloading' || status === 'unpacking'}
 										<LoaderCircle class="h-6 w-6 animate-spin" />
 									{:else}
 										<FileText class="h-6 w-6" />
@@ -354,15 +295,15 @@
 							</div>
 
 							<Card.Footer class="flex w-full flex-col gap-6 px-0">
-								{#if status === 'downloading' || status === 'unzipping'}
+								{#if status === 'downloading' || status === 'unpacking'}
 									<div class="w-full space-y-2">
 										<Progress value={downloadProgress.current} class="h-2" />
 										<div class="flex justify-between text-xs text-muted-foreground">
 											<span>{Math.round(downloadProgress.current)}%</span>
 											<span class="flex items-center">
-												{#if status === 'unzipping'}
+												{#if status === 'unpacking'}
 													<FolderOpen class="mr-2 h-3 w-3 animate-pulse" />
-													Unzipping...
+													Unpacking...
 												{:else}
 													<Download class="mr-2 h-3 w-3 animate-bounce" />
 													Decrypting...
@@ -371,7 +312,7 @@
 										</div>
 									</div>
 								{:else}
-									<Button class="w-full" size="lg" onclick={fetchAndUnzip}>
+									<Button class="w-full" size="lg" onclick={handlePasswordSubmit}>
 										<Eye class="mr-2 h-4 w-4" />
 										View Contents
 									</Button>
@@ -411,73 +352,64 @@
 					<div class="w-full" in:fade={{ duration: 300 }}>
 						<div class="mb-4 flex items-center justify-between">
 							<div>
-								<h2 class="text-xl font-bold">Contents of {filename}</h2>
-								<p class="text-sm text-muted-foreground">{zipEntries.length} items found</p>
+								<h2 class="text-xl font-bold">Contents</h2>
+								<p class="text-sm text-muted-foreground">{unpackedFiles.length} items found</p>
 							</div>
-							<Button variant="outline" onclick={handleDownloadOriginal}>
-								<Download class="mr-2 h-4 w-4" />
-								Download Original
-							</Button>
+							{#if unpackedFiles.length === 1}
+								<Button variant="outline" onclick={handleDownloadAll}>
+									<Download class="mr-2 h-4 w-4" />
+									Download File
+								</Button>
+							{/if}
 						</div>
 
 						<div class="rounded-md border">
 							<ScrollArea class="h-125">
 								<div class="p-2">
-									{#each zipEntries as entry}
+									{#each unpackedFiles as file}
+										{@const Icon = getFileIcon(file.filename)}
+
 										<div
 											class="group flex w-full items-center gap-3 rounded-md p-2 transition-colors hover:bg-muted/50"
 										>
 											<button
 												class="flex flex-1 cursor-pointer items-center gap-3 overflow-hidden border-0 bg-transparent p-0 text-left"
-												onclick={() => openEntry(entry)}
+												onclick={() => openFile(file)}
 											>
-												{#if entry.directory}
-													<Folder class="h-5 w-5 shrink-0 text-primary" />
-												{:else}
-													{@const Icon = getFileIcon(entry.filename)}
-													<Icon class="h-5 w-5 shrink-0 text-primary" />
-												{/if}
+												<Icon class="h-5 w-5 shrink-0 text-primary" />
 
 												<div class="flex-1 overflow-hidden">
-													<p class="truncate text-sm font-medium">{entry.filename}</p>
-													{#if !entry.directory}
-														<p class="text-xs text-muted-foreground">
-															{formatFileSize(entry.uncompressedSize)}
-														</p>
-													{/if}
+													<p class="truncate text-sm font-medium">{file.filename}</p>
+													<p class="text-xs text-muted-foreground">
+														{formatFileSize(file.blob.size)}
+													</p>
 												</div>
 											</button>
 
-											{#if !entry.directory}
-												<div
-													class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100"
+											<div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+												<Button
+													variant="ghost"
+													size="icon"
+													class="h-8 w-8"
+													title="View File"
+													onclick={() => openFile(file)}
 												>
-													<Button
-														variant="ghost"
-														size="icon"
-														class="h-8 w-8"
-														title="View File"
-														onclick={() => openEntry(entry)}
-													>
-														<ExternalLink class="h-4 w-4" />
-													</Button>
-													<Button
-														variant="ghost"
-														size="icon"
-														class="h-8 w-8"
-														title="Save File"
-														onclick={() => saveEntry(entry)}
-													>
-														<Download class="h-4 w-4" />
-													</Button>
-												</div>
-											{/if}
+													<ExternalLink class="h-4 w-4" />
+												</Button>
+												<Button
+													variant="ghost"
+													size="icon"
+													class="h-8 w-8"
+													title="Save File"
+													onclick={() => saveFile(file)}
+												>
+													<Download class="h-4 w-4" />
+												</Button>
+											</div>
 										</div>
 									{/each}
-									{#if zipEntries.length === 0}
-										<div class="p-8 text-center text-muted-foreground">
-											No files found in this archive.
-										</div>
+									{#if unpackedFiles.length === 0}
+										<div class="p-8 text-center text-muted-foreground">No files found.</div>
 									{/if}
 								</div>
 							</ScrollArea>

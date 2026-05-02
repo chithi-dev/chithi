@@ -1,6 +1,5 @@
 import { WORKER_CONCURRENCY } from '#consts/concurrency';
 import WasmPipelineWorker from '#workers/wasm-pipeline.worker?worker';
-import { ZipWriter, configure } from '@zip.js/zip.js';
 import {
 	CHUNK_SIZE,
 	argon2Derive,
@@ -9,11 +8,6 @@ import {
 	deriveAESKeyFromIKM,
 	xorBytes
 } from './encryption';
-
-configure({
-	useWebWorkers: true,
-	maxWorkers: WORKER_CONCURRENCY
-});
 
 // Deterministic derivation constants
 const HKDF_SALT_STR = 'chithi-salt-v1';
@@ -72,68 +66,124 @@ async function deriveSecrets(ikm: Uint8Array, password?: string) {
 	return { aesKey, baseIv, finalIKM };
 }
 
-export async function writeZipFiles(
-	zipWriter: ZipWriter<any>,
-	writable: WritableStream<Uint8Array>,
-	files: File[],
-	password?: string,
-	signal?: AbortSignal
-): Promise<void> {
-	try {
-		for (const file of files) {
-			let filename = (file as any).relativePath || file.name;
-			filename = makeUnique(filename);
+/**
+ * Creates a stream that packs multiple files into a single stream for the WASM pipeline.
+ * Format: [4 bytes filename length][filename][8 bytes file size][file data]...
+ */
+export async function createPackedStream(files: File[]): Promise<ReadableStream<Uint8Array>> {
+	const encoder = new TextEncoder();
+	let currentFileIndex = 0;
+	let currentFileReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+	let state: 'header' | 'data' = 'header';
 
-			try {
-				await zipWriter.add(filename, file.stream(), {
-					password: password?.length ? password : undefined,
-					// prefer strongest WinZip AES (1..3 => 128,192,256). Use 3 for AES-256 compatibility.
-					encryptionStrength: password?.length ? 3 : undefined,
-					level: 9,
-					signal
-				});
-			} catch (err: any) {
-				// If the writer reports an existing file, try to generate another unique name and retry once
-				const msg = String(err?.message || err || '');
-				if (msg.includes('File already exists') || msg.includes('already exists')) {
-					const altName = makeUnique((file as any).relativePath || file.name);
-					await zipWriter.add(altName, file.stream(), {
-						password: password?.length ? password : undefined,
-						encryptionStrength: password?.length ? 3 : undefined,
-						level: 9,
-						signal
-					});
-				} else {
-					throw err;
+	return new ReadableStream({
+		async pull(controller) {
+			if (currentFileIndex >= files.length) {
+				controller.close();
+				return;
+			}
+
+			const file = files[currentFileIndex];
+
+			if (state === 'header') {
+				const filename = (file as any).relativePath || file.name;
+				const filenameBytes = encoder.encode(filename);
+
+				const header = new Uint8Array(4 + filenameBytes.length + 8);
+				const view = new DataView(header.buffer);
+
+				view.setUint32(0, filenameBytes.length, false);
+				header.set(filenameBytes, 4);
+				view.setBigUint64(4 + filenameBytes.length, BigInt(file.size), false);
+
+				controller.enqueue(header);
+				state = 'data';
+				currentFileReader = file.stream().getReader();
+			} else {
+				const { done, value } = await currentFileReader!.read();
+				if (done) {
+					state = 'header';
+					currentFileIndex++;
+					currentFileReader = null;
+					return;
 				}
+				controller.enqueue(value);
+			}
+		},
+		cancel() {
+			if (currentFileReader) currentFileReader.cancel();
+		}
+	});
+}
+
+/**
+ * Unpacks a packed stream into individual Blobs.
+ */
+export async function unpackStream(
+	stream: ReadableStream<Uint8Array>
+): Promise<{ filename: string; blob: Blob }[]> {
+	const reader = stream.getReader();
+	let buffer = new Uint8Array(0);
+	const decoder = new TextDecoder();
+	const results: { filename: string; blob: Blob }[] = [];
+
+	async function ensure(size: number) {
+		while (buffer.length < size) {
+			const { done, value } = await reader.read();
+			if (done) return false;
+			const newBuf = new Uint8Array(buffer.length + value.length);
+			newBuf.set(buffer);
+			newBuf.set(value, buffer.length);
+			buffer = newBuf;
+		}
+		return true;
+	}
+
+	while (true) {
+		if (!(await ensure(4))) break;
+		const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+		const nameLen = view.getUint32(0, false);
+		buffer = buffer.slice(4);
+
+		if (!(await ensure(nameLen + 8))) throw new Error('Malformed packed stream');
+		const filename = decoder.decode(buffer.slice(0, nameLen));
+		buffer = buffer.slice(nameLen);
+
+		const dataView = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+		const dataSize = Number(dataView.getBigUint64(0, false));
+		buffer = buffer.slice(8);
+
+		const chunks: Uint8Array[] = [];
+		let remaining = dataSize;
+
+		while (remaining > 0) {
+			if (buffer.length > 0) {
+				const take = Math.min(buffer.length, remaining);
+				chunks.push(buffer.slice(0, take));
+				buffer = buffer.slice(take);
+				remaining -= take;
+			} else {
+				const { done, value } = await reader.read();
+				if (done) throw new Error('Unexpected end of stream');
+				const take = Math.min(value.length, remaining);
+				chunks.push(value.slice(0, take));
+				if (value.length > take) {
+					buffer = value.slice(take);
+				}
+				remaining -= take;
 			}
 		}
 
-		await zipWriter.close();
-	} catch (error) {
-		console.error('Error creating zip stream:', error);
-		try {
-			await writable.abort(error);
-		} catch (e) {
-			// ignore
-		}
+		// Ensure we provide plain ArrayBuffers (not SharedArrayBuffer) to Blob
+		const parts = chunks.map((c) => {
+			const ab = new ArrayBuffer(c.byteLength);
+			new Uint8Array(ab).set(c);
+			return ab;
+		});
+		results.push({ filename, blob: new Blob(parts) });
 	}
-}
 
-export async function createZipStream(
-	files: File[],
-	password?: string,
-	signal?: AbortSignal
-): Promise<ReadableStream<Uint8Array>> {
-	const { readable, writable } = new TransformStream();
-	const zipWriter = new ZipWriter(writable, {
-		bufferedWrite: true,
-		useCompressionStream: true
-	});
-
-	writeZipFiles(zipWriter, writable, files, password, signal);
-
-	return readable;
+	return results;
 }
 
 export async function createEncryptedStream(
@@ -171,12 +221,11 @@ export async function createEncryptedStream(
 		} else if (data.type === 'encrypted') {
 			activeCount--;
 			const chunkData = new Uint8Array(data.data);
-			// Prefix with 4 bytes length
 			const prefixed = new Uint8Array(4 + chunkData.length);
 			const view = new DataView(prefixed.buffer);
 			view.setUint32(0, chunkData.length, false);
 			prefixed.set(chunkData, 4);
-			
+
 			pendingChunks.set(data.index, prefixed);
 			while (pendingChunks.has(nextChunkToEnqueue)) {
 				const chunk = pendingChunks.get(nextChunkToEnqueue)!;
@@ -193,12 +242,15 @@ export async function createEncryptedStream(
 		}
 	};
 
-	worker.postMessage({
-		type: 'init',
-		keyRaw: aesKey.buffer,
-		baseIv: baseIv.buffer,
-		threads: WORKER_CONCURRENCY
-	}, [aesKey.buffer, baseIv.buffer]);
+	worker.postMessage(
+		{
+			type: 'init',
+			keyRaw: aesKey.buffer,
+			baseIv: baseIv.buffer,
+			threads: WORKER_CONCURRENCY
+		},
+		[aesKey.buffer, baseIv.buffer]
+	);
 
 	await readyPromise;
 
@@ -233,12 +285,15 @@ export async function createEncryptedStream(
 				const index = chunkIndex++;
 				activeCount++;
 				const buffer = fullChunk.buffer;
-				worker.postMessage({
-					type: 'encrypt',
-					index,
-					chunk: buffer,
-					useCompression
-				}, [buffer]);
+				worker.postMessage(
+					{
+						type: 'encrypt',
+						index,
+						chunk: buffer,
+						useCompression
+					},
+					[buffer]
+				);
 
 				processedTotal += CHUNK_SIZE;
 				if (onProgress) onProgress(processedTotal, originalSize);
@@ -255,24 +310,30 @@ export async function createEncryptedStream(
 				const index = chunkIndex++;
 				activeCount++;
 				const buffer = remaining.buffer;
-				worker.postMessage({
-					type: 'encrypt',
-					index,
-					chunk: buffer,
-					useCompression
-				}, [buffer]);
-				
+				worker.postMessage(
+					{
+						type: 'encrypt',
+						index,
+						chunk: buffer,
+						useCompression
+					},
+					[buffer]
+				);
+
 				processedTotal += bufferedBytes;
 				if (onProgress) onProgress(processedTotal, originalSize);
 			} else if (chunkIndex === 0) {
 				const empty = new Uint8Array(0);
 				activeCount++;
-				worker.postMessage({
-					type: 'encrypt',
-					index: 0,
-					chunk: empty.buffer,
-					useCompression
-				}, [empty.buffer]);
+				worker.postMessage(
+					{
+						type: 'encrypt',
+						index: 0,
+						chunk: empty.buffer,
+						useCompression
+					},
+					[empty.buffer]
+				);
 			}
 
 			inputEnded = true;
@@ -341,12 +402,15 @@ export async function createDecryptedStream(
 		}
 	};
 
-	worker.postMessage({
-		type: 'init',
-		keyRaw: aesKey.buffer,
-		baseIv: baseIv.buffer,
-		threads: WORKER_CONCURRENCY
-	}, [aesKey.buffer, baseIv.buffer]);
+	worker.postMessage(
+		{
+			type: 'init',
+			keyRaw: aesKey.buffer,
+			baseIv: baseIv.buffer,
+			threads: WORKER_CONCURRENCY
+		},
+		[aesKey.buffer, baseIv.buffer]
+	);
 
 	await readyPromise;
 
@@ -397,15 +461,21 @@ export async function createDecryptedStream(
 
 				const index = chunkIndex++;
 				activeCount++;
-				const transfer = chunkData.buffer.slice(chunkData.byteOffset, chunkData.byteOffset + chunkData.byteLength);
-				worker.postMessage({
-					type: 'decrypt',
-					index,
-					chunk: transfer,
-					useCompression
-				}, [transfer]);
-				
-				return; // Pull again later
+				const transfer = chunkData.buffer.slice(
+					chunkData.byteOffset,
+					chunkData.byteOffset + chunkData.byteLength
+				);
+				worker.postMessage(
+					{
+						type: 'decrypt',
+						index,
+						chunk: transfer,
+						useCompression
+					},
+					[transfer]
+				);
+
+				return;
 			}
 		},
 		cancel() {
@@ -426,7 +496,6 @@ export function createMultipartStream(
 ): ReadableStream<Uint8Array> {
 	const encoder = new TextEncoder();
 
-	// Construct preamble
 	const preAmbleParts: Uint8Array[] = [];
 	for (const [key, value] of Object.entries(fields)) {
 		preAmbleParts.push(encoder.encode(`--${boundary}\r\n`));
@@ -454,7 +523,7 @@ export function createMultipartStream(
 					if (preambleIndex < preAmbleParts.length) {
 						controller.enqueue(preAmbleParts[preambleIndex]);
 						preambleIndex++;
-						return; // Yield to event loop
+						return;
 					} else {
 						state = 'file';
 						fileReader = fileStream.getReader();

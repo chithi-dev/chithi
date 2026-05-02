@@ -1,10 +1,10 @@
 import init, {
-	initThreadPool,
-	encrypt_chunk,
 	decrypt_chunk,
+	decrypt_chunks_parallel,
+	encrypt_chunk,
 	encrypt_chunks_parallel,
-	decrypt_chunks_parallel
-} from '../../vendor/encryption/chithi_wasm';
+	initThreadPool
+} from '#vendor/encryption/chithi_wasm';
 
 let wasmReady = false;
 let keyRaw: Uint8Array | null = null;
@@ -76,8 +76,6 @@ self.addEventListener('message', async (ev: MessageEvent) => {
 				(self as any).postMessage({ type: 'error', index: msg.index, message: String(e) });
 			}
 		} else if (msg.type === 'encrypt_parallel' || msg.type === 'decrypt_parallel') {
-			// WASM expects a flattened Uint8Array for parallel processing
-			// First, calculate total size
 			let totalSize = 0;
 			for (const c of msg.chunks) totalSize += c.byteLength;
 			const flattened = new Uint8Array(totalSize);
@@ -87,6 +85,14 @@ self.addEventListener('message', async (ev: MessageEvent) => {
 				offset += c.byteLength;
 			}
 
+			const onProgress = (p: number) => {
+				(self as any).postMessage({
+					type: 'progress',
+					startIndex: msg.startIndex,
+					progress: p
+				});
+			};
+
 			try {
 				const result =
 					msg.type === 'encrypt_parallel'
@@ -95,22 +101,18 @@ self.addEventListener('message', async (ev: MessageEvent) => {
 								keyRaw,
 								baseIv,
 								msg.startIndex,
-								msg.useCompression
+								msg.useCompression,
+								onProgress
 							)
 						: decrypt_chunks_parallel(
 								flattened,
 								keyRaw,
 								baseIv,
 								msg.startIndex,
-								msg.useCompression
+								msg.useCompression,
+								onProgress
 							);
 
-				// The result is likely also flattened or a specific format from WASM.
-				// Based on .d.ts, it returns Uint8Array.
-				// We might need to split it back or just send it as is if the consumer expects it.
-				// However, the previous implementation expected individual chunks.
-				// Let's assume the result is the concatenated encrypted/decrypted chunks.
-				
 				const buffer = result.buffer;
 				(self as any).postMessage(
 					{
@@ -121,11 +123,14 @@ self.addEventListener('message', async (ev: MessageEvent) => {
 					[buffer]
 				);
 			} catch (e: any) {
-				(self as any).postMessage({ type: 'error', startIndex: msg.startIndex, message: String(e) });
+				(self as any).postMessage({
+					type: 'error',
+					startIndex: msg.startIndex,
+					message: String(e)
+				});
 			}
 		}
 	} catch (e: any) {
 		(self as any).postMessage({ type: 'error', message: String(e) });
 	}
 });
-

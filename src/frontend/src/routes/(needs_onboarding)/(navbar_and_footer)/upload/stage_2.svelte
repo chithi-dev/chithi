@@ -7,7 +7,7 @@
 	import { Plus, ArrowLeft, X, FileIcon, Eye, EyeOff, Trash2, Upload } from 'lucide-svelte';
 	import { formatFileSize } from '#functions/bytes';
 	import { formatSeconds } from '#functions/times';
-	import { createZipStream, createEncryptedStream } from '#functions/streams';
+	import { createPackedStream, createEncryptedStream } from '#functions/streams';
 	import * as Tooltip from '$lib/components/ui/tooltip/index';
 	import { v7 as uuidv7 } from 'uuid';
 	import { Api } from '#consts/backend';
@@ -199,8 +199,8 @@
 			inProgress = true;
 			uploadProgress = new Tween(0, { duration: 500, easing: cubicOut });
 
-			// Create Zip Stream
-			const stream = await createZipStream(files, isPasswordProtected ? password : undefined);
+			// Create Packed Stream
+			const stream = await createPackedStream(files);
 
 			//  Encrypt
 			const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);

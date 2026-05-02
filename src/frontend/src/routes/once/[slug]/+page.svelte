@@ -5,8 +5,7 @@
 	import { page } from '$app/state';
 	import { Api } from '#consts/backend';
 	import { PasswordRequiredError } from '#functions/download';
-	import { createDecryptedStream } from '#functions/streams';
-	import { BlobWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
+	import { createDecryptedStream, unpackStream } from '#functions/streams';
 	import { getMimeType } from '#functions/mime';
 	import { createViewableText } from '$lib/functions/viewer';
 	import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
@@ -61,70 +60,28 @@
 				password
 			);
 
-			// Read first chunk to detect password errors
-			const decReader = decryptedStream.getReader();
-			let firstChunk: Uint8Array | undefined;
-			try {
-				const { done, value } = await decReader.read();
-				if (!done) firstChunk = value;
-			} catch (e: any) {
-				if (e.name === 'OperationError') {
-					await reader.cancel('Wrong password');
-					throw new PasswordRequiredError();
-				}
-				throw e;
+			// Unpack files from the decrypted stream
+			const unpackedFiles = await unpackStream(decryptedStream);
+
+			if (unpackedFiles.length === 0) throw new Error('No files found in payload');
+			if (unpackedFiles.length > 1) {
+				throw new Error(
+					'View Once only supports a single file. Please use the upload page and select "View Once" with one file.'
+				);
 			}
 
-			// Buffer all decrypted data
-			const chunks: Uint8Array[] = [];
-			if (firstChunk) chunks.push(firstChunk);
-			while (true) {
-				const { done, value } = await decReader.read();
-				if (done) break;
-				chunks.push(value);
+			const { filename, blob } = unpackedFiles[0];
+			entryFilename = filename.split('/').pop() || 'file';
+			const mime = getMimeType(entryFilename);
+			const text = await createViewableText(blob, entryFilename);
+
+			if (text !== null) {
+				contentText = text;
+			} else {
+				contentUrl = URL.createObjectURL(blob);
 			}
 
-			const totalLength = chunks.reduce((acc, c) => acc + c.length, 0);
-			const fullData = new Uint8Array(totalLength);
-			let offset = 0;
-			for (const chunk of chunks) {
-				fullData.set(chunk, offset);
-				offset += chunk.length;
-			}
-
-			// Unzip single file
-			const zipReader = new ZipReader(new Uint8ArrayReader(fullData));
-			try {
-				const entries = await zipReader.getEntries();
-				const fileEntries = entries.filter((e) => !e.directory);
-
-				if (fileEntries.length === 0) throw new Error('Archive is empty');
-
-				if (fileEntries.length > 1) {
-					throw new Error(
-						'View Once only supports a single file. Please use the upload page and select "View Once" with one file.'
-					);
-				}
-
-				const entry = fileEntries[0];
-				if (!entry.getData) throw new Error('Cannot read file from archive');
-
-				entryFilename = entry.filename.split('/').pop() || 'file';
-				const mime = getMimeType(entryFilename);
-
-				const rawBlob = await entry.getData(new BlobWriter(mime));
-				const text = await createViewableText(rawBlob, entryFilename);
-
-				if (text !== null) {
-					contentText = text;
-				} else {
-					contentUrl = URL.createObjectURL(rawBlob);
-				}
-
-				status = 'viewing';
-			} finally {
-				await zipReader.close();
-			}
+			status = 'viewing';
 		} catch (e: any) {
 			console.error(e);
 			if (e instanceof PasswordRequiredError) {
@@ -170,7 +127,7 @@
 	/>
 {:else if status === 'needs_password'}
 	<div class="flex min-h-screen items-center justify-center p-4">
-		<div class="w-full max-w-sm space-y-4 text-center">
+		<div class="w-full max-sm space-y-4 text-center">
 			<KeyRound class="mx-auto h-10 w-10 text-muted-foreground" />
 			<p class="text-lg font-semibold">Password Required</p>
 			<div class="flex items-center">

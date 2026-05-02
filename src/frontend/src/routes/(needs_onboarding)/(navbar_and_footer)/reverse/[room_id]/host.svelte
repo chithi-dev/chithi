@@ -38,7 +38,7 @@
 	import { formatFileSize } from '#functions/bytes';
 	import { Api } from '#consts/backend';
 	import {
-		createZipStream,
+		createPackedStream,
 		createEncryptedStream,
 		createDecryptedStream
 	} from '#functions/streams';
@@ -370,9 +370,9 @@
 				isEncrypting = true;
 				encryptionProgress.set(0, { duration: 0 });
 
-				const zipStream = await createZipStream([entry.file]);
+				const packedStream = await createPackedStream([entry.file]);
 				const { stream: encryptedStream } = await createEncryptedStream(
-					zipStream,
+					packedStream,
 					undefined,
 					entry.file.size,
 					(processed, total) => {
