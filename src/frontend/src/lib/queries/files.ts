@@ -20,13 +20,6 @@ export type PaginatedFiles = {
 	total_pages: number;
 	current_page: number;
 	current_page_size: number;
-	meta: {
-		total_bytes: number;
-		active_urls: number;
-		links_with_download_caps: number;
-		expiring_soon: number;
-		latest_expiry?: number;
-	};
 };
 
 const queryKey = ['admin-files'];

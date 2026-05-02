@@ -1,6 +1,8 @@
+from app.schemas.information import InstanceStatisticsOut
 import contextlib
 import json
 import platform
+from datetime import datetime, timedelta, timezone
 
 from fastapi import (
     APIRouter,
@@ -8,9 +10,13 @@ from fastapi import (
     __version__ as fastapi_version,
 )
 from sqlalchemy import text
+from sqlmodel import func, select
 
 from app.deps import RedisDep, SessionDep
-from app.models.information import InformationOut
+from app.models.files import (
+    File,
+)
+from app.schemas.information import InformationOut
 
 router = APIRouter()
 
@@ -66,3 +72,78 @@ async def get_instance_information(
         commit=build_info["commit"],
         is_release=build_info["is_release"],
     )
+
+
+@router.get("/instance/statistics")
+async def get_instance_statistics(
+    session: SessionDep,
+    redis: RedisDep,
+):
+    now = datetime.now(timezone.utc)
+    soon = now + timedelta(days=1)
+
+    # Redis Execution
+    active_rooms_keys = await redis.keys("chithi:room:*")
+    active_rooms = len(active_rooms_keys)
+
+    # Total bytes
+    sum_bytes_query = select(func.coalesce(func.sum(File.size), 0)).select_from(File)
+    total_bytes = (await session.exec(sum_bytes_query)).one()
+
+    # Total files
+    total_files_query = select(func.count()).select_from(File)
+    total_files = (await session.exec(total_files_query)).one()
+
+    # Total downloads
+    total_downloads_query = select(func.coalesce(func.sum(File.download_count), 0)).select_from(File)
+    total_downloads = (await session.exec(total_downloads_query)).one()
+
+    # Active URLs
+    active_urls_query = (
+        select(func.count())
+        .select_from(File)
+        .where(
+            (File.expires_at >= now)
+            & (File.download_count < File.expire_after_n_download)
+        )
+    )
+    active_urls = (await session.exec(active_urls_query)).one()
+
+    # Expiring soon (within 24h and not already expired)
+    expiring_soon_query = (
+        select(func.count())
+        .select_from(File)
+        .where(
+            (File.expires_at >= now)
+            & (File.expires_at <= soon)
+            & (File.download_count < File.expire_after_n_download)
+        )
+    )
+    expiring_soon = (await session.exec(expiring_soon_query)).one()
+
+    # Links with download caps
+    # Assuming any file has a download cap as it's not nullable in DB
+    links_with_download_caps_query = select(func.count()).select_from(File)
+    links_with_download_caps = (
+        await session.exec(links_with_download_caps_query)
+    ).one()
+
+    # Latest expiry
+    latest_expiry_query = select(func.max(File.expires_at)).where(
+        (File.expires_at >= now) & (File.download_count < File.expire_after_n_download)
+    )
+    latest_expiry = (await session.exec(latest_expiry_query)).one()
+
+    meta = {
+        "total_bytes": total_bytes,
+        "total_files": total_files,
+        "total_downloads": total_downloads,
+        "active_urls": active_urls,
+        "active_rooms": active_rooms,
+        "links_with_download_caps": links_with_download_caps,
+        "expiring_soon": expiring_soon,
+    }
+    if latest_expiry:
+        meta["latest_expiry"] = int(latest_expiry.timestamp())
+
+    return InstanceStatisticsOut(**meta)

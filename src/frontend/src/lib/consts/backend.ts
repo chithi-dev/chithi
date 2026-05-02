@@ -45,6 +45,10 @@ export class Api {
 		return this.#url('instance/information');
 	}
 
+	static get INSTANCE_STATISTICS() {
+		return this.#url('instance/statistics');
+	}
+
 	static get UPLOAD() {
 		return this.#url('upload');
 	}
