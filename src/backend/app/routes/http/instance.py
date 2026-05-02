@@ -1,4 +1,3 @@
-from app.schemas.information import InstanceStatisticsOut
 import contextlib
 import json
 import platform
@@ -16,7 +15,7 @@ from app.deps import RedisDep, SessionDep
 from app.models.files import (
     File,
 )
-from app.schemas.information import InformationOut
+from app.schemas.information import InformationOut, InstanceStatisticsOut
 
 router = APIRouter()
 
