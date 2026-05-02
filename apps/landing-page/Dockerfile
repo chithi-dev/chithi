@@ -1,65 +1,71 @@
-FROM node:25-alpine AS base
+# Use a global ARG so it can be shared across stages
+ARG NODE_VERSION=25-slim
 
-# Install dependencies only when needed
-FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
+# Stage 0: Base setup to avoid repeating work
+FROM node:${NODE_VERSION} AS base
 WORKDIR /app
+# Enable corepack for pnpm/yarn management automatically
+RUN corepack enable
 
-# Install dependencies based on the preferred package manager
+# ============================================
+# Stage 1: Dependencies Installation
+# ============================================
+FROM base AS dependencies
+
 COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
-RUN \
-    if [ -f yarn.lock ]; then yarn --frozen-lockfile; \
-    elif [ -f package-lock.json ]; then npm ci; \
-    elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
-    else echo "Lockfile not found." && exit 1; \
+
+# Use secret mount for GITHUB_TOKEN and cache mounts for speed
+RUN --mount=type=cache,target=/root/.npm \
+    --mount=type=cache,target=/usr/local/share/.cache/yarn \
+    --mount=type=cache,target=/root/.local/share/pnpm/store \
+    --mount=type=secret,id=github_token \
+    export GITHUB_TOKEN=$(cat /run/secrets/github_token 2>/dev/null || echo "") && \
+    if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; \
+    elif [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
+    elif [ -f pnpm-lock.yaml ]; then pnpm install --frozen-lockfile; \
+    else echo "No lockfile found." && exit 1; \
     fi
 
-
-# Rebuild the source code only when needed
+# ============================================
+# Stage 2: Build Next.js application
+# ============================================
 FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+
+# Copy dependencies from previous stage
+COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 
-# Next.js collects completely anonymous telemetry data about general usage.
-# Learn more here: https://nextjs.org/telemetry
-# Uncomment the following line in case you want to disable telemetry during the build.
+ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# CRITICAL: Re-inject secret here if your build script needs to fetch private assets
 RUN --mount=type=secret,id=github_token \
-    export GITHUB_TOKEN=$(cat /run/secrets/github_token) && \
-    if [ -f yarn.lock ]; then yarn run build; \
-    elif [ -f package-lock.json ]; then npm run build; \
-    elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm run build; \
-    else echo "Lockfile not found." && exit 1; \
+    export GITHUB_TOKEN=$(cat /run/secrets/github_token 2>/dev/null || echo "") && \
+    if [ -f package-lock.json ]; then npm run build; \
+    elif [ -f yarn.lock ]; then yarn build; \
+    elif [ -f pnpm-lock.yaml ]; then pnpm build; \
+    else echo "No lockfile found." && exit 1; \
     fi
 
-# Production image, copy all the files and run next
-FROM base AS runner
+# ============================================
+# Stage 3: Run Next.js application
+# ============================================
+FROM node:${NODE_VERSION} AS runner
+
 WORKDIR /app
 
 ENV NODE_ENV=production
-# Uncomment the following line in case you want to disable telemetry during runtime.
-# ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+# Security: Use the built-in 'node' user provided by the official image
+RUN mkdir .next && chown node:node .next
 
-COPY --from=builder /app/public ./public
+COPY --from=builder --chown=node:node /app/public ./public
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
-
+USER node
 EXPOSE 3000
 
-ENV PORT=3000
-
-# server.js is created by next build from the standalone output
-# https://nextjs.org/docs/pages/api-reference/config/next-config-js/output
-ENV HOSTNAME="0.0.0.0"
 CMD ["node", "server.js"]

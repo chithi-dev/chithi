@@ -9,6 +9,7 @@
         "lint": "biome lint",
         "format": "biome check --write --unsafe ."
     },
+    "packageManager": "pnpm@10.33.2",
     "dependencies": {
         "next": "^16.2.3",
         "react": "canary",

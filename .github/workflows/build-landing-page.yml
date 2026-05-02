@@ -1,56 +1,57 @@
 name: Test Landing Page Build
 
 on:
-    push:
-        branches: ["main"]
-        paths:
-            - "apps/landing-page/**"
-            - ".github/workflows/**"
-    pull_request:
-        branches: ["main"]
-        paths:
-            - "apps/landing-page/**"
-            - ".github/workflows/**"
-    workflow_dispatch:
+  push:
+    branches: ["main"]
+    paths:
+      - "apps/landing-page/**"
+      - ".github/workflows/**"
+  pull_request:
+    branches: ["main"]
+    paths:
+      - "apps/landing-page/**"
+      - ".github/workflows/**"
+  workflow_dispatch:
 
 permissions:
-    contents: read
-    packages: write
+  contents: read
+  packages: write
 
 jobs:
-    build-and-push:
-        name: Build on ${{ matrix.os }}
-        runs-on: ${{ matrix.os }}
-        strategy:
-            matrix:
-                os:
-                    [
-                        ubuntu-latest,
-                        ubuntu-24.04-arm,
-                        windows-latest,
-                        macos-latest,
-                    ]
-                node-version: [latest]
-        defaults:
-            run:
-                working-directory: ./apps/landing-page
+  build-and-push:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
 
-        steps:
-            - name: Checkout repository
-              uses: actions/checkout@v6
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest]
+        node-version: [latest]
 
-            - name: Set up Node.js ${{ matrix.node-version }}
-              uses: actions/setup-node@v6
-              with:
-                  node-version: ${{ matrix.node-version }}
-                  cache: "pnpm"
-                  cache-dependency-path: apps/landing-page/pnpm-lock.yaml
+    defaults:
+      run:
+        working-directory: ./apps/landing-page
 
-            - name: Install dependencies
-              run: pnpm i
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-            - name: Build
-              run: pnpm run build
-              env:
-                  NODE_OPTIONS: --max-old-space-size=4096
-                  GITHUB_TOKEN: ${{ secrets.GHP_TOKEN }}
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+          cache-dependency-path: apps/landing-page/pnpm-lock.yaml
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build
+        run: pnpm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+          GITHUB_TOKEN: ${{ secrets.GHP_TOKEN }}
