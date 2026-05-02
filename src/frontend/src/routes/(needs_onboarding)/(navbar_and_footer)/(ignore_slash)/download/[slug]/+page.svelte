@@ -84,7 +84,7 @@
 			status = 'completed';
 			toast.success('Download complete');
 			if (password) {
-				toast.info('Note: The downloaded zip file is also encrypted with your password.');
+				toast.info('Note: The downloaded 7z file is also encrypted with your password.');
 			}
 		} catch (e: any) {
 			console.error(e);

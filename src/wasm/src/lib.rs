@@ -67,7 +67,6 @@ pub fn encrypt_chunk(
     key: &[u8],
     base_iv: &[u8],
     index: u32,
-    _compress: bool,
 ) -> Result<Vec<u8>, JsValue> {
     if key.len() != 32 {
         return Err(PipelineError::InvalidKeyLength { actual: key.len() }.into());
@@ -80,7 +79,7 @@ pub fn encrypt_chunk(
     }
 
     // Compression is intentionally handled externally (e.g. sevenz).
-    // This function now encrypts raw chunk bytes only.
+    // This function only encrypts raw chunk bytes without compression.
     let iv = get_chunk_iv(base_iv, index);
     let cipher = ChaCha20Poly1305::new(key.into());
     let nonce = Nonce::from_slice(&iv);
@@ -98,7 +97,6 @@ pub fn decrypt_chunk(
     key: &[u8],
     base_iv: &[u8],
     index: u32,
-    _decompress: bool,
 ) -> Result<Vec<u8>, JsValue> {
     if key.len() != 32 {
         return Err(PipelineError::InvalidKeyLength { actual: key.len() }.into());
@@ -111,7 +109,7 @@ pub fn decrypt_chunk(
     }
 
     // Decompression is intentionally handled externally (e.g. sevenz).
-    // This function now decrypts and returns raw chunk bytes only.
+    // This function only decrypts and returns raw chunk bytes without decompression.
     let iv = get_chunk_iv(base_iv, index);
     let cipher = ChaCha20Poly1305::new(key.into());
     let nonce = Nonce::from_slice(&iv);
@@ -233,7 +231,6 @@ fn encrypt_chunks_with_progress_internal(
     key: &[u8],
     base_iv: &[u8],
     start_index: u32,
-    compress: bool,
     progress_callback: Option<&Function>,
 ) -> Result<Vec<Vec<u8>>, JsValue> {
     let total = chunks.len();
@@ -242,7 +239,7 @@ fn encrypt_chunks_with_progress_internal(
     report_progress(progress_callback, 0, total)?;
 
     for (i, chunk) in chunks.into_iter().enumerate() {
-        let encrypted = encrypt_chunk(&chunk, key, base_iv, start_index + i as u32, compress)?;
+        let encrypted = encrypt_chunk(&chunk, key, base_iv, start_index + i as u32)?;
         encrypted_chunks.push(encrypted);
         report_progress(progress_callback, i + 1, total)?;
     }
@@ -255,7 +252,6 @@ fn decrypt_chunks_with_progress_internal(
     key: &[u8],
     base_iv: &[u8],
     start_index: u32,
-    decompress: bool,
     progress_callback: Option<&Function>,
 ) -> Result<Vec<Vec<u8>>, JsValue> {
     let total = chunks.len();
@@ -264,7 +260,7 @@ fn decrypt_chunks_with_progress_internal(
     report_progress(progress_callback, 0, total)?;
 
     for (i, chunk) in chunks.into_iter().enumerate() {
-        let decrypted = decrypt_chunk(&chunk, key, base_iv, start_index + i as u32, decompress)?;
+        let decrypted = decrypt_chunk(&chunk, key, base_iv, start_index + i as u32)?;
         decrypted_chunks.push(decrypted);
         report_progress(progress_callback, i + 1, total)?;
     }
@@ -278,13 +274,12 @@ fn encrypt_chunks_parallel_internal(
     key: &[u8],
     base_iv: &[u8],
     start_index: u32,
-    compress: bool,
 ) -> Result<Vec<Vec<u8>>, String> {
     chunks
         .into_par_iter()
         .enumerate()
         .map(|(i, chunk)| {
-            encrypt_chunk(&chunk, key, base_iv, start_index + i as u32, compress)
+            encrypt_chunk(&chunk, key, base_iv, start_index + i as u32)
                 .map_err(|e| e.as_string().unwrap_or_else(|| "Unknown error".to_string()))
         })
         .collect()
@@ -295,13 +290,12 @@ fn decrypt_chunks_parallel_internal(
     key: &[u8],
     base_iv: &[u8],
     start_index: u32,
-    decompress: bool,
 ) -> Result<Vec<Vec<u8>>, String> {
     chunks
         .into_par_iter()
         .enumerate()
         .map(|(i, chunk)| {
-            decrypt_chunk(&chunk, key, base_iv, start_index + i as u32, decompress)
+            decrypt_chunk(&chunk, key, base_iv, start_index + i as u32)
                 .map_err(|e| e.as_string().unwrap_or_else(|| "Unknown error".to_string()))
         })
         .collect()
@@ -314,7 +308,6 @@ pub fn encrypt_chunks_parallel(
     key: &[u8],
     base_iv: &[u8],
     start_index: u32,
-    compress: bool,
     progress_callback: Option<Function>,
 ) -> Result<Vec<u8>, JsValue> {
     let chunks = unflatten_chunks(flattened_chunks).map_err(|e| JsValue::from_str(&e))?;
@@ -325,11 +318,10 @@ pub fn encrypt_chunks_parallel(
             key,
             base_iv,
             start_index,
-            compress,
             Some(callback),
         )?
     } else {
-        encrypt_chunks_parallel_internal(chunks, key, base_iv, start_index, compress)
+        encrypt_chunks_parallel_internal(chunks, key, base_iv, start_index)
             .map_err(|e| JsValue::from_str(&e))?
     };
 
@@ -342,7 +334,6 @@ pub fn decrypt_chunks_parallel(
     key: &[u8],
     base_iv: &[u8],
     start_index: u32,
-    decompress: bool,
     progress_callback: Option<Function>,
 ) -> Result<Vec<u8>, JsValue> {
     let chunks = unflatten_chunks(flattened_chunks).map_err(|e| JsValue::from_str(&e))?;
@@ -353,11 +344,10 @@ pub fn decrypt_chunks_parallel(
             key,
             base_iv,
             start_index,
-            decompress,
             Some(callback),
         )?
     } else {
-        decrypt_chunks_parallel_internal(chunks, key, base_iv, start_index, decompress)
+        decrypt_chunks_parallel_internal(chunks, key, base_iv, start_index)
             .map_err(|e| JsValue::from_str(&e))?
     };
 
