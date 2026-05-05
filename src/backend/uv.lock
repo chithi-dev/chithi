@@ -1283,23 +1283,23 @@ wheels = [
 
 [[package]]
 name = "types-aiobotocore"
-version = "3.5.0"
+version = "3.6.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "botocore-stubs" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d5/99/3863acdc373aa621cf56634bb08145fb54f2213e647d893c1ac7b2636c11/types_aiobotocore-3.5.0.tar.gz", hash = "sha256:8636c9e5a9837d41e45264570349d98c0cdad51fe7961ee19664a11094bb2262", size = 87983, upload-time = "2026-04-23T02:57:02.576Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b9/e4/5dd83c879eff726931ef222d3ae27f67999c3bc33dfae1ca8237ebccdf17/types_aiobotocore-3.6.0.tar.gz", hash = "sha256:e990056ce9d19094a9d9b36008ca0b2a4d69948ff58f50868dd159a81f6ad69c", size = 87978, upload-time = "2026-05-02T03:05:30.694Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ed/d7/2b2d4d5b64b81149b08cc3fde6e826788c703c012b687cd4cc4d83742afd/types_aiobotocore-3.5.0-py3-none-any.whl", hash = "sha256:7c75ff73c10098d1d885e5b061f05945afdc4e9d0d5b573274292c329abe8a62", size = 54805, upload-time = "2026-04-23T02:56:59.721Z" },
+    { url = "https://files.pythonhosted.org/packages/19/7c/cadd4b4d0bdd6f1cbc601177a115966dabd9afa022287f3f25423274ab97/types_aiobotocore-3.6.0-py3-none-any.whl", hash = "sha256:e38d5340bfb7ecc17a40acfd1043f4ed91af9f8189daa5e438bda2e7d276d406", size = 54805, upload-time = "2026-05-02T03:05:27.911Z" },
 ]
 
 [[package]]
 name = "types-aiobotocore-s3"
-version = "3.5.0"
+version = "3.6.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/2d/6b/0d9fd45a69afbd2007480a35e8612121f6e27b988741b3a6d0b05c964229/types_aiobotocore_s3-3.5.0.tar.gz", hash = "sha256:147e2128be67de8c8a33b8a9bcca5fa8e963c6c54e52c58c17fa5c6013195a5a", size = 77175, upload-time = "2026-04-23T02:54:40.652Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/66/90/eec276a418a417441a785dd394424fee87682cf34af29fe026f46883149e/types_aiobotocore_s3-3.6.0.tar.gz", hash = "sha256:5eb816af93791b7f42f58b2dd3b5ecfe24da9de414a7390c05c392cf1d9ef5b4", size = 77715, upload-time = "2026-05-02T03:03:31.274Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/c4/ce16af65a9227fe0ff3e737c0b4317e138fffbd06f7d631fe3a1b5a7f0f3/types_aiobotocore_s3-3.5.0-py3-none-any.whl", hash = "sha256:6fc53a6da5ec5cfb5478197fca74e1d11c389e0e20df7c0e0006a84c56224ada", size = 84930, upload-time = "2026-04-23T02:54:36.283Z" },
+    { url = "https://files.pythonhosted.org/packages/e7/df/4f2dce96e6b71f3d8287351558824021a9857eb88506c6eb72c61b23bcb4/types_aiobotocore_s3-3.6.0-py3-none-any.whl", hash = "sha256:5af9f9710c9fe6ba9645852a0b13f6fca4eb44d87a35b0959063341a32f11b37", size = 85450, upload-time = "2026-05-02T03:03:29.054Z" },
 ]
 
 [[package]]
@@ -1460,11 +1460,11 @@ wheels = [
 
 [[package]]
 name = "wcwidth"
-version = "0.6.0"
+version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/35/a2/8e3becb46433538a38726c948d3399905a4c7cabd0df578ede5dc51f0ec2/wcwidth-0.6.0.tar.gz", hash = "sha256:cdc4e4262d6ef9a1a57e018384cbeb1208d8abbc64176027e2c2455c81313159", size = 159684, upload-time = "2026-02-06T19:19:40.919Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/2c/ee/afaf0f85a9a18fe47a67f1e4422ed6cf1fe642f0ae0a2f81166231303c52/wcwidth-0.7.0.tar.gz", hash = "sha256:90e3a7ea092341c44b99562e75d09e4d5160fe7a3974c6fb842a101a95e7eed0", size = 182132, upload-time = "2026-05-02T16:04:12.653Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/68/5a/199c59e0a824a3db2b89c5d2dade7ab5f9624dbf6448dc291b46d5ec94d3/wcwidth-0.6.0-py3-none-any.whl", hash = "sha256:1a3a1e510b553315f8e146c54764f4fb6264ffad731b3d78088cdb1478ffbdad", size = 94189, upload-time = "2026-02-06T19:19:39.646Z" },
+    { url = "https://files.pythonhosted.org/packages/41/52/e465037f5375f43533d1a80b6923955201596a99142ed524d77b571a1418/wcwidth-0.7.0-py3-none-any.whl", hash = "sha256:5d69154c429a82910e241c738cd0e2976fac8a2dd47a1a805f4afed1c0f136f2", size = 110825, upload-time = "2026-05-02T16:04:11.033Z" },
 ]
 
 [[package]]
