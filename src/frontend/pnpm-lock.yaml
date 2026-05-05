@@ -41,6 +41,9 @@ importers:
       '@internationalized/date':
         specifier: ^3.12.1
         version: 3.12.1
+      '@lezer/highlight':
+        specifier: ^1.2.3
+        version: 1.2.3
       '@lucide/svelte':
         specifier: ^1.14.0
         version: 1.14.0(svelte@5.55.5(@typescript-eslint/types@8.59.1))
