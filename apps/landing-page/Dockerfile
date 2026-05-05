@@ -3,9 +3,9 @@
 # ============================================
 
 # IMPORTANT: Node.js Version Maintenance
-# This Dockerfile uses Node.js 24.13.0-slim, which was the latest LTS version at the time of writing.
+# This Dockerfile uses Node.js 24, which was the latest LTS version at the time of writing.
 # To ensure security and compatibility, regularly update the NODE_VERSION ARG to the latest LTS version.
-ARG NODE_VERSION=24.13.0-slim
+ARG NODE_VERSION=24
 
 FROM node:${NODE_VERSION} AS dependencies
 
@@ -59,7 +59,9 @@ ENV NODE_ENV=production
 # This caches the .next/cache directory across builds, but it also prevents
 # .next/cache/fetch-cache from being included in the final image, meaning
 # cached fetch responses from the build won't be available at runtime.
-RUN if [ -f package-lock.json ]; then \
+RUN --mount=type=secret,id=github_token \
+  export GITHUB_TOKEN="$(cat /run/secrets/github_token 2>/dev/null || echo "")" && \
+  if [ -f package-lock.json ]; then \
     npm run build; \
   elif [ -f yarn.lock ]; then \
     corepack enable yarn && yarn build; \
