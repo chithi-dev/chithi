@@ -96,5 +96,12 @@
 		"vitest": "^4.1.5",
 		"zod": "^4.4.1"
 	},
-	"packageManager": "pnpm@11.0.9"
+	"packageManager": "pnpm@11.0.9",
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"@parcel/watcher",
+			"esbuild",
+			"msgpackr-extract"
+		]
+	}
 }
