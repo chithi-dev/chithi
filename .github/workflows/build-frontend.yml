@@ -33,25 +33,20 @@ jobs:
             - name: Checkout repository
               uses: actions/checkout@v6
 
-            - name: Setup pnpm
-              uses: pnpm/action-setup@v6
-              with:
-                version: latest
-
             - name: Set up Node.js ${{ matrix.node-version }}
               uses: actions/setup-node@v6
               with:
                   node-version: ${{ matrix.node-version }}
-                  cache: 'pnpm'
-                  cache-dependency-path: src/frontend/pnpm-lock.yaml
+                  cache: 'npm'
+                  cache-dependency-path: src/frontend/package-lock.json
 
             - name: Install dependencies
-              run: pnpm i
+              run: npm i
 
             - name: Inject Version
               run: node --experimental-strip-types scripts/inject-version.ts
 
             - name: Build (Node adapter)
-              run: pnpm run build
+              run: npm run build
               env:
                   NODE_OPTIONS: --max-old-space-size=4096
