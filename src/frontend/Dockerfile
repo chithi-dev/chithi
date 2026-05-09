@@ -10,7 +10,7 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml .npmrc ./
 
 # Install deps 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 
 # Copy rest of source
 COPY . .
