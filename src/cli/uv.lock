@@ -169,7 +169,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 build = [
-    { name = "nuitka", specifier = ">=2.8.9" },
+    { name = "nuitka", specifier = ">=4.1" },
     { name = "zstandard", specifier = ">=0.25.0" },
 ]
 dev = [

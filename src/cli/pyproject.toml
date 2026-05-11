@@ -27,7 +27,7 @@ dependencies = [
 
 
 [dependency-groups]
-build = ["nuitka>=2.8.9", "zstandard>=0.25.0"]
+build = ["nuitka>=4.1", "zstandard>=0.25.0"]
 dev = [
     "poethepoet>=0.39.0",
     "pyrefly>=0.62.0",
