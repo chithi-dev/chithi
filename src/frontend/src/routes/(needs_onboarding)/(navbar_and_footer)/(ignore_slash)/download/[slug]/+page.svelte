@@ -46,6 +46,10 @@
 			filename = info.filename;
 			fileSize = info.size;
 			status = 'ready';
+
+			if (info.number_of_files === 1) {
+				handleDownload();
+			}
 		} catch (e: any) {
 			status = 'error';
 			errorMsg = e.message || 'An error occurred';

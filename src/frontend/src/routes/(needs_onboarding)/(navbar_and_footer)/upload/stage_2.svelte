@@ -233,6 +233,7 @@
 			formData.append('expire_after_n_download', viewOnce ? '1' : downloadLimit);
 			formData.append('expire_after', timeLimit);
 			formData.append('file', encryptedBlob, blobFilename);
+			formData.append('number_of_files', files.length.toString());
 			files.length > 1 && formData.append('folder_name', folderName);
 
 			const data = await new Promise<any>((resolve, reject) => {
