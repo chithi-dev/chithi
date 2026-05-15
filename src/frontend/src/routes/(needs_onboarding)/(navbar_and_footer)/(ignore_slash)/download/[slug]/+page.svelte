@@ -24,6 +24,7 @@
 	let errorMsg = $state('');
 	let filename = $state('file');
 	let fileSize = $state(0);
+	let numberOfFiles = $state(0);
 	let password = $state('');
 	let downloadProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 
@@ -45,7 +46,12 @@
 			const info = await res.json();
 			filename = info.filename;
 			fileSize = info.size;
+			numberOfFiles = info.number_of_files || 0;
 			status = 'ready';
+
+			if (info.number_of_files === 1) {
+				handleDownload();
+			}
 		} catch (e: any) {
 			status = 'error';
 			errorMsg = e.message || 'An error occurred';
@@ -79,8 +85,10 @@
 				password,
 				filename,
 				fileSize,
+				numberOfFiles,
 				(p) => (downloadProgress.target = p)
 			);
+
 			status = 'completed';
 			toast.success('Download complete');
 			if (password) {

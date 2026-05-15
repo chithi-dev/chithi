@@ -20,6 +20,7 @@
 	type FileInformationOut = {
 		filename: string;
 		size: number;
+		number_of_files: number;
 		download_count: number;
 		created_at: string;
 		expires_at: string;

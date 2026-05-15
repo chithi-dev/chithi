@@ -13,6 +13,7 @@ class FileInformationOut(SQLModel):
     id: UUID
     filename: str
     size: int
+    number_of_files: int | None = None
 
     download_count: int
     created_at: datetime
@@ -47,6 +48,7 @@ class File(FileOut, table=True):
     )
 
     size: int = Field(sa_column=Column(BigInteger()))
+    number_of_files: int | None = Field(default=None)
 
     __table_args__ = (UniqueConstraint("id", "key"),)
 
