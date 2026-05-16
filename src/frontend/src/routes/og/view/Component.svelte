@@ -10,8 +10,4 @@
 	const displaySize = $derived(size?.trim() || 'Unknown size');
 </script>
 
-<OGLayout
-	label="Ready to view"
-	title={displayFilename}
-	subtitle="Size: {displaySize}"
-/>
+<OGLayout label="Ready to view" title={displayFilename} subtitle="Size: {displaySize}" />

@@ -9,8 +9,8 @@ import Component from './Component.svelte';
 export async function GET({ url }: RequestEvent) {
 	const { body, head } = await render(Component, {
 		props: {
-			filename: url.searchParams.get('filename'),
-			size: url.searchParams.get('size')
+			title: url.searchParams.get('title'),
+			description: url.searchParams.get('description')
 		}
 	});
 
