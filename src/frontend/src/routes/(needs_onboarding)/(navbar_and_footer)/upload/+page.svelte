@@ -10,7 +10,7 @@
 	import { markdown_to_html } from '$lib/markdown/markdown';
 	import { Button } from '$lib/components/ui/button';
 	import { fly, fade } from 'svelte/transition';
-	import { CloudOff } from 'lucide-svelte';
+	import { CloudOff } from '@lucide/svelte';
 
 	import Stage1 from './stage_1.svelte';
 	import Stage2 from './stage_2.svelte';

@@ -8,7 +8,7 @@
 		CardTitle
 	} from '$lib/components/ui/card';
 	import { page } from '$app/state';
-	import { ShieldCheck, ChevronLeft } from 'lucide-svelte';
+	import { ShieldCheck, ChevronLeft } from '@lucide/svelte';
 	import { fly } from 'svelte/transition';
 
 	import LoginForm from './login_form.svelte';

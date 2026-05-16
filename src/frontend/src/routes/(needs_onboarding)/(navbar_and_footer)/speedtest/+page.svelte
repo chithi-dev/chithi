@@ -15,7 +15,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
 	import { Separator } from '$lib/components/ui/separator';
-	import { Play, RotateCw, Activity, ArrowDown, ArrowUp, Timer } from 'lucide-svelte';
+	import { Play, RotateCw, Activity, ArrowDown, ArrowUp, Timer } from '@lucide/svelte';
 	import { Api } from '#consts/backend';
 	import SpeedtestWorker from './speedtest.worker?worker';
 	import SpeedGauge from './SpeedGauge.svelte';

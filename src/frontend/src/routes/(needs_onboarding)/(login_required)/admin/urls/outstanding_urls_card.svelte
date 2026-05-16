@@ -3,7 +3,7 @@
 	import * as Table from '$lib/components/ui/table';
 	import { Button } from '$lib/components/ui/button';
 	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { Trash2, FileIcon, FolderIcon, Download, Clock, CalendarClock } from 'lucide-svelte';
+	import { Trash2, FileIcon, FolderIcon, Download, Clock, CalendarClock } from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
 
 	let {

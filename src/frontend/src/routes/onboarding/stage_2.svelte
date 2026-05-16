@@ -5,7 +5,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as Select from '$lib/components/ui/select';
 	import type { Props } from './types';
-	import { Settings, Check, LoaderCircle } from 'lucide-svelte';
+	import { Settings, Check, LoaderCircle } from '@lucide/svelte';
 	import { useConfigQuery } from '#queries/config';
 	import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';

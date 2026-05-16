@@ -10,7 +10,7 @@
 		Gauge,
 		Info,
 		Server
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { toggleMode } from 'mode-watcher';
 	import * as Avatar from '$lib/components/ui/avatar';

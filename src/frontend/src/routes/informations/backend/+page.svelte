@@ -17,7 +17,7 @@
 		ShieldCheck,
 		LoaderCircle,
 		CircleAlert
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { useInstanceInformationQuery } from '$lib/queries/instance';
 
 	const instanceQuery = useInstanceInformationQuery();

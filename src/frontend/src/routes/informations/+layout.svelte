@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { fly } from 'svelte/transition';
-	import { ChevronLeft } from 'lucide-svelte';
+	import { ChevronLeft } from '@lucide/svelte';
 	import favicon from '$lib/assets/logo.svg';
 	import FancyGrid from '$lib/components/FancyGrid.svelte';
 	import { page } from '$app/state';

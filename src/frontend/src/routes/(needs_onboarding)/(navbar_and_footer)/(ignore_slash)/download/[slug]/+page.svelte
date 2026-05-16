@@ -2,7 +2,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { FileText, CircleAlert, LoaderCircle, Download, KeyRound } from 'lucide-svelte';
+	import { FileText, CircleAlert, LoaderCircle, Download, KeyRound } from '@lucide/svelte';
 	import { page } from '$app/state';
 	import { fly } from 'svelte/transition';
 	import { Api } from '#consts/backend';

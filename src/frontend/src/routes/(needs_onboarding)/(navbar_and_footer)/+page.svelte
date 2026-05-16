@@ -12,7 +12,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Label } from '$lib/components/ui/label';
-	import { Upload, Gauge, ArrowLeftRight, PlugZap } from 'lucide-svelte';
+	import { Upload, Gauge, ArrowLeftRight, PlugZap } from '@lucide/svelte';
 
 	let showReconnect = $state(false);
 	let reconnectUrl = $state('');
