@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { Download,  Link, Check, ArrowLeft, Copy } from '@lucide/svelte';
+	import { Download, Link, Check, ArrowLeft, Copy } from '@lucide/svelte';
 	import { fade } from 'svelte/transition';
 	import CodeViewer from '$lib/components/CodeViewer.svelte';
 
