@@ -1,14 +1,16 @@
 import style from '#css/tailwind.css?inline';
 import { render } from 'svelte/server';
 import ImageResponse from 'takumi-js/response';
+import { read } from '$app/server';
+import Geist from '$lib/assets/fonts/Geist.woff2';
 import type { RequestEvent } from './$types';
 import Component from './Component.svelte';
 
 export async function GET({ url }: RequestEvent) {
 	const { body, head } = await render(Component, {
 		props: {
-			title: url.searchParams.get('title'),
-			description: url.searchParams.get('description')
+			filename: url.searchParams.get('filename'),
+			size: url.searchParams.get('size')
 		}
 	});
 
@@ -19,8 +21,7 @@ export async function GET({ url }: RequestEvent) {
 		fonts: [
 			{
 				name: 'Geist',
-				data: () =>
-					fetch('https://takumi.kane.tw/fonts/Geist.woff2').then((res) => res.arrayBuffer())
+				data: () => read(Geist).arrayBuffer()
 			}
 		]
 	});
