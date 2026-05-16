@@ -5,7 +5,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
 	import * as Select from '$lib/components/ui/select';
-	import { X } from 'lucide-svelte';
+	import { X } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
 	import { formatSeconds, secondsToNumber, T_UNITS, type TimeUnit } from '#functions/times';
 

@@ -20,7 +20,7 @@
 	import { toast } from 'svelte-sonner';
 	import { superForm, defaults } from 'sveltekit-superforms';
 	import { zod4, zod4Client } from 'sveltekit-superforms/adapters';
-	import { User, Mail, Lock, LoaderCircle, UserPlus, Eye, EyeOff } from 'lucide-svelte';
+	import { User, Mail, Lock, LoaderCircle, UserPlus, Eye, EyeOff } from '@lucide/svelte';
 
 	let { open = $bindable(false) } = $props<{ open: boolean }>();
 

@@ -5,7 +5,7 @@
 	import { zod4Client } from 'sveltekit-superforms/adapters';
 	import { cn } from '$lib/utils';
 	import * as Form from '$lib/components/ui/form/index';
-	import { ArrowRight, Mail, Lock, LoaderCircle, Eye, EyeOff } from 'lucide-svelte';
+	import { ArrowRight, Mail, Lock, LoaderCircle, Eye, EyeOff } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { untrack } from 'svelte';
 	import { goto } from '$app/navigation';

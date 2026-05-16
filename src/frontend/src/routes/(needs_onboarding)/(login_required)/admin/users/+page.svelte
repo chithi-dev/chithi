@@ -5,7 +5,7 @@
 	import * as Card from '$lib/components/ui/card';
 	import * as Pagination from '$lib/components/ui/pagination';
 	import { Button } from '$lib/components/ui/button';
-	import { Trash2, UserPlus } from 'lucide-svelte';
+	import { Trash2, UserPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 	import CreateUserDialog from './create_user_dialog.svelte';
 	import DeleteUserDialog from './delete_user_dialog.svelte';

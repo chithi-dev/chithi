@@ -13,7 +13,7 @@
 		CircleAlert,
 		TrendingUp,
 		ShieldCheck
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { useInstanceStatisticsQuery } from '$lib/queries/instance';
 	import { formatFileSize } from '$lib/functions/bytes';
 

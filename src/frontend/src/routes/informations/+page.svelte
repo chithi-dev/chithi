@@ -11,7 +11,7 @@
 		ArrowRight,
 		ShieldCheck,
 		ExternalLink
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { Api } from '$lib/consts/backend';
 
 	const sections = [
