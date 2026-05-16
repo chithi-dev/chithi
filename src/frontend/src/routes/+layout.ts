@@ -1,5 +1,4 @@
 import { prefetch as prefetchAuth } from '#queries/auth';
-import image from '$lib/assets/opengraph.png?url';
 import { user_store } from '$lib/store/user.svelte';
 import { QueryClient } from '@tanstack/svelte-query';
 import { defineBaseMetaTags } from 'svelte-meta-tags';
@@ -35,15 +34,7 @@ export const load: LayoutLoad = async ({ data, url, fetch }) => {
 			title: 'Chithi',
 			description:
 				'Encrypt and send files with a link that automatically expires to ensure your important documents don’t stay online forever.',
-			siteName: 'Chithi Dev',
-			images: [
-				{
-					url: image,
-					width: 800,
-					height: 600,
-					alt: 'Chithi | Encrypted File Sharing'
-				}
-			]
+			siteName: 'Chithi Dev'
 		}
 	});
 
