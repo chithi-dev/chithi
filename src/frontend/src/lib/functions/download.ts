@@ -15,7 +15,7 @@ export async function downloadAndDecryptFile(
 	password: string,
 	filename: string,
 	fileSize: number,
-	numberOfFiles: number,
+	_numberOfFiles: number,
 	onProgress: (percent: number) => void
 ) {
 	const res = await fetch(Api.DOWNLOAD(slug));
@@ -92,25 +92,33 @@ export async function downloadAndDecryptFile(
 	let finalStream = verifiedStream;
 	let finalDownloadName = filename.toLowerCase().endsWith('.zip') ? filename : `${filename}.zip`;
 
-	if (numberOfFiles === 1) {
-		const zipReader = new ZipReader(verifiedStream);
-		const entries = await zipReader.getEntries();
-		const firstEntry = entries.find((e) => !e.directory);
-
-		if (firstEntry) {
-			finalDownloadName = firstEntry.filename.split('/').pop() || firstEntry.filename;
-			const { readable, writable } = new TransformStream();
-			// Start extracting in the background
-			firstEntry
-				.getData(writable, { password: password?.length ? password : undefined })
-				.then(() => zipReader.close())
-				.catch((err) => {
-					console.error('Failed to extract:', err);
-					writable.abort(err);
-				});
-			finalStream = readable;
-		}
+	const zipReader = new ZipReader(verifiedStream);
+	let entries;
+	try {
+		entries = await zipReader.getEntries();
+	} catch (err) {
+		await zipReader.close();
+		throw err;
 	}
+
+	const firstEntry = entries.find((e) => !e.directory);
+	if (!firstEntry) {
+		await zipReader.close();
+		throw new Error('No files found in the archive');
+	}
+
+	finalDownloadName = firstEntry.filename.split(/[/\\]/).pop() || firstEntry.filename;
+	const { readable, writable } = new TransformStream();
+	// Start extracting in the background
+	firstEntry
+		.getData(writable, { password: password?.length ? password : undefined })
+		.then(() => zipReader.close())
+		.catch((err) => {
+			console.error('Failed to extract:', err);
+			writable.abort(err);
+			zipReader.close().catch(() => undefined);
+		});
+	finalStream = readable;
 
 	const chunks: Uint8Array[] = [];
 	const finalReader = finalStream.getReader();
