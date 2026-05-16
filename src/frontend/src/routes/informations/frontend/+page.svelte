@@ -9,7 +9,7 @@
 		BookOpen,
 		ExternalLink,
 		ShieldCheck
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 
 	const version = __APP_VERSION__ ?? '0.0.0-dev';
 	const commit = __COMMIT_SHA__ ?? 'unknown';

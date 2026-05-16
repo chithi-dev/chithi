@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { useOnboarding } from '#queries/onboarding';
 	import * as Card from '$lib/components/ui/card';
-	import { Check } from 'lucide-svelte';
+	import { Check } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import FancyGrid from '$lib/components/FancyGrid.svelte';

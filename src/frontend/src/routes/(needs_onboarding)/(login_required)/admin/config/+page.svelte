@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { LoaderCircle } from 'lucide-svelte';
+	import { LoaderCircle } from '@lucide/svelte';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
 	import { useConfigQuery } from '#queries/config';

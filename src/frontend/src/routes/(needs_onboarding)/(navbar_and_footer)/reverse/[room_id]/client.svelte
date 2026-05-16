@@ -34,7 +34,7 @@
 		WifiOff,
 		Zap,
 		MousePointerClick
-	} from 'lucide-svelte';
+	} from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
 	import { Api } from '#consts/backend';
 	import { createDecryptedStream } from '#functions/streams';

@@ -4,7 +4,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { useConfigQuery } from '#queries/config';
-	import { Plus, ArrowLeft, X, FileIcon, Eye, EyeOff, Trash2, Upload } from 'lucide-svelte';
+	import { Plus, ArrowLeft, X, FileIcon, Eye, EyeOff, Trash2, Upload } from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
 	import { formatSeconds } from '#functions/times';
 	import { createZipStream, createEncryptedStream } from '#functions/streams';

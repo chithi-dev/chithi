@@ -14,7 +14,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import * as Select from '$lib/components/ui/select';
 	import { Label } from '$lib/components/ui/label';
-	import { Upload, Download, ArrowLeft, LoaderCircle } from 'lucide-svelte';
+	import { Upload, Download, ArrowLeft, LoaderCircle } from '@lucide/svelte';
 	import { Api } from '#consts/backend';
 	import { useConfigQuery } from '#queries/config';
 	import { base64url } from '#functions/encryption';

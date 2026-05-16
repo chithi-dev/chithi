@@ -4,7 +4,7 @@
 	import { cubicOut } from 'svelte/easing';
 	import { formatFileSize } from '#functions/bytes';
 	import { subscribeAppState, appState } from './state.svelte';
-	import { HardDrive, Wifi, WifiOff } from 'lucide-svelte';
+	import { HardDrive, Wifi, WifiOff } from '@lucide/svelte';
 	import { Progress } from '$lib/components/ui/progress';
 	import * as Tooltip from '$lib/components/ui/tooltip/index';
 	import { cn } from '$lib/utils';

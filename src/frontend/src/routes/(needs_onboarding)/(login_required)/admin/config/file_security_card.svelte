@@ -4,7 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { Badge } from '$lib/components/ui/badge';
-	import { X } from 'lucide-svelte';
+	import { X } from '@lucide/svelte';
 	import { sanitizeExt } from '#functions/sanitize';
 	import type { TimeUnit } from '#functions/times';
 
