@@ -8,8 +8,9 @@
 		Link,
 		BookOpenText,
 		Gauge,
-		Info
-	} from 'lucide-svelte';
+		Info,
+		Server
+	} from '@lucide/svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { toggleMode } from 'mode-watcher';
 	import * as Avatar from '$lib/components/ui/avatar';
@@ -98,22 +99,15 @@
 			href: '/speedtest',
 			name: 'Speedtest',
 			icon: Gauge,
-			order: 2
+			order: 1
 		},
 		{
-			href: '/information',
+			href: '/informations',
 			name: 'Information about the instance',
 			icon: Info,
-			order: 1
+			order: 2
 		}
 	]);
-	let isDark = $state<boolean>(mode.current === 'dark');
-
-	function handleCheckedChange(checked: boolean) {
-		if ((checked && mode.current !== 'dark') || (!checked && mode.current === 'dark')) {
-			toggleMode();
-		}
-	}
 
 	const donationPlatforms = [
 		{

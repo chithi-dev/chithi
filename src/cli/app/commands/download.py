@@ -1,10 +1,14 @@
+import tempfile
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import urlparse
-import tempfile
+
 import typer
-from app import archive, client, crypto
+
+from app import client
 from app.builder.urls import UrlBuilder
+from app.helpers.archive import decompress
+from app.helpers.crypto import base64url_to_ikm, decrypt
 
 app = typer.Typer(help="Download encrypted files via Chithi.")
 
@@ -48,12 +52,12 @@ def download(
                 c.download_to_file(slug, tmp_dl)
 
             # Decrypt
-            ikm = crypto.base64url_to_ikm(key_secret)
-            crypto.decrypt(tmp_dl, tmp_zip, ikm=ikm, password=password)
+            ikm = base64url_to_ikm(key_secret)
+            decrypt(tmp_dl, tmp_zip, ikm=ikm, password=password)
 
             #  Decompress
             out_path = output.resolve()
-            archive.decompress(tmp_zip, out_path, password=password)
+            decompress(tmp_zip, out_path, password=password)
 
             typer.secho(f"\n✓ Success! Extracted to {out_path}", fg=typer.colors.GREEN)
 

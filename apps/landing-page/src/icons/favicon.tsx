@@ -1,0 +1,77 @@
+import { SVGProps } from 'react';
+
+const FaviconIcon = (props: SVGProps<SVGSVGElement>) => {
+    props.height ||= 130;
+    props.width ||= 130;
+
+    return (
+        <svg
+            viewBox="0 0 130 130"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            {...props}
+        >
+            <rect
+                x={2.5}
+                y={2.5}
+                width={125}
+                height={125}
+                rx={21.5}
+                stroke="url(#paint0_linear_0_1)"
+                strokeWidth={5}
+            />
+            <path
+                d="M81.0417 62.7083H48.9583C46.427 62.7083 44.375 64.7604 44.375 67.2917V83.3333C44.375 85.8646 46.427 87.9167 48.9583 87.9167H81.0417C83.573 87.9167 85.625 85.8646 85.625 83.3333V67.2917C85.625 64.7604 83.573 62.7083 81.0417 62.7083Z"
+                stroke="url(#paint1_linear_0_1)"
+                strokeWidth={6}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+            <path
+                d="M53.5417 62.7083V53.5417C53.5417 50.5027 54.7489 47.5883 56.8977 45.4394C59.0466 43.2905 61.9611 42.0833 65 42.0833C68.0389 42.0833 70.9534 43.2905 73.1023 45.4394C75.2511 47.5883 76.4583 50.5027 76.4583 53.5417V62.7083"
+                stroke="url(#paint2_linear_0_1)"
+                strokeWidth={6}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            />
+            <defs>
+                <linearGradient
+                    id="paint0_linear_0_1"
+                    x1={125}
+                    y1={65.2963}
+                    x2={5.00001}
+                    y2={64.7037}
+                    gradientUnits="userSpaceOnUse"
+                >
+                    <stop stopColor="#E20505" />
+                    <stop offset={1} stopColor="#E90F13" />
+                </linearGradient>
+                <linearGradient
+                    id="paint1_linear_0_1"
+                    x1={65}
+                    y1={62.7083}
+                    x2={65}
+                    y2={87.9167}
+                    gradientUnits="userSpaceOnUse"
+                >
+                    <stop stopColor="#F70606" />
+                    <stop offset={0.9999} stopColor="#D410B3" />
+                </linearGradient>
+                <linearGradient
+                    id="paint2_linear_0_1"
+                    x1={65}
+                    y1={42.0833}
+                    x2={65}
+                    y2={62.7083}
+                    gradientUnits="userSpaceOnUse"
+                >
+                    <stop stopColor="#F70606" />
+                    <stop offset={0.9999} stopColor="#D410B3" />
+                </linearGradient>
+            </defs>
+        </svg>
+    );
+};
+
+FaviconIcon.displayname = 'favicon-icon';
+export default FaviconIcon;

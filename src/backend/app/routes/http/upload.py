@@ -41,7 +41,7 @@ async def _get_current_storage_used(session: SessionDep, s3: S3Dep) -> int:
     for f in files:
         try:
             resp = await s3.head_object(Bucket=settings.RUSTFS_BUCKET_NAME, Key=f.key)
-            total += int(resp.get("ContentLength", 0) or 0)
+            total += resp.get("ContentLength", 0) or 0
         except Exception:
             # If the object is missing or head fails for any reason, ignore and continue
             continue
@@ -59,6 +59,7 @@ async def upload_file(
     s3: S3Dep,
     session: SessionDep,
     background_tasks: BackgroundTasks,
+    number_of_files: Annotated[int, Form()] = 1,
 ) -> FileOut:
     if not filename:
         filename = uuid.uuid7()  # type: ignore
@@ -75,6 +76,12 @@ async def upload_file(
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Configuration not found",
+        )
+
+    if not config.allow_uploads:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Uploads are disabled on this instance",
         )
 
     total_limit = config.total_storage_limit
@@ -185,6 +192,7 @@ async def upload_file(
         expire_after_n_download=expire_after_n_download,
         created_at=now,
         key=str(key),
+        number_of_files=number_of_files,
     )
     session.add(file_obj)
     await session.commit()

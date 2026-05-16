@@ -4,6 +4,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import * as Select from '$lib/components/ui/select';
+	import { Switch } from '$lib/components/ui/switch';
 	import { slide } from 'svelte/transition';
 	import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '#functions/bytes';
 
@@ -114,6 +115,25 @@
 						</div>
 						<Button variant="outline" size="sm" onclick={() => startEdit('file')}>Edit</Button>
 					{/if}
+				</Item.Actions>
+			</Item.Root>
+
+			<Item.Separator />
+
+			<Item.Root>
+				<Item.Content>
+					<Item.Title>Allow Uploads</Item.Title>
+					<Item.Description class="line-clamp-none text-wrap">
+						Enable or disable file uploads on this instance. Existing files can still be downloaded.
+					</Item.Description>
+				</Item.Content>
+				<Item.Actions
+					class="flex w-full items-center justify-end gap-2 md:w-auto md:min-w-75 [&_[data-slot=switch-thumb][data-state=checked]]:translate-x-[calc(100%-2px)] [&_[data-slot=switch-thumb][data-state=unchecked]]:translate-x-0 [&_[data-slot=switch][data-state=checked]]:bg-primary [&_[data-slot=switch][data-state=unchecked]]:bg-input"
+				>
+					<Switch
+						checked={configData.allow_uploads}
+						onCheckedChange={(checked) => save({ allow_uploads: checked })}
+					/>
 				</Item.Actions>
 			</Item.Root>
 		</Item.Group>

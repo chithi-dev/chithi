@@ -2,7 +2,7 @@
 	import * as Dialog from '$lib/components/ui/dialog';
 	import { Button } from '$lib/components/ui/button';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
-	import { Trash2, History, Copy, Check, Download } from 'lucide-svelte';
+	import { Trash2, History, Copy, Check, Download } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import {
 		deleteHistoryEntry,
@@ -20,6 +20,7 @@
 	type FileInformationOut = {
 		filename: string;
 		size: number;
+		number_of_files: number;
 		download_count: number;
 		created_at: string;
 		expires_at: string;

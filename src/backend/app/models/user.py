@@ -16,11 +16,6 @@ class UserCreate(SQLModel):
 
 
 class UserOut(SQLModel):
-    username: str = Field(index=True, unique=True)
-    email: str | None = Field(default=None, index=True, unique=True)
-
-
-class User(UserOut, table=True):
     id: UUID = Field(
         default=None,
         primary_key=True,
@@ -30,5 +25,9 @@ class User(UserOut, table=True):
             )
         },
     )
+    username: str = Field(index=True, unique=True)
+    email: str | None = Field(default=None, index=True, unique=True)
 
+
+class User(UserOut, table=True):
     password_hash: str = Field()

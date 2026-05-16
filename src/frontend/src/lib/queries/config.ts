@@ -22,10 +22,10 @@ export const prefetch = async ({ queryClient, fetch }: { queryClient: any; fetch
 	});
 };
 
-type ConfigIn = {
+type ConfigUpdate = {
 	// Storage constraints
-	total_storage_limit_gb?: number;
-	max_file_size_mb?: number;
+	total_storage_limit?: number;
+	max_file_size_limit?: number;
 
 	// Default constraints
 	default_expiry?: number;
@@ -41,6 +41,9 @@ type ConfigIn = {
 	// File type restrictions
 	allowed_file_types?: string[];
 	banned_file_types?: string[];
+
+	// Features
+	allow_uploads?: boolean;
 };
 
 export const useConfigQuery = () => {
@@ -53,7 +56,7 @@ export const useConfigQuery = () => {
 		retry: true
 	}));
 
-	const update_config = async (data: Partial<ConfigIn>) => {
+	const update_config = async (data: Partial<ConfigUpdate>) => {
 		const res = await fetch(Api.ADMIN.CONFIG, {
 			method: 'PATCH',
 			headers: {

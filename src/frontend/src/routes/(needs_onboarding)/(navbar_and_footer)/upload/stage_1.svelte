@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
-	import { Plus } from 'lucide-svelte';
+	import { Plus } from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
 	import { useConfigQuery } from '#queries/config';
 

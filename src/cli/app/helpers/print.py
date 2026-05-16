@@ -1,8 +1,7 @@
-from rich.console import Console
-
 import qrcode
 from qrcode.constants import ERROR_CORRECT_L
 from qrcode.exceptions import DataOverflowError
+from rich.console import Console
 
 
 def print_compact_qr(url: str, console: Console = Console()) -> None:

@@ -41,6 +41,14 @@ export class Api {
 		return this.#url('onboarding');
 	}
 
+	static get INSTANCE() {
+		return this.#url('instance/information');
+	}
+
+	static get INSTANCE_STATISTICS() {
+		return this.#url('instance/statistics');
+	}
+
 	static get UPLOAD() {
 		return this.#url('upload');
 	}
@@ -65,6 +73,9 @@ export class Api {
 		return {
 			CONFIG: this.#url('admin/config'),
 			USER_UPDATE: this.#url('admin/user'),
+			USERS: this.#url('admin/users'),
+			USER_CREATE: this.#url('admin/user'),
+			USER_DELETE: (id: string) => this.#url(`admin/user/${id}`),
 			FILES: this.#url('admin/files'),
 			FILE_REVOKE: (id: string) => this.#url(`admin/files/${id}`)
 		};

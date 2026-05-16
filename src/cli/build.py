@@ -1,8 +1,8 @@
-import subprocess
-import sys
-import platform
 import argparse
 import io
+import platform
+import subprocess
+import sys
 
 if sys.stdout.encoding != "utf-8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")

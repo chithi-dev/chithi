@@ -1,21 +1,21 @@
-import { ReactNode } from "react";
-import { OPENAPI_URL } from "@/consts/urls";
-import { ApiSpecProvider } from "./ApiSpecContext";
+import { ReactNode } from 'react';
+import { OPENAPI_URL } from '@/consts/urls';
+import { ApiSpecProvider } from './context';
 
 export default async function SchemasLayout({
-	children,
+    children,
 }: {
-	children: ReactNode;
+    children: ReactNode;
 }) {
-	const res = await fetch(OPENAPI_URL);
-	if (!res.ok) {
-		throw new Error(`Failed to fetch OpenAPI spec: ${res.status}`);
-	}
-	const spec = await res.json();
+    const res = await fetch(OPENAPI_URL);
+    if (!res.ok) {
+        throw new Error(`Failed to fetch OpenAPI spec: ${res.status}`);
+    }
+    const spec = await res.json();
 
-	return (
-		<ApiSpecProvider spec={spec}>
-			<div className="h-full w-full">{children}</div>
-		</ApiSpecProvider>
-	);
+    return (
+        <ApiSpecProvider spec={spec}>
+            <div className="h-full w-full">{children}</div>
+        </ApiSpecProvider>
+    );
 }

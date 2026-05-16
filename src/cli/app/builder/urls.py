@@ -1,6 +1,8 @@
 from urllib.parse import urljoin, urlparse
-from app.settings import settings
+
 import typer
+
+from app.settings import settings
 
 
 class UrlBuilder:

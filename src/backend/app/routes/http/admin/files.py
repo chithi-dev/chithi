@@ -1,8 +1,7 @@
-from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from sqlmodel import col, func, select
+from sqlmodel import col, select
 
 from app.deps import CurrentUser, PaginationDep, SessionDep
 from app.models.files import (
@@ -22,60 +21,8 @@ async def show_all_files(
     session: SessionDep,
     pagination: PaginationDep,
 ):
-    now = datetime.now(timezone.utc)
-    soon = now + timedelta(days=1)
-
-    # Total bytes
-    sum_bytes_query = select(func.coalesce(func.sum(File.size), 0)).select_from(File)
-    total_bytes = (await session.exec(sum_bytes_query)).one()
-
-    # Active URLs
-    active_urls_query = (
-        select(func.count())
-        .select_from(File)
-        .where(
-            (File.expires_at >= now)
-            & (File.download_count < File.expire_after_n_download)
-        )
-    )
-    active_urls = (await session.exec(active_urls_query)).one()
-
-    # Expiring soon (within 24h and not already expired)
-    expiring_soon_query = (
-        select(func.count())
-        .select_from(File)
-        .where(
-            (File.expires_at >= now)
-            & (File.expires_at <= soon)
-            & (File.download_count < File.expire_after_n_download)
-        )
-    )
-    expiring_soon = (await session.exec(expiring_soon_query)).one()
-
-    # Links with download caps
-    # Assuming any file has a download cap as it's not nullable in DB
-    links_with_download_caps_query = select(func.count()).select_from(File)
-    links_with_download_caps = (
-        await session.exec(links_with_download_caps_query)
-    ).one()
-
-    # Latest expiry
-    latest_expiry_query = select(func.max(File.expires_at)).where(
-        (File.expires_at >= now) & (File.download_count < File.expire_after_n_download)
-    )
-    latest_expiry = (await session.exec(latest_expiry_query)).one()
-
-    meta = {
-        "total_bytes": total_bytes,
-        "active_urls": active_urls,
-        "links_with_download_caps": links_with_download_caps,
-        "expiring_soon": expiring_soon,
-    }
-    if latest_expiry:
-        meta["latest_expiry"] = int(latest_expiry.timestamp())
-
     return await paginate(
-        select(File).order_by(col(File.id).desc()), session, pagination, meta=meta
+        select(File).order_by(col(File.id).desc()), session, pagination
     )
 
 
@@ -93,6 +40,6 @@ async def delete_file(
     if not file_object:
         raise HTTPException(status_code=HTTPStatus.NOT_FOUND, detail="File not found")
 
-    background_tasks.add_task(delete_expired_file.delay, str(id))
+    background_tasks.add_task(delete_expired_file.delay, id)
 
     return FileOut(key=file_object.key)

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
-	import { CircleAlert, LoaderCircle, KeyRound } from 'lucide-svelte';
+	import { CircleAlert, LoaderCircle, KeyRound } from '@lucide/svelte';
 	import { page } from '$app/state';
 	import { Api } from '#consts/backend';
 	import { PasswordRequiredError } from '#functions/download';

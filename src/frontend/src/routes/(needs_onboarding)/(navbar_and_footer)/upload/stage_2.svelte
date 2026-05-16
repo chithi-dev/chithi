@@ -4,7 +4,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { useConfigQuery } from '#queries/config';
-	import { Plus, ArrowLeft, X, FileIcon, Eye, EyeOff, Trash2, Upload } from 'lucide-svelte';
+	import { Plus, ArrowLeft, X, FileIcon, Eye, EyeOff, Trash2, Upload } from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
 	import { formatSeconds } from '#functions/times';
 	import { createZipStream, createEncryptedStream } from '#functions/streams';
@@ -233,6 +233,7 @@
 			formData.append('expire_after_n_download', viewOnce ? '1' : downloadLimit);
 			formData.append('expire_after', timeLimit);
 			formData.append('file', encryptedBlob, blobFilename);
+			formData.append('number_of_files', files.length.toString());
 			files.length > 1 && formData.append('folder_name', folderName);
 
 			const data = await new Promise<any>((resolve, reject) => {
