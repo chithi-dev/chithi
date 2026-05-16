@@ -43,6 +43,7 @@ services:
       RUSTFS_ACCESS_KEY: "rustfsadmin"
       RUSTFS_SECRET_KEY: "rustfsadmin"
       RUSTFS_CONSOLE_ENABLE: "true"
+      RUSTFS_UNSAFE_BYPASS_DISK_CHECK: "true"
     healthcheck:
       test:
         [
