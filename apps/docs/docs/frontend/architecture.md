@@ -82,5 +82,5 @@ flowchart TD
 ```
 
 <small>
-    The [backend architecture](../backend/architecture.md) and the [overall architecture](../architecture/index.md)
+    The [backend architecture](../backend/architecture.md) and the [overall architecture](../architecture.md)
 </small>

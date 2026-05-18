@@ -76,6 +76,7 @@ nav = [
         { "License" = "frontend/license.md" },
     ] },
     { "CLI" = [
+        { "Usage" = "cli/usage.md" },
         { "Environment" = "cli/environment.md" },
         { "License" = "cli/license.md" },
     ] },
@@ -345,6 +346,12 @@ code = "Jetbrains Mono"
 [project.theme.icon]
 repo = "fontawesome/brands/github"
 #logo = "lucide/smile"
+
+[project.markdown_extensions.termynal]
+include_assets = true
+title = "shell"
+buttons = "macos"
+prompt_literal_start = ["$", ">", ">>>"]
 
 # ----------------------------------------------------------------------------
 # The "extra" section contains miscellaneous settings.
