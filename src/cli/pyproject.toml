@@ -6,9 +6,9 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     # CLI
-    "typer>=0.21.0",
+    "async-typer>=0.1.10",
     # Http Client
-    "requests>=2.32.0",
+    "httpx2[brotli,http2,zstd]>=2.2.0",
     # Encryption (AES-256-GCM + Argon2id KDF)
     "cryptography==46.0.3",
     # ZIP with WinZip AES-256 support (matches web front-end)
@@ -20,9 +20,7 @@ dependencies = [
     # Console Lib
     "rich>=14.3.2",
     "qrcode>=8.2",
-    
     # Types
-    "types-requests>=2.33.0.20260408",
     "types-tqdm>=4.67.3.20260408",
     "types-qrcode>=8.2.0.20260408",
 ]

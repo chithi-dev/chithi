@@ -9,10 +9,10 @@ if sys.stdout.encoding != "utf-8":
 
 
 class NuitkaBuilder:
-    def __init__(self, target="./app", output_name=None):
+    def __init__(self, target: str = "./app", output_name: str | None = None) -> None:
         self.target = target
         self.output_name = output_name
-        self.base_args = [
+        self.base_args: list[str] = [
             sys.executable,
             "-m",
             "nuitka",
@@ -26,7 +26,7 @@ class NuitkaBuilder:
             "--assume-yes-for-downloads",
         ]
 
-    def build_windows(self, debug=False):
+    def build_windows(self, debug: bool = False) -> None:
         args = self.base_args.copy()
         args.extend(
             [
@@ -41,12 +41,12 @@ class NuitkaBuilder:
 
         self._run(args)
 
-    def build_linux(self):
+    def build_linux(self) -> None:
         args = self.base_args.copy()
         args.append("--clang")
         self._run(args)
 
-    def _run(self, args):
+    def _run(self, args: list[str]) -> None:
         if self.output_name:
             args.append(f"--output-filename={self.output_name}")
 
@@ -65,7 +65,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", help="Final name of the binary")
     parser.add_argument("--debug", action="store_true")
-    args = parser.parse_args()
+    args: argparse.Namespace = parser.parse_args()
 
     builder = NuitkaBuilder(output_name=args.output)
 
