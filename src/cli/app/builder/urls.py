@@ -1,12 +1,12 @@
 from urllib.parse import urljoin, urlparse
 
-import typer
+import async_typer as typer
 
 from app.settings import settings
 
 
 class UrlBuilder:
-    def __init__(self, backend_url: str, frontend_url: str):
+    def __init__(self, backend_url: str, frontend_url: str) -> None:
         self._backend_url = self.__ensure_scheme(backend_url)
         self._frontend_url = self.__ensure_scheme(frontend_url)
 

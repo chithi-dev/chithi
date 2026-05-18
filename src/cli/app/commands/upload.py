@@ -1,9 +1,9 @@
 import os
 import tempfile
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
-import typer
+import async_typer as typer
 from rich.console import Console
 
 from app import client
@@ -13,12 +13,12 @@ from app.helpers.crypto import encrypt, generate_ikm, ikm_to_base64url
 from app.helpers.file import cleanup
 from app.helpers.print import print_compact_qr
 
-app = typer.Typer(help="Upload encrypted files via Chithi.")
-console = Console()
+app = typer.AsyncTyper(help="Upload encrypted files via Chithi.")
+console: Console = Console()
 
 
 @app.command()
-def upload(
+async def upload(
     path: Annotated[Path, typer.Argument(exists=True, resolve_path=True)],
     instance_url: Annotated[str | None, typer.Option("--url", "-u")] = None,
     password: Annotated[str | None, typer.Option("--password", "-p")] = None,
@@ -34,13 +34,22 @@ def upload(
         # Resolve URLs based on input/prompts
         urls = UrlBuilder.resolve(instance_url)
 
-        with client.Client(urls) as c:
+        async with client.Client(urls) as c:
             # Get server config for defaults
-            config = c.get_config()
-            expire_seconds = expire_seconds or config.get("default_expiry", 86400)
-            expire_downloads = expire_downloads or config.get(
-                "default_number_of_downloads", 1
-            )
+            config = await c.get_config()
+            if expire_seconds is None:
+                default_seconds = config.get("default_expiry", 86400)
+                expire_seconds = (
+                    int(default_seconds) if default_seconds is not None else 86400
+                )
+            if expire_downloads is None:
+                default_downloads = config.get("default_number_of_downloads", 1)
+                expire_downloads = (
+                    int(default_downloads) if default_downloads is not None else 1
+                )
+
+            assert expire_seconds is not None
+            assert expire_downloads is not None
 
             # Setup temporary paths
             fd_zip, tmp_zip_str = tempfile.mkstemp(suffix=".zip", prefix="chithi_")
@@ -57,15 +66,16 @@ def upload(
                 encrypt(tmp_zip, tmp_enc, ikm=ikm, password=password)
                 key_secret = ikm_to_base64url(ikm)
 
-                result = c.upload_file(
+                result: dict[str, Any] = await c.upload_file(
                     tmp_enc,
                     filename=filename or path.name,
-                    expire_after_n_download=int(expire_downloads),
-                    expire_after=int(expire_seconds),
+                    expire_after_n_download=expire_downloads,
+                    expire_after=expire_seconds,
                 )
 
                 # Extract identifier from response
-                slug = result.get("key") or result.get("path") or result.get("id")
+                slug_value = result.get("key") or result.get("path") or result.get("id")
+                slug = str(slug_value) if slug_value is not None else None
                 if not slug:
                     raise ValueError(
                         "Server response did not include a file identifier."

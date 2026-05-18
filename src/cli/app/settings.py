@@ -9,4 +9,4 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CHITHI_")
 
 
-settings = Settings()
+settings: Settings = Settings()

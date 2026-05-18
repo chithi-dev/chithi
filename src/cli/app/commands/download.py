@@ -3,25 +3,27 @@ from pathlib import Path
 from typing import Annotated
 from urllib.parse import urlparse
 
-import typer
+import async_typer as typer
 
 from app import client
 from app.builder.urls import UrlBuilder
 from app.helpers.archive import decompress
 from app.helpers.crypto import base64url_to_ikm, decrypt
 
-app = typer.Typer(help="Download encrypted files via Chithi.")
+app = typer.AsyncTyper(help="Download encrypted files via Chithi.")
 
 
 @app.command()
-def download(
+async def download(
     link: Annotated[str, typer.Argument(help="URL or 'slug#key'")],
     instance_url: Annotated[str | None, typer.Option("--url", "-u")] = None,
     password: Annotated[str | None, typer.Option("--password", "-p")] = None,
     output: Annotated[Path, typer.Option("--output", "-o")] = Path("."),
-):
+) -> None:
     try:
-        slug, key_secret, inferred_url = "", "", None
+        slug = ""
+        key_secret = ""
+        inferred_url: str | None = None
 
         # Parse the input link
         if "://" in link:
@@ -48,8 +50,8 @@ def download(
             tmp_zip = tmp_path / "decrypted.zip"
 
             # Download
-            with client.Client(urls) as c:
-                c.download_to_file(slug, tmp_dl)
+            async with client.Client(urls) as c:
+                await c.download_to_file(slug, tmp_dl)
 
             # Decrypt
             ikm = base64url_to_ikm(key_secret)
