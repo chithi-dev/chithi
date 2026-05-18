@@ -1,0 +1,65 @@
+site_name: "Termynal"
+site_url: "https://termynal.github.io/termynal.py/"
+site_description: "A lightweight and modern animated terminal window for mkdocs"
+
+repo_name: "termynal/termynal.py"
+repo_url: "https://github.com/termynal/termynal.py"
+edit_uri: "edit/main/docs/"
+
+copyright: "Copyright &copy; 2024 Danil Akhtarov"
+
+nav:
+  - "Home": README.md
+  - "Configuration": configuration.md
+  - "Contributing": contributing.md
+  - "Changelog": changelog.md
+  - "Code of Conduct": code-of-conduct.md
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+  language: en
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+      primary: black
+      accent: yellow
+  icon:
+    repo: fontawesome/brands/github
+
+plugins:
+  - termynal:
+      title: "shell"
+      buttons: "macos"
+      prompt_literal_start:
+        - "$"
+        - ">"
+        - ">>>"
+  - search:
+      separator: '[\s\-,:!=\[\]()"`/]+|\.(?!\d)|&[lg]t;|(?!\b)(?=[A-Z][a-z])'
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - markdown_include.include:
+      base_path: .
+  - pymdownx.highlight:
+      anchor_linenums: true
+      linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+      use_pygments: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true

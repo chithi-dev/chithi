@@ -4,7 +4,11 @@ version = "0.0.1"
 description = "Documentation for the next generation encrypted file sharing project"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["zensical>=0.0.17", "termynal>=0.14.0"]
+dependencies = [
+    "zensical>=0.0.27",
+    "termynal>=0.14.0",
+    "markdown-include>=0.8.1",
+]
 
 [dependency-groups]
 dev = ["poethepoet>=0.40.0"]

@@ -98,7 +98,6 @@ nav = [
 #
 # Read more: https://zensical.org/docs/customization/#additional-css
 #
-#extra_css = ["stylesheets/extra.css"]
 
 # With the `extra_javascript` option you can add your own JavaScript to your
 # project to customize the behavior according to your needs.
@@ -106,7 +105,6 @@ nav = [
 # The path provided should be relative to the "docs_dir".
 #
 # Read more: https://zensical.org/docs/customization/#additional-javascript
-#extra_javascript = ["javascripts/extra.js"]
 
 # ----------------------------------------------------------------------------
 # Section for configuring theme options
@@ -347,12 +345,6 @@ code = "Jetbrains Mono"
 repo = "fontawesome/brands/github"
 #logo = "lucide/smile"
 
-[project.markdown_extensions.termynal]
-include_assets = true
-title = "shell"
-buttons = "macos"
-prompt_literal_start = ["$", ">", ">>>"]
-
 # ----------------------------------------------------------------------------
 # The "extra" section contains miscellaneous settings.
 # ----------------------------------------------------------------------------
@@ -362,3 +354,30 @@ prompt_literal_start = ["$", ">", ">>>"]
 
 [project.extra]
 alternate = [{ name = "English", link = "/en/", lang = "en" }]
+
+
+[project.markdown_extensions.termynal]
+include_assets = true
+title = "shell"
+buttons = "macos"
+prompt_literal_start = ["$", ">", ">>>"]
+
+[project.markdown_extensions.pymdownx.highlight]
+anchor_linenums = true
+linenums = true
+line_spans = "__span"
+pygments_lang_class = true
+use_pygments = true
+
+[project.markdown_extensions.pymdownx.superfences]
+custom_fences = [
+    { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+[project.markdown_extensions.pymdownx.tabbed]
+alternate_style = true
+[project.markdown_extensions.admonition]
+
+[project.markdown_extensions.codehilite]
+
+[project.markdown_extensions."markdown_include.include"]
+base_path = "."
