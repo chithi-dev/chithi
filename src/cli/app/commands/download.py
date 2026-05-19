@@ -20,6 +20,7 @@ async def download(
     password: Annotated[str | None, typer.Option("--password", "-p")] = None,
     output: Annotated[Path, typer.Option("--output", "-o")] = Path("."),
 ) -> None:
+    """Download a file from the public instance."""
     try:
         slug = ""
         key_secret = ""
