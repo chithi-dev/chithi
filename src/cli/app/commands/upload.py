@@ -14,7 +14,7 @@ from app.helpers.file import cleanup
 from app.helpers.print import print_compact_qr
 
 app = typer.AsyncTyper(help="Upload encrypted files via Chithi.")
-console: Console = Console()
+console = Console()
 
 
 @app.async_command()
