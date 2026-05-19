@@ -636,7 +636,7 @@ export default function HomeClient({ release }: { release: Release }) {
                         </h2>
                         <p className="font-light text-lg text-surface-600-400 leading-relaxed">
                             Comprehensive docs, examples, and contribution
-                            guides — everything you need to run, customize, and
+                            guides - everything you need to run, customize, and
                             contribute to Chithi.
                         </p>
                     </div>
