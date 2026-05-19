@@ -21,7 +21,7 @@ export async function GET({ url }: RequestEvent) {
 		stylesheets: [style],
 		fonts: [
 			{
-				name: 'Geist',
+				name: 'Geist Variable',
 				data: () => read(Geist).arrayBuffer()
 			}
 		]
