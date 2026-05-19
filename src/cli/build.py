@@ -20,7 +20,7 @@ class NuitkaBuilder:
             "--onefile",
             "--lto=yes",
             "--python-flag=-m",
-            "--python-flag=-OO",
+            "--python-flag=-O",
             # "--enable-plugin=upx",
             "--disable-bytecode-cache",
             "--assume-yes-for-downloads",

@@ -66,4 +66,3 @@ async def download(
     except Exception as exc:
         typer.secho(f"✗ Download failed: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(1)
-    # No 'finally' block needed! TemporaryDirectory cleans itself up automatically.
