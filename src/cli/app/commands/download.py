@@ -13,7 +13,7 @@ from app.helpers.crypto import base64url_to_ikm, decrypt
 app = typer.AsyncTyper(help="Download encrypted files via Chithi.")
 
 
-@app.command()
+@app.async_command()
 async def download(
     link: Annotated[str, typer.Argument(help="URL or 'slug#key'")],
     instance_url: Annotated[str | None, typer.Option("--url", "-u")] = None,

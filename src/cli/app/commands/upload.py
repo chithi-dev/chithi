@@ -17,7 +17,7 @@ app = typer.AsyncTyper(help="Upload encrypted files via Chithi.")
 console: Console = Console()
 
 
-@app.command()
+@app.async_command()
 async def upload(
     path: Annotated[Path, typer.Argument(exists=True, resolve_path=True)],
     instance_url: Annotated[str | None, typer.Option("--url", "-u")] = None,
@@ -27,6 +27,9 @@ async def upload(
     filename: Annotated[str | None, typer.Option("--name", "-n")] = None,
     minimal: Annotated[
         bool, typer.Option("--minimal", "-m", help="Only output the download URL.")
+    ] = False,
+    no_qr: Annotated[
+        bool, typer.Option("--no-qr", help="Do not print the QR code.")
     ] = False,
 ) -> None:
     """Compress, encrypt, and upload a file or folder."""
@@ -94,7 +97,8 @@ async def upload(
         else:
             # Pretty output
             typer.echo("\n✓ Upload complete!")
-            print_compact_qr(download_url, console)
+            if not no_qr:
+                print_compact_qr(download_url, console)
             typer.echo(f"\n  Download URL : {download_url}")
             if password:
                 typer.echo(
