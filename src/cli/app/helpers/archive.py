@@ -6,6 +6,12 @@ import pyzipper
 from tqdm import tqdm
 
 
+def _get_source_size(source: Path) -> int:
+    if source.is_file():
+        return source.stat().st_size
+    return sum(f.stat().st_size for f in source.rglob("*") if f.is_file())
+
+
 def compress(source: Path, dest: Path, password: str | None = None) -> Path:
     """
     Compress a file or directory to a ZIP archive using pyzipper.
@@ -79,9 +85,3 @@ def create_temp_archive() -> Path:
     fd, path = tempfile.mkstemp(suffix=".zip", prefix="chithi_")
     os.close(fd)
     return Path(path)
-
-
-def _get_source_size(source: Path) -> int:
-    if source.is_file():
-        return source.stat().st_size
-    return sum(f.stat().st_size for f in source.rglob("*") if f.is_file())

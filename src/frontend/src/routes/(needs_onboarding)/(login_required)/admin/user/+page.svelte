@@ -18,14 +18,7 @@
 	let avatarBlobUrl = $state<string | null>(null);
 	let isAvatarLoading = $state(false);
 
-	$effect(() => {
-		if (user.data) {
-			username = user.data.username;
-			email = user.data.email || '';
-		}
-	});
-
-	$effect(() => {
+	$effect.pre(() => {
 		let active = true;
 		let objectUrl: string | null = null;
 
@@ -55,6 +48,13 @@
 				URL.revokeObjectURL(objectUrl);
 			}
 		};
+	});
+
+	$effect(() => {
+		if (user.data) {
+			username = user.data.username;
+			email = user.data.email || '';
+		}
 	});
 
 	async function handleSubmit(e: Event) {
