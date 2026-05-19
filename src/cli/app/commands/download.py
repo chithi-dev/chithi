@@ -4,6 +4,7 @@ from typing import Annotated
 from urllib.parse import urlparse
 
 import async_typer as typer
+from rich.console import Console
 
 from app import client
 from app.builder.urls import UrlBuilder
@@ -11,6 +12,8 @@ from app.helpers.archive import decompress
 from app.helpers.crypto import base64url_to_ikm, decrypt
 
 app = typer.AsyncTyper(help="Download encrypted files via Chithi.")
+console: Console = Console()
+error_console: Console = Console(stderr=True)
 
 
 @app.async_command()
@@ -62,8 +65,8 @@ async def download(
             out_path = output.resolve()
             decompress(tmp_zip, out_path, password=password)
 
-            typer.secho(f"\n✓ Success! Extracted to {out_path}", fg=typer.colors.GREEN)
+            console.print(f"\n[green]✓ Success! Extracted to {out_path}[/green]")
 
     except Exception as exc:
-        typer.secho(f"✗ Download failed: {exc}", fg=typer.colors.RED, err=True)
+        error_console.print(f"[red]✗ Download failed: {exc}[/red]")
         raise typer.Exit(1)
