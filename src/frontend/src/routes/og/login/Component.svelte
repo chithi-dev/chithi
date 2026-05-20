@@ -14,8 +14,4 @@
 	);
 </script>
 
-<OGLayout
-	label="Authentication"
-	title={displayTitle}
-	subtitle={displayDescription}
-/>
+<OGLayout label="Authentication" title={displayTitle} subtitle={displayDescription} />

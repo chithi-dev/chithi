@@ -6,7 +6,10 @@ export const load: PageLoad = async ({ fetch, parent, url }) => {
 	const ogUrl = new URL('/og/info', url.origin);
 	ogUrl.searchParams.set('label', 'BACKEND INFRASTRUCTURE');
 	ogUrl.searchParams.set('title', 'Chithi Backend');
-	ogUrl.searchParams.set('description', 'Runtime environment, service versions, and architectural metadata.');
+	ogUrl.searchParams.set(
+		'description',
+		'Runtime environment, service versions, and architectural metadata.'
+	);
 
 	const pageTags = definePageMetaTags({
 		title: 'Backend Information',

@@ -9,13 +9,10 @@
 	const displayTitle = $derived((title?.trim() || 'Network Speedtest').slice(0, 42));
 	const displayDescription = $derived(
 		(
-			description?.trim() || 'Test your connection speed to the Chithi server for optimal transfers.'
+			description?.trim() ||
+			'Test your connection speed to the Chithi server for optimal transfers.'
 		).slice(0, 90)
 	);
 </script>
 
-<OGLayout
-	label="Performance"
-	title={displayTitle}
-	subtitle={displayDescription}
-/>
+<OGLayout label="Performance" title={displayTitle} subtitle={displayDescription} />

@@ -9,7 +9,10 @@ export const load: PageLoad = async ({ parent, fetch, url }) => {
 
 	const ogUrl = new URL('/og/upload', url.origin);
 	ogUrl.searchParams.set('title', 'Upload Files');
-	ogUrl.searchParams.set('description', 'Securely upload and share encrypted files with auto-expiring links.');
+	ogUrl.searchParams.set(
+		'description',
+		'Securely upload and share encrypted files with auto-expiring links.'
+	);
 
 	const pageTags = definePageMetaTags({
 		title: 'Upload',

@@ -1,4 +1,8 @@
-import { DEFAULT_ARGON2_ITERATIONS, DEFAULT_ARGON2_MEMORY_KIB, MAX_ARGON2_MEMORY_KIB } from '#consts/encryption';
+import {
+	DEFAULT_ARGON2_ITERATIONS,
+	DEFAULT_ARGON2_MEMORY_KIB,
+	MAX_ARGON2_MEMORY_KIB
+} from '#consts/encryption';
 import { argon2id } from 'hash-wasm';
 
 export function bytesToBase64(u8: Uint8Array) {
