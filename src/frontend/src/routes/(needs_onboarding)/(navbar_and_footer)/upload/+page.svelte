@@ -10,6 +10,7 @@
 	import { markdown_to_html } from '$lib/markdown/markdown';
 	import { Button } from '$lib/components/ui/button';
 	import { fly, fade } from 'svelte/transition';
+	import { onMount } from 'svelte';
 	import { CloudOff } from '@lucide/svelte';
 
 	import Stage1 from './stage_1.svelte';
@@ -221,16 +222,32 @@
 		window.history.pushState({ stage: UploadStage.Stage_3 }, '');
 	};
 
-	const onReset = () => {
+	const resetState = (historyMode: 'push' | 'replace' = 'push') => {
 		files = [];
 		uploadResult = null;
 		stage = UploadStage.Stage_1;
-		window.history.pushState({ stage: UploadStage.Stage_1 }, '');
+		dragCounter = 0;
+		dragActive = false;
+		dragOverZone = false;
+		dragOverCard = false;
+		if (historyMode === 'replace') {
+			window.history.replaceState({ stage: UploadStage.Stage_1 }, '');
+		} else {
+			window.history.pushState({ stage: UploadStage.Stage_1 }, '');
+		}
+	};
+
+	const onReset = () => {
+		resetState('push');
 	};
 
 	const handlePopState = (e: PopStateEvent) => {
 		stage = isWhichUploadStage(e.state?.stage) ? e.state.stage : UploadStage.Stage_1;
 	};
+
+	onMount(() => {
+		resetState('replace');
+	});
 </script>
 
 <svelte:window
