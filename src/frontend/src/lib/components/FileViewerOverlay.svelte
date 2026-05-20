@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
+	import { Spinner } from '$lib/components/ui/spinner';
 	import { Download, Link, Check, ArrowLeft, Copy } from '@lucide/svelte';
 	import { fade } from 'svelte/transition';
 	import CodeViewer from '$lib/components/CodeViewer.svelte';
@@ -340,7 +341,10 @@
 						{#if isHeic}
 							{#if heicConverting && !heicConvertedUrl}
 								<div class="flex h-full items-center justify-center text-xs text-white/60">
-									Converting HEIC to PNG...
+									<div class="flex items-center gap-2">
+										<Spinner class="size-4" />
+										<span>Converting HEIC to PNG...</span>
+									</div>
 								</div>
 							{:else if heicConvertedUrl}
 								<div class="flex h-full items-center justify-center">
