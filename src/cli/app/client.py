@@ -18,26 +18,33 @@ class _ProgressReader:
     """Wraps a file object and updates a tqdm bar on every read."""
 
     def __init__(self, fp: BinaryIO, pbar: tqdm) -> None:
+        """Create a progress-aware wrapper around a binary file object."""
         self._fp = fp
         self._pbar = pbar
 
     def read(self, size: int = -1) -> bytes:
+        """Read bytes and advance the progress bar."""
         data = self._fp.read(size)
         if data:
             self._pbar.update(len(data))
         return data
 
     def seek(self, offset: int, whence: int = 0) -> int:
+        """Seek within the wrapped file object."""
         return self._fp.seek(offset, whence)
 
     def tell(self) -> int:
+        """Return the current stream position."""
         return self._fp.tell()
 
     def __getattr__(self, name: str) -> Any:
+        """Delegate missing attributes to the wrapped file object."""
         return getattr(self._fp, name)
 
 
 class Client:
+    """Async API client for uploads and downloads."""
+
     def __init__(self, urls: UrlBuilder):
         """
         Initialize with a UrlBuilder instance.
@@ -57,6 +64,7 @@ class Client:
         )
 
     async def __aenter__(self) -> Self:
+        """Enter the async context manager."""
         return self
 
     async def __aexit__(
@@ -65,9 +73,11 @@ class Client:
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
+        """Exit the async context manager and close the session."""
         await self.close()
 
     async def close(self) -> None:
+        """Close the underlying HTTP session."""
         await self._session.aclose()
 
     @classmethod

@@ -24,10 +24,12 @@ def generate_ikm() -> bytes:
 
 
 def ikm_to_base64url(ikm: bytes) -> str:
+    """Encode IKM as URL-safe base64 without padding."""
     return base64.urlsafe_b64encode(ikm).rstrip(b"=").decode("ascii")
 
 
 def base64url_to_ikm(s: str) -> bytes:
+    """Decode URL-safe base64 into IKM bytes."""
     s += "=" * (-len(s) % 4)
     return base64.urlsafe_b64decode(s)
 
@@ -137,6 +139,7 @@ def _derive_secrets(ikm: bytes, password: str | None) -> Tuple[bytes, bytes]:
 
 
 def _argon2(password: bytes, salt: bytes, iterations: int, memory: int) -> bytes:
+    """Run Argon2id with provided parameters."""
     kdf = Argon2id(
         salt=salt,
         length=32,
@@ -148,6 +151,7 @@ def _argon2(password: bytes, salt: bytes, iterations: int, memory: int) -> bytes
 
 
 def _get_chunk_iv(base_iv: bytes, index: int) -> bytes:
+    """Derive a per-chunk IV by XORing the index into the base IV."""
     iv = bytearray(base_iv)
     existing = struct.unpack_from("!I", iv, 8)[0]
     struct.pack_into("!I", iv, 8, existing ^ index)

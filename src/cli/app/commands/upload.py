@@ -13,8 +13,9 @@ from app.helpers.crypto import encrypt, generate_ikm, ikm_to_base64url
 from app.helpers.file import cleanup
 from app.helpers.print import print_compact_qr
 
-app = typer.AsyncTyper(help="Upload encrypted files via Chithi.")
-console = Console()
+app: typer.AsyncTyper = typer.AsyncTyper(help="Upload encrypted files via Chithi.")
+console: Console = Console()
+error_console: Console = Console(stderr=True)
 
 
 @app.async_command()
@@ -32,7 +33,7 @@ async def upload(
         bool, typer.Option("--no-qr", help="Do not print the QR code.")
     ] = False,
 ) -> None:
-    """Compress, encrypt, and upload a file or folder."""
+    """Compress, encrypt, and upload a file or folder, then print the share link."""
     try:
         # Resolve URLs based on input/prompts
         urls = UrlBuilder.resolve(instance_url)
@@ -93,18 +94,18 @@ async def upload(
         # UI Output Logic
         if minimal:
             # Clean output for scripts or pipes
-            typer.echo(download_url)
+            console.print(download_url, highlight=False, markup=False)
         else:
             # Pretty output
-            typer.echo("\n✓ Upload complete!")
+            console.print("\n[green]✓ Upload complete![/green]")
             if not no_qr:
                 print_compact_qr(download_url, console)
-            typer.echo(f"\n  Download URL : {download_url}")
+            console.print(f"\n  Download URL : {download_url}")
             if password:
-                typer.echo(
-                    "  ⚠ Password-protected. Recipients will need the password to decrypt."
+                console.print(
+                    "  [yellow]⚠ Password-protected. Recipients will need the password to decrypt.[/yellow]"
                 )
 
     except Exception as exc:
-        typer.echo(f"✗ Upload failed: {exc}", err=True)
+        error_console.print(f"[red]✗ Upload failed: {exc}[/red]")
         raise typer.Exit(code=1)

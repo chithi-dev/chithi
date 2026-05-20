@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
-	import QRCode from 'qrcode';
+	import { renderSVG } from 'uqr';
 
 	interface Props {
 		value: string;
@@ -18,36 +18,41 @@
 		class: klass
 	}: Props = $props();
 
-	let canvas = $state<null | HTMLCanvasElement>(null);
+	let svgMarkup = $state('');
 
 	$effect(() => {
-		if (canvas) {
-			QRCode.toCanvas(
-				canvas,
-				value,
-				{
-					width: size,
-					margin: 1,
-					color: {
-						dark: color,
-						light: backgroundColor
-					}
-				},
-				(error) => {
-					if (error) console.error(error);
-				}
-			);
+		const svg = renderSVG(value, {
+			border: 1,
+			pixelSize: 1,
+			blackColor: color,
+			whiteColor: backgroundColor
+		});
+
+		if (klass) {
+			const safeClass = klass.replace(/"/g, '&quot;');
+			svgMarkup = svg.replace('<svg', `<svg class="${safeClass}"`);
+			return;
 		}
+
+		svgMarkup = svg;
 	});
 </script>
 
 <div
 	class={cn(
-		`grid h-fit w-fit`,
-		// I dont like the fact that canvas is a image and people can right click canvas to get the image
-		// So i am making the canvas unclickable using the same technique facebook/instagram uses
+		`qr-code grid h-fit w-fit`,
+		// Prevent right-click save on the rendered SVG by overlaying a transparent layer.
 		`after:col-start-1 after:row-start-1 after:h-full after:w-full after:content-['']`
 	)}
+	style={`width: ${size}px; height: ${size}px;`}
 >
-	<canvas bind:this={canvas} class={cn(klass, 'col-start-1 row-start-1')}></canvas>
+	{@html svgMarkup}
 </div>
+
+<style>
+	.qr-code :global(svg) {
+		width: 100%;
+		height: 100%;
+		display: block;
+	}
+</style>

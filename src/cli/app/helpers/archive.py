@@ -7,6 +7,7 @@ from tqdm import tqdm
 
 
 def _get_source_size(source: Path) -> int:
+    """Return the size of a file or total size of a directory tree."""
     if source.is_file():
         return source.stat().st_size
     return sum(f.stat().st_size for f in source.rglob("*") if f.is_file())

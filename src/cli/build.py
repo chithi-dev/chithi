@@ -9,7 +9,10 @@ if sys.stdout.encoding != "utf-8":
 
 
 class NuitkaBuilder:
+    """Builds a standalone CLI binary using Nuitka."""
+
     def __init__(self, target: str = "./app", output_name: str | None = None) -> None:
+        """Create a builder for a target module path."""
         self.target = target
         self.output_name = output_name
         self.base_args: list[str] = [
@@ -27,6 +30,7 @@ class NuitkaBuilder:
         ]
 
     def build_windows(self, debug: bool = False) -> None:
+        """Build a Windows binary with optional debug flags."""
         args = self.base_args.copy()
         args.extend(
             [
@@ -42,11 +46,13 @@ class NuitkaBuilder:
         self._run(args)
 
     def build_linux(self) -> None:
+        """Build a Linux binary using clang."""
         args = self.base_args.copy()
         args.append("--clang")
         self._run(args)
 
     def _run(self, args: list[str]) -> None:
+        """Run the Nuitka build with the assembled arguments."""
         if self.output_name:
             args.append(f"--output-filename={self.output_name}")
 
