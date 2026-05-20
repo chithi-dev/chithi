@@ -1,16 +1,10 @@
-import { getMimeType } from './mime';
+const isTextMime = (mime: string) =>
+	mime.startsWith('text/') ||
+	mime === 'application/json' ||
+	mime === 'application/xml' ||
+	mime === 'text/xml';
 
-// We export a function that takes a file entry text and check if it's a viewable code text
-function isTextMime(mime: string) {
-	return (
-		mime.startsWith('text/') ||
-		mime === 'application/json' ||
-		mime === 'application/xml' ||
-		mime === 'text/xml'
-	);
-}
-
-function looksLikeText(bytes: Uint8Array) {
+const looksLikeText = (bytes: Uint8Array) => {
 	let suspicious = 0;
 	let total = 0;
 
@@ -21,24 +15,22 @@ function looksLikeText(bytes: Uint8Array) {
 	}
 
 	return total > 0 && suspicious / total < 0.1;
-}
+};
 
 // We export a function that takes a file entry text and check if it's a viewable code text
 export async function createViewableText(
 	blob: Blob,
-	filename: string,
+	_filename: string,
 	mimeHint: string | null = null
 ): Promise<string | null> {
-	const mime = mimeHint ?? getMimeType(filename);
+	const mime = mimeHint ?? (blob.type || null);
 
-	if (isTextMime(mime)) {
+	if (mime && isTextMime(mime)) {
 		return blob.text();
 	}
 
-	if (!mimeHint || mime === 'application/octet-stream') {
-		const header = new Uint8Array(await blob.slice(0, 2048).arrayBuffer());
-		if (looksLikeText(header)) return blob.text();
-	}
+	const header = new Uint8Array(await blob.slice(0, 2048).arrayBuffer());
+	if (looksLikeText(header)) return blob.text();
 
 	return null;
 }

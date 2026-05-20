@@ -1,6 +1,6 @@
-import { definePageMetaTags } from 'svelte-meta-tags';
 import { Api } from '#consts/backend';
 import { formatFileSize } from '#functions/bytes';
+import { definePageMetaTags } from 'svelte-meta-tags';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch, params, url }) => {

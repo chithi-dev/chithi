@@ -1,4 +1,4 @@
-const mimeMap = {
+const mimeMap: Record<string, string> = {
 	// Images
 	png: 'image/png',
 	jpg: 'image/jpeg',
@@ -11,6 +11,9 @@ const mimeMap = {
 	avif: 'image/avif',
 	heic: 'image/heic',
 	heif: 'image/heif',
+	tif: 'image/tiff',
+	tiff: 'image/tiff',
+	jfif: 'image/jpeg',
 	// PDF
 	pdf: 'application/pdf',
 	// Video
@@ -58,43 +61,12 @@ const mimeMap = {
 	env: 'text/plain',
 	svelte: 'text/plain',
 	scss: 'text/plain'
-} as const satisfies Record<string, string>;
-
-const mimeToExt = {
-	'image/png': 'png',
-	'image/jpeg': 'jpg',
-	'image/gif': 'gif',
-	'image/webp': 'webp',
-	'image/svg+xml': 'svg',
-	'image/bmp': 'bmp',
-	'image/x-icon': 'ico',
-	'image/avif': 'avif',
-	'image/heic': 'heic',
-	'image/heif': 'heif',
-	'application/pdf': 'pdf',
-	'video/mp4': 'mp4',
-	'video/webm': 'webm',
-	'video/ogg': 'ogv',
-	'video/quicktime': 'mov',
-	'audio/mpeg': 'mp3',
-	'audio/wav': 'wav',
-	'audio/ogg': 'ogg',
-	'audio/mp4': 'm4a',
-	'audio/aac': 'aac',
-	'audio/flac': 'flac'
-} as const satisfies Record<string, string>;
-
-const hasMime = (key: string): key is keyof typeof mimeMap => Object.hasOwn(mimeMap, key);
-const hasExt = (key: string): key is keyof typeof mimeToExt => Object.hasOwn(mimeToExt, key);
+};
 
 export function getMimeType(name: string): string {
 	const ext = name.split('.').at(-1)?.toLowerCase() ?? '';
 
-	return hasMime(ext) ? mimeMap[ext] : 'application/octet-stream';
-}
-
-export function getExtensionFromMime(mime: string): string | null {
-	return hasExt(mime) ? mimeToExt[mime] : null;
+	return mimeMap[ext] || 'application/octet-stream';
 }
 
 export function detectMimeFromBytes(bytes: Uint8Array): string | null {
@@ -107,6 +79,7 @@ export function detectMimeFromBytes(bytes: Uint8Array): string | null {
 	if (has(0, 0x47, 0x49, 0x46, 0x38)) return 'image/gif';
 	if (has(0, 0x42, 0x4d)) return 'image/bmp';
 	if (has(0, 0x00, 0x00, 0x01, 0x00)) return 'image/x-icon';
+	if (has(0, 0x49, 0x49, 0x2a, 0x00) || has(0, 0x4d, 0x4d, 0x00, 0x2a)) return 'image/tiff';
 	if (has(0, 0x52, 0x49, 0x46, 0x46) && has(8, 0x57, 0x45, 0x42, 0x50)) return 'image/webp';
 	if (has(0, 0x25, 0x50, 0x44, 0x46)) return 'application/pdf';
 	if (has(0, 0x1a, 0x45, 0xdf, 0xa3)) return 'video/webm';

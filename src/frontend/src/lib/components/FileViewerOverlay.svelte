@@ -3,6 +3,8 @@
 	import { Download, Link, Check, ArrowLeft, Copy } from '@lucide/svelte';
 	import { fade } from 'svelte/transition';
 	import CodeViewer from '$lib/components/CodeViewer.svelte';
+	import { detectMimeFromBlob } from '$lib/functions/mime';
+	import { getImageSupportInfo, type ImageSupportInfo } from '$lib/functions/media-support';
 
 	let {
 		filename,
@@ -42,84 +44,18 @@
 		}
 	}
 
-	type SniffedKind = 'image' | 'video' | 'audio' | 'other';
+	const baseName = $derived(filename.split(/[/\\]/).pop() ?? filename);
 
-	let sniffedKind = $state<SniffedKind | null>(null);
+	type MediaKind = 'image' | 'video' | 'audio' | 'other';
 
-	const isMediaKind = (value: string | null): value is 'image' | 'video' | 'audio' =>
-		value === 'image' || value === 'video' || value === 'audio';
-
-	function sniffKindFromBytes(
-		bytes: Uint8Array,
-		textSample: string | null
-	): { kind: SniffedKind; mime: string | null } {
-		const startsWith = (...header: number[]) =>
-			header.every((value, index) => bytes[index] === value);
-
-		if (
-			startsWith(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a) ||
-			startsWith(0xff, 0xd8, 0xff) ||
-			startsWith(0x47, 0x49, 0x46, 0x38) ||
-			startsWith(0x42, 0x4d) ||
-			startsWith(0x00, 0x00, 0x01, 0x00)
-		) {
-			return { kind: 'image', mime: null };
-		}
-
-		if (
-			startsWith(0x52, 0x49, 0x46, 0x46) &&
-			bytes[8] === 0x57 &&
-			bytes[9] === 0x45 &&
-			bytes[10] === 0x42 &&
-			bytes[11] === 0x50
-		) {
-			return { kind: 'image', mime: 'image/webp' };
-		}
-
-		if (startsWith(0x1a, 0x45, 0xdf, 0xa3)) {
-			return { kind: 'video', mime: 'video/webm' };
-		}
-
-		if (startsWith(0x4f, 0x67, 0x67, 0x53)) {
-			return { kind: 'audio', mime: 'audio/ogg' };
-		}
-
-		if (
-			startsWith(0x52, 0x49, 0x46, 0x46) &&
-			bytes[8] === 0x57 &&
-			bytes[9] === 0x41 &&
-			bytes[10] === 0x56 &&
-			bytes[11] === 0x45
-		) {
-			return { kind: 'audio', mime: 'audio/wav' };
-		}
-
-		if (startsWith(0x66, 0x4c, 0x61, 0x43)) {
-			return { kind: 'audio', mime: 'audio/flac' };
-		}
-
-		if (startsWith(0x49, 0x44, 0x33) || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0)) {
-			return { kind: 'audio', mime: 'audio/mpeg' };
-		}
-
-		if (
-			startsWith(0x66, 0x74, 0x79, 0x70) &&
-			textSample &&
-			/ftyp(avif|heic|m4a|mp4|isom|qt  )/i.test(textSample)
-		) {
-			const isAudio = /ftypm4a/i.test(textSample);
-			return { kind: isAudio ? 'audio' : 'video', mime: null };
-		}
-
-		if (textSample && /<svg[\s>]/i.test(textSample)) {
-			return { kind: 'image', mime: 'image/svg+xml' };
-		}
-
-		return { kind: 'other', mime: null };
-	}
+	let sniffedKind = $state<MediaKind | null>(null);
+	let sniffedMime = $state<string | null>(null);
+	let imageSupport = $state<ImageSupportInfo | null>(null);
 
 	$effect(() => {
 		sniffedKind = null;
+		sniffedMime = null;
+		imageSupport = null;
 
 		if (!contentUrl || contentText !== null) return;
 
@@ -129,15 +65,21 @@
 			try {
 				const response = await fetch(contentUrl);
 				const blob = await response.blob();
-				const headerBlob = blob.slice(0, 2048);
-				const buffer = await headerBlob.arrayBuffer();
-				const bytes = new Uint8Array(buffer);
-				const textSample = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
-				const fromBytes = sniffKindFromBytes(bytes, textSample);
-				const fromMime = blob.type?.split('/')[0] ?? null;
+				const detectedMime = await detectMimeFromBlob(blob);
+				const blobMime = blob.type && blob.type !== 'application/octet-stream' ? blob.type : null;
+				const mime = detectedMime ?? blobMime;
+				const kind: MediaKind = mime?.startsWith('image/')
+					? 'image'
+					: mime?.startsWith('video/')
+						? 'video'
+						: mime?.startsWith('audio/')
+							? 'audio'
+							: 'other';
 
 				if (!cancelled) {
-					sniffedKind = isMediaKind(fromMime) ? fromMime : fromBytes.kind;
+					sniffedMime = mime;
+					sniffedKind = kind;
+					imageSupport = kind === 'image' && mime ? getImageSupportInfo(mime) : null;
 				}
 			} catch {
 				if (!cancelled) {
@@ -154,6 +96,9 @@
 	const isImage = $derived(sniffedKind === 'image');
 	const isVideo = $derived(sniffedKind === 'video');
 	const isAudio = $derived(sniffedKind === 'audio');
+	const isPending = $derived(sniffedKind === null);
+	const isImageUnsupported = $derived(imageSupport?.status === 'unsupported');
+	const imageSupportMessage = $derived(imageSupport?.message ?? null);
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') onclose?.();
@@ -186,7 +131,7 @@
 						Back
 					</Button>
 				{/if}
-				<span class="truncate text-sm font-medium text-white">{filename}</span>
+				<span class="truncate text-sm font-medium text-white">{baseName}</span>
 			</div>
 			<div class="flex items-center gap-1">
 				{#if contentText !== null}
@@ -240,17 +185,38 @@
 			<div class="pointer-events-auto mx-auto flex h-full w-full max-w-6xl flex-col">
 				{#if contentText !== null}
 					<div class="h-full overflow-hidden rounded-lg border border-white/10 bg-[#0F111A]">
-						<CodeViewer text={contentText} {filename} />
+						<CodeViewer text={contentText} filename={baseName} />
 					</div>
 				{:else if contentUrl}
-					{#if isImage}
-						<div class="flex h-full items-center justify-center">
-							<img
-								src={contentUrl}
-								alt={filename}
-								class="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
-							/>
+					{#if isPending}
+						<div class="flex h-full items-center justify-center text-xs text-white/60">
+							Detecting file type...
 						</div>
+					{:else if isImage}
+						{#if isImageUnsupported}
+							<div class="flex h-full items-center justify-center">
+								<div class="max-w-md rounded-lg border border-white/10 bg-black/60 p-6 text-center">
+									<p class="text-sm font-semibold">
+										This image format is not supported in this browser.
+									</p>
+									{#if imageSupportMessage}
+										<p class="mt-2 text-xs text-white/60">{imageSupportMessage}</p>
+									{/if}
+									{#if sniffedMime}
+										<p class="mt-2 text-xs text-white/40">Detected: {sniffedMime}</p>
+									{/if}
+								</div>
+							</div>
+						{:else}
+							<div class="flex h-full items-center justify-center">
+								<img
+									src={contentUrl}
+									alt={baseName}
+									title={baseName}
+									class="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+								/>
+							</div>
+						{/if}
 					{:else if isVideo}
 						<div class="flex h-full items-center justify-center">
 							<video
@@ -258,7 +224,12 @@
 								class="max-h-full w-full max-w-5xl rounded-lg bg-black shadow-2xl"
 								controls
 							>
-								<track kind="captions" label="Captions" srclang="en" />
+								<track
+									kind="captions"
+									label="Captions"
+									srclang="en"
+									src="data:text/vtt,WEBVTT%0A%0A00:00.000%20--%3E%2000:00.001%0A"
+								/>
 							</video>
 						</div>
 					{:else if isAudio}
@@ -269,7 +240,7 @@
 						<div class="h-full overflow-hidden rounded-lg border border-white/10 bg-black">
 							<iframe
 								src={contentUrl}
-								title={filename}
+								title={baseName}
 								class="h-full w-full border-0"
 								sandbox="allow-same-origin allow-scripts"
 							></iframe>

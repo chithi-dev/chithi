@@ -3,6 +3,7 @@ import { formatFileSize } from '#functions/bytes';
 import { definePageMetaTags } from 'svelte-meta-tags';
 import type { PageLoad } from './$types';
 
+
 export const load: PageLoad = async ({ fetch, params, url }) => {
 	let filename = 'View File';
 	let description = 'View your encrypted file with a link that automatically expires.';
