@@ -42,16 +42,118 @@
 		}
 	}
 
-	const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif'];
-	const videoExtensions = ['mp4', 'webm', 'ogv', 'mov', 'mkv'];
-	const audioExtensions = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'];
-	const baseName = $derived(filename.split('/').pop() ?? filename);
-	const fileExt = $derived(
-		baseName.includes('.') ? (baseName.split('.').pop()?.toLowerCase() ?? '') : ''
-	);
-	const isImage = $derived(imageExtensions.includes(fileExt));
-	const isVideo = $derived(videoExtensions.includes(fileExt));
-	const isAudio = $derived(audioExtensions.includes(fileExt));
+	type SniffedKind = 'image' | 'video' | 'audio' | 'other';
+
+	let sniffedKind = $state<SniffedKind | null>(null);
+
+	const isMediaKind = (value: string | null): value is 'image' | 'video' | 'audio' =>
+		value === 'image' || value === 'video' || value === 'audio';
+
+	function sniffKindFromBytes(
+		bytes: Uint8Array,
+		textSample: string | null
+	): { kind: SniffedKind; mime: string | null } {
+		const startsWith = (...header: number[]) =>
+			header.every((value, index) => bytes[index] === value);
+
+		if (
+			startsWith(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a) ||
+			startsWith(0xff, 0xd8, 0xff) ||
+			startsWith(0x47, 0x49, 0x46, 0x38) ||
+			startsWith(0x42, 0x4d) ||
+			startsWith(0x00, 0x00, 0x01, 0x00)
+		) {
+			return { kind: 'image', mime: null };
+		}
+
+		if (
+			startsWith(0x52, 0x49, 0x46, 0x46) &&
+			bytes[8] === 0x57 &&
+			bytes[9] === 0x45 &&
+			bytes[10] === 0x42 &&
+			bytes[11] === 0x50
+		) {
+			return { kind: 'image', mime: 'image/webp' };
+		}
+
+		if (startsWith(0x1a, 0x45, 0xdf, 0xa3)) {
+			return { kind: 'video', mime: 'video/webm' };
+		}
+
+		if (startsWith(0x4f, 0x67, 0x67, 0x53)) {
+			return { kind: 'audio', mime: 'audio/ogg' };
+		}
+
+		if (
+			startsWith(0x52, 0x49, 0x46, 0x46) &&
+			bytes[8] === 0x57 &&
+			bytes[9] === 0x41 &&
+			bytes[10] === 0x56 &&
+			bytes[11] === 0x45
+		) {
+			return { kind: 'audio', mime: 'audio/wav' };
+		}
+
+		if (startsWith(0x66, 0x4c, 0x61, 0x43)) {
+			return { kind: 'audio', mime: 'audio/flac' };
+		}
+
+		if (startsWith(0x49, 0x44, 0x33) || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0)) {
+			return { kind: 'audio', mime: 'audio/mpeg' };
+		}
+
+		if (
+			startsWith(0x66, 0x74, 0x79, 0x70) &&
+			textSample &&
+			/ftyp(avif|heic|m4a|mp4|isom|qt  )/i.test(textSample)
+		) {
+			const isAudio = /ftypm4a/i.test(textSample);
+			return { kind: isAudio ? 'audio' : 'video', mime: null };
+		}
+
+		if (textSample && /<svg[\s>]/i.test(textSample)) {
+			return { kind: 'image', mime: 'image/svg+xml' };
+		}
+
+		return { kind: 'other', mime: null };
+	}
+
+	$effect(() => {
+		sniffedKind = null;
+
+		if (!contentUrl || contentText !== null) return;
+
+		let cancelled = false;
+
+		(async () => {
+			try {
+				const response = await fetch(contentUrl);
+				const blob = await response.blob();
+				const headerBlob = blob.slice(0, 2048);
+				const buffer = await headerBlob.arrayBuffer();
+				const bytes = new Uint8Array(buffer);
+				const textSample = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
+				const fromBytes = sniffKindFromBytes(bytes, textSample);
+				const fromMime = blob.type?.split('/')[0] ?? null;
+
+				if (!cancelled) {
+					sniffedKind = isMediaKind(fromMime) ? fromMime : fromBytes.kind;
+				}
+			} catch {
+				if (!cancelled) {
+					sniffedKind = 'other';
+				}
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	});
+
+	const isImage = $derived(sniffedKind === 'image');
+	const isVideo = $derived(sniffedKind === 'video');
+	const isAudio = $derived(sniffedKind === 'audio');
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') onclose?.();
@@ -151,12 +253,13 @@
 						</div>
 					{:else if isVideo}
 						<div class="flex h-full items-center justify-center">
-							<!-- svelte-ignore a11y_media_has_caption -->
 							<video
 								src={contentUrl}
 								class="max-h-full w-full max-w-5xl rounded-lg bg-black shadow-2xl"
 								controls
-							></video>
+							>
+								<track kind="captions" label="Captions" srclang="en" />
+							</video>
 						</div>
 					{:else if isAudio}
 						<div class="flex h-full items-center justify-center">
