@@ -3,6 +3,8 @@
 	import { Download, Link, Check, ArrowLeft, Copy } from '@lucide/svelte';
 	import { fade } from 'svelte/transition';
 	import CodeViewer from '$lib/components/CodeViewer.svelte';
+	import { detectMimeFromBlob } from '$lib/functions/mime';
+	import { getImageSupportInfo, type ImageSupportInfo } from '$lib/functions/media-support';
 
 	let {
 		filename,
@@ -42,28 +44,61 @@
 		}
 	}
 
-	const imageExtensions = [
-		'png',
-		'jpg',
-		'jpeg',
-		'gif',
-		'webp',
-		'svg',
-		'bmp',
-		'ico',
-		'avif',
-		'tiff',
-		'heic',
-		'heif',
-		'jfif'
-	];
-	const videoExtensions = ['mp4', 'webm', 'ogv', 'mov', 'mkv'];
-	const audioExtensions = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'];
 	const baseName = $derived(filename.split(/[/\\]/).pop() ?? filename);
-	const fileExt = $derived(baseName.split('.').pop()?.toLowerCase() ?? '');
-	const isImage = $derived(imageExtensions.includes(fileExt));
-	const isVideo = $derived(videoExtensions.includes(fileExt));
-	const isAudio = $derived(audioExtensions.includes(fileExt));
+
+	type MediaKind = 'image' | 'video' | 'audio' | 'other';
+
+	let sniffedKind = $state<MediaKind | null>(null);
+	let sniffedMime = $state<string | null>(null);
+	let imageSupport = $state<ImageSupportInfo | null>(null);
+
+	$effect(() => {
+		sniffedKind = null;
+		sniffedMime = null;
+		imageSupport = null;
+
+		if (!contentUrl || contentText !== null) return;
+
+		let cancelled = false;
+
+		(async () => {
+			try {
+				const response = await fetch(contentUrl);
+				const blob = await response.blob();
+				const detectedMime = await detectMimeFromBlob(blob);
+				const blobMime = blob.type && blob.type !== 'application/octet-stream' ? blob.type : null;
+				const mime = detectedMime ?? blobMime;
+				const kind: MediaKind = mime?.startsWith('image/')
+					? 'image'
+					: mime?.startsWith('video/')
+						? 'video'
+						: mime?.startsWith('audio/')
+							? 'audio'
+							: 'other';
+
+				if (!cancelled) {
+					sniffedMime = mime;
+					sniffedKind = kind;
+					imageSupport = kind === 'image' && mime ? getImageSupportInfo(mime) : null;
+				}
+			} catch {
+				if (!cancelled) {
+					sniffedKind = 'other';
+				}
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	});
+
+	const isImage = $derived(sniffedKind === 'image');
+	const isVideo = $derived(sniffedKind === 'video');
+	const isAudio = $derived(sniffedKind === 'audio');
+	const isPending = $derived(sniffedKind === null);
+	const isImageUnsupported = $derived(imageSupport?.status === 'unsupported');
+	const imageSupportMessage = $derived(imageSupport?.message ?? null);
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') onclose?.();
@@ -153,23 +188,49 @@
 						<CodeViewer text={contentText} filename={baseName} />
 					</div>
 				{:else if contentUrl}
-					{#if isImage}
-						<div class="flex h-full items-center justify-center">
-							<img
-								src={contentUrl}
-								alt={baseName}
-								title={baseName}
-								class="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
-							/>
+					{#if isPending}
+						<div class="flex h-full items-center justify-center text-xs text-white/60">
+							Detecting file type...
 						</div>
+					{:else if isImage}
+						{#if isImageUnsupported}
+							<div class="flex h-full items-center justify-center">
+								<div class="max-w-md rounded-lg border border-white/10 bg-black/60 p-6 text-center">
+									<p class="text-sm font-semibold">
+										This image format is not supported in this browser.
+									</p>
+									{#if imageSupportMessage}
+										<p class="mt-2 text-xs text-white/60">{imageSupportMessage}</p>
+									{/if}
+									{#if sniffedMime}
+										<p class="mt-2 text-xs text-white/40">Detected: {sniffedMime}</p>
+									{/if}
+								</div>
+							</div>
+						{:else}
+							<div class="flex h-full items-center justify-center">
+								<img
+									src={contentUrl}
+									alt={baseName}
+									title={baseName}
+									class="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+								/>
+							</div>
+						{/if}
 					{:else if isVideo}
 						<div class="flex h-full items-center justify-center">
-							<!-- svelte-ignore a11y_media_has_caption -->
 							<video
 								src={contentUrl}
 								class="max-h-full w-full max-w-5xl rounded-lg bg-black shadow-2xl"
 								controls
-							></video>
+							>
+								<track
+									kind="captions"
+									label="Captions"
+									srclang="en"
+									src="data:text/vtt,WEBVTT%0A%0A00:00.000%20--%3E%2000:00.001%0A"
+								/>
+							</video>
 						</div>
 					{:else if isAudio}
 						<div class="flex h-full items-center justify-center">

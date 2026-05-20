@@ -7,7 +7,7 @@
 	import { PasswordRequiredError } from '#functions/download';
 	import { createDecryptedStream } from '#functions/streams';
 	import { BlobWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
-	import { getMimeType } from '#functions/mime';
+	import { detectMimeFromBlob } from '#functions/mime';
 	import { createViewableText } from '$lib/functions/viewer';
 	import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
 
@@ -110,15 +110,17 @@
 				if (!entry.getData) throw new Error('Cannot read file from archive');
 
 				entryFilename = entry.filename.split('/').pop() || 'file';
-				const mime = getMimeType(entryFilename);
-
-				const rawBlob = await entry.getData(new BlobWriter(mime));
-				const text = await createViewableText(rawBlob, entryFilename);
+				const rawBlob = await entry.getData(new BlobWriter('application/octet-stream'));
+				const detectedMime = await detectMimeFromBlob(rawBlob);
+				const viewBlob = detectedMime
+					? rawBlob.slice(0, rawBlob.size, detectedMime)
+					: rawBlob;
+				const text = await createViewableText(viewBlob, entryFilename, detectedMime);
 
 				if (text !== null) {
 					contentText = text;
 				} else {
-					contentUrl = URL.createObjectURL(rawBlob);
+					contentUrl = URL.createObjectURL(viewBlob);
 				}
 
 				status = 'viewing';
