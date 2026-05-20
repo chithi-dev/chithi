@@ -40,6 +40,7 @@
 		"@tailwindcss/vite": "=4.3.0",
 		"@tanstack/svelte-query": "^6.1.25",
 		"@tanstack/svelte-query-devtools": "^6.1.25",
+		"@types/caniuse-lite": "^1.0.5",
 		"@types/d3": "^7.4.3",
 		"@types/node": "^25.6.0",
 		"@types/nprogress": "^0.2.3",
