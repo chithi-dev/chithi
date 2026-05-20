@@ -1,7 +1,8 @@
 import { WORKER_CONCURRENCY } from '#consts/concurrency';
+import { HKDF_IV_STR, HKDF_SALT_STR } from '#consts/encryption';
 import DecryptWorker from '#workers/decrypt.worker?worker';
 import EncryptWorker from '#workers/encrypt.worker?worker';
-import { ZipWriter, configure } from '@zip.js/zip.js';
+import { ZipWriter } from '@zip.js/zip.js';
 import {
 	CHUNK_SIZE,
 	argon2Derive,
@@ -11,15 +12,6 @@ import {
 	getChunkIv,
 	xorBytes
 } from './encryption';
-
-configure({
-	useWebWorkers: true,
-	maxWorkers: WORKER_CONCURRENCY
-});
-
-// Deterministic derivation constants
-const HKDF_SALT_STR = 'chithi-salt-v1';
-const HKDF_IV_STR = 'chithi-iv-v1';
 
 const usedNames = new Map<string, number>();
 
