@@ -6,6 +6,8 @@
 	import { detectMimeFromBlob } from '$lib/functions/mime';
 	import { getImageSupportInfo, type ImageSupportInfo } from '$lib/functions/media-support';
 
+	const { heicTo } = await import('heic-to');
+
 	let {
 		filename,
 		contentText = null,
@@ -47,11 +49,6 @@
 	const baseName = $derived(filename.split(/[/\\]/).pop() ?? filename);
 
 	type MediaKind = 'image' | 'video' | 'audio' | 'other';
-	type Heic2Any = (options: {
-		blob: Blob;
-		toType?: string;
-		quality?: number;
-	}) => Promise<Blob | Blob[]>;
 
 	const heicExtensions = ['.heic', '.heif'];
 
@@ -116,11 +113,8 @@
 
 		heicConvertPromise = (async () => {
 			try {
-				const { default: heic2any } = (await import('heic2any')) as {
-					default: Heic2Any;
-				};
-				const result = await heic2any({ blob: sourceBlob, toType: 'image/png' });
-				const pngBlob = Array.isArray(result) ? result[0] : result;
+				const result = await heicTo({ blob: sourceBlob, type: 'image/png' });
+				const pngBlob = result instanceof Blob ? result : null;
 				if (!pngBlob || token !== heicConversionToken) return null;
 				heicConvertedBlob = pngBlob;
 				heicConvertedUrl = URL.createObjectURL(pngBlob);

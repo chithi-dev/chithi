@@ -59,7 +59,7 @@
 		"formsnap": "^2.0.1",
 		"globals": "^17.5.0",
 		"hash-wasm": "^4.12.0",
-		"heic2any": "^0.0.4",
+		"heic-to": "^1.4.3",
 		"idb": "^8.0.3",
 		"layerchart": "^2.0.0-next.48",
 		"mode-watcher": "^1.1.0",
