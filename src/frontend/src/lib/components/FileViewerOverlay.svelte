@@ -47,15 +47,123 @@
 	const baseName = $derived(filename.split(/[/\\]/).pop() ?? filename);
 
 	type MediaKind = 'image' | 'video' | 'audio' | 'other';
+	type Heic2Any = (options: {
+		blob: Blob;
+		toType?: string;
+		quality?: number;
+	}) => Promise<Blob | Blob[]>;
+
+	const heicExtensions = ['.heic', '.heif'];
 
 	let sniffedKind = $state<MediaKind | null>(null);
 	let sniffedMime = $state<string | null>(null);
 	let imageSupport = $state<ImageSupportInfo | null>(null);
+	let sourceBlob = $state<Blob | null>(null);
+	let heicConvertedBlob = $state<Blob | null>(null);
+	let heicConvertedUrl = $state<string | null>(null);
+	let heicConverting = $state(false);
+	let heicError = $state<string | null>(null);
+	let heicConversionToken = 0;
+	let heicConvertPromise: Promise<Blob | null> | null = null;
+
+	function resetHeicState() {
+		heicConversionToken += 1;
+		heicConvertPromise = null;
+		heicConverting = false;
+		heicError = null;
+		heicConvertedBlob = null;
+		heicConvertedUrl = null;
+		sourceBlob = null;
+	}
+
+	function getPngFilename(name: string) {
+		const lower = name.toLowerCase();
+		const matched = heicExtensions.find((ext) => lower.endsWith(ext));
+		if (matched) return `${name.slice(0, -matched.length)}.png`;
+		return `${name}.png`;
+	}
+
+	function downloadBlob(blob: Blob, name: string) {
+		const blobUrl = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = blobUrl;
+		a.download = name;
+		a.style.display = 'none';
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		URL.revokeObjectURL(blobUrl);
+	}
+
+	function downloadFromUrl(url: string, name: string) {
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = name;
+		a.style.display = 'none';
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+	}
+
+	async function convertHeicToPng() {
+		if (heicConvertedBlob) return heicConvertedBlob;
+		if (!sourceBlob) return null;
+		if (heicConvertPromise) return await heicConvertPromise;
+
+		const token = heicConversionToken;
+		heicConverting = true;
+		heicError = null;
+
+		heicConvertPromise = (async () => {
+			try {
+				const { default: heic2any } = (await import('heic2any')) as {
+					default: Heic2Any;
+				};
+				const result = await heic2any({ blob: sourceBlob, toType: 'image/png' });
+				const pngBlob = Array.isArray(result) ? result[0] : result;
+				if (!pngBlob || token !== heicConversionToken) return null;
+				heicConvertedBlob = pngBlob;
+				heicConvertedUrl = URL.createObjectURL(pngBlob);
+				return pngBlob;
+			} catch {
+				if (token === heicConversionToken) {
+					heicError = 'Could not convert this HEIC image.';
+				}
+				return null;
+			} finally {
+				if (token === heicConversionToken) {
+					heicConverting = false;
+					heicConvertPromise = null;
+				}
+			}
+		})();
+
+		return await heicConvertPromise;
+	}
+
+	function handleDownloadOriginal() {
+		if (ondownload) {
+			ondownload();
+			return;
+		}
+		if (contentText !== null) {
+			downloadBlob(new Blob([contentText], { type: 'text/plain' }), baseName);
+			return;
+		}
+		if (contentUrl) downloadFromUrl(contentUrl, baseName);
+	}
+
+	async function handleDownloadPng() {
+		const pngBlob = await convertHeicToPng();
+		if (!pngBlob) return;
+		downloadBlob(pngBlob, getPngFilename(baseName));
+	}
 
 	$effect(() => {
 		sniffedKind = null;
 		sniffedMime = null;
 		imageSupport = null;
+		resetHeicState();
 
 		if (!contentUrl || contentText !== null) return;
 
@@ -80,6 +188,9 @@
 					sniffedMime = mime;
 					sniffedKind = kind;
 					imageSupport = kind === 'image' && mime ? getImageSupportInfo(mime) : null;
+					if (mime === 'image/heic' || mime === 'image/heif') {
+						sourceBlob = blob;
+					}
 				}
 			} catch {
 				if (!cancelled) {
@@ -93,12 +204,25 @@
 		};
 	});
 
+	$effect(() => {
+		const url = heicConvertedUrl;
+		return () => {
+			if (url) URL.revokeObjectURL(url);
+		};
+	});
+
+	const isHeic = $derived(sniffedMime === 'image/heic' || sniffedMime === 'image/heif');
 	const isImage = $derived(sniffedKind === 'image');
 	const isVideo = $derived(sniffedKind === 'video');
 	const isAudio = $derived(sniffedKind === 'audio');
 	const isPending = $derived(sniffedKind === null);
-	const isImageUnsupported = $derived(imageSupport?.status === 'unsupported');
+	const isImageUnsupported = $derived(!isHeic && imageSupport?.status === 'unsupported');
 	const imageSupportMessage = $derived(imageSupport?.message ?? null);
+
+	$effect(() => {
+		if (!sourceBlob || !isHeic) return;
+		void convertHeicToPng();
+	});
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') onclose?.();
@@ -167,15 +291,41 @@
 					</Button>
 				{/if}
 				{#if ondownload}
-					<Button
-						variant="ghost"
-						size="sm"
-						class="h-7 gap-1.5 px-2 text-xs text-white/70 hover:bg-white/10 hover:text-white"
-						onclick={ondownload}
-					>
-						<Download class="h-3.5 w-3.5" />
-						Save
-					</Button>
+					{#if isHeic}
+						<Button
+							variant="ghost"
+							size="sm"
+							class="h-7 gap-1.5 px-2 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+							onclick={handleDownloadOriginal}
+						>
+							<Download class="h-3.5 w-3.5" />
+							Save Original
+						</Button>
+						<Button
+							variant="ghost"
+							size="sm"
+							class="h-7 gap-1.5 px-2 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+							disabled={heicConverting && !heicConvertedBlob}
+							onclick={handleDownloadPng}
+						>
+							<Download class="h-3.5 w-3.5" />
+							{#if heicConverting && !heicConvertedBlob}
+								Converting...
+							{:else}
+								Save PNG
+							{/if}
+						</Button>
+					{:else}
+						<Button
+							variant="ghost"
+							size="sm"
+							class="h-7 gap-1.5 px-2 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+							onclick={ondownload}
+						>
+							<Download class="h-3.5 w-3.5" />
+							Save
+						</Button>
+					{/if}
 				{/if}
 			</div>
 		</div>
@@ -193,7 +343,38 @@
 							Detecting file type...
 						</div>
 					{:else if isImage}
-						{#if isImageUnsupported}
+						{#if isHeic}
+							{#if heicConverting && !heicConvertedUrl}
+								<div class="flex h-full items-center justify-center text-xs text-white/60">
+									Converting HEIC to PNG...
+								</div>
+							{:else if heicConvertedUrl}
+								<div class="flex h-full items-center justify-center">
+									<img
+										src={heicConvertedUrl}
+										alt={baseName}
+										title={baseName}
+										class="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+									/>
+								</div>
+							{:else}
+								<div class="flex h-full items-center justify-center">
+									<div
+										class="max-w-md rounded-lg border border-white/10 bg-black/60 p-6 text-center"
+									>
+										<p class="text-sm font-semibold">
+											{heicError ?? 'Unable to preview this HEIC image.'}
+										</p>
+										{#if imageSupportMessage}
+											<p class="mt-2 text-xs text-white/60">{imageSupportMessage}</p>
+										{/if}
+										{#if sniffedMime}
+											<p class="mt-2 text-xs text-white/40">Detected: {sniffedMime}</p>
+										{/if}
+									</div>
+								</div>
+							{/if}
+						{:else if isImageUnsupported}
 							<div class="flex h-full items-center justify-center">
 								<div class="max-w-md rounded-lg border border-white/10 bg-black/60 p-6 text-center">
 									<p class="text-sm font-semibold">
