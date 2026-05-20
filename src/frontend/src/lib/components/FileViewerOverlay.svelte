@@ -42,13 +42,25 @@
 		}
 	}
 
-	const imageExtensions = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif'];
+	const imageExtensions = [
+		'png',
+		'jpg',
+		'jpeg',
+		'gif',
+		'webp',
+		'svg',
+		'bmp',
+		'ico',
+		'avif',
+		'tiff',
+		'heic',
+		'heif',
+		'jfif'
+	];
 	const videoExtensions = ['mp4', 'webm', 'ogv', 'mov', 'mkv'];
 	const audioExtensions = ['mp3', 'wav', 'ogg', 'm4a', 'aac', 'flac'];
-	const baseName = $derived(filename.split('/').pop() ?? filename);
-	const fileExt = $derived(
-		baseName.includes('.') ? (baseName.split('.').pop()?.toLowerCase() ?? '') : ''
-	);
+	const baseName = $derived(filename.split(/[/\\]/).pop() ?? filename);
+	const fileExt = $derived(baseName.split('.').pop()?.toLowerCase() ?? '');
 	const isImage = $derived(imageExtensions.includes(fileExt));
 	const isVideo = $derived(videoExtensions.includes(fileExt));
 	const isAudio = $derived(audioExtensions.includes(fileExt));
@@ -84,7 +96,7 @@
 						Back
 					</Button>
 				{/if}
-				<span class="truncate text-sm font-medium text-white">{filename}</span>
+				<span class="truncate text-sm font-medium text-white">{baseName}</span>
 			</div>
 			<div class="flex items-center gap-1">
 				{#if contentText !== null}
@@ -138,14 +150,15 @@
 			<div class="pointer-events-auto mx-auto flex h-full w-full max-w-6xl flex-col">
 				{#if contentText !== null}
 					<div class="h-full overflow-hidden rounded-lg border border-white/10 bg-[#0F111A]">
-						<CodeViewer text={contentText} {filename} />
+						<CodeViewer text={contentText} filename={baseName} />
 					</div>
 				{:else if contentUrl}
 					{#if isImage}
 						<div class="flex h-full items-center justify-center">
 							<img
 								src={contentUrl}
-								alt={filename}
+								alt={baseName}
+								title={baseName}
 								class="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
 							/>
 						</div>
@@ -166,7 +179,7 @@
 						<div class="h-full overflow-hidden rounded-lg border border-white/10 bg-black">
 							<iframe
 								src={contentUrl}
-								title={filename}
+								title={baseName}
 								class="h-full w-full border-0"
 								sandbox="allow-same-origin allow-scripts"
 							></iframe>

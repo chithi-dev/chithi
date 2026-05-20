@@ -6,7 +6,10 @@ export const trailingSlash = 'ignore';
 export const load: PageLoad = ({ url }) => {
 	const ogUrl = new URL('/og/once', url.origin);
 	ogUrl.searchParams.set('title', 'One-time View');
-	ogUrl.searchParams.set('description', 'View your encrypted file once. The link will expire immediately after.');
+	ogUrl.searchParams.set(
+		'description',
+		'View your encrypted file once. The link will expire immediately after.'
+	);
 
 	const pageTags = definePageMetaTags({
 		title: 'Once',
