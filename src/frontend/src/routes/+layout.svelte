@@ -3,6 +3,7 @@
 	import '#css/nprogress.scss';
 	import '#css/tailwind.css';
 
+	import { configure } from '@zip.js/zip.js';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import NProgress from 'nprogress';
@@ -13,6 +14,7 @@
 	import type { LayoutData } from './$types';
 	import { type Component, type Snippet } from 'svelte';
 	import { MetaTags, deepMerge } from 'svelte-meta-tags';
+	import { WORKER_CONCURRENCY } from '#consts/concurrency';
 
 	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 
@@ -26,6 +28,14 @@
 	let SvelteQueryDevtools = $state<Component<any> | null>(null);
 
 	SvelteQueryDevtools = await loadDevtools();
+
+	// zip.js initialize
+	$effect.pre(() => {
+		configure({
+			useWebWorkers: true,
+			maxWorkers: WORKER_CONCURRENCY
+		});
+	});
 
 	// NProgress
 	$effect.pre(() => {
