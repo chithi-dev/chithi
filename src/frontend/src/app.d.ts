@@ -17,4 +17,14 @@ declare global {
 	declare const __COMMIT_SHA__: string;
 }
 
+declare module 'heic2any' {
+	type Heic2Any = (options: {
+		blob: Blob;
+		toType?: string;
+		quality?: number;
+	}) => Promise<Blob | Blob[]>;
+	const heic2any: Heic2Any;
+	export default heic2any;
+}
+
 export {};

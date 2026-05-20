@@ -1,9 +1,5 @@
+import { DEFAULT_ARGON2_ITERATIONS, DEFAULT_ARGON2_MEMORY_KIB, MAX_ARGON2_MEMORY_KIB } from '#consts/encryption';
 import { argon2id } from 'hash-wasm';
-
-// Argon2 parameter defaults and safety cap
-const MAX_ARGON2_MEMORY_KIB = 512 * 1024 - 1; // cap: <512 MiB in KiB units
-const DEFAULT_ARGON2_MEMORY_KIB = 64 * 1024; // 64 MiB default
-const DEFAULT_ARGON2_ITERATIONS = 8;
 
 export function bytesToBase64(u8: Uint8Array) {
 	let binary = '';
