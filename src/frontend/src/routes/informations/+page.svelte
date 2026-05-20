@@ -9,7 +9,6 @@
 		Code,
 		BookOpen,
 		ArrowRight,
-		ShieldCheck,
 		ExternalLink
 	} from '@lucide/svelte';
 	import { Api } from '$lib/consts/backend';
@@ -130,9 +129,4 @@
 			Full Documentation
 		</Button>
 	</div>
-</div>
-
-<div class="mt-8 flex items-center justify-center gap-2 text-muted-foreground/40">
-	<ShieldCheck class="h-4 w-4" />
-	<span class="text-[10px] font-bold tracking-widest uppercase">Secured by Chithi</span>
 </div>
