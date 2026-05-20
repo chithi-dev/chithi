@@ -1,13 +1,13 @@
-import { feature } from 'caniuse-lite';
+const { feature } = await import('caniuse-lite');
 
 // @ts-expect-error: type is not available
-import avifData from 'caniuse-lite/data/features/avif';
+const { default: avifData } = await import('caniuse-lite/data/features/avif');
 
 // @ts-expect-error: type is not available
-import heifData from 'caniuse-lite/data/features/heif';
+const { default: heifData } = await import('caniuse-lite/data/features/heif');
 
 // @ts-expect-error: type is not available
-import webpData from 'caniuse-lite/data/features/webp';
+const { default: webpData } = await import('caniuse-lite/data/features/webp');
 
 type CaniuseStats = Record<string, Record<string, string>>;
 
@@ -68,6 +68,7 @@ const parseIosVersion = (ua: string) => {
 
 const getBrowserInfo = (): BrowserInfo | null => {
 	if (typeof navigator === 'undefined') return null;
+
 	const ua = navigator.userAgent;
 	const isiOS = /iPad|iPhone|iPod/.test(ua);
 	const isAndroid = /Android/.test(ua);
@@ -75,23 +76,57 @@ const getBrowserInfo = (): BrowserInfo | null => {
 	if (isiOS) {
 		const version = parseIosVersion(ua);
 		if (!version) return null;
-		return { agent: 'ios_saf', version };
+
+		return {
+			agent: 'ios_saf',
+			version
+		};
 	}
 
 	const edgeVersion = parseVersion(ua.match(/Edg\/(\d+(?:\.\d+)?)/)?.[1] ?? null);
-	if (edgeVersion) return { agent: 'edge', version: edgeVersion };
+
+	if (edgeVersion) {
+		return {
+			agent: 'edge',
+			version: edgeVersion
+		};
+	}
 
 	const operaVersion = parseVersion(ua.match(/OPR\/(\d+(?:\.\d+)?)/)?.[1] ?? null);
-	if (operaVersion) return { agent: 'opera', version: operaVersion };
+
+	if (operaVersion) {
+		return {
+			agent: 'opera',
+			version: operaVersion
+		};
+	}
 
 	const firefoxVersion = parseVersion(ua.match(/Firefox\/(\d+(?:\.\d+)?)/)?.[1] ?? null);
-	if (firefoxVersion) return { agent: isAndroid ? 'and_ff' : 'firefox', version: firefoxVersion };
+
+	if (firefoxVersion) {
+		return {
+			agent: isAndroid ? 'and_ff' : 'firefox',
+			version: firefoxVersion
+		};
+	}
 
 	const chromeVersion = parseVersion(ua.match(/Chrome\/(\d+(?:\.\d+)?)/)?.[1] ?? null);
-	if (chromeVersion) return { agent: isAndroid ? 'and_chr' : 'chrome', version: chromeVersion };
+
+	if (chromeVersion) {
+		return {
+			agent: isAndroid ? 'and_chr' : 'chrome',
+			version: chromeVersion
+		};
+	}
 
 	const safariVersion = parseVersion(ua.match(/Version\/(\d+(?:\.\d+)?)/)?.[1] ?? null);
-	if (safariVersion && /Safari\//.test(ua)) return { agent: 'safari', version: safariVersion };
+
+	if (safariVersion && /Safari\//.test(ua)) {
+		return {
+			agent: 'safari',
+			version: safariVersion
+		};
+	}
 
 	return null;
 };
@@ -101,8 +136,11 @@ const getMinSupportedVersion = (stats: Record<string, string>) => {
 
 	for (const [version, support] of Object.entries(stats)) {
 		if (!isSupported(support)) continue;
+
 		const numeric = parseVersion(version.split('-')[0]);
+
 		if (numeric === null) continue;
+
 		minVersion = minVersion === null ? numeric : Math.min(minVersion, numeric);
 	}
 
@@ -114,7 +152,10 @@ const getSupportedAgents = (stats: CaniuseStats) => {
 
 	for (const [agent, versions] of Object.entries(stats)) {
 		if (!Object.hasOwn(agentLabels, agent)) continue;
-		if (Object.values(versions).some(isSupported)) supported.push(agent as AgentKey);
+
+		if (Object.values(versions).some(isSupported)) {
+			supported.push(agent as AgentKey);
+		}
 	}
 
 	return supported;
@@ -122,17 +163,47 @@ const getSupportedAgents = (stats: CaniuseStats) => {
 
 export const getImageSupportInfo = (mime: string): ImageSupportInfo => {
 	const featureData = featureByMime[mime];
-	if (!featureData) return { status: 'unknown', message: null };
+
+	if (!featureData) {
+		return {
+			status: 'unknown',
+			message: null
+		};
+	}
 
 	const supportedAgents = getSupportedAgents(featureData.stats).map((agent) => agentLabels[agent]);
+
 	const message = supportedAgents.length ? `Supported in: ${supportedAgents.join(', ')}.` : null;
+
 	const browser = getBrowserInfo();
-	if (!browser) return { status: 'unknown', message };
+
+	if (!browser) {
+		return {
+			status: 'unknown',
+			message
+		};
+	}
 
 	const agentStats = featureData.stats[browser.agent];
-	if (!agentStats) return { status: 'unknown', message };
+
+	if (!agentStats) {
+		return {
+			status: 'unknown',
+			message
+		};
+	}
 
 	const minVersion = getMinSupportedVersion(agentStats);
-	if (minVersion === null) return { status: 'unsupported', message };
-	return { status: browser.version >= minVersion ? 'supported' : 'unsupported', message };
+
+	if (minVersion === null) {
+		return {
+			status: 'unsupported',
+			message
+		};
+	}
+
+	return {
+		status: browser.version >= minVersion ? 'supported' : 'unsupported',
+		message
+	};
 };
