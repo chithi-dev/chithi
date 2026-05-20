@@ -12,7 +12,8 @@ The backend part is fully written by me(since i excel at python and backend).
 
 The frontend part has had some helps around:
 
-- Animations that are on the page
+- Animations that are on the page.
+- Boilerplate for opengraph `+server.ts` generation.
 
 ## Github
 
