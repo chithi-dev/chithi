@@ -1,5 +1,5 @@
 // Deterministic derivation constants
-export  var  HKDF_SALT_STR = 'chithi-salt-v1';
+export var HKDF_SALT_STR = 'chithi-salt-v1';
 export var HKDF_IV_STR = 'chithi-iv-v1';
 
 // Argon2 parameter defaults and safety cap

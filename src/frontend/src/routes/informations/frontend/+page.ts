@@ -5,7 +5,10 @@ export const load: PageLoad = async ({ url }) => {
 	const ogUrl = new URL('/og/info', url.origin);
 	ogUrl.searchParams.set('label', 'SYSTEM INFORMATION');
 	ogUrl.searchParams.set('title', 'Chithi Instance');
-	ogUrl.searchParams.set('description', 'Version, source revision, and runtime metadata for this deployment.');
+	ogUrl.searchParams.set(
+		'description',
+		'Version, source revision, and runtime metadata for this deployment.'
+	);
 
 	const pageTags = definePageMetaTags({
 		title: 'Information',

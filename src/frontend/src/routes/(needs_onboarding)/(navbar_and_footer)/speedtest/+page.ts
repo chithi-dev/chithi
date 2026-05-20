@@ -4,7 +4,10 @@ import type { PageLoad } from './$types';
 export const load: PageLoad = ({ url }) => {
 	const ogUrl = new URL('/og/speedtest', url.origin);
 	ogUrl.searchParams.set('title', 'Network Speedtest');
-	ogUrl.searchParams.set('description', 'Test your connection speed to the Chithi server for optimal transfers.');
+	ogUrl.searchParams.set(
+		'description',
+		'Test your connection speed to the Chithi server for optimal transfers.'
+	);
 
 	const pageTags = definePageMetaTags({
 		title: 'Speedtest',

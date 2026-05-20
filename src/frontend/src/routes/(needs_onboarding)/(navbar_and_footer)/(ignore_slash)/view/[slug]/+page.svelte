@@ -222,9 +222,7 @@
 		if (entry.directory || !entry.getData) return;
 		const rawBlob = await entry.getData(new BlobWriter('application/octet-stream'));
 		const detectedMime = await detectMimeFromBlob(rawBlob);
-		const viewBlob = detectedMime
-			? rawBlob.slice(0, rawBlob.size, detectedMime)
-			: rawBlob;
+		const viewBlob = detectedMime ? rawBlob.slice(0, rawBlob.size, detectedMime) : rawBlob;
 
 		const text = await createViewableText(viewBlob, entry.filename, detectedMime);
 		if (text !== null) {
