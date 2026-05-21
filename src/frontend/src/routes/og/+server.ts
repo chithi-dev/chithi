@@ -18,10 +18,16 @@ function getRequestDomain(url: URL, request: Request) {
 
 export async function GET({ url, request }: RequestEvent) {
 	const domain = getRequestDomain(url, request);
+	const rawKind = url.searchParams.get('type');
+	const kind = rawKind?.trim().toLowerCase() || 'base';
 	const { body, head } = await render(Component, {
 		props: {
+			kind,
+			label: url.searchParams.get('label'),
 			title: url.searchParams.get('title'),
 			description: url.searchParams.get('description'),
+			filename: url.searchParams.get('filename'),
+			size: url.searchParams.get('size'),
 			domain
 		}
 	});

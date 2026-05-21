@@ -7,7 +7,8 @@ export const load: PageLoad = async ({ parent, fetch, url }) => {
 
 	prefetch({ queryClient: queryClient, fetch });
 
-	const ogUrl = new URL('/og/upload', url.origin);
+	const ogUrl = new URL('/og', url.origin);
+	ogUrl.searchParams.set('type', 'upload');
 	ogUrl.searchParams.set('title', 'Upload Files');
 	ogUrl.searchParams.set(
 		'description',

@@ -4,7 +4,8 @@ import type { PageLoad } from './$types';
 export const trailingSlash = 'ignore';
 
 export const load: PageLoad = ({ url }) => {
-	const ogUrl = new URL('/og/once', url.origin);
+	const ogUrl = new URL('/og', url.origin);
+	ogUrl.searchParams.set('type', 'once');
 	ogUrl.searchParams.set('title', 'One-time View');
 	ogUrl.searchParams.set(
 		'description',

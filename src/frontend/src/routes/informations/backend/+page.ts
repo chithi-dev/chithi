@@ -3,7 +3,8 @@ import { definePageMetaTags } from 'svelte-meta-tags';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch, parent, url }) => {
-	const ogUrl = new URL('/og/info', url.origin);
+	const ogUrl = new URL('/og', url.origin);
+	ogUrl.searchParams.set('type', 'info');
 	ogUrl.searchParams.set('label', 'BACKEND INFRASTRUCTURE');
 	ogUrl.searchParams.set('title', 'Chithi Backend');
 	ogUrl.searchParams.set(
