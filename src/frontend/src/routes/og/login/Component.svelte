@@ -1,9 +1,10 @@
 <script lang="ts">
 	import OGLayout from '../OGLayout.svelte';
 
-	let { title, description } = $props<{
+	let { title, description, domain } = $props<{
 		title?: string | null;
 		description?: string | null;
+		domain?: string | null;
 	}>();
 
 	const displayTitle = $derived((title?.trim() || 'Welcome Back').slice(0, 42));
@@ -14,4 +15,4 @@
 	);
 </script>
 
-<OGLayout label="Authentication" title={displayTitle} subtitle={displayDescription} />
+<OGLayout label="Authentication" title={displayTitle} subtitle={displayDescription} domain={domain} />

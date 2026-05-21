@@ -1,10 +1,11 @@
 <script lang="ts">
 	import OGLayout from '../OGLayout.svelte';
 
-	let { label, title, description } = $props<{
+	let { label, title, description, domain } = $props<{
 		label?: string | null;
 		title?: string | null;
 		description?: string | null;
+		domain?: string | null;
 	}>();
 
 	const displayLabel = $derived(label?.trim() || 'Information');
@@ -16,4 +17,4 @@
 	);
 </script>
 
-<OGLayout label={displayLabel} title={displayTitle} subtitle={displayDescription} />
+<OGLayout label={displayLabel} title={displayTitle} subtitle={displayDescription} domain={domain} />

@@ -1,9 +1,10 @@
 <script lang="ts">
 	import OGLayout from '../OGLayout.svelte';
 
-	let { title, description } = $props<{
+	let { title, description, domain } = $props<{
 		title?: string | null;
 		description?: string | null;
+		domain?: string | null;
 	}>();
 
 	const displayTitle = $derived((title?.trim() || 'Chithi').slice(0, 42));
@@ -19,5 +20,6 @@
 	label="Private by design"
 	title={displayTitle}
 	subtitle={displayDescription}
+	domain={domain}
 	footerTags={['End-to-end encryption', 'Auto-expiring links', 'Zero-knowledge transfer']}
 />

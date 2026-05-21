@@ -1,9 +1,10 @@
 <script lang="ts">
 	import OGLayout from '../OGLayout.svelte';
 
-	let { title, description } = $props<{
+	let { title, description, domain } = $props<{
 		title?: string | null;
 		description?: string | null;
+		domain?: string | null;
 	}>();
 
 	const displayTitle = $derived((title?.trim() || 'Upload Files').slice(0, 42));
@@ -14,4 +15,4 @@
 	);
 </script>
 
-<OGLayout label="Share Securely" title={displayTitle} subtitle={displayDescription} />
+<OGLayout label="Share Securely" title={displayTitle} subtitle={displayDescription} domain={domain} />
