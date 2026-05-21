@@ -21,16 +21,12 @@
 
 Chithi (pronounced: chee-thee | IPA: `/ˈtʃiː θiː/`) is an open source end-to-end encrypted file sharing system with a zero trust backend server architecture. 
 
-## Steering the project
-
-If you have a vision for this project, i am looking for you. Feel free to drop an issue for joining the organization.
-
 ## Contributing
 
 Contributions are welcome. Please open issues for bugs or feature requests, and open pull requests for proposed fixes. Follow existing code style where applicable.
 
 
-## Contact
+## Interaction
 
 If you need help running the project or want to contribute, open an issue or a discussion.
 
