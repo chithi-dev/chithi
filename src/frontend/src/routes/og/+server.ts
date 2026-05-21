@@ -6,12 +6,29 @@ import ImageResponse from 'takumi-js/response';
 import type { RequestEvent } from './$types';
 import Component from './Component.svelte';
 
-export async function GET({ url }: RequestEvent) {
+function getRequestDomain(url: URL, request: Request) {
+	const forwardedHost = request.headers.get('x-forwarded-host');
+	const host = forwardedHost?.split(',')[0]?.trim() ?? request.headers.get('host');
+	if (host) {
+		return host.replace(/:\d+$/, '');
+	}
+
+	return url.hostname;
+}
+
+export async function GET({ url, request }: RequestEvent) {
+	const domain = getRequestDomain(url, request);
+	const rawKind = url.searchParams.get('type');
+	const kind = rawKind?.trim().toLowerCase() || 'base';
 	const { body, head } = await render(Component, {
 		props: {
+			kind,
 			label: url.searchParams.get('label'),
 			title: url.searchParams.get('title'),
-			description: url.searchParams.get('description')
+			description: url.searchParams.get('description'),
+			filename: url.searchParams.get('filename'),
+			size: url.searchParams.get('size'),
+			domain
 		}
 	});
 

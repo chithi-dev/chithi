@@ -4,8 +4,10 @@ export enum UploadStage {
 	Stage_3
 }
 
+const uploadStages = new Set<UploadStage>(
+	Object.values(UploadStage).filter((value): value is UploadStage => typeof value === 'number')
+);
+
 export const isWhichUploadStage = (value: unknown): value is UploadStage => {
-	return (
-		value === UploadStage.Stage_1 || value === UploadStage.Stage_2 || value === UploadStage.Stage_3
-	);
+	return typeof value === 'number' && uploadStages.has(value);
 };

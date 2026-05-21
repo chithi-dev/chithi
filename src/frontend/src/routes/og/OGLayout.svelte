@@ -4,16 +4,24 @@
 	import logo from '$lib/assets/logo.svg?raw';
 
 	let {
+		domain,
 		label,
 		title,
 		subtitle,
 		footerTags = ['End-to-end encryption', 'Auto-expiring links', 'Zero-knowledge']
 	} = $props<{
+		domain?: string;
 		label: string;
 		title: string;
 		subtitle: string;
 		footerTags?: string[];
 	}>();
+
+	const RTL_CHARACTERS = /[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/;
+	const displayDomain = $derived(domain?.trim() || '');
+	const isRtl = $derived(RTL_CHARACTERS.test(`${label} ${title} ${subtitle}`));
+	const direction = $derived(isRtl ? 'rtl' : 'ltr');
+	const domainAlignClass = $derived(isRtl ? 'ml-auto text-right' : 'mr-auto text-left');
 </script>
 
 <div
@@ -26,6 +34,14 @@
 	<div
 		class="absolute -right-50 -bottom-50 flex h-150 w-150 rounded-full bg-[rgba(214,16,179,0.15)] blur-[120px]"
 	></div>
+	<div class="absolute top-10 right-24 left-24 z-10 flex">
+		<div
+			class={`flex items-center text-[20px] font-semibold text-[#e5e7eb] ${domainAlignClass}`}
+			dir={direction}
+		>
+			{displayDomain}
+		</div>
+	</div>
 
 	<!-- Main Content Row -->
 	<div class="relative z-10 flex flex-row items-center">
