@@ -10,7 +10,7 @@
 		subtitle,
 		footerTags = ['End-to-end encryption', 'Auto-expiring links', 'Zero-knowledge']
 	} = $props<{
-		domain?: string | null;
+		domain?: string;
 		label: string;
 		title: string;
 		subtitle: string;
@@ -34,17 +34,14 @@
 	<div
 		class="absolute -right-50 -bottom-50 flex h-150 w-150 rounded-full bg-[rgba(214,16,179,0.15)] blur-[120px]"
 	></div>
-
-	{#if displayDomain}
-		<div class="absolute left-24 right-24 top-10 z-10 flex">
-			<div
-				class={`flex items-center text-[20px] font-semibold text-[#e5e7eb] ${domainAlignClass}`}
-				dir={direction}
-			>
-				{displayDomain}
-			</div>
+	<div class="absolute top-10 right-24 left-24 z-10 flex">
+		<div
+			class={`flex items-center text-[20px] font-semibold text-[#e5e7eb] ${domainAlignClass}`}
+			dir={direction}
+		>
+			{displayDomain}
 		</div>
-	{/if}
+	</div>
 
 	<!-- Main Content Row -->
 	<div class="relative z-10 flex flex-row items-center">
