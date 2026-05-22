@@ -1,4 +1,4 @@
-import { hashSHA256 } from './security';
+import { hashSHA256 } from '#functions/security';
 
 export async function make_libravatar_url(email: string) {
 	const hash = await hashSHA256(email);

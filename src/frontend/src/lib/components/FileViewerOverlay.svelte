@@ -51,6 +51,26 @@
 
 	type MediaKind = 'image' | 'video' | 'audio' | 'other';
 
+	type ImageInfo = {
+		title: string;
+		message?: string | null;
+		mime?: string | null;
+	};
+
+	type IconComponent = typeof Link;
+
+	type ToolbarAction = {
+		key: string;
+		label: string;
+		activeLabel?: string;
+		icon: IconComponent;
+		activeIcon?: IconComponent;
+		onClick: () => void;
+		disabled?: boolean;
+		active?: boolean;
+		isVisible: boolean;
+	};
+
 	const heicExtensions = ['.heic', '.heif'];
 
 	let sniffedKind = $state<MediaKind | null>(null);
@@ -112,28 +132,30 @@
 		heicConverting = true;
 		heicError = null;
 
-		heicConvertPromise = (async () => {
-			try {
-				const result = await heicTo({ blob: sourceBlob, type: 'image/png' });
-				const pngBlob = result instanceof Blob ? result : null;
-				if (!pngBlob || token !== heicConversionToken) return null;
-				heicConvertedBlob = pngBlob;
-				heicConvertedUrl = URL.createObjectURL(pngBlob);
-				return pngBlob;
-			} catch {
-				if (token === heicConversionToken) {
-					heicError = 'Could not convert this HEIC image.';
-				}
-				return null;
-			} finally {
-				if (token === heicConversionToken) {
-					heicConverting = false;
-					heicConvertPromise = null;
-				}
-			}
-		})();
+		heicConvertPromise = runHeicConversion(token);
 
 		return await heicConvertPromise;
+	}
+
+	async function runHeicConversion(token: number) {
+		try {
+			const result = await heicTo({ blob: sourceBlob!, type: 'image/png' });
+			const pngBlob = result instanceof Blob ? result : null;
+			if (!pngBlob || token !== heicConversionToken) return null;
+			heicConvertedBlob = pngBlob;
+			heicConvertedUrl = URL.createObjectURL(pngBlob);
+			return pngBlob;
+		} catch {
+			if (token === heicConversionToken) {
+				heicError = 'Could not convert this HEIC image.';
+			}
+			return null;
+		} finally {
+			if (token === heicConversionToken) {
+				heicConverting = false;
+				heicConvertPromise = null;
+			}
+		}
 	}
 
 	function handleDownloadOriginal() {
@@ -214,9 +236,72 @@
 	const isImageUnsupported = $derived(!isHeic && imageSupport?.status === 'unsupported');
 	const imageSupportMessage = $derived(imageSupport?.message ?? null);
 
+	const imageInfo = $derived<ImageInfo | null>(
+		isHeic && !heicConverting && !heicConvertedUrl
+			? {
+					title: heicError ?? 'Unable to preview this HEIC image.',
+					message: imageSupportMessage,
+					mime: sniffedMime
+				}
+			: isImageUnsupported
+				? {
+						title: 'This image format is not supported in this browser.',
+						message: imageSupportMessage,
+						mime: sniffedMime
+					}
+				: null
+	);
+
+	const toolbarActions = $derived<ToolbarAction[]>([
+		{
+			key: 'copy-text',
+			isVisible: contentText !== null,
+			label: 'Copy Text',
+			activeLabel: 'Copied Text',
+			icon: Copy,
+			activeIcon: Check,
+			active: textCopied,
+			onClick: handleCopyText
+		},
+		{
+			key: 'copy-link',
+			isVisible: Boolean(oncopylink),
+			label: 'Copy Link',
+			activeLabel: 'Copied Link',
+			icon: Link,
+			activeIcon: Check,
+			active: copied,
+			onClick: handleCopyLink
+		},
+		{
+			key: 'save-original',
+			isVisible: Boolean(ondownload) && isHeic,
+			label: 'Save Original',
+			icon: Download,
+			onClick: handleDownloadOriginal
+		},
+		{
+			key: 'save-png',
+			isVisible: Boolean(ondownload) && isHeic,
+			label: heicConverting && !heicConvertedBlob ? 'Converting...' : 'Save PNG',
+			icon: Download,
+			onClick: handleDownloadPng,
+			disabled: heicConverting && !heicConvertedBlob
+		},
+		{
+			key: 'save',
+			isVisible: Boolean(ondownload) && !isHeic,
+			label: 'Save',
+			icon: Download,
+			onClick: () => ondownload?.()
+		}
+	]);
+
+	const visibleToolbarActions = $derived(toolbarActions.filter((action) => action.isVisible));
+
 	$effect(() => {
 		if (!sourceBlob || !isHeic) return;
-		void convertHeicToPng();
+		convertHeicToPng();
 	});
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -253,75 +338,19 @@
 				<span class="truncate text-sm font-medium text-white">{baseName}</span>
 			</div>
 			<div class="flex items-center gap-1">
-				{#if contentText !== null}
+				{#each visibleToolbarActions as action (action.key)}
+					{@const Icon = action.active ? (action.activeIcon ?? action.icon) : action.icon}
 					<Button
 						variant="ghost"
 						size="sm"
 						class="h-7 gap-1.5 px-2 text-xs text-white/70 hover:bg-white/10 hover:text-white"
-						onclick={handleCopyText}
+						disabled={action.disabled}
+						onclick={action.onClick}
 					>
-						{#if textCopied}
-							<Check class="h-3.5 w-3.5" />
-							Copied Text
-						{:else}
-							<Copy class="h-3.5 w-3.5" />
-							Copy Text
-						{/if}
+						<Icon class="h-3.5 w-3.5" />
+						{action.active ? (action.activeLabel ?? action.label) : action.label}
 					</Button>
-				{/if}
-				{#if oncopylink}
-					<Button
-						variant="ghost"
-						size="sm"
-						class="h-7 gap-1.5 px-2 text-xs text-white/70 hover:bg-white/10 hover:text-white"
-						onclick={handleCopyLink}
-					>
-						{#if copied}
-							<Check class="h-3.5 w-3.5" />
-							Copied Link
-						{:else}
-							<Link class="h-3.5 w-3.5" />
-							Copy Link
-						{/if}
-					</Button>
-				{/if}
-				{#if ondownload}
-					{#if isHeic}
-						<Button
-							variant="ghost"
-							size="sm"
-							class="h-7 gap-1.5 px-2 text-xs text-white/70 hover:bg-white/10 hover:text-white"
-							onclick={handleDownloadOriginal}
-						>
-							<Download class="h-3.5 w-3.5" />
-							Save Original
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							class="h-7 gap-1.5 px-2 text-xs text-white/70 hover:bg-white/10 hover:text-white"
-							disabled={heicConverting && !heicConvertedBlob}
-							onclick={handleDownloadPng}
-						>
-							<Download class="h-3.5 w-3.5" />
-							{#if heicConverting && !heicConvertedBlob}
-								Converting...
-							{:else}
-								Save PNG
-							{/if}
-						</Button>
-					{:else}
-						<Button
-							variant="ghost"
-							size="sm"
-							class="h-7 gap-1.5 px-2 text-xs text-white/70 hover:bg-white/10 hover:text-white"
-							onclick={ondownload}
-						>
-							<Download class="h-3.5 w-3.5" />
-							Save
-						</Button>
-					{/if}
-				{/if}
+				{/each}
 			</div>
 		</div>
 
@@ -338,51 +367,31 @@
 							Detecting file type...
 						</div>
 					{:else if isImage}
-						{#if isHeic}
-							{#if heicConverting && !heicConvertedUrl}
-								<div class="flex h-full items-center justify-center text-xs text-white/60">
-									<div class="flex items-center gap-2">
-										<Spinner class="size-4" />
-										<span>Converting HEIC to PNG...</span>
-									</div>
+						{#if isHeic && heicConverting && !heicConvertedUrl}
+							<div class="flex h-full items-center justify-center text-xs text-white/60">
+								<div class="flex items-center gap-2">
+									<Spinner class="size-4" />
+									<span>Converting HEIC to PNG...</span>
 								</div>
-							{:else if heicConvertedUrl}
-								<div class="flex h-full items-center justify-center">
-									<img
-										src={heicConvertedUrl}
-										alt={baseName}
-										title={baseName}
-										class="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
-									/>
-								</div>
-							{:else}
-								<div class="flex h-full items-center justify-center">
-									<div
-										class="max-w-md rounded-lg border border-white/10 bg-black/60 p-6 text-center"
-									>
-										<p class="text-sm font-semibold">
-											{heicError ?? 'Unable to preview this HEIC image.'}
-										</p>
-										{#if imageSupportMessage}
-											<p class="mt-2 text-xs text-white/60">{imageSupportMessage}</p>
-										{/if}
-										{#if sniffedMime}
-											<p class="mt-2 text-xs text-white/40">Detected: {sniffedMime}</p>
-										{/if}
-									</div>
-								</div>
-							{/if}
-						{:else if isImageUnsupported}
+							</div>
+						{:else if isHeic && heicConvertedUrl}
+							<div class="flex h-full items-center justify-center">
+								<img
+									src={heicConvertedUrl}
+									alt={baseName}
+									title={baseName}
+									class="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+								/>
+							</div>
+						{:else if imageInfo}
 							<div class="flex h-full items-center justify-center">
 								<div class="max-w-md rounded-lg border border-white/10 bg-black/60 p-6 text-center">
-									<p class="text-sm font-semibold">
-										This image format is not supported in this browser.
-									</p>
-									{#if imageSupportMessage}
-										<p class="mt-2 text-xs text-white/60">{imageSupportMessage}</p>
+									<p class="text-sm font-semibold">{imageInfo.title}</p>
+									{#if imageInfo.message}
+										<p class="mt-2 text-xs text-white/60">{imageInfo.message}</p>
 									{/if}
-									{#if sniffedMime}
-										<p class="mt-2 text-xs text-white/40">Detected: {sniffedMime}</p>
+									{#if imageInfo.mime}
+										<p class="mt-2 text-xs text-white/40">Detected: {imageInfo.mime}</p>
 									{/if}
 								</div>
 							</div>

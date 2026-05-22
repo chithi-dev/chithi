@@ -10,8 +10,8 @@
 	import { OnboardingStep } from './enums';
 
 	// Steps
-	import Step1 from './stage_1.svelte';
-	import Step2 from './stage_2.svelte';
+	const { default: Step1 } = await import('./stage_1.svelte');
+	const { default: Step2 } = await import('./stage_2.svelte');
 
 	const { status } = useOnboarding();
 
