@@ -7,8 +7,9 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Trash2, UserPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
-	import CreateUserDialog from './create_user_dialog.svelte';
-	import DeleteUserDialog from './delete_user_dialog.svelte';
+
+	const { default: CreateUserDialog } = await import('./create_user_dialog.svelte');
+	const { default: DeleteUserDialog } = await import('./delete_user_dialog.svelte');
 
 	let currentPage = $state(1);
 	const pageSize = 20;

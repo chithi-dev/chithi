@@ -43,8 +43,8 @@
 		isLoading = true;
 		try {
 			await update_config({
-				total_storage_limit_gb: bytesToNumber(storageLimitVal, storageLimitUnit),
-				max_file_size_mb: bytesToNumber(maxFileVal, maxFileUnit),
+				total_storage_limit: bytesToNumber(storageLimitVal, storageLimitUnit),
+				max_file_size_limit: bytesToNumber(maxFileVal, maxFileUnit),
 				site_description: description
 			});
 			toast.success('Configuration saved');

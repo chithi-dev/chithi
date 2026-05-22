@@ -3,8 +3,9 @@
 	import { useAuth } from '#queries/auth';
 	import { kebab_to_initials } from '#functions/string-conversion';
 	import { make_libravatar_url } from '#functions/libravatar';
-	import ProfileFieldsGroup from './profile_fields_group.svelte';
-	import ProfileSubmitSection from './profile_submit_section.svelte';
+
+	const { default: ProfileFieldsGroup } = await import('./profile_fields_group.svelte');
+	const { default: ProfileSubmitSection } = await import('./profile_submit_section.svelte');
 
 	const { user, updateUser } = useAuth();
 

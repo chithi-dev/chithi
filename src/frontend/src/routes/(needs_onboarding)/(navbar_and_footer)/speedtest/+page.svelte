@@ -18,8 +18,9 @@
 	import { Play, RotateCw, Activity, ArrowDown, ArrowUp, Timer } from '@lucide/svelte';
 	import { Api } from '#consts/backend';
 	import SpeedtestWorker from './speedtest.worker?worker';
-	import SpeedGauge from './SpeedGauge.svelte';
-	import SpeedGraph from './SpeedGraph.svelte';
+
+	const { default: SpeedGauge } = await import('./SpeedGauge.svelte');
+	const { default: SpeedGraph } = await import('./SpeedGraph.svelte');
 
 	let worker: Worker | undefined;
 	let status = $state<
