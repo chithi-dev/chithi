@@ -2,7 +2,9 @@ import { WORKER_CONCURRENCY } from '#consts/concurrency';
 import { HKDF_IV_STR, HKDF_SALT_STR } from '#consts/encryption';
 import DecryptWorker from '#workers/decrypt.worker?worker';
 import EncryptWorker from '#workers/encrypt.worker?worker';
+
 import { ZipWriter } from '@zip.js/zip.js';
+
 import {
 	CHUNK_SIZE,
 	argon2Derive,

@@ -1,9 +1,10 @@
-import rehypeSanitize from 'rehype-sanitize';
-import rehypeStringify from 'rehype-stringify';
-import remarkParse from 'remark-parse';
-import remarkRehype from 'remark-rehype';
-import { unified } from 'unified';
 import rehypeEmailMangle from './plugins/email-obfuscate';
+
+const { unified } = await import('unified');
+const { default: remarkParse } = await import('remark-parse');
+const { default: remarkRehype } = await import('remark-rehype');
+const { default: rehypeSanitize } = await import('rehype-sanitize');
+const { default: rehypeStringify } = await import('rehype-stringify');
 
 export async function markdown_to_html(markdown: string) {
 	const result = await unified()
