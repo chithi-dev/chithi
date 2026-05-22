@@ -3,8 +3,6 @@
 	import { useConfigQuery } from '#queries/config';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
-	import RecentUpload from './recent_upload.svelte';
-	import UploadShowcase from './upload_showcase.svelte';
 	import { toast } from 'svelte-sonner';
 	import { dev } from '$app/environment';
 	import { markdown_to_html } from '$lib/markdown/markdown';
@@ -12,11 +10,16 @@
 	import { fly, fade } from 'svelte/transition';
 	import { onMount } from 'svelte';
 	import { CloudOff } from '@lucide/svelte';
+	import { UploadStage, isWhichUploadStage } from './enums';
 
+	// Stages
 	const { default: Stage1 } = await import('./stage_1.svelte');
 	const { default: Stage2 } = await import('./stage_2.svelte');
 	const { default: Stage3 } = await import('./stage_3.svelte');
-	import { UploadStage, isWhichUploadStage } from './enums';
+
+	// Modals
+	const { default: UploadShowcase } = await import('./upload_showcase.svelte');
+	const { default: RecentUpload } = await import('./recent_upload.svelte');
 
 	const { config: configData } = useConfigQuery();
 

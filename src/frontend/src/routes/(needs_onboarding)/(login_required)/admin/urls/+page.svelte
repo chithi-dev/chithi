@@ -5,7 +5,8 @@
 	import { useFilesQuery } from '#queries/files';
 	import { toast } from 'svelte-sonner';
 	import { page } from '$app/state';
-	import OutstandingUrlsCard from './outstanding_urls_card.svelte';
+
+	const { default: OutstandingUrlsCard } = await import('./outstanding_urls_card.svelte');
 
 	let currentPage = $state(1);
 	const pageSize = 20;
