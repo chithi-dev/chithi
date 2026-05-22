@@ -9,7 +9,6 @@
 	import { formatSeconds } from '#functions/times';
 	import { createZipStream, createEncryptedStream } from '#functions/streams';
 	import * as Tooltip from '$lib/components/ui/tooltip/index';
-	import { v7 as uuidv7 } from 'uuid';
 	import { Api } from '#consts/backend';
 	import { Progress } from '$lib/components/ui/progress';
 	import { addHistoryEntry } from '$lib/database';
@@ -45,6 +44,8 @@
 
 	let fileInput = $state<HTMLInputElement>();
 
+	const { v7: uuidv7 } = await import('uuid');
+
 	// Flattened settings
 	let downloadLimit = $state('1');
 	let timeLimit = $state('86400');
@@ -66,7 +67,9 @@
 		if (files.length === 1) {
 			folderName = files[0].name;
 		} else if (files.length === 0) {
-			folderName = uuidv7();
+			import('uuid').then(({ v7: uuidv7 }) => {
+				folderName = uuidv7();
+			});
 		}
 	});
 

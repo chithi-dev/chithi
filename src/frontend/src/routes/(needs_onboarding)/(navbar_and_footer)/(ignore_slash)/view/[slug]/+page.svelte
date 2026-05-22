@@ -30,10 +30,12 @@
 	import { Progress } from '$lib/components/ui/progress';
 	import { cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
-	import { ZipReader, BlobReader, BlobWriter, type Entry } from '@zip.js/zip.js';
+	import type { Entry } from '@zip.js/zip.js';
 	import { detectMimeFromBlob } from '#functions/mime';
 	import { createViewableText } from '$lib/functions/viewer';
 	import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
+
+	const { ZipReader, BlobReader, BlobWriter } = await import('@zip.js/zip.js');
 
 	let key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
 	let slug = $derived(page.params.slug);

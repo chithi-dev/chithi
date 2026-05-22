@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
-	import QRCode from 'qrcode';
+
+	const { default: QRCode } = await import('qrcode');
 
 	interface Props {
 		value: string;
