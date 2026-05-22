@@ -13,9 +13,9 @@
 	import { onMount } from 'svelte';
 	import { CloudOff } from '@lucide/svelte';
 
-	import Stage1 from './stage_1.svelte';
-	import Stage2 from './stage_2.svelte';
-	import Stage3 from './stage_3.svelte';
+	const { default: Stage1 } = await import('./stage_1.svelte');
+	const { default: Stage2 } = await import('./stage_2.svelte');
+	const { default: Stage3 } = await import('./stage_3.svelte');
 	import { UploadStage, isWhichUploadStage } from './enums';
 
 	const { config: configData } = useConfigQuery();

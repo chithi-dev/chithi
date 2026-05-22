@@ -1,4 +1,3 @@
-import type { Config } from '@sveltejs/kit';
 import { vitePreprocess } from '@sveltejs/vite-plugin-svelte';
 
 import node_adapter from '@sveltejs/adapter-node';
@@ -37,4 +36,4 @@ export default {
 			'#css/*': './src/css/*'
 		}
 	}
-} satisfies Config;
+};
