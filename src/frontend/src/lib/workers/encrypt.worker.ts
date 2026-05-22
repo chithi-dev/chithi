@@ -1,4 +1,4 @@
-import { getChunkIv } from '../functions/encryption';
+import { getChunkIv } from '#functions/encryption';
 
 let aesKey: CryptoKey | null = null;
 let baseIv: Uint8Array | null = null;
