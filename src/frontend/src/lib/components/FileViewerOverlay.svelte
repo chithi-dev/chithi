@@ -49,6 +49,32 @@
 
 	const baseName = $derived(filename.split(/[/\\]/).pop() ?? filename);
 
+	const unopenableExtensions = [
+		'.exe',
+		'.bin',
+		'.so',
+		'.dll',
+		'.msi',
+		'.app',
+		'.dmg',
+		'.pkg',
+		'.iso',
+		'.vmdk',
+		'.a',
+		'.lib',
+		'.obj',
+		'.o',
+		'.pyc',
+		'.pyo',
+		'.pyd',
+		'.deb',
+		'.rpm'
+	];
+
+	const isUnopenable = $derived(
+		unopenableExtensions.some((ext) => filename.toLowerCase().endsWith(ext))
+	);
+
 	type MediaKind = 'image' | 'video' | 'audio' | 'other';
 
 	type ImageInfo = {
@@ -182,7 +208,7 @@
 		imageSupport = null;
 		resetHeicState();
 
-		if (!contentUrl || contentText !== null) return;
+		if (!contentUrl || contentText !== null || isUnopenable) return;
 
 		let cancelled = false;
 
@@ -255,7 +281,7 @@
 	const toolbarActions = $derived<ToolbarAction[]>([
 		{
 			key: 'copy-text',
-			isVisible: contentText !== null,
+			isVisible: contentText !== null && !isUnopenable,
 			label: 'Copy Text',
 			activeLabel: 'Copied Text',
 			icon: Copy,
@@ -357,7 +383,16 @@
 		<!-- Content -->
 		<div class="pointer-events-none min-h-0 flex-1 p-3 sm:p-6">
 			<div class="pointer-events-auto mx-auto flex h-full w-full max-w-6xl flex-col">
-				{#if contentText !== null}
+				{#if isUnopenable}
+					<div class="flex h-full items-center justify-center">
+						<div class="max-w-md rounded-lg border border-white/10 bg-black/60 p-6 text-center">
+							<p class="text-sm font-semibold">This file type cannot be previewed.</p>
+							<p class="mt-2 text-xs text-white/60">
+								Binary files and executables are not supported for online viewing.
+							</p>
+						</div>
+					</div>
+				{:else if contentText !== null}
 					<div class="h-full overflow-hidden rounded-lg border border-white/10 bg-[#0F111A]">
 						<CodeViewer text={contentText} filename={baseName} />
 					</div>
