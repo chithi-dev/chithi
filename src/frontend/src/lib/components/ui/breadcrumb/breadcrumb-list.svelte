@@ -14,7 +14,7 @@
 	bind:this={ref}
 	data-slot="breadcrumb-list"
 	class={cn(
-		'flex flex-wrap items-center gap-1.5 text-sm wrap-break-word text-muted-foreground',
+		'text-muted-foreground gap-1.5 text-sm flex flex-wrap items-center wrap-break-word',
 		className
 	)}
 	{...restProps}
