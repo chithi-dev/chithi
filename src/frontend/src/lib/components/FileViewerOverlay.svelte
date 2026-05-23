@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import { Download, Link, Check, ArrowLeft, Copy, Wand2 } from '@lucide/svelte';
+	import { Download, Link, Check, ArrowLeft, Copy, WandSparkles } from '@lucide/svelte';
 	import { fade } from 'svelte/transition';
 	import CodeViewer from '$lib/components/CodeViewer.svelte';
 	import { detectMimeFromBlob } from '$lib/functions/mime';
@@ -391,7 +391,7 @@
 			key: 'optimize-png',
 			isVisible: Boolean(ondownload) && isConvertible,
 			label: converting && !convertedBlob && isOptimizing ? 'Optimizing...' : 'Optimize PNG',
-			icon: Wand2,
+			icon: WandSparkles,
 			onClick: handleOptimizePng,
 			disabled: converting && !isOptimizing
 		}
