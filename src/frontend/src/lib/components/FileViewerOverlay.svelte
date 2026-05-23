@@ -161,7 +161,14 @@
 				if (!type) return null;
 
 				let svgText = null;
-				if (type === 'svg') {
+				let heicPngBuffer: ArrayBuffer | null = null;
+
+				// HEIC conversion must happen on main thread (heic-to requires DOM)
+				if (isHeic) {
+					const { heicTo } = await import('heic-to');
+					const resultBlob = await heicTo({ blob: sourceBlob!, type: 'image/png' });
+					heicPngBuffer = await resultBlob.arrayBuffer();
+				} else if (type === 'svg') {
 					svgText = contentText;
 					if (!svgText && contentUrl) {
 						const response = await fetch(contentUrl);
@@ -210,7 +217,14 @@
 						reject(e);
 						worker.terminate();
 					};
-					worker.postMessage({ type, blob: sourceBlob, text: svgText, optimize });
+					// Send pre-converted HEIC buffer or let worker handle conversion
+					worker.postMessage({
+						type: isHeic ? 'png' : type,
+						blob: isHeic ? null : sourceBlob,
+						text: svgText,
+						pngBuffer: heicPngBuffer,
+						optimize
+					});
 				});
 			} catch (e: any) {
 				console.error('Conversion failed:', e);
@@ -380,13 +394,6 @@
 			icon: Wand2,
 			onClick: handleOptimizePng,
 			disabled: converting && !isOptimizing
-		},
-		{
-			key: 'save',
-			isVisible: Boolean(ondownload) && !isConvertible,
-			label: 'Save',
-			icon: Download,
-			onClick: () => ondownload?.()
 		}
 	]);
 	const visibleToolbarActions = $derived(toolbarActions.filter((action) => action.isVisible));
