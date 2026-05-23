@@ -164,21 +164,9 @@
 				const isSvg = sniffedMime === 'image/svg+xml';
 				const isJxl = sniffedMime === 'image/jxl';
 				const isPng = sniffedMime === 'image/png';
-
 				const type = isHeic ? 'heic' : isSvg ? 'svg' : isJxl ? 'jxl' : isPng ? 'png' : null;
+
 				if (!type) return null;
-
-				const { threads } = await import('wasm-feature-detect');
-				const hasThreads = await threads();
-
-				const wasmUrls = {
-					jxl: (await import('@jsquash/jxl/codec/dec/jxl_dec.wasm?url')).default,
-					png: (await import('@jsquash/png/codec/pkg/squoosh_png_bg.wasm?url')).default,
-					oxipng: hasThreads
-						? (await import('@jsquash/oxipng/codec/pkg-parallel/squoosh_oxipng_bg.wasm?url')).default
-						: (await import('@jsquash/oxipng/codec/pkg/squoosh_oxipng_bg.wasm?url')).default,
-					resvg: (await import('@resvg/resvg-wasm/index_bg.wasm?url')).default
-				};
 
 				let svgText = null;
 				if (type === 'svg') {
@@ -209,18 +197,13 @@
 							worker.terminate();
 						}
 					};
-
 					worker.onerror = (e) => {
 						reject(e);
 						worker.terminate();
 					};
 
-					worker.postMessage({
-						type,
-						blob: sourceBlob,
-						text: svgText,
-						wasmUrls
-					});
+					// WASM URLs are now resolved internally by the worker
+					worker.postMessage({ type, blob: sourceBlob, text: svgText });
 				});
 			} catch (e: any) {
 				console.error('Conversion failed:', e);
@@ -334,7 +317,9 @@
 	const imageInfo = $derived<ImageInfo | null>(
 		isConvertible && !converting && !convertedUrl
 			? {
-					title: conversionError ?? `Unable to preview this ${sniffedMime?.split('/')[1].toUpperCase()} image.`,
+					title:
+						conversionError ??
+						`Unable to preview this ${sniffedMime?.split('/')[1].toUpperCase()} image.`,
 					message: imageSupportMessage,
 					mime: sniffedMime
 				}

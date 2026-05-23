@@ -1,39 +1,52 @@
 import decodeJxl, { init as initJxl } from '@jsquash/jxl/decode';
-import encodePng, { init as initPng } from '@jsquash/png/encode';
 import optimisePng, { init as initOxipng } from '@jsquash/oxipng/optimise';
+import encodePng, { init as initPng } from '@jsquash/png/encode';
 import { Resvg, initWasm as initResvg } from '@resvg/resvg-wasm';
+import { threads } from 'wasm-feature-detect';
+
+// Vite will resolve these WASM URLs at build time.
+import jxlWasmUrl from '@jsquash/jxl/codec/dec/jxl_dec.wasm?url';
+import oxipngParallelWasmUrl from '@jsquash/oxipng/codec/pkg-parallel/squoosh_oxipng_bg.wasm?url';
+import oxipngWasmUrl from '@jsquash/oxipng/codec/pkg/squoosh_oxipng_bg.wasm?url';
+import pngWasmUrl from '@jsquash/png/codec/pkg/squoosh_png_bg.wasm?url';
+import resvgWasmUrl from '@resvg/resvg-wasm/index_bg.wasm?url';
 
 let jxlInitialized = false;
 let pngInitialized = false;
 let oxipngInitialized = false;
 let resvgInitialized = false;
+let oxipngUrl: string | null = null;
 
 self.addEventListener('message', async (event) => {
-	const { type, blob, text, wasmUrls } = event.data;
-
+	const { type, blob, text } = event.data;
 	try {
 		let pngBuffer: ArrayBufferLike | null = null;
 
+		// Resolve the correct oxipng WASM once, based on SharedArrayBuffer/thread support
+		if (!oxipngUrl) {
+			const hasThreads = await threads();
+			oxipngUrl = hasThreads ? oxipngParallelWasmUrl : oxipngWasmUrl;
+		}
+
 		if (type === 'jxl') {
 			if (!jxlInitialized) {
-				await initJxl({ locateFile: () => wasmUrls.jxl });
+				await initJxl({ locateFile: () => jxlWasmUrl });
 				jxlInitialized = true;
 			}
 			if (!pngInitialized) {
-				await initPng(wasmUrls.png);
+				await initPng(pngWasmUrl);
 				pngInitialized = true;
 			}
 			const buffer = await blob.arrayBuffer();
 			const imageData = await decodeJxl(buffer);
 			pngBuffer = await encodePng(imageData);
 		} else if (type === 'heic') {
-			// heic-to might need to be imported dynamically to avoid issues
 			const { heicTo } = await import('heic-to');
 			const resultBlob = await heicTo({ blob, type: 'image/png' });
 			pngBuffer = await resultBlob.arrayBuffer();
 		} else if (type === 'svg') {
 			if (!resvgInitialized) {
-				await initResvg(wasmUrls.resvg);
+				await initResvg(resvgWasmUrl);
 				resvgInitialized = true;
 			}
 			const resvg = new Resvg(text);
@@ -44,15 +57,14 @@ self.addEventListener('message', async (event) => {
 
 		if (pngBuffer) {
 			if (!oxipngInitialized) {
-				await initOxipng(wasmUrls.oxipng);
+				await initOxipng(oxipngUrl);
 				oxipngInitialized = true;
 			}
-			// Absolute best performance, no compromise: level 3 optimization
 			const optimizedBuffer = await optimisePng(pngBuffer as ArrayBuffer, { level: 3 });
 
 			const resultBlob = new Blob([optimizedBuffer], { type: 'image/png' });
 			const transferList = optimizedBuffer instanceof ArrayBuffer ? [optimizedBuffer] : [];
-			
+
 			(self as any).postMessage(
 				{
 					type: 'success',
