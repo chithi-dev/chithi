@@ -217,6 +217,10 @@ services:
             - 'traefik.http.routers.frontend.tls=true'
             - 'traefik.http.routers.frontend.tls.certresolver=letsencrypt'
             - 'traefik.http.services.frontend.loadbalancer.server.port=3000'
+            - "traefik.http.middlewares.coep.headers.customResponseHeaders.Cross-Origin-Opener-Policy=same-origin"
+            - "traefik.http.middlewares.coep.headers.customResponseHeaders.Cross-Origin-Embedder-Policy=require-corp"
+            - "traefik.http.middlewares.coep.headers.customResponseHeaders.Cross-Origin-Resource-Policy=same-origin"
+            - "traefik.http.routers.frontend.middlewares=coep@docker"
             # Watchtower
             - 'com.centurylinklabs.watchtower.enable=true'
         environment:
