@@ -13,6 +13,12 @@ const { default: webpData } = await import('caniuse-lite/data/features/webp');
 // @ts-expect-error: type is not available
 const { default: jpegxlData } = await import('caniuse-lite/data/features/jpegxl');
 
+// @ts-expect-error: type is not available
+const { default: jpegxrData } = await import('caniuse-lite/data/features/jpegxr');
+
+// @ts-expect-error: type is not available
+const { default: svgData } = await import('caniuse-lite/data/features/svg-img');
+
 type CaniuseStats = Record<string, Record<string, string>>;
 
 type CaniuseFeature = {
@@ -33,7 +39,9 @@ const featureByMime: Record<string, CaniuseFeature> = {
 	'image/heif': toFeature(heifData),
 	'image/heic': toFeature(heifData),
 	'image/webp': toFeature(webpData),
-	'image/jxl': toFeature(jpegxlData)
+	'image/jxl': toFeature(jpegxlData),
+	'image/jxr': toFeature(jpegxrData),
+	'image/svg+xml': toFeature(svgData)
 };
 
 const agentLabels = {
