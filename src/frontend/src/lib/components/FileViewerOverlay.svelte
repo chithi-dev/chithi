@@ -5,7 +5,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import { Download, Link, Check, ArrowLeft, Copy } from '@lucide/svelte';
+	import { Download, Link, Check, ArrowLeft, Copy, Wand2 } from '@lucide/svelte';
 	import { fade } from 'svelte/transition';
 	import CodeViewer from '$lib/components/CodeViewer.svelte';
 	import { detectMimeFromBlob } from '$lib/functions/mime';
@@ -31,7 +31,6 @@
 
 	let copied = $state(false);
 	let copyTimeout: ReturnType<typeof setTimeout> | undefined;
-
 	function handleCopyLink() {
 		oncopylink?.();
 		copied = true;
@@ -41,7 +40,6 @@
 
 	let textCopied = $state(false);
 	let textCopyTimeout: ReturnType<typeof setTimeout> | undefined;
-
 	function handleCopyText() {
 		if (contentText) {
 			navigator.clipboard.writeText(contentText);
@@ -74,21 +72,17 @@
 		'.deb',
 		'.rpm'
 	];
-
 	const isUnopenable = $derived(
 		unopenableExtensions.some((ext) => filename.toLowerCase().endsWith(ext))
 	);
 
 	type MediaKind = 'image' | 'video' | 'audio' | 'other';
-
 	type ImageInfo = {
 		title: string;
 		message?: string | null;
 		mime?: string | null;
 	};
-
 	type IconComponent = typeof Link;
-
 	type ToolbarAction = {
 		key: string;
 		label: string;
@@ -102,12 +96,16 @@
 	};
 
 	const heicExtensions = ['.heic', '.heif'];
+	const jxlExtensions = ['.jxl'];
 
 	let sniffedKind = $state<MediaKind | null>(null);
 	let sniffedMime = $state<string | null>(null);
 	let imageSupport = $state<ImageSupportInfo | null>(null);
+
+	// Source & Conversion State
 	let sourceBlob = $state<Blob | null>(null);
 
+	// HEIC
 	let heicConvertedBlob = $state<Blob | null>(null);
 	let heicConvertedUrl = $state<string | null>(null);
 	let heicConverting = $state(false);
@@ -115,11 +113,29 @@
 	let heicConversionToken = 0;
 	let heicConvertPromise: Promise<Blob | null> | null = null;
 
+	// SVG
 	let svgConvertedBlob = $state<Blob | null>(null);
 	let svgConvertedUrl = $state<string | null>(null);
 	let svgConverting = $state(false);
 	let svgError = $state<string | null>(null);
 	let svgConversionToken = 0;
+
+	// JXL
+	let jxlConvertedBlob = $state<Blob | null>(null);
+	let jxlConvertedUrl = $state<string | null>(null);
+	let jxlConverting = $state(false);
+	let jxlError = $state<string | null>(null);
+	let jxlConversionToken = 0;
+	let jxlConvertPromise: Promise<Blob | null> | null = null;
+
+	// Oxipng Optimization
+	let oxipngOptimizedBlob = $state<Blob | null>(null);
+	let oxipngOptimizedUrl = $state<string | null>(null);
+	let oxipngOptimizing = $state(false);
+	let oxipngError = $state<string | null>(null);
+	let oxipngOptimizationToken = 0;
+
+	let useOxipng = $state(false);
 
 	function resetConversionState() {
 		heicConversionToken += 1;
@@ -135,12 +151,28 @@
 		svgConvertedBlob = null;
 		svgConvertedUrl = null;
 
+		jxlConversionToken += 1;
+		jxlConvertPromise = null;
+		jxlConverting = false;
+		jxlError = null;
+		jxlConvertedBlob = null;
+		jxlConvertedUrl = null;
+
+		oxipngOptimizationToken += 1;
+		oxipngOptimizing = false;
+		oxipngError = null;
+		oxipngOptimizedBlob = null;
+		oxipngOptimizedUrl = null;
+
 		sourceBlob = null;
 	}
 
 	function getPngFilename(name: string) {
 		const lower = name.toLowerCase();
-		const matched = heicExtensions.find((ext) => lower.endsWith(ext));
+		const matchedHeic = heicExtensions.find((ext) => lower.endsWith(ext));
+		const matchedJxl = jxlExtensions.find((ext) => lower.endsWith(ext));
+		const matched = matchedHeic ?? matchedJxl;
+
 		if (matched) return `${name.slice(0, -matched.length)}.png`;
 		if (lower.endsWith('.svg')) return `${name.slice(0, -4)}.png`;
 		return `${name}.png`;
@@ -168,20 +200,17 @@
 		document.body.removeChild(a);
 	}
 
+	// HEIC Conversion
 	async function convertHeicToPng() {
 		if (heicConvertedBlob) return heicConvertedBlob;
 		if (!sourceBlob) return null;
 		if (heicConvertPromise) return await heicConvertPromise;
-
 		const token = heicConversionToken;
 		heicConverting = true;
 		heicError = null;
-
 		heicConvertPromise = runHeicConversion(token);
-
 		return await heicConvertPromise;
 	}
-
 	async function runHeicConversion(token: number) {
 		try {
 			const result = await heicTo({ blob: sourceBlob!, type: 'image/png' });
@@ -191,9 +220,7 @@
 			heicConvertedUrl = URL.createObjectURL(pngBlob);
 			return pngBlob;
 		} catch {
-			if (token === heicConversionToken) {
-				heicError = 'Could not convert this HEIC image.';
-			}
+			if (token === heicConversionToken) heicError = 'Could not convert this HEIC image.';
 			return null;
 		} finally {
 			if (token === heicConversionToken) {
@@ -203,9 +230,9 @@
 		}
 	}
 
+	// SVG Conversion
 	async function convertSvgToPng() {
 		if (svgConvertedBlob) return svgConvertedBlob;
-
 		let svgText = contentText;
 		if (!svgText && contentUrl) {
 			try {
@@ -217,11 +244,9 @@
 			}
 		}
 		if (!svgText) return null;
-
 		const token = svgConversionToken;
 		svgConverting = true;
 		svgError = null;
-
 		try {
 			const { Resvg, initWasm } = await import('@resvg/resvg-wasm');
 			if (!resvgInitialized) {
@@ -229,26 +254,92 @@
 				await initWasm(wasmUrl);
 				resvgInitialized = true;
 			}
-
 			const resvg = new Resvg(svgText);
 			const pngData = resvg.render();
 			const pngBlob = new Blob([pngData.asPng() as any], { type: 'image/png' });
-
 			if (token !== svgConversionToken) return null;
-
 			svgConvertedBlob = pngBlob;
 			svgConvertedUrl = URL.createObjectURL(pngBlob);
 			return pngBlob;
 		} catch (e) {
 			console.error('SVG conversion failed:', e);
-			if (token === svgConversionToken) {
-				svgError = 'Could not convert this SVG image.';
-			}
+			if (token === svgConversionToken) svgError = 'Could not convert this SVG image.';
 			return null;
 		} finally {
-			if (token === svgConversionToken) {
-				svgConverting = false;
+			if (token === svgConversionToken) svgConverting = false;
+		}
+	}
+
+	// JXL Conversion (Fixed: Handles ImageData output)
+	async function convertJxlToPng() {
+		if (jxlConvertedBlob) return jxlConvertedBlob;
+		if (!sourceBlob) return null;
+		if (jxlConvertPromise) return await jxlConvertPromise;
+		const token = jxlConversionToken;
+		jxlConverting = true;
+		jxlError = null;
+		jxlConvertPromise = runJxlConversion(token);
+		return await jxlConvertPromise;
+	}
+	async function runJxlConversion(token: number) {
+		try {
+			const { decode } = await import('@jsquash/jxl');
+			// @jsquash/jxl returns ImageData, so we pass an ArrayBuffer for type safety
+			const buffer = await sourceBlob!.arrayBuffer();
+			const imageData = await decode(buffer);
+
+			if (!imageData || token !== jxlConversionToken) return null;
+
+			// Convert ImageData to PNG Blob via Canvas
+			const canvas = document.createElement('canvas');
+			canvas.width = imageData.width;
+			canvas.height = imageData.height;
+			const ctx = canvas.getContext('2d');
+			if (!ctx) throw new Error('Failed to get canvas context');
+			ctx.putImageData(imageData, 0, 0);
+
+			const pngBlob = await new Promise<Blob>((resolve) => {
+				canvas.toBlob((b) => resolve(b!), 'image/png');
+			});
+
+			jxlConvertedBlob = pngBlob;
+			jxlConvertedUrl = URL.createObjectURL(pngBlob);
+			return pngBlob;
+		} catch (e) {
+			console.error('JXL conversion failed:', e);
+			if (token === jxlConversionToken) jxlError = 'Could not convert this JXL image.';
+			return null;
+		} finally {
+			if (token === jxlConversionToken) {
+				jxlConverting = false;
+				jxlConvertPromise = null;
 			}
+		}
+	}
+
+	// Oxipng Optimization (Fixed: Handles ArrayBuffer output)
+	async function optimizePngWithOxipng(pngBlob: Blob): Promise<Blob | null> {
+		if (oxipngOptimizedBlob) return oxipngOptimizedBlob;
+		const token = oxipngOptimizationToken;
+		oxipngOptimizing = true;
+		oxipngError = null;
+		try {
+			const { optimise } = await import('@jsquash/oxipng');
+			// @jsquash/oxipng optimise returns ArrayBuffer
+			const buffer = await pngBlob.arrayBuffer();
+			const resultArrayBuffer = await optimise(buffer);
+
+			if (token !== oxipngOptimizationToken) return null;
+			const optimizedBlob = new Blob([resultArrayBuffer], { type: 'image/png' });
+			oxipngOptimizedBlob = optimizedBlob;
+			oxipngOptimizedUrl = URL.createObjectURL(optimizedBlob);
+			return optimizedBlob;
+		} catch (e) {
+			console.error('Oxipng optimization failed:', e);
+			if (token === oxipngOptimizationToken) oxipngError = 'Could not optimize PNG.';
+			return null;
+		} finally {
+			if (token === oxipngOptimizationToken) oxipngOptimizing = false;
 		}
 	}
 
@@ -267,28 +358,33 @@
 	async function handleDownloadPng() {
 		const isHeic = sniffedMime === 'image/heic' || sniffedMime === 'image/heif';
 		const isSvg = sniffedMime === 'image/svg+xml';
+		const isJxl = sniffedMime === 'image/jxl';
 
-		if (isHeic) {
-			const pngBlob = await convertHeicToPng();
-			if (!pngBlob) return;
-			downloadBlob(pngBlob, getPngFilename(baseName));
-		} else if (isSvg) {
-			const pngBlob = await convertSvgToPng();
-			if (!pngBlob) return;
-			downloadBlob(pngBlob, getPngFilename(baseName));
+		let pngBlob: Blob | null = null;
+		if (isHeic) pngBlob = await convertHeicToPng();
+		else if (isSvg) pngBlob = await convertSvgToPng();
+		else if (isJxl) pngBlob = await convertJxlToPng();
+
+		if (!pngBlob) return;
+
+		// Apply oxipng optimization if toggled
+		if (useOxipng) {
+			const optBlob = await optimizePngWithOxipng(pngBlob);
+			if (optBlob) pngBlob = optBlob;
 		}
+
+		downloadBlob(pngBlob, getPngFilename(baseName));
 	}
 
+	// Sniff MIME & Type
 	$effect(() => {
 		sniffedKind = null;
 		sniffedMime = null;
 		imageSupport = null;
 		resetConversionState();
-
 		if (!contentUrl || contentText !== null || isUnopenable) return;
 
 		let cancelled = false;
-
 		(async () => {
 			try {
 				const response = await fetch(contentUrl);
@@ -308,38 +404,52 @@
 					sniffedMime = mime;
 					sniffedKind = kind;
 					imageSupport = kind === 'image' && mime ? getImageSupportInfo(mime) : null;
-					if (mime === 'image/heic' || mime === 'image/heif') {
+					if (mime === 'image/heic' || mime === 'image/heif' || mime === 'image/jxl') {
 						sourceBlob = blob;
 					}
 				}
 			} catch {
-				if (!cancelled) {
-					sniffedKind = 'other';
-				}
+				if (!cancelled) sniffedKind = 'other';
 			}
 		})();
-
 		return () => {
 			cancelled = true;
 		};
 	});
 
+	// Trigger conversions automatically
+	$effect(() => {
+		if (!sourceBlob || (sniffedMime !== 'image/heic' && sniffedMime !== 'image/heif')) return;
+		convertHeicToPng();
+	});
+	$effect(() => {
+		if (!sourceBlob || sniffedMime !== 'image/jxl') return;
+		convertJxlToPng();
+	});
+
+	// Cleanup URLs
 	$effect(() => {
 		const hUrl = heicConvertedUrl;
 		const sUrl = svgConvertedUrl;
+		const jUrl = jxlConvertedUrl;
+		const oUrl = oxipngOptimizedUrl;
 		return () => {
 			if (hUrl) URL.revokeObjectURL(hUrl);
 			if (sUrl) URL.revokeObjectURL(sUrl);
+			if (jUrl) URL.revokeObjectURL(jUrl);
+			if (oUrl) URL.revokeObjectURL(oUrl);
 		};
 	});
 
+	// Derived States
 	const isHeic = $derived(sniffedMime === 'image/heic' || sniffedMime === 'image/heif');
+	const isJxl = $derived(sniffedMime === 'image/jxl');
 	const isSvg = $derived(sniffedMime === 'image/svg+xml');
 	const isImage = $derived(sniffedKind === 'image');
 	const isVideo = $derived(sniffedKind === 'video');
 	const isAudio = $derived(sniffedKind === 'audio');
 	const isPending = $derived(sniffedKind === null);
-	const isImageUnsupported = $derived(!isHeic && imageSupport?.status === 'unsupported');
+	const isImageUnsupported = $derived(!isHeic && !isJxl && imageSupport?.status === 'unsupported');
 	const imageSupportMessage = $derived(imageSupport?.message ?? null);
 
 	const imageInfo = $derived<ImageInfo | null>(
@@ -349,13 +459,19 @@
 					message: imageSupportMessage,
 					mime: sniffedMime
 				}
-			: isImageUnsupported
+			: isJxl && !jxlConverting && !jxlConvertedUrl
 				? {
-						title: 'This image format is not supported in this browser.',
+						title: jxlError ?? 'Unable to preview this JXL image.',
 						message: imageSupportMessage,
 						mime: sniffedMime
 					}
-				: null
+				: isImageUnsupported
+					? {
+							title: 'This image format is not supported in this browser.',
+							message: imageSupportMessage,
+							mime: sniffedMime
+						}
+					: null
 	);
 
 	const toolbarActions = $derived<ToolbarAction[]>([
@@ -380,6 +496,18 @@
 			onClick: handleCopyLink
 		},
 		{
+			key: 'toggle-oxipng',
+			isVisible: Boolean(ondownload) && (isHeic || isSvg || isJxl),
+			label: useOxipng ? 'Optimize: On' : 'Optimize: Off',
+			activeLabel: 'Optimize: On',
+			icon: Wand2,
+			activeIcon: Check,
+			active: useOxipng,
+			onClick: () => {
+				useOxipng = !useOxipng;
+			}
+		},
+		{
 			key: 'save-original',
 			isVisible: Boolean(ondownload) && isHeic,
 			label: 'Save Original',
@@ -388,18 +516,23 @@
 		},
 		{
 			key: 'save-png',
-			isVisible: Boolean(ondownload) && (isHeic || isSvg),
+			isVisible: Boolean(ondownload) && (isHeic || isSvg || isJxl),
 			label:
-				(heicConverting || svgConverting) && !(heicConvertedBlob || svgConvertedBlob)
+				(heicConverting || svgConverting || jxlConverting) &&
+				!(heicConvertedBlob || svgConvertedBlob || jxlConvertedBlob)
 					? 'Converting...'
-					: 'Save PNG',
+					: oxipngOptimizing
+						? 'Optimizing...'
+						: 'Save PNG',
 			icon: Download,
 			onClick: handleDownloadPng,
-			disabled: (heicConverting || svgConverting) && !(heicConvertedBlob || svgConvertedBlob)
+			disabled:
+				(heicConverting || svgConverting || jxlConverting) &&
+				!(heicConvertedBlob || svgConvertedBlob || jxlConvertedBlob)
 		},
 		{
 			key: 'save',
-			isVisible: Boolean(ondownload) && !isHeic && !isSvg,
+			isVisible: Boolean(ondownload) && !isHeic && !isSvg && !isJxl,
 			label: 'Save',
 			icon: Download,
 			onClick: () => ondownload?.()
@@ -407,11 +540,6 @@
 	]);
 
 	const visibleToolbarActions = $derived(toolbarActions.filter((action) => action.isVisible));
-
-	$effect(() => {
-		if (!sourceBlob || !isHeic) return;
-		convertHeicToPng();
-	});
 
 	function handleKeydown(event: KeyboardEvent) {
 		if (event.key === 'Escape') onclose?.();
@@ -485,6 +613,7 @@
 							Detecting file type...
 						</div>
 					{:else if isImage}
+						<!-- HEIC -->
 						{#if isHeic && heicConverting && !heicConvertedUrl}
 							<div class="flex h-full items-center justify-center text-xs text-white/60">
 								<div class="flex items-center gap-2">
@@ -501,6 +630,24 @@
 									class="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
 								/>
 							</div>
+							<!-- JXL -->
+						{:else if isJxl && jxlConverting && !jxlConvertedUrl}
+							<div class="flex h-full items-center justify-center text-xs text-white/60">
+								<div class="flex items-center gap-2">
+									<Spinner class="size-4" />
+									<span>Converting JXL to PNG...</span>
+								</div>
+							</div>
+						{:else if isJxl && jxlConvertedUrl}
+							<div class="flex h-full items-center justify-center">
+								<img
+									src={jxlConvertedUrl}
+									alt={baseName}
+									title={baseName}
+									class="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+								/>
+							</div>
+							<!-- Unsupported / Error -->
 						{:else if imageInfo}
 							<div class="flex h-full items-center justify-center">
 								<div class="max-w-md rounded-lg border border-white/10 bg-black/60 p-6 text-center">
@@ -513,6 +660,7 @@
 									{/if}
 								</div>
 							</div>
+							<!-- Normal Image -->
 						{:else}
 							<div class="flex h-full items-center justify-center">
 								<img

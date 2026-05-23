@@ -3,8 +3,7 @@ import {
 	DEFAULT_ARGON2_MEMORY_KIB,
 	MAX_ARGON2_MEMORY_KIB
 } from '#consts/encryption';
-
-const { argon2id } = await import('hash-wasm');
+import { argon2id } from 'hash-wasm';
 
 export function bytesToBase64(u8: Uint8Array) {
 	let binary = '';

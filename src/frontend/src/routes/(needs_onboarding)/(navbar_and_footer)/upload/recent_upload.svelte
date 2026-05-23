@@ -4,7 +4,6 @@
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { Trash2, History, Copy, Check, Download } from '@lucide/svelte';
 	import { onMount } from 'svelte';
-	import { browser } from '$app/environment';
 	import {
 		deleteHistoryEntry,
 		cleanupExpiredEntries,
@@ -35,38 +34,35 @@
 		return res.json();
 	};
 
-	const init = async () => {
-		await cleanupExpiredEntries();
-		const entries = get(recentUploads);
-
-		await Promise.all(
-			entries.map(async (entry) => {
-				try {
-					const info = await fetchFileInformation(entry.id);
-					if (info.expired) {
-						await deleteHistoryEntry(entry.id);
-						return;
-					}
-					await updateHistoryEntry(entry.id, {
-						name: info.filename,
-						size: formatFileSize(info.size),
-						expiry: new Date(info.expires_at).getTime(),
-						createdAt: new Date(info.created_at).getTime(),
-						downloadCount: info.download_count
-					});
-				} catch (error) {
-					console.error(`Failed to update info for ${entry.id}`, error);
-					await deleteHistoryEntry(entry.id);
-				}
-			})
-		);
-	};
-
-	if (browser) {
-		init();
-	}
-
 	onMount(() => {
+		const init = async () => {
+			await cleanupExpiredEntries();
+			const entries = get(recentUploads);
+
+			await Promise.all(
+				entries.map(async (entry) => {
+					try {
+						const info = await fetchFileInformation(entry.id);
+						if (info.expired) {
+							await deleteHistoryEntry(entry.id);
+							return;
+						}
+						await updateHistoryEntry(entry.id, {
+							name: info.filename,
+							size: formatFileSize(info.size),
+							expiry: new Date(info.expires_at).getTime(),
+							createdAt: new Date(info.created_at).getTime(),
+							downloadCount: info.download_count
+						});
+					} catch (error) {
+						console.error(`Failed to update info for ${entry.id}`, error);
+						await deleteHistoryEntry(entry.id);
+					}
+				})
+			);
+		};
+		init();
+
 		const interval = setInterval(cleanupExpiredEntries, 60000);
 		return () => clearInterval(interval);
 	});
