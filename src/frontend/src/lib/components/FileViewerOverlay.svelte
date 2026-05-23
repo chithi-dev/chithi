@@ -1,5 +1,7 @@
 <script lang="ts" module>
 	let resvgInitialized = false;
+	let jxlInitialized = false;
+	let pngInitialized = false;
 </script>
 
 <script lang="ts">
@@ -115,6 +117,13 @@
 	let heicConversionToken = 0;
 	let heicConvertPromise: Promise<Blob | null> | null = null;
 
+	let jxlConvertedBlob = $state<Blob | null>(null);
+	let jxlConvertedUrl = $state<string | null>(null);
+	let jxlConverting = $state(false);
+	let jxlError = $state<string | null>(null);
+	let jxlConversionToken = 0;
+	let jxlConvertPromise: Promise<Blob | null> | null = null;
+
 	let svgConvertedBlob = $state<Blob | null>(null);
 	let svgConvertedUrl = $state<string | null>(null);
 	let svgConverting = $state(false);
@@ -128,6 +137,13 @@
 		heicError = null;
 		heicConvertedBlob = null;
 		heicConvertedUrl = null;
+
+		jxlConversionToken += 1;
+		jxlConvertPromise = null;
+		jxlConverting = false;
+		jxlError = null;
+		jxlConvertedBlob = null;
+		jxlConvertedUrl = null;
 
 		svgConversionToken += 1;
 		svgConverting = false;
@@ -143,6 +159,7 @@
 		const matched = heicExtensions.find((ext) => lower.endsWith(ext));
 		if (matched) return `${name.slice(0, -matched.length)}.png`;
 		if (lower.endsWith('.svg')) return `${name.slice(0, -4)}.png`;
+		if (lower.endsWith('.jxl')) return `${name.slice(0, -4)}.png`;
 		return `${name}.png`;
 	}
 
@@ -199,6 +216,60 @@
 			if (token === heicConversionToken) {
 				heicConverting = false;
 				heicConvertPromise = null;
+			}
+		}
+	}
+
+	async function convertJxlToPng() {
+		if (jxlConvertedBlob) return jxlConvertedBlob;
+		if (!sourceBlob) return null;
+		if (jxlConvertPromise) return await jxlConvertPromise;
+
+		const token = jxlConversionToken;
+		jxlConverting = true;
+		jxlError = null;
+
+		jxlConvertPromise = runJxlConversion(token);
+
+		return await jxlConvertPromise;
+	}
+
+	async function runJxlConversion(token: number) {
+		try {
+			const { default: decode, init: initJxl } = await import('@jsquash/jxl/decode');
+			const { default: encode, init: initPng } = await import('@jsquash/png/encode');
+
+			if (!jxlInitialized) {
+				const wasmUrl = (await import('@jsquash/jxl/codec/dec/jxl_dec.wasm?url')).default;
+				await initJxl({ locateFile: () => wasmUrl });
+				jxlInitialized = true;
+			}
+
+			if (!pngInitialized) {
+				const wasmUrl = (await import('@jsquash/png/codec/pkg/squoosh_png_bg.wasm?url')).default;
+				await initPng(wasmUrl);
+				pngInitialized = true;
+			}
+
+			const buffer = await sourceBlob!.arrayBuffer();
+			const imageData = await decode(buffer);
+			const pngBuffer = await encode(imageData);
+			const pngBlob = new Blob([pngBuffer], { type: 'image/png' });
+
+			if (token !== jxlConversionToken) return null;
+			jxlConvertedBlob = pngBlob;
+			jxlConvertedUrl = URL.createObjectURL(pngBlob);
+			return pngBlob;
+		} catch (e) {
+			console.error('JXL conversion failed:', e);
+			if (token === jxlConversionToken) {
+				jxlError = 'Could not convert this JXL image.';
+			}
+			return null;
+		} finally {
+			if (token === jxlConversionToken) {
+				jxlConverting = false;
+				jxlConvertPromise = null;
 			}
 		}
 	}
@@ -267,6 +338,7 @@
 	async function handleDownloadPng() {
 		const isHeic = sniffedMime === 'image/heic' || sniffedMime === 'image/heif';
 		const isSvg = sniffedMime === 'image/svg+xml';
+		const isJxl = sniffedMime === 'image/jxl';
 
 		if (isHeic) {
 			const pngBlob = await convertHeicToPng();
@@ -274,6 +346,10 @@
 			downloadBlob(pngBlob, getPngFilename(baseName));
 		} else if (isSvg) {
 			const pngBlob = await convertSvgToPng();
+			if (!pngBlob) return;
+			downloadBlob(pngBlob, getPngFilename(baseName));
+		} else if (isJxl) {
+			const pngBlob = await convertJxlToPng();
 			if (!pngBlob) return;
 			downloadBlob(pngBlob, getPngFilename(baseName));
 		}
@@ -308,7 +384,11 @@
 					sniffedMime = mime;
 					sniffedKind = kind;
 					imageSupport = kind === 'image' && mime ? getImageSupportInfo(mime) : null;
-					if (mime === 'image/heic' || mime === 'image/heif') {
+					if (
+						mime === 'image/heic' ||
+						mime === 'image/heif' ||
+						mime === 'image/jxl'
+					) {
 						sourceBlob = blob;
 					}
 				}
@@ -327,19 +407,24 @@
 	$effect(() => {
 		const hUrl = heicConvertedUrl;
 		const sUrl = svgConvertedUrl;
+		const jUrl = jxlConvertedUrl;
 		return () => {
 			if (hUrl) URL.revokeObjectURL(hUrl);
 			if (sUrl) URL.revokeObjectURL(sUrl);
+			if (jUrl) URL.revokeObjectURL(jUrl);
 		};
 	});
 
 	const isHeic = $derived(sniffedMime === 'image/heic' || sniffedMime === 'image/heif');
+	const isJxl = $derived(sniffedMime === 'image/jxl');
 	const isSvg = $derived(sniffedMime === 'image/svg+xml');
 	const isImage = $derived(sniffedKind === 'image');
 	const isVideo = $derived(sniffedKind === 'video');
 	const isAudio = $derived(sniffedKind === 'audio');
 	const isPending = $derived(sniffedKind === null);
-	const isImageUnsupported = $derived(!isHeic && imageSupport?.status === 'unsupported');
+	const isImageUnsupported = $derived(
+		!isHeic && !isJxl && imageSupport?.status === 'unsupported'
+	);
 	const imageSupportMessage = $derived(imageSupport?.message ?? null);
 
 	const imageInfo = $derived<ImageInfo | null>(
@@ -349,13 +434,19 @@
 					message: imageSupportMessage,
 					mime: sniffedMime
 				}
-			: isImageUnsupported
+			: isJxl && !jxlConverting && !jxlConvertedUrl
 				? {
-						title: 'This image format is not supported in this browser.',
+						title: jxlError ?? 'Unable to preview this JXL image.',
 						message: imageSupportMessage,
 						mime: sniffedMime
 					}
-				: null
+				: isImageUnsupported
+					? {
+							title: 'This image format is not supported in this browser.',
+							message: imageSupportMessage,
+							mime: sniffedMime
+						}
+					: null
 	);
 
 	const toolbarActions = $derived<ToolbarAction[]>([
@@ -381,25 +472,28 @@
 		},
 		{
 			key: 'save-original',
-			isVisible: Boolean(ondownload) && isHeic,
+			isVisible: Boolean(ondownload) && (isHeic || isJxl),
 			label: 'Save Original',
 			icon: Download,
 			onClick: handleDownloadOriginal
 		},
 		{
 			key: 'save-png',
-			isVisible: Boolean(ondownload) && (isHeic || isSvg),
+			isVisible: Boolean(ondownload) && (isHeic || isSvg || isJxl),
 			label:
-				(heicConverting || svgConverting) && !(heicConvertedBlob || svgConvertedBlob)
+				(heicConverting || svgConverting || jxlConverting) &&
+				!(heicConvertedBlob || svgConvertedBlob || jxlConvertedBlob)
 					? 'Converting...'
 					: 'Save PNG',
 			icon: Download,
 			onClick: handleDownloadPng,
-			disabled: (heicConverting || svgConverting) && !(heicConvertedBlob || svgConvertedBlob)
+			disabled:
+				(heicConverting || svgConverting || jxlConverting) &&
+				!(heicConvertedBlob || svgConvertedBlob || jxlConvertedBlob)
 		},
 		{
 			key: 'save',
-			isVisible: Boolean(ondownload) && !isHeic && !isSvg,
+			isVisible: Boolean(ondownload) && !isHeic && !isSvg && !isJxl,
 			label: 'Save',
 			icon: Download,
 			onClick: () => ondownload?.()
@@ -409,8 +503,9 @@
 	const visibleToolbarActions = $derived(toolbarActions.filter((action) => action.isVisible));
 
 	$effect(() => {
-		if (!sourceBlob || !isHeic) return;
-		convertHeicToPng();
+		if (!sourceBlob) return;
+		if (isHeic) convertHeicToPng();
+		if (isJxl) convertJxlToPng();
 	});
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -485,17 +580,17 @@
 							Detecting file type...
 						</div>
 					{:else if isImage}
-						{#if isHeic && heicConverting && !heicConvertedUrl}
+						{#if (isHeic && heicConverting && !heicConvertedUrl) || (isJxl && jxlConverting && !jxlConvertedUrl)}
 							<div class="flex h-full items-center justify-center text-xs text-white/60">
 								<div class="flex items-center gap-2">
 									<Spinner class="size-4" />
-									<span>Converting HEIC to PNG...</span>
+									<span>Converting {isHeic ? 'HEIC' : 'JXL'} to PNG...</span>
 								</div>
 							</div>
-						{:else if isHeic && heicConvertedUrl}
+						{:else if (isHeic && heicConvertedUrl) || (isJxl && jxlConvertedUrl)}
 							<div class="flex h-full items-center justify-center">
 								<img
-									src={heicConvertedUrl}
+									src={heicConvertedUrl ?? jxlConvertedUrl}
 									alt={baseName}
 									title={baseName}
 									class="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
@@ -534,7 +629,7 @@
 									kind="captions"
 									label="Captions"
 									srclang="en"
-									src="data:text/vtt,WEBVTT%0A%0A00:00.000%20--%3E%2000:00.001%0A"
+									src="data:text-vtt,WEBVTT%0A%0A00:00.000%20--%3E%2000:00.001%0A"
 								/>
 							</video>
 						</div>
