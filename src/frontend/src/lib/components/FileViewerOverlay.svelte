@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import { Download, Link, Check, ArrowLeft, Copy } from '@lucide/svelte';
+	import { Download, Link, Check, ArrowLeft, Copy, Wand2 } from '@lucide/svelte';
 	import { fade } from 'svelte/transition';
 	import CodeViewer from '$lib/components/CodeViewer.svelte';
 	import { detectMimeFromBlob } from '$lib/functions/mime';
@@ -25,17 +25,14 @@
 
 	let copied = $state(false);
 	let copyTimeout: ReturnType<typeof setTimeout> | undefined;
-
 	function handleCopyLink() {
 		oncopylink?.();
 		copied = true;
 		clearTimeout(copyTimeout);
 		copyTimeout = setTimeout(() => (copied = false), 2000);
 	}
-
 	let textCopied = $state(false);
 	let textCopyTimeout: ReturnType<typeof setTimeout> | undefined;
-
 	function handleCopyText() {
 		if (contentText) {
 			navigator.clipboard.writeText(contentText);
@@ -72,11 +69,7 @@
 	);
 
 	type MediaKind = 'image' | 'video' | 'audio' | 'other';
-	type ImageInfo = {
-		title: string;
-		message?: string | null;
-		mime?: string | null;
-	};
+	type ImageInfo = { title: string; message?: string | null; mime?: string | null };
 	type IconComponent = typeof Link;
 	type ToolbarAction = {
 		key: string;
@@ -102,6 +95,7 @@
 	let conversionError = $state<string | null>(null);
 	let conversionToken = 0;
 	let conversionPromise: Promise<Blob | null> | null = null;
+	let isOptimizing = $state(false); // New state for oxipng step
 
 	function resetConversionState() {
 		conversionToken += 1;
@@ -112,6 +106,7 @@
 		convertedBlob = null;
 		convertedUrl = null;
 		sourceBlob = null;
+		isOptimizing = false;
 	}
 
 	function getPngFilename(name: string) {
@@ -145,14 +140,15 @@
 		document.body.removeChild(a);
 	}
 
-	async function startConversion() {
-		if (convertedBlob) return convertedBlob;
+	async function startConversion(optimize = false) {
+		if (convertedBlob && !optimize) return convertedBlob;
 		if (conversionPromise) return await conversionPromise;
 
 		const token = conversionToken;
 		converting = true;
 		conversionStarted = true;
 		conversionError = null;
+		isOptimizing = false;
 
 		conversionPromise = (async () => {
 			try {
@@ -161,7 +157,6 @@
 				const isJxl = sniffedMime === 'image/jxl';
 				const isPng = sniffedMime === 'image/png';
 				const type = isHeic ? 'heic' : isSvg ? 'svg' : isJxl ? 'jxl' : isPng ? 'png' : null;
-
 				if (!type) return null;
 
 				let svgText = null;
@@ -178,31 +173,49 @@
 
 				return await new Promise<Blob | null>((resolve, reject) => {
 					worker.onmessage = (e) => {
+						// Handle optimization status update
+						if (e.data.type === 'status' && e.data.status === 'optimizing') {
+							isOptimizing = true;
+							return;
+						}
+
 						if (e.data.type === 'success') {
 							const pngBlob = e.data.pngBlob;
 							if (token === conversionToken) {
-								convertedBlob = pngBlob;
-								convertedUrl = URL.createObjectURL(pngBlob);
-								resolve(pngBlob);
+								if (pngBlob && pngBlob instanceof Blob) {
+									convertedBlob = pngBlob;
+									convertedUrl = URL.createObjectURL(pngBlob);
+									conversionError = null;
+									isOptimizing = false;
+									resolve(pngBlob);
+								} else {
+									reject(new Error('Worker returned invalid blob'));
+								}
 							} else {
 								resolve(null);
 							}
 							worker.terminate();
 						} else if (e.data.type === 'error') {
+							if (token === conversionToken) {
+								conversionError = `Could not convert this ${sniffedMime?.split('/')[1].toUpperCase()} image.`;
+								isOptimizing = false;
+							}
 							reject(new Error(e.data.message));
 							worker.terminate();
 						}
 					};
 					worker.onerror = (e) => {
+						if (token === conversionToken) isOptimizing = false;
 						reject(e);
 						worker.terminate();
 					};
-					worker.postMessage({ type, blob: sourceBlob, text: svgText });
+					worker.postMessage({ type, blob: sourceBlob, text: svgText, optimize });
 				});
 			} catch (e: any) {
 				console.error('Conversion failed:', e);
 				if (token === conversionToken) {
 					conversionError = `Could not convert this ${sniffedMime?.split('/')[1].toUpperCase()} image.`;
+					isOptimizing = false;
 				}
 				return null;
 			} finally {
@@ -212,7 +225,6 @@
 				}
 			}
 		})();
-
 		return await conversionPromise;
 	}
 
@@ -229,7 +241,14 @@
 	}
 
 	async function handleDownloadPng() {
-		const pngBlob = await startConversion();
+		const pngBlob = await startConversion(false);
+		if (pngBlob) {
+			downloadBlob(pngBlob, getPngFilename(baseName));
+		}
+	}
+
+	async function handleOptimizePng() {
+		const pngBlob = await startConversion(true);
 		if (pngBlob) {
 			downloadBlob(pngBlob, getPngFilename(baseName));
 		}
@@ -240,9 +259,7 @@
 		sniffedMime = null;
 		imageSupport = null;
 		resetConversionState();
-
 		if (!contentUrl || contentText !== null || isUnopenable) return;
-
 		let cancelled = false;
 		(async () => {
 			try {
@@ -258,7 +275,6 @@
 						: mime?.startsWith('audio/')
 							? 'audio'
 							: 'other';
-
 				if (!cancelled) {
 					sniffedMime = mime;
 					sniffedKind = kind;
@@ -277,7 +293,6 @@
 				if (!cancelled) sniffedKind = 'other';
 			}
 		})();
-
 		return () => {
 			cancelled = true;
 		};
@@ -303,7 +318,6 @@
 	);
 	const imageSupportMessage = $derived(imageSupport?.message ?? null);
 	const isConvertible = $derived(isHeic || isJxl || isSvg || isPng);
-
 	const imageInfo = $derived<ImageInfo | null>(
 		isConvertible && conversionStarted && !converting && !convertedUrl
 			? {
@@ -353,26 +367,25 @@
 		{
 			key: 'save-png',
 			isVisible: Boolean(ondownload) && isConvertible,
-			label:
-				converting && !convertedBlob ? (isPng ? 'Optimizing...' : 'Converting...') : 'Save PNG',
+			label: converting && !convertedBlob ? 'Converting...' : 'Save PNG',
 			icon: Download,
 			onClick: handleDownloadPng,
 			disabled: converting && !convertedBlob
 		},
 		{
-			key: 'save',
-			isVisible: Boolean(ondownload) && !isConvertible,
-			label: 'Save',
-			icon: Download,
-			onClick: () => ondownload?.()
+			key: 'optimize-png',
+			isVisible: Boolean(ondownload) && isConvertible,
+			label: converting && !convertedBlob && isOptimizing ? 'Optimizing...' : 'Optimize PNG',
+			icon: Wand2,
+			onClick: handleOptimizePng,
+			disabled: converting && !isOptimizing
 		}
 	]);
-
 	const visibleToolbarActions = $derived(toolbarActions.filter((action) => action.isVisible));
 
 	$effect(() => {
 		if (!sourceBlob || !isConvertible) return;
-		startConversion();
+		startConversion(false); // Default to fast conversion/preview
 	});
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -388,7 +401,6 @@
 		aria-label="Close viewer"
 		onclick={() => onclose?.()}
 	></button>
-
 	<div class="pointer-events-none relative z-10 flex h-full flex-col text-white">
 		<!-- Toolbar -->
 		<div
@@ -402,13 +414,11 @@
 						class="h-7 shrink-0 gap-1.5 px-2 text-white/70 hover:bg-white/10 hover:text-white"
 						onclick={onclose}
 					>
-						<ArrowLeft class="h-4 w-4" />
-						Back
+						<ArrowLeft class="h-4 w-4" /> Back
 					</Button>
 				{/if}
 				<span class="truncate text-sm font-medium text-white">{baseName}</span>
 			</div>
-
 			<div class="flex items-center gap-1">
 				{#each visibleToolbarActions as action (action.key)}
 					{@const Icon = action.active ? (action.activeIcon ?? action.icon) : action.icon}
@@ -425,7 +435,6 @@
 				{/each}
 			</div>
 		</div>
-
 		<!-- Content -->
 		<div class="pointer-events-none min-h-0 flex-1 p-3 sm:p-6">
 			<div class="pointer-events-auto mx-auto flex h-full w-full max-w-6xl flex-col">
@@ -448,17 +457,7 @@
 							Detecting file type...
 						</div>
 					{:else if isImage}
-						{#if converting && !convertedUrl}
-							<div class="flex h-full items-center justify-center text-xs text-white/60">
-								<div class="flex items-center gap-2">
-									<Spinner class="size-4" />
-									<span>
-										{isPng ? 'Optimizing' : 'Converting'}
-										{isHeic ? 'HEIC' : isJxl ? 'JXL' : isSvg ? 'SVG' : 'PNG'} to PNG...
-									</span>
-								</div>
-							</div>
-						{:else if convertedUrl}
+						{#if convertedUrl}
 							<div class="flex h-full items-center justify-center">
 								<img
 									src={convertedUrl}
@@ -466,6 +465,16 @@
 									title={baseName}
 									class="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
 								/>
+							</div>
+						{:else if converting}
+							<div class="flex h-full items-center justify-center text-xs text-white/60">
+								<div class="flex items-center gap-2">
+									<Spinner class="size-4" />
+									<span>
+										{isOptimizing ? 'Optimizing PNG...' : isPng ? 'Optimizing' : 'Converting'}
+										{isHeic ? 'HEIC' : isJxl ? 'JXL' : isSvg ? 'SVG' : 'PNG'} to PNG...
+									</span>
+								</div>
 							</div>
 						{:else if imageInfo}
 							<div class="flex h-full items-center justify-center">
