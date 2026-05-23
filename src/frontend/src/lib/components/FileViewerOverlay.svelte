@@ -1,3 +1,7 @@
+<script lang="ts" module>
+	let resvgInitialized = false;
+</script>
+
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Spinner } from '$lib/components/ui/spinner';
@@ -103,6 +107,7 @@
 	let sniffedMime = $state<string | null>(null);
 	let imageSupport = $state<ImageSupportInfo | null>(null);
 	let sourceBlob = $state<Blob | null>(null);
+
 	let heicConvertedBlob = $state<Blob | null>(null);
 	let heicConvertedUrl = $state<string | null>(null);
 	let heicConverting = $state(false);
@@ -110,13 +115,26 @@
 	let heicConversionToken = 0;
 	let heicConvertPromise: Promise<Blob | null> | null = null;
 
-	function resetHeicState() {
+	let svgConvertedBlob = $state<Blob | null>(null);
+	let svgConvertedUrl = $state<string | null>(null);
+	let svgConverting = $state(false);
+	let svgError = $state<string | null>(null);
+	let svgConversionToken = 0;
+
+	function resetConversionState() {
 		heicConversionToken += 1;
 		heicConvertPromise = null;
 		heicConverting = false;
 		heicError = null;
 		heicConvertedBlob = null;
 		heicConvertedUrl = null;
+
+		svgConversionToken += 1;
+		svgConverting = false;
+		svgError = null;
+		svgConvertedBlob = null;
+		svgConvertedUrl = null;
+
 		sourceBlob = null;
 	}
 
@@ -124,6 +142,7 @@
 		const lower = name.toLowerCase();
 		const matched = heicExtensions.find((ext) => lower.endsWith(ext));
 		if (matched) return `${name.slice(0, -matched.length)}.png`;
+		if (lower.endsWith('.svg')) return `${name.slice(0, -4)}.png`;
 		return `${name}.png`;
 	}
 
@@ -184,6 +203,55 @@
 		}
 	}
 
+	async function convertSvgToPng() {
+		if (svgConvertedBlob) return svgConvertedBlob;
+
+		let svgText = contentText;
+		if (!svgText && contentUrl) {
+			try {
+				const response = await fetch(contentUrl);
+				svgText = await response.text();
+			} catch {
+				svgError = 'Could not fetch SVG content.';
+				return null;
+			}
+		}
+		if (!svgText) return null;
+
+		const token = svgConversionToken;
+		svgConverting = true;
+		svgError = null;
+
+		try {
+			const { Resvg, initWasm } = await import('@resvg/resvg-wasm');
+			if (!resvgInitialized) {
+				const wasmUrl = (await import('@resvg/resvg-wasm/index_bg.wasm?url')).default;
+				await initWasm(wasmUrl);
+				resvgInitialized = true;
+			}
+
+			const resvg = new Resvg(svgText);
+			const pngData = resvg.render();
+			const pngBlob = new Blob([pngData.asPng() as any], { type: 'image/png' });
+
+			if (token !== svgConversionToken) return null;
+
+			svgConvertedBlob = pngBlob;
+			svgConvertedUrl = URL.createObjectURL(pngBlob);
+			return pngBlob;
+		} catch (e) {
+			console.error('SVG conversion failed:', e);
+			if (token === svgConversionToken) {
+				svgError = 'Could not convert this SVG image.';
+			}
+			return null;
+		} finally {
+			if (token === svgConversionToken) {
+				svgConverting = false;
+			}
+		}
+	}
+
 	function handleDownloadOriginal() {
 		if (ondownload) {
 			ondownload();
@@ -197,16 +265,25 @@
 	}
 
 	async function handleDownloadPng() {
-		const pngBlob = await convertHeicToPng();
-		if (!pngBlob) return;
-		downloadBlob(pngBlob, getPngFilename(baseName));
+		const isHeic = sniffedMime === 'image/heic' || sniffedMime === 'image/heif';
+		const isSvg = sniffedMime === 'image/svg+xml';
+
+		if (isHeic) {
+			const pngBlob = await convertHeicToPng();
+			if (!pngBlob) return;
+			downloadBlob(pngBlob, getPngFilename(baseName));
+		} else if (isSvg) {
+			const pngBlob = await convertSvgToPng();
+			if (!pngBlob) return;
+			downloadBlob(pngBlob, getPngFilename(baseName));
+		}
 	}
 
 	$effect(() => {
 		sniffedKind = null;
 		sniffedMime = null;
 		imageSupport = null;
-		resetHeicState();
+		resetConversionState();
 
 		if (!contentUrl || contentText !== null || isUnopenable) return;
 
@@ -248,13 +325,16 @@
 	});
 
 	$effect(() => {
-		const url = heicConvertedUrl;
+		const hUrl = heicConvertedUrl;
+		const sUrl = svgConvertedUrl;
 		return () => {
-			if (url) URL.revokeObjectURL(url);
+			if (hUrl) URL.revokeObjectURL(hUrl);
+			if (sUrl) URL.revokeObjectURL(sUrl);
 		};
 	});
 
 	const isHeic = $derived(sniffedMime === 'image/heic' || sniffedMime === 'image/heif');
+	const isSvg = $derived(sniffedMime === 'image/svg+xml');
 	const isImage = $derived(sniffedKind === 'image');
 	const isVideo = $derived(sniffedKind === 'video');
 	const isAudio = $derived(sniffedKind === 'audio');
@@ -308,15 +388,18 @@
 		},
 		{
 			key: 'save-png',
-			isVisible: Boolean(ondownload) && isHeic,
-			label: heicConverting && !heicConvertedBlob ? 'Converting...' : 'Save PNG',
+			isVisible: Boolean(ondownload) && (isHeic || isSvg),
+			label:
+				(heicConverting || svgConverting) && !(heicConvertedBlob || svgConvertedBlob)
+					? 'Converting...'
+					: 'Save PNG',
 			icon: Download,
 			onClick: handleDownloadPng,
-			disabled: heicConverting && !heicConvertedBlob
+			disabled: (heicConverting || svgConverting) && !(heicConvertedBlob || svgConvertedBlob)
 		},
 		{
 			key: 'save',
-			isVisible: Boolean(ondownload) && !isHeic,
+			isVisible: Boolean(ondownload) && !isHeic && !isSvg,
 			label: 'Save',
 			icon: Download,
 			onClick: () => ondownload?.()
