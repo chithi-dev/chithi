@@ -1,7 +1,6 @@
 import { Api } from '#consts/backend';
 import { createDecryptedStream } from '#functions/streams';
-
-const { ZipReader } = await import('@zip.js/zip.js');
+import { ZipReader } from '@zip.js/zip.js';
 
 export class PasswordRequiredError extends Error {
 	constructor() {

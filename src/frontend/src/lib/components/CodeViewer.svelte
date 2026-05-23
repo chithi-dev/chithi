@@ -1,17 +1,16 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
-
-	const { EditorView, lineNumbers, highlightActiveLine } = await import('@codemirror/view');
-	const { EditorState, Compartment } = await import('@codemirror/state');
-	const {
+	import { EditorView, lineNumbers, highlightActiveLine } from '@codemirror/view';
+	import { EditorState, Compartment } from '@codemirror/state';
+	import {
 		LanguageDescription,
 		syntaxHighlighting,
 		HighlightStyle,
 		bracketMatching,
 		foldGutter
-	} = await import('@codemirror/language');
-	const { tags } = await import('@lezer/highlight');
-	const { languages } = await import('@codemirror/language-data');
+	} from '@codemirror/language';
+	import { tags } from '@lezer/highlight';
+	import { languages } from '@codemirror/language-data';
+	import { onDestroy } from 'svelte';
 
 	let { text, filename } = $props<{
 		text: string;
@@ -19,7 +18,8 @@
 	}>();
 
 	let container: HTMLDivElement;
-	let view: any | undefined;
+	let view: EditorView | undefined;
+	const langCompartment = new Compartment();
 
 	// Material Ocean palette
 	const bg = '#0F111A';
@@ -142,8 +142,6 @@
 		{ tag: tags.invalid, color: red }
 	]);
 
-	const langCompartment = new Compartment();
-
 	$effect(() => {
 		if (!container) return;
 
@@ -174,10 +172,6 @@
 				});
 			});
 		}
-
-		return () => {
-			view?.destroy();
-		};
 	});
 
 	onDestroy(() => {
