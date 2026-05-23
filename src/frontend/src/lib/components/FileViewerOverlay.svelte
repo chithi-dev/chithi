@@ -181,9 +181,14 @@
 						if (e.data.type === 'success') {
 							const pngBlob = e.data.pngBlob;
 							if (token === conversionToken) {
-								convertedBlob = pngBlob;
-								convertedUrl = URL.createObjectURL(pngBlob);
-								resolve(pngBlob);
+								if (pngBlob && pngBlob instanceof Blob) {
+									convertedBlob = pngBlob;
+									convertedUrl = URL.createObjectURL(pngBlob);
+									conversionError = null; // Explicitly clear on success
+									resolve(pngBlob);
+								} else {
+									reject(new Error('Worker returned invalid blob'));
+								}
 							} else {
 								resolve(null);
 							}
@@ -448,7 +453,16 @@
 							Detecting file type...
 						</div>
 					{:else if isImage}
-						{#if converting && !convertedUrl}
+						{#if convertedUrl}
+							<div class="flex h-full items-center justify-center">
+								<img
+									src={convertedUrl}
+									alt={baseName}
+									title={baseName}
+									class="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
+								/>
+							</div>
+						{:else if converting}
 							<div class="flex h-full items-center justify-center text-xs text-white/60">
 								<div class="flex items-center gap-2">
 									<Spinner class="size-4" />
@@ -457,15 +471,6 @@
 										{isHeic ? 'HEIC' : isJxl ? 'JXL' : isSvg ? 'SVG' : 'PNG'} to PNG...
 									</span>
 								</div>
-							</div>
-						{:else if convertedUrl}
-							<div class="flex h-full items-center justify-center">
-								<img
-									src={convertedUrl}
-									alt={baseName}
-									title={baseName}
-									class="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
-								/>
 							</div>
 						{:else if imageInfo}
 							<div class="flex h-full items-center justify-center">
