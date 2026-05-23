@@ -163,6 +163,11 @@ Create a `Caddyfile` next to your `docker-compose.yml` with this contents:
 
 ```caddyfile
 <your_domain> {
+   header {
+        Cross-Origin-Opener-Policy "same-origin"
+        Cross-Origin-Embedder-Policy "require-corp"
+        Cross-Origin-Resource-Policy "same-origin"
+  }
   handle_path /api/* {
     reverse_proxy backend:8000
   }
