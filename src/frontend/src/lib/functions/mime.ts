@@ -11,6 +11,10 @@ const mimeMap: Record<string, string> = {
 	avif: 'image/avif',
 	heic: 'image/heic',
 	heif: 'image/heif',
+	jxl: 'image/jxl',
+	jxr: 'image/jxr',
+	hdp: 'image/jxr',
+	wdp: 'image/jxr',
 	tif: 'image/tiff',
 	tiff: 'image/tiff',
 	jfif: 'image/jpeg',
@@ -76,6 +80,10 @@ export function detectMimeFromBytes(bytes: Uint8Array): string | null {
 
 	if (has(0, 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)) return 'image/png';
 	if (has(0, 0xff, 0xd8, 0xff)) return 'image/jpeg';
+	if (has(0, 0xff, 0x0a)) return 'image/jxl';
+	if (has(0, 0x00, 0x00, 0x00, 0x0c, 0x4a, 0x58, 0x4c, 0x20, 0x0d, 0x0a, 0x87, 0x0a))
+		return 'image/jxl';
+	if (has(0, 0x49, 0x49, 0xbc)) return 'image/jxr';
 	if (has(0, 0x47, 0x49, 0x46, 0x38)) return 'image/gif';
 	if (has(0, 0x42, 0x4d)) return 'image/bmp';
 	if (has(0, 0x00, 0x00, 0x01, 0x00)) return 'image/x-icon';
