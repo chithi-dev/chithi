@@ -3,7 +3,6 @@ import optimisePng, { init as initOxipng } from '@jsquash/oxipng/optimise';
 import encodePng, { init as initPng } from '@jsquash/png/encode';
 import { Resvg, initWasm as initResvg } from '@resvg/resvg-wasm';
 import { threads } from 'wasm-feature-detect';
-
 // Vite will resolve these WASM URLs at build time.
 import jxlWasmUrl from '@jsquash/jxl/codec/dec/jxl_dec.wasm?url';
 import oxipngParallelWasmUrl from '@jsquash/oxipng/codec/pkg-parallel/squoosh_oxipng_bg.wasm?url';
@@ -18,7 +17,7 @@ let resvgInitialized = false;
 let oxipngUrl: string | null = null;
 
 self.addEventListener('message', async (event) => {
-	const { type, blob, text } = event.data;
+	const { type, blob, text, optimize = false } = event.data;
 	try {
 		let pngBuffer: ArrayBufferLike | null = null;
 
@@ -56,14 +55,20 @@ self.addEventListener('message', async (event) => {
 		}
 
 		if (pngBuffer) {
-			if (!oxipngInitialized) {
-				await initOxipng(oxipngUrl);
-				oxipngInitialized = true;
-			}
-			const optimizedBuffer = await optimisePng(pngBuffer as ArrayBuffer, { level: 3 });
+			if (optimize) {
+				self.postMessage({ type: 'status', status: 'optimizing' });
 
-			const resultBlob = new Blob([optimizedBuffer], { type: 'image/png' });
-			const transferList = optimizedBuffer instanceof ArrayBuffer ? [optimizedBuffer] : [];
+				if (!oxipngInitialized) {
+					await initOxipng(oxipngUrl);
+					oxipngInitialized = true;
+				}
+				const optimizedBuffer = await optimisePng(pngBuffer as ArrayBuffer, { level: 3 });
+				pngBuffer = optimizedBuffer;
+			}
+
+			const resultBlob = new Blob([pngBuffer as ArrayBuffer], { type: 'image/png' });
+
+			const transferList = pngBuffer instanceof ArrayBuffer ? [pngBuffer] : [];
 
 			(self as any).postMessage(
 				{
