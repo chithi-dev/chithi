@@ -1,7 +1,3 @@
-<script lang="ts" module>
-	let resvgInitialized = false;
-</script>
-
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Spinner } from '$lib/components/ui/spinner';
@@ -10,8 +6,6 @@
 	import CodeViewer from '$lib/components/CodeViewer.svelte';
 	import { detectMimeFromBlob } from '$lib/functions/mime';
 	import { getImageSupportInfo, type ImageSupportInfo } from '$lib/functions/media-support';
-
-	const { heicTo } = await import('heic-to');
 
 	let {
 		filename,
@@ -108,33 +102,20 @@
 	let imageSupport = $state<ImageSupportInfo | null>(null);
 	let sourceBlob = $state<Blob | null>(null);
 
-	let heicConvertedBlob = $state<Blob | null>(null);
-	let heicConvertedUrl = $state<string | null>(null);
-	let heicConverting = $state(false);
-	let heicError = $state<string | null>(null);
-	let heicConversionToken = 0;
-	let heicConvertPromise: Promise<Blob | null> | null = null;
-
-	let svgConvertedBlob = $state<Blob | null>(null);
-	let svgConvertedUrl = $state<string | null>(null);
-	let svgConverting = $state(false);
-	let svgError = $state<string | null>(null);
-	let svgConversionToken = 0;
+	let convertedBlob = $state<Blob | null>(null);
+	let convertedUrl = $state<string | null>(null);
+	let converting = $state(false);
+	let conversionError = $state<string | null>(null);
+	let conversionToken = 0;
+	let conversionPromise: Promise<Blob | null> | null = null;
 
 	function resetConversionState() {
-		heicConversionToken += 1;
-		heicConvertPromise = null;
-		heicConverting = false;
-		heicError = null;
-		heicConvertedBlob = null;
-		heicConvertedUrl = null;
-
-		svgConversionToken += 1;
-		svgConverting = false;
-		svgError = null;
-		svgConvertedBlob = null;
-		svgConvertedUrl = null;
-
+		conversionToken += 1;
+		conversionPromise = null;
+		converting = false;
+		conversionError = null;
+		convertedBlob = null;
+		convertedUrl = null;
 		sourceBlob = null;
 	}
 
@@ -143,6 +124,7 @@
 		const matched = heicExtensions.find((ext) => lower.endsWith(ext));
 		if (matched) return `${name.slice(0, -matched.length)}.png`;
 		if (lower.endsWith('.svg')) return `${name.slice(0, -4)}.png`;
+		if (lower.endsWith('.jxl')) return `${name.slice(0, -4)}.png`;
 		return `${name}.png`;
 	}
 
@@ -168,88 +150,93 @@
 		document.body.removeChild(a);
 	}
 
-	async function convertHeicToPng() {
-		if (heicConvertedBlob) return heicConvertedBlob;
-		if (!sourceBlob) return null;
-		if (heicConvertPromise) return await heicConvertPromise;
+	async function startConversion() {
+		if (convertedBlob) return convertedBlob;
+		if (conversionPromise) return await conversionPromise;
 
-		const token = heicConversionToken;
-		heicConverting = true;
-		heicError = null;
+		const token = conversionToken;
+		converting = true;
+		conversionError = null;
 
-		heicConvertPromise = runHeicConversion(token);
-
-		return await heicConvertPromise;
-	}
-
-	async function runHeicConversion(token: number) {
-		try {
-			const result = await heicTo({ blob: sourceBlob!, type: 'image/png' });
-			const pngBlob = result instanceof Blob ? result : null;
-			if (!pngBlob || token !== heicConversionToken) return null;
-			heicConvertedBlob = pngBlob;
-			heicConvertedUrl = URL.createObjectURL(pngBlob);
-			return pngBlob;
-		} catch {
-			if (token === heicConversionToken) {
-				heicError = 'Could not convert this HEIC image.';
-			}
-			return null;
-		} finally {
-			if (token === heicConversionToken) {
-				heicConverting = false;
-				heicConvertPromise = null;
-			}
-		}
-	}
-
-	async function convertSvgToPng() {
-		if (svgConvertedBlob) return svgConvertedBlob;
-
-		let svgText = contentText;
-		if (!svgText && contentUrl) {
+		conversionPromise = (async () => {
 			try {
-				const response = await fetch(contentUrl);
-				svgText = await response.text();
-			} catch {
-				svgError = 'Could not fetch SVG content.';
+				const isHeic = sniffedMime === 'image/heic' || sniffedMime === 'image/heif';
+				const isSvg = sniffedMime === 'image/svg+xml';
+				const isJxl = sniffedMime === 'image/jxl';
+				const isPng = sniffedMime === 'image/png';
+
+				const type = isHeic ? 'heic' : isSvg ? 'svg' : isJxl ? 'jxl' : isPng ? 'png' : null;
+				if (!type) return null;
+
+				const { threads } = await import('wasm-feature-detect');
+				const hasThreads = await threads();
+
+				const wasmUrls = {
+					jxl: (await import('@jsquash/jxl/codec/dec/jxl_dec.wasm?url')).default,
+					png: (await import('@jsquash/png/codec/pkg/squoosh_png_bg.wasm?url')).default,
+					oxipng: hasThreads
+						? (await import('@jsquash/oxipng/codec/pkg-parallel/squoosh_oxipng_bg.wasm?url')).default
+						: (await import('@jsquash/oxipng/codec/pkg/squoosh_oxipng_bg.wasm?url')).default,
+					resvg: (await import('@resvg/resvg-wasm/index_bg.wasm?url')).default
+				};
+
+				let svgText = null;
+				if (type === 'svg') {
+					svgText = contentText;
+					if (!svgText && contentUrl) {
+						const response = await fetch(contentUrl);
+						svgText = await response.text();
+					}
+				}
+
+				const ConverterWorker = (await import('$lib/workers/file-converter.worker?worker')).default;
+				const worker = new ConverterWorker();
+
+				return await new Promise<Blob | null>((resolve, reject) => {
+					worker.onmessage = (e) => {
+						if (e.data.type === 'success') {
+							const pngBlob = e.data.pngBlob;
+							if (token === conversionToken) {
+								convertedBlob = pngBlob;
+								convertedUrl = URL.createObjectURL(pngBlob);
+								resolve(pngBlob);
+							} else {
+								resolve(null);
+							}
+							worker.terminate();
+						} else if (e.data.type === 'error') {
+							reject(new Error(e.data.message));
+							worker.terminate();
+						}
+					};
+
+					worker.onerror = (e) => {
+						reject(e);
+						worker.terminate();
+					};
+
+					worker.postMessage({
+						type,
+						blob: sourceBlob,
+						text: svgText,
+						wasmUrls
+					});
+				});
+			} catch (e: any) {
+				console.error('Conversion failed:', e);
+				if (token === conversionToken) {
+					conversionError = `Could not convert this ${sniffedMime?.split('/')[1].toUpperCase()} image.`;
+				}
 				return null;
+			} finally {
+				if (token === conversionToken) {
+					converting = false;
+					conversionPromise = null;
+				}
 			}
-		}
-		if (!svgText) return null;
+		})();
 
-		const token = svgConversionToken;
-		svgConverting = true;
-		svgError = null;
-
-		try {
-			const { Resvg, initWasm } = await import('@resvg/resvg-wasm');
-			if (!resvgInitialized) {
-				const wasmUrl = (await import('@resvg/resvg-wasm/index_bg.wasm?url')).default;
-				await initWasm(wasmUrl);
-				resvgInitialized = true;
-			}
-
-			const resvg = new Resvg(svgText);
-			const pngData = resvg.render();
-			const pngBlob = new Blob([pngData.asPng() as any], { type: 'image/png' });
-
-			if (token !== svgConversionToken) return null;
-
-			svgConvertedBlob = pngBlob;
-			svgConvertedUrl = URL.createObjectURL(pngBlob);
-			return pngBlob;
-		} catch (e) {
-			console.error('SVG conversion failed:', e);
-			if (token === svgConversionToken) {
-				svgError = 'Could not convert this SVG image.';
-			}
-			return null;
-		} finally {
-			if (token === svgConversionToken) {
-				svgConverting = false;
-			}
-		}
+		return await conversionPromise;
 	}
 
 	function handleDownloadOriginal() {
@@ -265,16 +252,8 @@
 	}
 
 	async function handleDownloadPng() {
-		const isHeic = sniffedMime === 'image/heic' || sniffedMime === 'image/heif';
-		const isSvg = sniffedMime === 'image/svg+xml';
-
-		if (isHeic) {
-			const pngBlob = await convertHeicToPng();
-			if (!pngBlob) return;
-			downloadBlob(pngBlob, getPngFilename(baseName));
-		} else if (isSvg) {
-			const pngBlob = await convertSvgToPng();
-			if (!pngBlob) return;
+		const pngBlob = await startConversion();
+		if (pngBlob) {
 			downloadBlob(pngBlob, getPngFilename(baseName));
 		}
 	}
@@ -308,7 +287,13 @@
 					sniffedMime = mime;
 					sniffedKind = kind;
 					imageSupport = kind === 'image' && mime ? getImageSupportInfo(mime) : null;
-					if (mime === 'image/heic' || mime === 'image/heif') {
+					if (
+						mime === 'image/heic' ||
+						mime === 'image/heif' ||
+						mime === 'image/jxl' ||
+						mime === 'image/svg+xml' ||
+						mime === 'image/png'
+					) {
 						sourceBlob = blob;
 					}
 				}
@@ -325,27 +310,31 @@
 	});
 
 	$effect(() => {
-		const hUrl = heicConvertedUrl;
-		const sUrl = svgConvertedUrl;
+		const url = convertedUrl;
 		return () => {
-			if (hUrl) URL.revokeObjectURL(hUrl);
-			if (sUrl) URL.revokeObjectURL(sUrl);
+			if (url) URL.revokeObjectURL(url);
 		};
 	});
 
 	const isHeic = $derived(sniffedMime === 'image/heic' || sniffedMime === 'image/heif');
+	const isJxl = $derived(sniffedMime === 'image/jxl');
 	const isSvg = $derived(sniffedMime === 'image/svg+xml');
+	const isPng = $derived(sniffedMime === 'image/png');
 	const isImage = $derived(sniffedKind === 'image');
 	const isVideo = $derived(sniffedKind === 'video');
 	const isAudio = $derived(sniffedKind === 'audio');
 	const isPending = $derived(sniffedKind === null);
-	const isImageUnsupported = $derived(!isHeic && imageSupport?.status === 'unsupported');
+	const isImageUnsupported = $derived(
+		!isHeic && !isJxl && !isSvg && !isPng && imageSupport?.status === 'unsupported'
+	);
 	const imageSupportMessage = $derived(imageSupport?.message ?? null);
 
+	const isConvertible = $derived(isHeic || isJxl || isSvg || isPng);
+
 	const imageInfo = $derived<ImageInfo | null>(
-		isHeic && !heicConverting && !heicConvertedUrl
+		isConvertible && !converting && !convertedUrl
 			? {
-					title: heicError ?? 'Unable to preview this HEIC image.',
+					title: conversionError ?? `Unable to preview this ${sniffedMime?.split('/')[1].toUpperCase()} image.`,
 					message: imageSupportMessage,
 					mime: sniffedMime
 				}
@@ -381,25 +370,23 @@
 		},
 		{
 			key: 'save-original',
-			isVisible: Boolean(ondownload) && isHeic,
+			isVisible: Boolean(ondownload) && isConvertible,
 			label: 'Save Original',
 			icon: Download,
 			onClick: handleDownloadOriginal
 		},
 		{
 			key: 'save-png',
-			isVisible: Boolean(ondownload) && (isHeic || isSvg),
+			isVisible: Boolean(ondownload) && isConvertible,
 			label:
-				(heicConverting || svgConverting) && !(heicConvertedBlob || svgConvertedBlob)
-					? 'Converting...'
-					: 'Save PNG',
+				converting && !convertedBlob ? (isPng ? 'Optimizing...' : 'Converting...') : 'Save PNG',
 			icon: Download,
 			onClick: handleDownloadPng,
-			disabled: (heicConverting || svgConverting) && !(heicConvertedBlob || svgConvertedBlob)
+			disabled: converting && !convertedBlob
 		},
 		{
 			key: 'save',
-			isVisible: Boolean(ondownload) && !isHeic && !isSvg,
+			isVisible: Boolean(ondownload) && !isConvertible,
 			label: 'Save',
 			icon: Download,
 			onClick: () => ondownload?.()
@@ -409,8 +396,8 @@
 	const visibleToolbarActions = $derived(toolbarActions.filter((action) => action.isVisible));
 
 	$effect(() => {
-		if (!sourceBlob || !isHeic) return;
-		convertHeicToPng();
+		if (!sourceBlob || !isConvertible) return;
+		startConversion();
 	});
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -485,17 +472,20 @@
 							Detecting file type...
 						</div>
 					{:else if isImage}
-						{#if isHeic && heicConverting && !heicConvertedUrl}
+						{#if converting && !convertedUrl}
 							<div class="flex h-full items-center justify-center text-xs text-white/60">
 								<div class="flex items-center gap-2">
 									<Spinner class="size-4" />
-									<span>Converting HEIC to PNG...</span>
+									<span>
+										{isPng ? 'Optimizing' : 'Converting'}
+										{isHeic ? 'HEIC' : isJxl ? 'JXL' : isSvg ? 'SVG' : 'PNG'} to PNG...
+									</span>
 								</div>
 							</div>
-						{:else if isHeic && heicConvertedUrl}
+						{:else if convertedUrl}
 							<div class="flex h-full items-center justify-center">
 								<img
-									src={heicConvertedUrl}
+									src={convertedUrl}
 									alt={baseName}
 									title={baseName}
 									class="max-h-full max-w-full rounded-lg object-contain shadow-2xl"
@@ -534,7 +524,7 @@
 									kind="captions"
 									label="Captions"
 									srclang="en"
-									src="data:text/vtt,WEBVTT%0A%0A00:00.000%20--%3E%2000:00.001%0A"
+									src="data:text-vtt,WEBVTT%0A%0A00:00.000%20--%3E%2000:00.001%0A"
 								/>
 							</video>
 						</div>
