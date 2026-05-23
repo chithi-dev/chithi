@@ -17,7 +17,9 @@
 		"update-ui": "node --experimental-strip-types scripts/update-ui.ts"
 	},
 	"dependencies": {
-		"takumi-js": "^1.0.15"
+		"@jsquash/oxipng": "^2.3.0",
+		"takumi-js": "^1.0.15",
+		"wasm-feature-detect": "^1.8.0"
 	},
 	"devDependencies": {
 		"@codemirror/commands": "^6.10.3",
