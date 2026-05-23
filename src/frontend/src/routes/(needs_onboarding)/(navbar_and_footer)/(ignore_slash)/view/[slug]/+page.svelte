@@ -61,7 +61,7 @@
 
 	function getFileIcon(name: string) {
 		const n = name.toLowerCase();
-		if (n.match(/\.(png|jpg|jpeg|gif|webp|svg|ico|bmp|avif)$/)) return ImageIcon;
+		if (n.match(/\.(png|jpg|jpeg|gif|webp|svg|ico|bmp|avif|jxl)$/)) return ImageIcon;
 		if (n.match(/\.(mp4|webm|ogv|mov|mkv)$/)) return FilePlay;
 		if (n.match(/\.(mp3|wav|ogg|m4a|aac|flac)$/)) return FileHeadphone;
 		if (
