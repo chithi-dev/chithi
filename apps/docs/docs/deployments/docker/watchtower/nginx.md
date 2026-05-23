@@ -24,6 +24,10 @@ http {
         listen 80;
         server_name <your_domain>;
 
+        add_header Cross-Origin-Opener-Policy "same-origin" always;
+        add_header Cross-Origin-Embedder-Policy "require-corp" always;
+        add_header Cross-Origin-Resource-Policy "same-origin" always;
+
         location /api/ {
             proxy_pass http://backend:8000/;
             proxy_set_header Host $host;
