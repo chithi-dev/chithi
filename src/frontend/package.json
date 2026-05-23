@@ -48,6 +48,7 @@
 		"@vitest/browser-playwright": "^4.1.5",
 		"@zip.js/zip.js": "^2.8.26",
 		"bits-ui": "^2.18.0",
+		"bowser": "^2.14.1",
 		"caniuse-lite": "^1.0.30001587",
 		"clsx": "^2.1.1",
 		"codemirror": "^6.0.2",
