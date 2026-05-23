@@ -17,9 +17,7 @@
 		"update-ui": "node --experimental-strip-types scripts/update-ui.ts"
 	},
 	"dependencies": {
-		"@jsquash/oxipng": "^2.3.0",
-		"takumi-js": "^1.0.15",
-		"wasm-feature-detect": "^1.8.0"
+		"takumi-js": "^1.0.15"
 	},
 	"devDependencies": {
 		"@codemirror/commands": "^6.10.3",
@@ -34,6 +32,7 @@
 		"@icons-pack/svelte-simple-icons": "^7.2.0",
 		"@internationalized/date": "^3.12.1",
 		"@jsquash/jxl": "^1.3.0",
+		"@jsquash/oxipng": "^2.3.0",
 		"@jsquash/png": "^3.1.1",
 		"@lucide/svelte": "^1.16.0",
 		"@resvg/resvg-wasm": "^2.6.2",
