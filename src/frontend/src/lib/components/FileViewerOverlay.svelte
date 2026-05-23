@@ -46,7 +46,6 @@
 	}
 
 	const baseName = $derived(filename.split(/[/\\]/).pop() ?? filename);
-
 	const unopenableExtensions = [
 		'.exe',
 		'.bin',
@@ -68,21 +67,17 @@
 		'.deb',
 		'.rpm'
 	];
-
 	const isUnopenable = $derived(
 		unopenableExtensions.some((ext) => filename.toLowerCase().endsWith(ext))
 	);
 
 	type MediaKind = 'image' | 'video' | 'audio' | 'other';
-
 	type ImageInfo = {
 		title: string;
 		message?: string | null;
 		mime?: string | null;
 	};
-
 	type IconComponent = typeof Link;
-
 	type ToolbarAction = {
 		key: string;
 		label: string;
@@ -96,15 +91,14 @@
 	};
 
 	const heicExtensions = ['.heic', '.heif'];
-
 	let sniffedKind = $state<MediaKind | null>(null);
 	let sniffedMime = $state<string | null>(null);
 	let imageSupport = $state<ImageSupportInfo | null>(null);
 	let sourceBlob = $state<Blob | null>(null);
-
 	let convertedBlob = $state<Blob | null>(null);
 	let convertedUrl = $state<string | null>(null);
 	let converting = $state(false);
+	let conversionStarted = $state(false);
 	let conversionError = $state<string | null>(null);
 	let conversionToken = 0;
 	let conversionPromise: Promise<Blob | null> | null = null;
@@ -113,6 +107,7 @@
 		conversionToken += 1;
 		conversionPromise = null;
 		converting = false;
+		conversionStarted = false;
 		conversionError = null;
 		convertedBlob = null;
 		convertedUrl = null;
@@ -156,6 +151,7 @@
 
 		const token = conversionToken;
 		converting = true;
+		conversionStarted = true;
 		conversionError = null;
 
 		conversionPromise = (async () => {
@@ -201,8 +197,6 @@
 						reject(e);
 						worker.terminate();
 					};
-
-					// WASM URLs are now resolved internally by the worker
 					worker.postMessage({ type, blob: sourceBlob, text: svgText });
 				});
 			} catch (e: any) {
@@ -250,7 +244,6 @@
 		if (!contentUrl || contentText !== null || isUnopenable) return;
 
 		let cancelled = false;
-
 		(async () => {
 			try {
 				const response = await fetch(contentUrl);
@@ -281,9 +274,7 @@
 					}
 				}
 			} catch {
-				if (!cancelled) {
-					sniffedKind = 'other';
-				}
+				if (!cancelled) sniffedKind = 'other';
 			}
 		})();
 
@@ -311,11 +302,10 @@
 		!isHeic && !isJxl && !isSvg && !isPng && imageSupport?.status === 'unsupported'
 	);
 	const imageSupportMessage = $derived(imageSupport?.message ?? null);
-
 	const isConvertible = $derived(isHeic || isJxl || isSvg || isPng);
 
 	const imageInfo = $derived<ImageInfo | null>(
-		isConvertible && !converting && !convertedUrl
+		isConvertible && conversionStarted && !converting && !convertedUrl
 			? {
 					title:
 						conversionError ??
@@ -391,7 +381,6 @@
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
-
 <div class="fixed inset-0 z-50" role="dialog" aria-modal="true" in:fade={{ duration: 200 }}>
 	<button
 		type="button"
@@ -399,6 +388,7 @@
 		aria-label="Close viewer"
 		onclick={() => onclose?.()}
 	></button>
+
 	<div class="pointer-events-none relative z-10 flex h-full flex-col text-white">
 		<!-- Toolbar -->
 		<div
@@ -418,6 +408,7 @@
 				{/if}
 				<span class="truncate text-sm font-medium text-white">{baseName}</span>
 			</div>
+
 			<div class="flex items-center gap-1">
 				{#each visibleToolbarActions as action (action.key)}
 					{@const Icon = action.active ? (action.activeIcon ?? action.icon) : action.icon}
