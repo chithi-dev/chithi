@@ -108,36 +108,51 @@ async function initializeEncryptionWorkers(
 	baseIv: Uint8Array,
 	concurrency: number
 ): Promise<void> {
-	try {
-		const keyRaw = await crypto.subtle.exportKey('raw', aesKey);
-		const readyPromises: Promise<void>[] = [];
+	const keyRaw = await crypto.subtle.exportKey('raw', aesKey);
+	const initPromises: Promise<Worker | null>[] = [];
 
-		for (let i = 0; i < concurrency; i++) {
-			const w = new EncryptWorker();
-			const readyPromise = new Promise<void>((resolve, reject) => {
-				w.onmessage = (ev) => {
-					if (ev.data?.type === 'ready') {
-						resolve();
-					} else {
-						handleWorkerEncryptedMessage(ctx, ev.data);
-					}
-				};
-				w.onerror = () => reject(new Error('Worker failed during initialization'));
-			});
-			readyPromises.push(readyPromise);
+	for (let i = 0; i < concurrency; i++) {
+		initPromises.push(
+			new Promise<Worker | null>((resolve) => {
+				try {
+					const w = new EncryptWorker();
+					let resolved = false;
 
-			ctx.workers.push(w);
-			const keyCopy = keyRaw.slice(0);
-			const ivCopy = baseIv.buffer.slice(0);
-			w.postMessage({ type: 'init', keyRaw: keyCopy, baseIv: ivCopy }, [keyCopy, ivCopy]);
-		}
-		await Promise.all(readyPromises);
-	} catch (e) {
-		ctx.workers.length = 0;
-		await handleEncryptionError(ctx, e);
+					w.onmessage = (ev) => {
+						if (ev.data?.type === 'ready' && !resolved) {
+							resolved = true;
+							resolve(w);
+						} else {
+							handleWorkerEncryptedMessage(ctx, ev.data);
+						}
+					};
+
+					w.onerror = (e) => {
+						if (!resolved) {
+							resolved = true;
+							console.warn(`EncryptWorker ${i} failed to load. Falling back to main thread.`, e);
+							resolve(null);
+						}
+					};
+
+					const keyCopy = keyRaw.slice(0);
+					const ivCopy = baseIv.buffer.slice(0);
+					w.postMessage({ type: 'init', keyRaw: keyCopy, baseIv: ivCopy }, [keyCopy, ivCopy]);
+				} catch (err) {
+					console.warn(`EncryptWorker ${i} instantiation failed.`, err);
+					resolve(null);
+				}
+			})
+		);
+	}
+
+	const results = await Promise.all(initPromises);
+	ctx.workers = results.filter(Boolean) as Worker[];
+
+	if (ctx.workers.length === 0) {
+		console.warn('All encryption workers failed. Using main-thread AES-GCM fallback.');
 	}
 }
-
 async function encryptChunkWithWorker(
 	ctx: EncryptionContext,
 	index: number,
@@ -255,36 +270,51 @@ async function initializeDecryptionWorkers(
 	baseIv: Uint8Array,
 	concurrency: number
 ): Promise<void> {
-	try {
-		const keyRaw = await crypto.subtle.exportKey('raw', aesKey);
-		const readyPromises: Promise<void>[] = [];
+	const keyRaw = await crypto.subtle.exportKey('raw', aesKey);
+	const initPromises: Promise<Worker | null>[] = [];
 
-		for (let i = 0; i < concurrency; i++) {
-			const w = new DecryptWorker();
-			const readyPromise = new Promise<void>((resolve, reject) => {
-				w.onmessage = (ev) => {
-					if (ev.data?.type === 'ready') {
-						resolve();
-					} else {
-						handleWorkerDecryptedMessage(ctx, ev.data);
-					}
-				};
-				w.onerror = () => reject(new Error('Worker failed during initialization'));
-			});
-			readyPromises.push(readyPromise);
+	for (let i = 0; i < concurrency; i++) {
+		initPromises.push(
+			new Promise<Worker | null>((resolve) => {
+				try {
+					const w = new DecryptWorker();
+					let resolved = false;
 
-			ctx.workers.push(w);
-			const keyCopy = keyRaw.slice(0);
-			const ivCopy = baseIv.buffer.slice(0);
-			w.postMessage({ type: 'init', keyRaw: keyCopy, baseIv: ivCopy }, [keyCopy, ivCopy]);
-		}
-		await Promise.all(readyPromises);
-	} catch (e) {
-		ctx.workers.length = 0;
-		await handleDecryptionError(ctx, e);
+					w.onmessage = (ev) => {
+						if (ev.data?.type === 'ready' && !resolved) {
+							resolved = true;
+							resolve(w);
+						} else {
+							handleWorkerDecryptedMessage(ctx, ev.data);
+						}
+					};
+
+					w.onerror = (e) => {
+						if (!resolved) {
+							resolved = true;
+							console.warn(`DecryptWorker ${i} failed to load. Falling back to main thread.`, e);
+							resolve(null);
+						}
+					};
+
+					const keyCopy = keyRaw.slice(0);
+					const ivCopy = baseIv.buffer.slice(0);
+					w.postMessage({ type: 'init', keyRaw: keyCopy, baseIv: ivCopy }, [keyCopy, ivCopy]);
+				} catch (err) {
+					console.warn(`DecryptWorker ${i} instantiation failed.`, err);
+					resolve(null);
+				}
+			})
+		);
+	}
+
+	const results = await Promise.all(initPromises);
+	ctx.workers = results.filter(Boolean) as Worker[];
+
+	if (ctx.workers.length === 0) {
+		console.warn('All decryption workers failed. Using main-thread AES-GCM fallback.');
 	}
 }
-
 async function decryptChunkWithWorker(
 	ctx: DecryptionContext,
 	index: number,
