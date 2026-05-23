@@ -2,9 +2,7 @@ import { WORKER_CONCURRENCY } from '#consts/concurrency';
 import { HKDF_IV_STR, HKDF_SALT_STR } from '#consts/encryption';
 import DecryptWorker from '#workers/decrypt.worker?worker';
 import EncryptWorker from '#workers/encrypt.worker?worker';
-
 import { ZipWriter } from '@zip.js/zip.js';
-
 import {
 	CHUNK_SIZE,
 	argon2Derive,
@@ -16,17 +14,14 @@ import {
 } from './encryption';
 
 const usedNames = new Map<string, number>();
-
 const makeUnique = (name: string) => {
 	if (!usedNames.has(name)) {
 		usedNames.set(name, 1);
 		return name;
 	}
-
 	const count = usedNames.get(name) || 1;
 	usedNames.set(name, count + 1);
 
-	// Preserve extension when adding suffix
 	const lastDot = name.lastIndexOf('.');
 	if (lastDot > 0) {
 		const base = name.slice(0, lastDot);
@@ -37,16 +32,13 @@ const makeUnique = (name: string) => {
 };
 
 async function deriveSecrets(ikm: Uint8Array, password?: string) {
-	// Derive deterministic salt from IKM
 	const enc = new TextEncoder();
 	const derivedSalt = await crypto.subtle.digest(
 		'SHA-256',
 		new Uint8Array([...ikm, ...enc.encode(HKDF_SALT_STR)])
 	);
-
 	let finalIKM = ikm;
 
-	// Mix in password if provided
 	if (password && password.length > 0) {
 		const saltBytes = new Uint8Array(derivedSalt).slice(0, 16);
 		const passwordBytes = new TextEncoder().encode(password);
@@ -54,7 +46,6 @@ async function deriveSecrets(ikm: Uint8Array, password?: string) {
 		finalIKM = xorBytes(ikm, pb);
 	}
 
-	// Derive AES key and base IV
 	const hkdfSalt = new Uint8Array(
 		await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode('aes-key')]))
 	).slice(0, 16);
@@ -102,7 +93,6 @@ async function handleWorkerEncryptedMessage(ctx: EncryptionContext, data: any): 
 			ctx.processedTotal += sz;
 			if (ctx.onProgress) ctx.onProgress(ctx.processedTotal, ctx.originalSize);
 		}
-
 		if (ctx.streamEnded && ctx.pendingCount === 0) {
 			if (ctx.allDoneResolve) ctx.allDoneResolve();
 			if (ctx.onProgress) ctx.onProgress(ctx.originalSize ?? ctx.processedTotal, ctx.originalSize);
@@ -120,14 +110,28 @@ async function initializeEncryptionWorkers(
 ): Promise<void> {
 	try {
 		const keyRaw = await crypto.subtle.exportKey('raw', aesKey);
+		const readyPromises: Promise<void>[] = [];
+
 		for (let i = 0; i < concurrency; i++) {
 			const w = new EncryptWorker();
-			w.onmessage = (ev) => handleWorkerEncryptedMessage(ctx, ev.data);
+			const readyPromise = new Promise<void>((resolve, reject) => {
+				w.onmessage = (ev) => {
+					if (ev.data?.type === 'ready') {
+						resolve();
+					} else {
+						handleWorkerEncryptedMessage(ctx, ev.data);
+					}
+				};
+				w.onerror = () => reject(new Error('Worker failed during initialization'));
+			});
+			readyPromises.push(readyPromise);
+
 			ctx.workers.push(w);
 			const keyCopy = keyRaw.slice(0);
 			const ivCopy = baseIv.buffer.slice(0);
 			w.postMessage({ type: 'init', keyRaw: keyCopy, baseIv: ivCopy }, [keyCopy, ivCopy]);
 		}
+		await Promise.all(readyPromises);
 	} catch (e) {
 		ctx.workers.length = 0;
 		await handleEncryptionError(ctx, e);
@@ -231,7 +235,6 @@ async function handleWorkerDecryptedMessage(ctx: DecryptionContext, data: any): 
 			ctx.decryptedMap.delete(ctx.nextToEnqueue);
 			ctx.controllerRef!.enqueue(arr);
 			ctx.nextToEnqueue++;
-
 			ctx.processedTotal += arr.byteLength;
 			if (ctx.onProgress) ctx.onProgress(ctx.processedTotal, ctx.originalSize);
 		}
@@ -254,14 +257,28 @@ async function initializeDecryptionWorkers(
 ): Promise<void> {
 	try {
 		const keyRaw = await crypto.subtle.exportKey('raw', aesKey);
+		const readyPromises: Promise<void>[] = [];
+
 		for (let i = 0; i < concurrency; i++) {
 			const w = new DecryptWorker();
-			w.onmessage = (ev) => handleWorkerDecryptedMessage(ctx, ev.data);
+			const readyPromise = new Promise<void>((resolve, reject) => {
+				w.onmessage = (ev) => {
+					if (ev.data?.type === 'ready') {
+						resolve();
+					} else {
+						handleWorkerDecryptedMessage(ctx, ev.data);
+					}
+				};
+				w.onerror = () => reject(new Error('Worker failed during initialization'));
+			});
+			readyPromises.push(readyPromise);
+
 			ctx.workers.push(w);
 			const keyCopy = keyRaw.slice(0);
 			const ivCopy = baseIv.buffer.slice(0);
 			w.postMessage({ type: 'init', keyRaw: keyCopy, baseIv: ivCopy }, [keyCopy, ivCopy]);
 		}
+		await Promise.all(readyPromises);
 	} catch (e) {
 		ctx.workers.length = 0;
 		await handleDecryptionError(ctx, e);
@@ -303,7 +320,6 @@ async function decryptChunkFallback(
 				ctx.decryptedMap.delete(ctx.nextToEnqueue);
 				ctx.controllerRef.enqueue(arr);
 				ctx.nextToEnqueue++;
-
 				ctx.processedTotal += arr.byteLength;
 				if (ctx.onProgress) ctx.onProgress(ctx.processedTotal, ctx.originalSize);
 			}
@@ -342,17 +358,14 @@ async function writeZipFiles(
 		for (const file of files) {
 			let filename = (file as any).relativePath || file.name;
 			filename = makeUnique(filename);
-
 			try {
 				await zipWriter.add(filename, file.stream(), {
 					password: password?.length ? password : undefined,
-					// prefer strongest WinZip AES (1..3 => 128,192,256). Use 3 for AES-256 compatibility.
 					encryptionStrength: password?.length ? 3 : undefined,
 					level: 9,
 					signal
 				});
 			} catch (err: any) {
-				// If the writer reports an existing file, try to generate another unique name and retry once
 				const msg = String(err?.message || err || '');
 				if (msg.includes('File already exists') || msg.includes('already exists')) {
 					const altName = makeUnique((file as any).relativePath || file.name);
@@ -367,7 +380,6 @@ async function writeZipFiles(
 				}
 			}
 		}
-
 		await zipWriter.close();
 	} catch (error) {
 		console.error('Error creating zip stream:', error);
@@ -389,11 +401,10 @@ export async function createZipStream(
 		bufferedWrite: true,
 		useCompressionStream: true
 	});
-
 	writeZipFiles(zipWriter, writable, files, password, signal);
-
 	return readable;
 }
+
 export async function createEncryptedStream(
 	inputStream: ReadableStream<Uint8Array>,
 	password?: string,
@@ -403,7 +414,6 @@ export async function createEncryptedStream(
 ) {
 	const ikm = ikm_override ?? crypto.getRandomValues(new Uint8Array(32));
 	const { aesKey, baseIv } = await deriveSecrets(ikm, password);
-
 	const chunks: Uint8Array[] = [];
 	let bufferedBytes = 0;
 	let chunkIndex = 0;
@@ -432,7 +442,6 @@ export async function createEncryptedStream(
 		while (offset < size) {
 			const first = chunks[0];
 			const take = Math.min(first.length, size - offset);
-
 			out.set(first.subarray(0, take), offset);
 
 			if (take === first.length) {
@@ -440,23 +449,19 @@ export async function createEncryptedStream(
 			} else {
 				chunks[0] = first.subarray(take);
 			}
-
 			offset += take;
 			bufferedBytes -= take;
 		}
-
 		return out;
 	}
 
 	const transformer = new TransformStream<Uint8Array, Uint8Array>({
 		async start(controller) {
 			ctx.controllerRef = controller;
-
 			allDonePromise = new Promise<void>((res, rej) => {
 				ctx.allDoneResolve = res;
 				ctx.allDoneReject = rej;
 			});
-
 			await initializeEncryptionWorkers(ctx, aesKey, baseIv, WORKER_CONCURRENCY);
 		},
 
@@ -467,9 +472,7 @@ export async function createEncryptedStream(
 			while (bufferedBytes >= CHUNK_SIZE) {
 				const chunkData = readChunk(CHUNK_SIZE);
 				const index = chunkIndex++;
-
 				ctx.chunkSizes.set(index, chunkData.byteLength);
-
 				await assignEncryptionChunk(ctx, index, chunkData, aesKey, baseIv);
 			}
 		},
@@ -478,18 +481,13 @@ export async function createEncryptedStream(
 			if (bufferedBytes > 0 || chunkIndex === 0) {
 				const chunkData = readChunk(bufferedBytes);
 				const index = chunkIndex++;
-
 				ctx.chunkSizes.set(index, chunkData.byteLength);
-
 				await assignEncryptionChunk(ctx, index, chunkData, aesKey, baseIv);
 			}
-
 			ctx.streamEnded = true;
-
 			if (ctx.pendingCount > 0) {
 				await allDonePromise;
 			}
-
 			try {
 				for (const w of ctx.workers) w.terminate();
 			} catch {}
@@ -511,7 +509,6 @@ export async function createDecryptedStream(
 ) {
 	const ikm = base64urlToBytes(keySecret);
 	const { aesKey, baseIv } = await deriveSecrets(ikm, password);
-
 	const reader = inputStream.getReader();
 	let buffer = new Uint8Array(0);
 
@@ -584,7 +581,6 @@ export async function createDecryptedStream(
 					ctx.decryptedMap.delete(ctx.nextToEnqueue);
 					controller.enqueue(arr);
 					ctx.nextToEnqueue++;
-
 					ctx.processedTotal += arr.byteLength;
 					if (ctx.onProgress) ctx.onProgress(ctx.processedTotal, ctx.originalSize);
 				}
@@ -619,8 +615,6 @@ export function createMultipartStream(
 	fileStream: ReadableStream<Uint8Array>
 ): ReadableStream<Uint8Array> {
 	const encoder = new TextEncoder();
-
-	// Construct preamble
 	const preAmbleParts: Uint8Array[] = [];
 	for (const [key, value] of Object.entries(fields)) {
 		preAmbleParts.push(encoder.encode(`--${boundary}\r\n`));
@@ -648,7 +642,7 @@ export function createMultipartStream(
 					if (preambleIndex < preAmbleParts.length) {
 						controller.enqueue(preAmbleParts[preambleIndex]);
 						preambleIndex++;
-						return; // Yield to event loop
+						return;
 					} else {
 						state = 'file';
 						fileReader = fileStream.getReader();
