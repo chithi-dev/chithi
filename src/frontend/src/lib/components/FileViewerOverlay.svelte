@@ -95,7 +95,7 @@
 	let conversionError = $state<string | null>(null);
 	let conversionToken = 0;
 	let conversionPromise: Promise<Blob | null> | null = null;
-	let isOptimizing = $state(false); // New state for oxipng step
+	let isOptimizing = $state(false); // Tracks oxipng status
 
 	function resetConversionState() {
 		conversionToken += 1;
@@ -141,8 +141,9 @@
 	}
 
 	async function startConversion(optimize = false) {
-		if (convertedBlob && !optimize) return convertedBlob;
-		if (conversionPromise) return await conversionPromise;
+		// Only return cached blob if we're not explicitly requesting optimization
+		if (!optimize && convertedBlob) return convertedBlob;
+		if (conversionPromise && !optimize) return await conversionPromise;
 
 		const token = conversionToken;
 		converting = true;
@@ -173,7 +174,7 @@
 
 				return await new Promise<Blob | null>((resolve, reject) => {
 					worker.onmessage = (e) => {
-						// Handle optimization status update
+						// Handle optimization status update from worker
 						if (e.data.type === 'status' && e.data.status === 'optimizing') {
 							isOptimizing = true;
 							return;
@@ -241,14 +242,14 @@
 	}
 
 	async function handleDownloadPng() {
-		const pngBlob = await startConversion(false);
+		const pngBlob = await startConversion(false); // Fast conversion, no optimization
 		if (pngBlob) {
 			downloadBlob(pngBlob, getPngFilename(baseName));
 		}
 	}
 
 	async function handleOptimizePng() {
-		const pngBlob = await startConversion(true);
+		const pngBlob = await startConversion(true); // Explicit optimization requested
 		if (pngBlob) {
 			downloadBlob(pngBlob, getPngFilename(baseName));
 		}
@@ -379,13 +380,20 @@
 			icon: Wand2,
 			onClick: handleOptimizePng,
 			disabled: converting && !isOptimizing
+		},
+		{
+			key: 'save',
+			isVisible: Boolean(ondownload) && !isConvertible,
+			label: 'Save',
+			icon: Download,
+			onClick: () => ondownload?.()
 		}
 	]);
 	const visibleToolbarActions = $derived(toolbarActions.filter((action) => action.isVisible));
 
 	$effect(() => {
 		if (!sourceBlob || !isConvertible) return;
-		startConversion(false); // Default to fast conversion/preview
+		startConversion(false); // Default to fast conversion for preview
 	});
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -471,7 +479,7 @@
 								<div class="flex items-center gap-2">
 									<Spinner class="size-4" />
 									<span>
-										{isOptimizing ? 'Optimizing PNG...' : isPng ? 'Optimizing' : 'Converting'}
+										{isOptimizing ? 'Optimizing PNG...' : 'Converting'}
 										{isHeic ? 'HEIC' : isJxl ? 'JXL' : isSvg ? 'SVG' : 'PNG'} to PNG...
 									</span>
 								</div>
