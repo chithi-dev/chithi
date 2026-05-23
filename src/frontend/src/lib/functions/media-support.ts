@@ -1,3 +1,4 @@
+const Bowser = await import('bowser');
 const { feature } = await import('caniuse-lite');
 
 // @ts-expect-error: type is not available
@@ -40,7 +41,17 @@ const agentLabels = {
 	and_chr: 'Chrome Android',
 	and_ff: 'Firefox Android',
 	opera: 'Opera',
-	samsung: 'Samsung Internet'
+	samsung: 'Samsung Internet',
+	ie: 'Internet Explorer',
+	op_mini: 'Opera Mini',
+	android: 'Android Browser',
+	bb: 'BlackBerry Browser',
+	op_mob: 'Opera Mobile',
+	ie_mob: 'IE Mobile',
+	and_uc: 'UC Browser for Android',
+	and_qq: 'QQ Browser',
+	baidu: 'Baidu Browser',
+	kaios: 'KaiOS Browser'
 } as const;
 
 type AgentKey = keyof typeof agentLabels;
@@ -58,73 +69,135 @@ const parseVersion = (value: string | null) => {
 	return Number.isNaN(parsed) ? null : parsed;
 };
 
-const parseIosVersion = (ua: string) => {
-	const match = ua.match(/OS (\d+)(?:[_.](\d+))?/);
-	if (!match) return null;
-	const major = match[1];
-	const minor = match[2] ?? '0';
-	return parseVersion(`${major}.${minor}`);
-};
-
 const getBrowserInfo = (): BrowserInfo | null => {
 	if (typeof navigator === 'undefined') return null;
 
-	const ua = navigator.userAgent;
-	const isiOS = /iPad|iPhone|iPod/.test(ua);
-	const isAndroid = /Android/.test(ua);
+	const parser = Bowser.getParser(navigator.userAgent);
+	const browser = parser.getBrowser();
+	const os = parser.getOS();
+	const platform = parser.getPlatform();
 
-	if (isiOS) {
-		const version = parseIosVersion(ua);
-		if (!version) return null;
+	const version = parseVersion(browser.version ?? null);
+	if (version === null) return null;
 
+	const name = browser.name;
+
+	if (os.name === 'iOS') {
 		return {
 			agent: 'ios_saf',
 			version
 		};
 	}
 
-	const edgeVersion = parseVersion(ua.match(/Edg\/(\d+(?:\.\d+)?)/)?.[1] ?? null);
+	if (platform.type === 'mobile' || platform.type === 'tablet') {
+		if (name === 'Chrome') {
+			return {
+				agent: 'and_chr',
+				version
+			};
+		}
+		if (name === 'Firefox') {
+			return {
+				agent: 'and_ff',
+				version
+			};
+		}
+		if (name === 'UC Browser') {
+			return {
+				agent: 'and_uc',
+				version
+			};
+		}
+		if (name === 'QQ Browser') {
+			return {
+				agent: 'and_qq',
+				version
+			};
+		}
+		if (name === 'Baidu') {
+			return {
+				agent: 'baidu',
+				version
+			};
+		}
+		if (name === 'Android Browser') {
+			return {
+				agent: 'android',
+				version
+			};
+		}
+		if (name === 'BlackBerry') {
+			return {
+				agent: 'bb',
+				version
+			};
+		}
+		if (name === 'Opera Mini') {
+			return {
+				agent: 'op_mini',
+				version
+			};
+		}
+		if (name === 'Opera') {
+			return {
+				agent: 'op_mob',
+				version
+			};
+		}
+		if (name === 'Internet Explorer') {
+			return {
+				agent: 'ie_mob',
+				version
+			};
+		}
+	}
 
-	if (edgeVersion) {
+	if (name === 'Chrome') {
+		return {
+			agent: 'chrome',
+			version
+		};
+	}
+
+	if (name === 'Firefox') {
+		return {
+			agent: 'firefox',
+			version
+		};
+	}
+
+	if (name === 'Microsoft Edge') {
 		return {
 			agent: 'edge',
-			version: edgeVersion
+			version
 		};
 	}
 
-	const operaVersion = parseVersion(ua.match(/OPR\/(\d+(?:\.\d+)?)/)?.[1] ?? null);
-
-	if (operaVersion) {
+	if (name === 'Opera') {
 		return {
 			agent: 'opera',
-			version: operaVersion
+			version
 		};
 	}
 
-	const firefoxVersion = parseVersion(ua.match(/Firefox\/(\d+(?:\.\d+)?)/)?.[1] ?? null);
-
-	if (firefoxVersion) {
-		return {
-			agent: isAndroid ? 'and_ff' : 'firefox',
-			version: firefoxVersion
-		};
-	}
-
-	const chromeVersion = parseVersion(ua.match(/Chrome\/(\d+(?:\.\d+)?)/)?.[1] ?? null);
-
-	if (chromeVersion) {
-		return {
-			agent: isAndroid ? 'and_chr' : 'chrome',
-			version: chromeVersion
-		};
-	}
-
-	const safariVersion = parseVersion(ua.match(/Version\/(\d+(?:\.\d+)?)/)?.[1] ?? null);
-
-	if (safariVersion && /Safari\//.test(ua)) {
+	if (name === 'Safari') {
 		return {
 			agent: 'safari',
-			version: safariVersion
+			version
+		};
+	}
+
+	if (name === 'Samsung Internet for Android') {
+		return {
+			agent: 'samsung',
+			version
+		};
+	}
+
+	if (name === 'Internet Explorer') {
+		return {
+			agent: 'ie',
+			version
 		};
 	}
 
