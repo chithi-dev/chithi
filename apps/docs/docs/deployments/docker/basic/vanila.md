@@ -10,6 +10,15 @@ To host chithi, you need 3 parts.
 2. A Postgres Database instance
 3. A Redis Instance
 
+# Asumptions
+
+Chithi assumes that your reverse proxy adds the following headers to frontend:
+
+| Header Name                     | Value              | Reason |
+|---------------------------------|--------------------|--------|
+| Cross-Origin-Embedder-Policy    | require-corp       | Forces all cross-origin resources (scripts, images, WASM, workers, etc.) to explicitly opt in via CORS or CORP headers. This enables secure isolation required for features like `SharedArrayBuffer`, WebAssembly threads, and high-performance memory sharing. |
+| Cross-Origin-Opener-Policy      | same-origin        | Ensures your page runs in its own browsing context group, preventing interaction with cross-origin windows/tabs. This reduces Spectre-style attack risks and is required alongside COEP for full cross-origin isolation. |
+
 # Docker Compose
 
 Here is a ready to use docker file that can be used to deploy your site:
@@ -155,6 +164,12 @@ Now you can use a caddyfile like:
 
 ```caddyfile
 <your_domain> {
+    header {
+        Cross-Origin-Opener-Policy "same-origin"
+        Cross-Origin-Embedder-Policy "require-corp"
+        Cross-Origin-Resource-Policy "same-origin"
+    }
+
     handle_path /api/* {
         reverse_proxy localhost:8000
     }
@@ -164,6 +179,10 @@ Now you can use a caddyfile like:
     }
 }
 ```
+
+!!! warning
+
+    If you do not set the COEP headers, your web workers will not load properly
 
 !!! warning
 

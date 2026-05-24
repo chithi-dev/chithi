@@ -11,6 +11,16 @@ To host chithi, you need 3 parts.
 3. A Redis Instance
 4. A watchtowerr instance to auto update chithi
 
+# Asumptions
+
+Chithi assumes that your reverse proxy adds the following headers to frontend:
+
+| Header Name                     | Value              | Reason |
+|---------------------------------|--------------------|--------|
+| Cross-Origin-Embedder-Policy    | require-corp       | Forces all cross-origin resources (scripts, images, WASM, workers, etc.) to explicitly opt in via CORS or CORP headers. This enables secure isolation required for features like `SharedArrayBuffer`, WebAssembly threads, and high-performance memory sharing. |
+| Cross-Origin-Opener-Policy      | same-origin        | Ensures your page runs in its own browsing context group, preventing interaction with cross-origin windows/tabs. This reduces Spectre-style attack risks and is required alongside COEP for full cross-origin isolation. |
+
+
 # Docker Compose
 
 Here is a ready to use docker file that can be used to deploy your site:
@@ -170,6 +180,11 @@ Now you can use a caddyfile like:
 
 ```caddyfile
 <your_domain> {
+    header {
+        Cross-Origin-Opener-Policy "same-origin"
+        Cross-Origin-Embedder-Policy "require-corp"
+        Cross-Origin-Resource-Policy "same-origin"
+    }
     handle_path /api/* {
         reverse_proxy localhost:8000
     }
@@ -186,6 +201,10 @@ Or you can use Nginx configuration like:
 server {
     listen 80;
     server_name <your_domain>;
+    
+    add_header Cross-Origin-Opener-Policy "same-origin" always;
+    add_header Cross-Origin-Embedder-Policy "require-corp" always;
+    add_header Cross-Origin-Resource-Policy "same-origin" always;
 
     location /api/ {
         proxy_pass http://localhost:8000/;
@@ -205,9 +224,14 @@ server {
 }
 ```
 
+
 !!! warning
 
     This method exposes port `3000` and `8000` of your machine to docker containers
+
+!!! warning
+
+    If you do not set the COEP headers, your web workers will not load properly
 
 !!! danger
 
