@@ -22,9 +22,7 @@
 	const { default: RecentUpload } = await import('./recent_upload.svelte');
 
 	const { config: configData } = useConfigQuery();
-
 	let stage = $state<UploadStage>(UploadStage.Stage_1);
-
 	let dragActive = $state(false);
 	let dragOverCard = $state(false);
 	let dragOverZone = $state(false);
@@ -36,6 +34,9 @@
 		viewOnceLink: string;
 		isViewOnce: boolean;
 	} | null>(null);
+
+	// Prevent popstate from overriding initial mount state
+	let hasMounted = $state(false);
 
 	const detailsMarkdown = $derived(configData.data?.site_description ?? '');
 	let detailsHtml = $state('');
@@ -50,7 +51,6 @@
 
 	// Handle physical mouse back button (X1) to return from stage 2 to stage 1
 	const handleMouseBack = (e: MouseEvent) => {
-		// button 3 is the "Back" button on most mice
 		if (e.button === 3 && stage === UploadStage.Stage_2) {
 			stage = UploadStage.Stage_1;
 			e.preventDefault();
@@ -138,13 +138,11 @@
 			} else if (item.isDirectory) {
 				const dirReader = item.createReader();
 				const entries: any[] = [];
-
 				const readEntries = async () => {
 					try {
 						const result = await new Promise<any[]>((resolve, reject) => {
 							dirReader.readEntries(resolve, reject);
 						});
-
 						if (result.length > 0) {
 							entries.push(...result);
 							await readEntries();
@@ -153,9 +151,7 @@
 						console.error('Error reading directory:', err);
 					}
 				};
-
 				await readEntries();
-
 				const fileArrays = await Promise.all(
 					entries.map((entry) => traverseFileTree(entry, path + item.name + '/'))
 				);
@@ -169,10 +165,8 @@
 
 	const handlePaste = async (e: ClipboardEvent) => {
 		if (stage === UploadStage.Stage_3) return;
-
 		const items = e.clipboardData?.items;
 		if (!items) return;
-
 		let hasFiles = false;
 		for (let i = 0; i < items.length; i++) {
 			if (items[i].kind === 'file') {
@@ -181,14 +175,11 @@
 			}
 		}
 		if (!hasFiles) return;
-
 		e.preventDefault();
-
 		const promises: Array<Promise<Array<File>>> = new Array();
 		for (let i = 0; i < items.length; i++) {
 			const item = items[i];
 			if (item.kind !== 'file') continue;
-			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
 			if (entry) {
 				promises.push(traverseFileTree(entry));
@@ -197,7 +188,6 @@
 				if (file) promises.push(Promise.resolve([file]));
 			}
 		}
-
 		const fileArrays = await Promise.all(promises);
 		const newFiles = fileArrays.flat();
 		if (newFiles.length > 0) {
@@ -212,7 +202,7 @@
 		dragOverZone = false;
 		dragOverCard = false;
 		stage = UploadStage.Stage_2;
-		window.history.pushState({ stage: UploadStage.Stage_2 }, '');
+		window.history.pushState({ stage: UploadStage.Stage_2 }, '', window.location.href);
 	};
 
 	const onUploadComplete = (result: {
@@ -222,7 +212,7 @@
 	}) => {
 		uploadResult = result;
 		stage = UploadStage.Stage_3;
-		window.history.pushState({ stage: UploadStage.Stage_3 }, '');
+		window.history.pushState({ stage: UploadStage.Stage_3 }, '', window.location.href);
 	};
 
 	const resetState = (historyMode: 'push' | 'replace' = 'push') => {
@@ -233,10 +223,12 @@
 		dragActive = false;
 		dragOverZone = false;
 		dragOverCard = false;
+
+		const state = { stage: UploadStage.Stage_1 };
 		if (historyMode === 'replace') {
-			window.history.replaceState({ stage: UploadStage.Stage_1 }, '');
+			window.history.replaceState(state, '', window.location.href);
 		} else {
-			window.history.pushState({ stage: UploadStage.Stage_1 }, '');
+			window.history.pushState(state, '', window.location.href);
 		}
 	};
 
@@ -245,11 +237,18 @@
 	};
 
 	const handlePopState = (e: PopStateEvent) => {
+		// Ignore popstate until after initial microtask flush completes
+		if (!hasMounted) return;
 		stage = isWhichUploadStage(e.state?.stage) ? e.state.stage : UploadStage.Stage_1;
 	};
 
 	onMount(() => {
-		resetState('replace');
+		// Queue reset & mount guard in the microtask queue
+		// Runs immediately after current call stack, before next macrotask/repaint
+		queueMicrotask(() => {
+			resetState('replace');
+			hasMounted = true;
+		});
 	});
 </script>
 
