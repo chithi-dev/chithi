@@ -55,5 +55,5 @@ flowchart TD
 ```
 
 <small>
-    The [frontend architecture](../frontend/architecture.md) and the [overall architecture](../architecture/index.md)
+    The [frontend architecture](../frontend/architecture.md) and the [overall architecture](../architecture.md)
 </small>

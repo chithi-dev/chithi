@@ -3,7 +3,7 @@ name = "docs"
 version = "0.0.1"
 description = "Documentation for the next generation encrypted file sharing project"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 dependencies = ["zensical>=0.0.17"]
 
 [dependency-groups]
