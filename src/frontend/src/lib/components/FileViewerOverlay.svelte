@@ -440,7 +440,7 @@
 					<Button
 						variant="ghost"
 						size="sm"
-						class="h-7 gap-1.5 px-2 text-xs text-white/70 hover:bg-white/10 hover:text-white"
+						class="h-7 gap-1.5 px-2 text-xs text-white/70 hover:bg-white/10 hover:text-white cursor-pointer"
 						disabled={action.disabled}
 						onclick={action.onClick}
 					>
