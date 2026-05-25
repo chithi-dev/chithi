@@ -25,16 +25,8 @@
 </script>
 
 <div
-	class="dark relative flex h-157.5 w-300 flex-col justify-center overflow-hidden bg-background px-24 py-16 font-[Geist,sans-serif]"
+	class="dark flex h-157.5 w-300 flex-col justify-center overflow-hidden bg-background bg-[radial-gradient(circle_at_15%_0%,rgba(244,63,94,0.14),transparent_62%),radial-gradient(circle_at_90%_100%,rgba(217,70,239,0.12),transparent_68%)] px-24 py-16 font-[Geist,sans-serif]"
 >
-	<!-- Background Ambient Glows -->
-	<div
-		class="absolute -top-50 -left-50 flex h-150 w-150 rounded-full bg-rose-600/20 blur-[100px]"
-	></div>
-	<div
-		class="absolute -right-50 -bottom-50 flex h-150 w-150 rounded-full bg-fuchsia-700/15 blur-[120px]"
-	></div>
-
 	<!-- Domain Header -->
 	<div
 		dir={domainDirection}
