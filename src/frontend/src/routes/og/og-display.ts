@@ -1,4 +1,5 @@
-import { getOgConfig, type OgKind } from './og-config';
+import { getOgConfig } from './og-config';
+import { OgKind } from './og-enums';
 
 export type OgInputs = {
 	kind?: OgKind | null;
@@ -7,6 +8,7 @@ export type OgInputs = {
 	description?: string | null;
 	filename?: string | null;
 	size?: string | null;
+	fileCount?: number | null;
 };
 
 export type OgDisplay = {
@@ -30,8 +32,13 @@ export function buildOgDisplay(inputs: OgInputs): OgDisplay {
 		? trimOr(inputs.filename, 'Encrypted File').slice(0, 42)
 		: trimOr(inputs.title, config.title ?? 'Chithi').slice(0, 42);
 
+	const fileCount =
+		typeof inputs.fileCount === 'number' && Number.isFinite(inputs.fileCount)
+			? inputs.fileCount
+			: null;
+	const fileCountLabel = fileCount && fileCount > 0 ? ` | Files: ${fileCount}` : '';
 	const subtitle = config.usesFileMeta
-		? `Size: ${trimOr(inputs.size, 'Unknown size')}`
+		? `Size: ${trimOr(inputs.size, 'Unknown size')}${fileCountLabel}`
 		: trimOr(inputs.description, config.description ?? '').slice(0, 90);
 
 	return {

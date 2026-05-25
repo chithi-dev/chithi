@@ -5,9 +5,8 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { render } from 'svelte/server';
 import ImageResponse from 'takumi-js/response';
 import Component from './Component.svelte';
-import { type OgKind } from './og-config';
 import { buildOgDisplay } from './og-display';
-import { OgDirection, OgSecurity } from './og-enums';
+import { OgDirection, OgKind, OgSecurity } from './og-enums';
 
 const RTL_CHARACTERS = /[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/;
 
@@ -73,6 +72,13 @@ function parseProtocolFromHeader(value: string | null) {
 	return '';
 }
 
+function parseFileCount(value: string | null) {
+	if (!value) return null;
+	const parsed = Number.parseInt(value, 10);
+	if (!Number.isFinite(parsed) || parsed <= 0) return null;
+	return parsed;
+}
+
 function getRequestProtocol(url: URL, request: Request, domainOverride: string | null) {
 	const overrideProtocol = parseProtocolFromHeader(domainOverride);
 	if (overrideProtocol) return overrideProtocol;
@@ -113,6 +119,7 @@ export async function buildOgResponse(event: RequestEvent, kind: OgKind) {
 	const domainOverride = url.searchParams.get('domain') ?? null;
 	const domain = domainOverride?.trim() || getRequestDomain(url, request);
 	const protocol = getRequestProtocol(url, request, domainOverride);
+	const fileCount = parseFileCount(url.searchParams.get('files'));
 	const displayDomain = (() => {
 		const trimmed = domain.trim();
 		if (!trimmed) return '';
@@ -128,7 +135,8 @@ export async function buildOgResponse(event: RequestEvent, kind: OgKind) {
 		title: url.searchParams.get('title'),
 		description: url.searchParams.get('description'),
 		filename: url.searchParams.get('filename'),
-		size: url.searchParams.get('size')
+		size: url.searchParams.get('size'),
+		fileCount
 	});
 
 	const { body, head } = await render(Component, {
