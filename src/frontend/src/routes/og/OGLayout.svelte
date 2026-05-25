@@ -6,7 +6,6 @@
 	let {
 		displayDomain = '',
 		domainDirection = 'ltr',
-		titleMask = 'linear-gradient(to right, #000 85%, transparent 100%)',
 		label,
 		title,
 		subtitle,
@@ -14,7 +13,6 @@
 	} = $props<{
 		displayDomain?: string;
 		domainDirection?: 'ltr' | 'rtl';
-		titleMask?: string;
 		label: string;
 		title: string;
 		subtitle: string;
@@ -36,15 +34,16 @@
 	<!-- Domain Header -->
 	<div
 		dir={domainDirection}
-		style={`font-size:20px;font-weight:600;color:#9ca3af;margin-bottom:28px;text-align:${
-			domainDirection === 'rtl' ? 'right' : 'left'
-		};`}
+		class={[
+			'pt-6 text-2xl font-semibold text-gray-400',
+			{ 'text-right': domainDirection === 'rtl', 'text-left': domainDirection !== 'rtl' }
+		]}
 	>
 		{displayDomain}
 	</div>
 
 	<!-- Main Content Row -->
-	<div class="relative z-20 flex flex-row items-center">
+	<div class="relative z-20 flex flex-1 flex-row items-center">
 		<!-- Logo Box (UNMASKED) -->
 		<div
 			class="flex h-60 w-60 shrink-0 items-center justify-center rounded-[52px] border-4 border-rose-500/30 bg-card shadow-[0_0_80px_rgba(244,63,94,0.15)]"
@@ -62,8 +61,7 @@
 
 			<!-- Title with Dynamic One-Sided Cutoff Gradient -->
 			<h1
-				class="m-0 mb-4 text-[88px] leading-none font-extrabold tracking-tight text-foreground"
-				style={`mask-image: ${titleMask}; -webkit-mask-image: ${titleMask};`}
+				class="m-0 mb-4 text-[88px] leading-none font-extrabold tracking-tight text-foreground mask-[linear-gradient(to_right,#000_85%,transparent_100%)]"
 			>
 				{title}
 			</h1>
@@ -78,10 +76,10 @@
 	<div class="relative z-20 mt-12 flex flex-row">
 		{#each footerTags as tag, i}
 			<div
-				class="flex items-center justify-center rounded-full border border-solid border-rose-400/30 bg-rose-400/10 px-6 py-3 {i <
-				footerTags.length - 1
-					? 'mr-6'
-					: ''}"
+				class={[
+					'flex items-center justify-center rounded-full border border-solid border-rose-400/30 bg-rose-400/10 px-6 py-3',
+					{ 'mr-6': i < footerTags.length - 1 }
+				]}
 			>
 				<span class="text-[20px] font-semibold text-rose-200">{tag}</span>
 			</div>

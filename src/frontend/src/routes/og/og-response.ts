@@ -6,6 +6,7 @@ import { render } from 'svelte/server';
 import ImageResponse from 'takumi-js/response';
 import Component from './Component.svelte';
 import type { OgKind } from './og-config';
+import { buildOgDisplay } from './og-display';
 
 const RTL_CHARACTERS = /[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/;
 
@@ -48,11 +49,10 @@ function normalizeHost(rawHost: string) {
 
 function parseHostFromHeader(value: string | null) {
 	if (!value) return '';
-	try {
+	if (URL.canParse(value)) {
 		return normalizeHost(new URL(value).host);
-	} catch {
-		return normalizeHost(value);
 	}
+	return normalizeHost(value);
 }
 
 function getRequestDomain(url: URL, request: Request) {
@@ -75,35 +75,52 @@ export async function buildOgResponse(event: RequestEvent, kind: OgKind) {
 	const { url, request } = event;
 	const domainOverride = url.searchParams.get('domain');
 	const domain = domainOverride?.trim() || getRequestDomain(url, request);
+	const displayDomain = (() => {
+		const trimmed = domain.trim();
+		if (!trimmed) return '';
+		if (/^https?:\/\//i.test(trimmed)) return trimmed.replace(/\/$/, '');
+		return `https://${trimmed.replace(/\/$/, '')}`;
+	})();
 	const domainDirection = RTL_CHARACTERS.test(domain) ? 'rtl' : 'ltr';
+	const display = buildOgDisplay({
+		kind,
+		label: url.searchParams.get('label'),
+		title: url.searchParams.get('title'),
+		description: url.searchParams.get('description'),
+		filename: url.searchParams.get('filename'),
+		size: url.searchParams.get('size')
+	});
 
 	const { body, head } = await render(Component, {
 		props: {
-			kind,
-			label: url.searchParams.get('label'),
-			title: url.searchParams.get('title'),
-			description: url.searchParams.get('description'),
-			filename: url.searchParams.get('filename'),
-			size: url.searchParams.get('size'),
-			domain,
-			domainDirection
+			label: display.label,
+			title: display.title,
+			subtitle: display.subtitle,
+			displayDomain,
+			domainDirection,
+			footerTags: display.footerTags
 		}
 	});
 	const height = 630;
 	const width = 1200;
-	const wantsHtml = url.searchParams.get('html');
-	if (wantsHtml?.toLowerCase() === 'true') {
+	const wantsHtml = url.searchParams.get('html')?.toLowerCase() === 'true';
+	if (wantsHtml) {
 		const html = `<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="color-scheme" content="dark" />
 		${head}
 		<style>${style}</style>
 		<style>html, body { margin: 0; padding: 0; }</style>
 	</head>
 	<body style="height:${height}px; width:${width}px;">
 		${body}
+		<script type="module">
+			const og = { width: ${width}, height: ${height} };
+			globalThis.__OG__ = og;
+		</script>
 	</body>
 </html>`;
 
