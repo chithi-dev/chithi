@@ -2,11 +2,13 @@
 
 <script lang="ts">
 	import logo from '$lib/assets/logo.svg?raw';
-	import { OgDirection } from './og-enums';
+	import { ShieldCheck, ShieldOff } from '@lucide/svelte';
+	import { OgDirection, OgSecurity } from './og-enums';
 
 	let {
 		displayDomain = '',
 		domainDirection = OgDirection.Ltr,
+		domainSecurity,
 		label,
 		title,
 		subtitle,
@@ -14,6 +16,7 @@
 	} = $props<{
 		displayDomain?: string;
 		domainDirection?: OgDirection;
+		domainSecurity: OgSecurity;
 		label: string;
 		title: string;
 		subtitle: string;
@@ -36,13 +39,18 @@
 	<div
 		dir={domainDirection}
 		class={[
-			'pt-6 text-2xl font-semibold text-gray-400',
+			'flex items-center gap-3 pt-6 text-2xl font-semibold text-gray-400',
 			{
 				'text-right': domainDirection === OgDirection.Rtl,
 				'text-left': domainDirection !== OgDirection.Rtl
 			}
 		]}
 	>
+		{#if domainSecurity === OgSecurity.Secure}
+			<ShieldCheck class="h-5 w-5 text-emerald-400" />
+		{:else}
+			<ShieldOff class="h-5 w-5 text-gray-400" />
+		{/if}
 		{displayDomain}
 	</div>
 

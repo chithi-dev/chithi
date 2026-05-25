@@ -7,7 +7,7 @@ import ImageResponse from 'takumi-js/response';
 import Component from './Component.svelte';
 import { type OgKind } from './og-config';
 import { buildOgDisplay } from './og-display';
-import { OgDirection } from './og-enums';
+import { OgDirection, OgSecurity } from './og-enums';
 
 const RTL_CHARACTERS = /[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/;
 
@@ -18,6 +18,15 @@ function parseForwardedHost(forwarded: string | null) {
 	if (!match) return null;
 
 	return match[1]?.trim().replace(/^"|"$/g, '');
+}
+
+function parseForwardedProto(forwarded: string | null) {
+	if (!forwarded) return null;
+
+	const match = forwarded.match(/proto=([^;]+)/i);
+	if (!match) return null;
+
+	return match[1]?.trim().replace(/^"|"$/g, '').toLowerCase();
 }
 
 function normalizeHost(rawHost: string) {
@@ -56,6 +65,33 @@ function parseHostFromHeader(value: string | null) {
 	return normalizeHost(value);
 }
 
+function parseProtocolFromHeader(value: string | null) {
+	if (!value) return '';
+	if (URL.canParse(value)) {
+		return new URL(value).protocol.replace(':', '').toLowerCase();
+	}
+	return '';
+}
+
+function getRequestProtocol(url: URL, request: Request, domainOverride: string | null) {
+	const overrideProtocol = parseProtocolFromHeader(domainOverride);
+	if (overrideProtocol) return overrideProtocol;
+
+	const forwardedProto = parseForwardedProto(request.headers.get('forwarded'));
+	if (forwardedProto) return forwardedProto;
+
+	const forwardedHeader = request.headers.get('x-forwarded-proto');
+	if (forwardedHeader) {
+		const proto = forwardedHeader.split(',')[0]?.trim().toLowerCase();
+		if (proto) return proto;
+	}
+
+	const originProtocol = parseProtocolFromHeader(request.headers.get('origin'));
+	if (originProtocol) return originProtocol;
+
+	return url.protocol.replace(':', '').toLowerCase();
+}
+
 function getRequestDomain(url: URL, request: Request) {
 	const forwardedHost = parseForwardedHost(request.headers.get('forwarded'));
 	const hostHeader =
@@ -74,15 +110,18 @@ function getRequestDomain(url: URL, request: Request) {
 
 export async function buildOgResponse(event: RequestEvent, kind: OgKind) {
 	const { url, request } = event;
-	const domainOverride = url.searchParams.get('domain');
+	const domainOverride = url.searchParams.get('domain') ?? null;
 	const domain = domainOverride?.trim() || getRequestDomain(url, request);
+	const protocol = getRequestProtocol(url, request, domainOverride);
 	const displayDomain = (() => {
 		const trimmed = domain.trim();
 		if (!trimmed) return '';
 		if (/^https?:\/\//i.test(trimmed)) return trimmed.replace(/\/$/, '');
-		return `https://${trimmed.replace(/\/$/, '')}`;
+		const scheme = protocol === 'http' ? 'http' : 'https';
+		return `${scheme}://${trimmed.replace(/\/$/, '')}`;
 	})();
 	const domainDirection = RTL_CHARACTERS.test(domain) ? OgDirection.Rtl : OgDirection.Ltr;
+	const domainSecurity = protocol === 'https' ? OgSecurity.Secure : OgSecurity.Insecure;
 	const display = buildOgDisplay({
 		kind,
 		label: url.searchParams.get('label'),
@@ -99,6 +138,7 @@ export async function buildOgResponse(event: RequestEvent, kind: OgKind) {
 			subtitle: display.subtitle,
 			displayDomain,
 			domainDirection,
+			domainSecurity,
 			footerTags: display.footerTags
 		}
 	});
@@ -106,7 +146,8 @@ export async function buildOgResponse(event: RequestEvent, kind: OgKind) {
 	const width = 1200;
 	const wantsHtml = url.searchParams.get('html')?.toLowerCase() === 'true';
 	if (wantsHtml) {
-		const html = `<!doctype html>
+		const html = `
+<!doctype html>
 <html lang="en">
 	<head>
 		<meta charset="utf-8" />
@@ -114,16 +155,12 @@ export async function buildOgResponse(event: RequestEvent, kind: OgKind) {
 		<meta name="color-scheme" content="dark" />
 		${head}
 		<style>${style}</style>
-		<style>html, body { margin: 0; padding: 0; }</style>
 	</head>
 	<body style="height:${height}px; width:${width}px;">
 		${body}
-		<script type="module">
-			const og = { width: ${width}, height: ${height} };
-			globalThis.__OG__ = og;
-		</script>
 	</body>
-</html>`;
+</html>
+`;
 
 		return new Response(html, {
 			headers: {

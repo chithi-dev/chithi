@@ -1,16 +1,25 @@
 <script lang="ts">
 	import OGLayout from './OGLayout.svelte';
+	import type { OgDirection, OgSecurity } from './og-enums';
 
-	import type { OgDirection } from './og-enums';
-
-	let { label, title, subtitle, displayDomain, domainDirection, footerTags } = $props<{
-		label: string;
-		title: string;
-		subtitle: string;
-		displayDomain: string;
-		domainDirection: OgDirection;
-		footerTags?: string[];
-	}>();
+	let { label, title, subtitle, displayDomain, domainDirection, domainSecurity, footerTags } =
+		$props<{
+			label: string;
+			title: string;
+			subtitle: string;
+			displayDomain: string;
+			domainDirection: OgDirection;
+			domainSecurity: OgSecurity;
+			footerTags?: string[];
+		}>();
 </script>
 
-<OGLayout {label} {title} {subtitle} {displayDomain} {domainDirection} {footerTags} />
+<OGLayout
+	{label}
+	{title}
+	{subtitle}
+	{displayDomain}
+	{domainDirection}
+	{domainSecurity}
+	{footerTags}
+/>
