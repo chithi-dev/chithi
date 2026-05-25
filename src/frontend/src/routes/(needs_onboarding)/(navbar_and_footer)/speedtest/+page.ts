@@ -2,13 +2,7 @@ import { definePageMetaTags } from 'svelte-meta-tags';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = ({ url }) => {
-	const ogUrl = new URL('/og', url.origin);
-	ogUrl.searchParams.set('type', 'speedtest');
-	ogUrl.searchParams.set('title', 'Network Speedtest');
-	ogUrl.searchParams.set(
-		'description',
-		'Test your connection speed to the Chithi server for optimal transfers.'
-	);
+	const ogUrl = new URL('/og/speedtest', url.origin);
 
 	const pageTags = definePageMetaTags({
 		title: 'Speedtest',

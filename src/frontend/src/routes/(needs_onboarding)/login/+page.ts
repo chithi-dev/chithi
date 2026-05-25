@@ -5,13 +5,7 @@ import type { PageLoad } from './$types';
 import { schema } from './schema';
 
 export const load: PageLoad = async ({ url }) => {
-	const ogUrl = new URL('/og', url.origin);
-	ogUrl.searchParams.set('type', 'login');
-	ogUrl.searchParams.set('title', 'Welcome Back');
-	ogUrl.searchParams.set(
-		'description',
-		'Log in to your Chithi instance to manage and share encrypted files.'
-	);
+	const ogUrl = new URL('/og/login', url.origin);
 
 	const pageTags = definePageMetaTags({
 		title: 'Login',
