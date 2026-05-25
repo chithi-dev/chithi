@@ -2,17 +2,18 @@
 
 <script lang="ts">
 	import logo from '$lib/assets/logo.svg?raw';
+	import { OgDirection } from './og-enums';
 
 	let {
 		displayDomain = '',
-		domainDirection = 'ltr',
+		domainDirection = OgDirection.Ltr,
 		label,
 		title,
 		subtitle,
 		footerTags = ['End-to-end encryption', 'Auto-expiring links', 'Zero-knowledge']
 	} = $props<{
 		displayDomain?: string;
-		domainDirection?: 'ltr' | 'rtl';
+		domainDirection?: OgDirection;
 		label: string;
 		title: string;
 		subtitle: string;
@@ -36,7 +37,10 @@
 		dir={domainDirection}
 		class={[
 			'pt-6 text-2xl font-semibold text-gray-400',
-			{ 'text-right': domainDirection === 'rtl', 'text-left': domainDirection !== 'rtl' }
+			{
+				'text-right': domainDirection === OgDirection.Rtl,
+				'text-left': domainDirection !== OgDirection.Rtl
+			}
 		]}
 	>
 		{displayDomain}

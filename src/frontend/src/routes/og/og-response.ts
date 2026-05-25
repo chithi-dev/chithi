@@ -5,8 +5,9 @@ import type { RequestEvent } from '@sveltejs/kit';
 import { render } from 'svelte/server';
 import ImageResponse from 'takumi-js/response';
 import Component from './Component.svelte';
-import type { OgKind } from './og-config';
+import { type OgKind } from './og-config';
 import { buildOgDisplay } from './og-display';
+import { OgDirection } from './og-enums';
 
 const RTL_CHARACTERS = /[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/;
 
@@ -81,7 +82,7 @@ export async function buildOgResponse(event: RequestEvent, kind: OgKind) {
 		if (/^https?:\/\//i.test(trimmed)) return trimmed.replace(/\/$/, '');
 		return `https://${trimmed.replace(/\/$/, '')}`;
 	})();
-	const domainDirection = RTL_CHARACTERS.test(domain) ? 'rtl' : 'ltr';
+	const domainDirection = RTL_CHARACTERS.test(domain) ? OgDirection.Rtl : OgDirection.Ltr;
 	const display = buildOgDisplay({
 		kind,
 		label: url.searchParams.get('label'),

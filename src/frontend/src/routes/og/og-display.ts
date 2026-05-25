@@ -1,7 +1,7 @@
-import { getOgConfig } from './og-config';
+import { getOgConfig, type OgKind } from './og-config';
 
 export type OgInputs = {
-	kind?: string | null;
+	kind?: OgKind | null;
 	label?: string | null;
 	title?: string | null;
 	description?: string | null;
