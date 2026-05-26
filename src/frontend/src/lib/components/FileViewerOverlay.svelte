@@ -86,6 +86,7 @@
 	const heicExtensions = ['.heic', '.heif'];
 	const jxrExtensions = ['.jxr', '.wdp', '.hdp'];
 	const qoiExtensions = ['.qoi'];
+	const webpExtensions = ['.webp'];
 	let sniffedKind = $state<MediaKind | null>(null);
 	let sniffedMime = $state<string | null>(null);
 	let imageSupport = $state<ImageSupportInfo | null>(null);
@@ -113,8 +114,8 @@
 
 	function getPngFilename(name: string) {
 		const lower = name.toLowerCase();
-		const matched = [...heicExtensions, ...jxrExtensions, ...qoiExtensions].find((ext) =>
-			lower.endsWith(ext)
+		const matched = [...heicExtensions, ...jxrExtensions, ...qoiExtensions, ...webpExtensions].find(
+			(ext) => lower.endsWith(ext)
 		);
 		if (matched) return `${name.slice(0, -matched.length)}.png`;
 		if (lower.endsWith('.svg')) return `${name.slice(0, -4)}.png`;
@@ -162,20 +163,17 @@
 				const isJxl = sniffedMime === 'image/jxl';
 				const isJxr = sniffedMime === 'image/jxr';
 				const isQoi = sniffedMime === 'image/qoi';
+				const isWebp = sniffedMime === 'image/webp';
 				const isPng = sniffedMime === 'image/png';
-				const type = isHeic
-					? 'heic'
-					: isSvg
-						? 'svg'
-						: isJxl
-							? 'jxl'
-							: isJxr
-								? 'jxr'
-								: isQoi
-									? 'qoi'
-									: isPng
-										? 'png'
-										: null;
+				const type =
+					(isHeic && 'heic') ||
+					(isSvg && 'svg') ||
+					(isJxl && 'jxl') ||
+					(isJxr && 'jxr') ||
+					(isQoi && 'qoi') ||
+					(isWebp && 'webp') ||
+					(isPng && 'png') ||
+					null;
 				if (!type) return null;
 
 				let svgText = null;
@@ -228,7 +226,7 @@
 						reject(e);
 						worker.terminate();
 					};
-					// Send pre-converted HEIC buffer or let worker handle conversion
+					// Send source data to the worker for conversion
 					worker.postMessage({
 						type,
 						blob: sourceBlob,
@@ -310,6 +308,7 @@
 						mime === 'image/jxr' ||
 						mime === 'image/qoi' ||
 						mime === 'image/svg+xml' ||
+						mime === 'image/webp' ||
 						mime === 'image/png'
 					) {
 						sourceBlob = blob;
@@ -341,6 +340,7 @@
 	const isJxr = $derived(sniffedMime === 'image/jxr');
 	const isQoi = $derived(sniffedMime === 'image/qoi');
 	const isSvg = $derived(sniffedMime === 'image/svg+xml');
+	const isWebp = $derived(sniffedMime === 'image/webp');
 	const isPng = $derived(sniffedMime === 'image/png');
 	const isImage = $derived(sniffedKind === 'image');
 	const isVideo = $derived(sniffedKind === 'video');
@@ -352,11 +352,15 @@
 			!isJxr &&
 			!isQoi &&
 			!isSvg &&
+			!isWebp &&
 			!isPng &&
 			imageSupport?.status === 'unsupported'
 	);
 	const imageSupportMessage = $derived(imageSupport?.message ?? null);
-	const isConvertible = $derived(isHeic || isJxl || isJxr || isQoi || isSvg || isPng);
+	const isConvertible = $derived(isHeic || isJxl || isJxr || isQoi || isSvg || isWebp || isPng);
+	const shouldAutoConvert = $derived(
+		isConvertible && (!isWebp || imageSupport?.status === 'unsupported')
+	);
 	const imageInfo = $derived<ImageInfo | null>(
 		isConvertible && conversionStarted && !converting && !convertedUrl
 			? {
@@ -423,7 +427,7 @@
 	const visibleToolbarActions = $derived(toolbarActions.filter((action) => action.isVisible));
 
 	$effect(() => {
-		if (!sourceBlob || !isConvertible) return;
+		if (!sourceBlob || !shouldAutoConvert) return;
 		startConversion(false); // Default to fast conversion for preview
 	});
 
@@ -519,9 +523,11 @@
 													? 'JXR'
 													: isQoi
 														? 'QOI'
-														: isSvg
-															? 'SVG'
-															: 'PNG'} to PNG...
+														: isWebp
+															? 'WEBP'
+															: isSvg
+																? 'SVG'
+																: 'PNG'} to PNG...
 									</span>
 								</div>
 							</div>
