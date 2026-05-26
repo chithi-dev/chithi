@@ -6,7 +6,8 @@ import { render } from 'svelte/server';
 import ImageResponse from 'takumi-js/response';
 import Component from './Component.svelte';
 import { buildOgDisplay } from './og-display';
-import { OgDirection, OgKind, OgSecurity } from './og-enums';
+import { OgDirection, OgSecurity } from './og-enums';
+import type { OgConfig } from './og-types';
 
 const RTL_CHARACTERS = /[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/;
 
@@ -114,7 +115,7 @@ function getRequestDomain(url: URL, request: Request) {
 	return url.host || url.hostname;
 }
 
-export async function buildOgResponse(event: RequestEvent, kind: OgKind) {
+export async function buildOgResponse(event: RequestEvent, config: OgConfig) {
 	const { url, request } = event;
 	const domainOverride = url.searchParams.get('domain') ?? null;
 	const domain = domainOverride?.trim() || getRequestDomain(url, request);
@@ -129,8 +130,7 @@ export async function buildOgResponse(event: RequestEvent, kind: OgKind) {
 	})();
 	const domainDirection = RTL_CHARACTERS.test(domain) ? OgDirection.Rtl : OgDirection.Ltr;
 	const domainSecurity = protocol === 'https' ? OgSecurity.Secure : OgSecurity.Insecure;
-	const display = buildOgDisplay({
-		kind,
+	const display = buildOgDisplay(config, {
 		label: url.searchParams.get('label'),
 		title: url.searchParams.get('title'),
 		description: url.searchParams.get('description'),
@@ -155,21 +155,19 @@ export async function buildOgResponse(event: RequestEvent, kind: OgKind) {
 	const wantsHtml = url.searchParams.get('html')?.toLowerCase() === 'true';
 	if (wantsHtml) {
 		const html = `
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<meta name="color-scheme" content="dark" />
-		${head}
-		<style>${style}</style>
-	</head>
-	<body style="height:${height}px; width:${width}px;">
-		${body}
-	</body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+	${head}
+	<style>${style}</style>
+</head>
+<body style="height:${height}px; width:${width}px;">
+	${body}
+</body>
 </html>
 `;
-
 		return new Response(html, {
 			headers: {
 				'Content-Type': 'text/html; charset=utf-8'

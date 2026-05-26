@@ -293,7 +293,6 @@
 				if (!cancelled) {
 					sniffedMime = mime;
 					sniffedKind = kind;
-					imageSupport = kind === 'image' && mime ? getImageSupportInfo(mime) : null;
 					if (
 						mime === 'image/heic' ||
 						mime === 'image/heif' ||
@@ -303,6 +302,11 @@
 					) {
 						sourceBlob = blob;
 					}
+				}
+
+				if (kind === 'image' && mime) {
+					const supportInfo = await getImageSupportInfo(mime);
+					if (!cancelled) imageSupport = supportInfo;
 				}
 			} catch {
 				if (!cancelled) sniffedKind = 'other';

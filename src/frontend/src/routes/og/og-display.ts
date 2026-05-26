@@ -1,8 +1,6 @@
-import { getOgConfig } from './og-config';
-import { OgKind } from './og-enums';
+import type { OgConfig } from './og-types';
 
 export type OgInputs = {
-	kind?: OgKind | null;
 	label?: string | null;
 	title?: string | null;
 	description?: string | null;
@@ -23,9 +21,7 @@ function trimOr(value: string | null | undefined, fallback: string) {
 	return cleaned ? cleaned : fallback;
 }
 
-export function buildOgDisplay(inputs: OgInputs): OgDisplay {
-	const config = getOgConfig(inputs.kind);
-
+export function buildOgDisplay(config: OgConfig, inputs: OgInputs): OgDisplay {
 	const label = config.labelFromQuery ? trimOr(inputs.label, config.label) : config.label;
 
 	const title = config.usesFileMeta

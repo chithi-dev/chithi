@@ -1,5 +1,11 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { OgKind } from '../og-enums';
 import { buildOgResponse } from '../og-response';
+import type { OgConfig } from '../og-types';
 
-export const GET: RequestHandler = (event) => buildOgResponse(event, OgKind.Speedtest);
+const ogConfig: OgConfig = {
+	label: 'Performance',
+	title: 'Network Speedtest',
+	description: 'Test your connection speed to the Chithi server for optimal transfers.'
+};
+
+export const GET: RequestHandler = (event) => buildOgResponse(event, ogConfig);

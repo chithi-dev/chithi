@@ -1,23 +1,4 @@
 const Bowser = await import('bowser');
-const { feature } = await import('caniuse-lite');
-
-// @ts-expect-error: type is not available
-const { default: avifData } = await import('caniuse-lite/data/features/avif');
-
-// @ts-expect-error: type is not available
-const { default: heifData } = await import('caniuse-lite/data/features/heif');
-
-// @ts-expect-error: type is not available
-const { default: webpData } = await import('caniuse-lite/data/features/webp');
-
-// @ts-expect-error: type is not available
-const { default: jpegxlData } = await import('caniuse-lite/data/features/jpegxl');
-
-// @ts-expect-error: type is not available
-const { default: jpegxrData } = await import('caniuse-lite/data/features/jpegxr');
-
-// @ts-expect-error: type is not available
-const { default: svgData } = await import('caniuse-lite/data/features/svg-img');
 
 type CaniuseStats = Record<string, Record<string, string>>;
 
@@ -32,16 +13,92 @@ export type ImageSupportInfo = {
 	message: string | null;
 };
 
-const toFeature = (data: unknown) => feature(data as never) as CaniuseFeature;
+type FeatureLoader = () => Promise<CaniuseFeature>;
 
-const featureByMime: Record<string, CaniuseFeature> = {
-	'image/avif': toFeature(avifData),
-	'image/heif': toFeature(heifData),
-	'image/heic': toFeature(heifData),
-	'image/webp': toFeature(webpData),
-	'image/jxl': toFeature(jpegxlData),
-	'image/jxr': toFeature(jpegxrData),
-	'image/svg+xml': toFeature(svgData)
+let featurePromise: Promise<(data: unknown) => CaniuseFeature> | null = null;
+
+const loadFeature = async () => {
+	if (!featurePromise) {
+		featurePromise = (async () => {
+			// @ts-expect-error: type is not available
+			const { default: feature } = await import('caniuse-lite/dist/unpacker/feature');
+			return (data: unknown) => feature(data as never) as CaniuseFeature;
+		})();
+	}
+
+	return featurePromise;
+};
+
+const loadAvifFeature: FeatureLoader = async () => {
+	const toFeature = await loadFeature();
+	// @ts-expect-error: type is not available
+	const { default: avifData } = await import('caniuse-lite/data/features/avif');
+	return toFeature(avifData);
+};
+
+const loadHeifFeature: FeatureLoader = async () => {
+	const toFeature = await loadFeature();
+	// @ts-expect-error: type is not available
+	const { default: heifData } = await import('caniuse-lite/data/features/heif');
+	return toFeature(heifData);
+};
+
+const loadWebpFeature: FeatureLoader = async () => {
+	const toFeature = await loadFeature();
+	// @ts-expect-error: type is not available
+	const { default: webpData } = await import('caniuse-lite/data/features/webp');
+	return toFeature(webpData);
+};
+
+const loadJpegxlFeature: FeatureLoader = async () => {
+	const toFeature = await loadFeature();
+	// @ts-expect-error: type is not available
+	const { default: jpegxlData } = await import('caniuse-lite/data/features/jpegxl');
+	return toFeature(jpegxlData);
+};
+
+const loadJpegxrFeature: FeatureLoader = async () => {
+	const toFeature = await loadFeature();
+	// @ts-expect-error: type is not available
+	const { default: jpegxrData } = await import('caniuse-lite/data/features/jpegxr');
+	return toFeature(jpegxrData);
+};
+
+const featureLoaders: Record<string, FeatureLoader> = {
+	'image/avif': loadAvifFeature,
+	'image/heif': loadHeifFeature,
+	'image/heic': loadHeifFeature,
+	'image/webp': loadWebpFeature,
+	'image/jxl': loadJpegxlFeature,
+	'image/jxr': loadJpegxrFeature
+};
+
+const featureCache = new Map<string, CaniuseFeature>();
+const featureInflight = new Map<string, Promise<CaniuseFeature>>();
+
+const loadFeatureForMime = async (mime: string): Promise<CaniuseFeature | null> => {
+	const loader = featureLoaders[mime];
+	if (!loader) return null;
+
+	const cached = featureCache.get(mime);
+	if (cached) return cached;
+
+	const inflight = featureInflight.get(mime);
+	if (inflight) return inflight;
+
+	const promise = loader()
+		.then((featureData) => {
+			featureCache.set(mime, featureData);
+			featureInflight.delete(mime);
+			return featureData;
+		})
+		.catch((error) => {
+			featureInflight.delete(mime);
+			throw error;
+		});
+
+	featureInflight.set(mime, promise);
+	return promise;
 };
 
 const agentLabels = {
@@ -246,8 +303,17 @@ const getSupportedAgents = (stats: CaniuseStats) => {
 	return supported;
 };
 
-export const getImageSupportInfo = (mime: string): ImageSupportInfo => {
-	const featureData = featureByMime[mime];
+export const getImageSupportInfo = async (mime: string): Promise<ImageSupportInfo> => {
+	let featureData: CaniuseFeature | null;
+
+	try {
+		featureData = await loadFeatureForMime(mime);
+	} catch {
+		return {
+			status: 'unknown',
+			message: null
+		};
+	}
 
 	if (!featureData) {
 		return {

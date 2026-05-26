@@ -1,5 +1,10 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { OgKind } from '../og-enums';
 import { buildOgResponse } from '../og-response';
+import type { OgConfig } from '../og-types';
 
-export const GET: RequestHandler = (event) => buildOgResponse(event, OgKind.View);
+const ogConfig: OgConfig = {
+	label: 'Ready to view',
+	usesFileMeta: true
+};
+
+export const GET: RequestHandler = (event) => buildOgResponse(event, ogConfig);
