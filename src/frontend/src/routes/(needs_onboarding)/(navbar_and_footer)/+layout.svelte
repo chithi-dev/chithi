@@ -8,17 +8,14 @@
 		Link,
 		BookOpenText,
 		Gauge,
-		Info,
-		Server
+		Info
 	} from '@lucide/svelte';
 	import Button from '$lib/components/ui/button/button.svelte';
 	import { toggleMode } from 'mode-watcher';
 	import * as Avatar from '$lib/components/ui/avatar';
 	import * as Dropdown from '$lib/components/ui/dropdown-menu';
 	import { useAuth } from '#queries/auth';
-	import { mode } from 'mode-watcher';
 	import { Label } from '$lib/components/ui/label';
-	import { Switch } from '$lib/components/ui/switch';
 	import { kebab_to_initials } from '#functions/string-conversion';
 	import { make_libravatar_url } from '#functions/libravatar';
 	import { page } from '$app/state';
@@ -27,7 +24,7 @@
 	import { PUBLIC_INSTANCE_URL } from '#consts/urls';
 	import { env } from '$env/dynamic/public';
 	import { SiGithub, SiUpptime } from '@icons-pack/svelte-simple-icons';
-	import type { Component, ComponentType } from 'svelte';
+	import type { Component } from 'svelte';
 	const { user: userData } = useAuth();
 
 	let { children } = $props();
@@ -49,8 +46,9 @@
 	type LinkItem = {
 		name: string;
 		href: string;
-		icon: Component<any> | ComponentType;
+		icon: Component<any>;
 		order: number;
+		iconLoader?: () => Promise<{ default: Component<any> }>;
 	};
 
 	const adminLinks = [
@@ -74,7 +72,7 @@
 			order: 3
 		}
 	];
-	let rightFooterLinks: LinkItem[] = $state([
+	const baseRightFooterLinks: LinkItem[] = [
 		{
 			href: 'https://docs.chithi.dev',
 			name: 'Documentation',
@@ -93,8 +91,8 @@
 			icon: SiGithub,
 			order: 1
 		}
-	]);
-	let leftFooterLinks: LinkItem[] = $state([
+	];
+	const leftFooterLinks: LinkItem[] = [
 		{
 			href: '/speedtest',
 			name: 'Speedtest',
@@ -107,55 +105,68 @@
 			icon: Info,
 			order: 2
 		}
-	]);
+	];
 
 	const donationPlatforms = [
 		{
 			key: 'PUBLIC_BUY_ME_A_COFFEE',
 			name: 'Buy Me A Coffee',
-			iconModule: await import('@icons-pack/svelte-simple-icons/icons/SiBuymeacoffee')
+			iconLoader: () => import('@icons-pack/svelte-simple-icons/icons/SiBuymeacoffee')
 		},
 		{
 			key: 'PUBLIC_LIBERAPAY',
 			name: 'Liberapay',
-			iconModule: await import('@icons-pack/svelte-simple-icons/icons/SiLiberapay')
+			iconLoader: () => import('@icons-pack/svelte-simple-icons/icons/SiLiberapay')
 		},
 		{
 			key: 'PUBLIC_KO_FI',
 			name: 'Ko-Fi',
-			iconModule: await import('@icons-pack/svelte-simple-icons/icons/SiKofi')
+			iconLoader: () => import('@icons-pack/svelte-simple-icons/icons/SiKofi')
 		},
 		{
 			key: 'PUBLIC_PATREON',
 			name: 'Patreon',
-			iconModule: await import('@icons-pack/svelte-simple-icons/icons/SiPatreon')
+			iconLoader: () => import('@icons-pack/svelte-simple-icons/icons/SiPatreon')
 		}
 	];
 
-	$effect.pre(() => {
-		const seen = new Set(rightFooterLinks.map((l) => l.href));
-		const additions = donationPlatforms.flatMap(({ key, name, iconModule }) => {
-			const href = (env as Record<string, string | undefined>)[key];
-			if (!href || seen.has(href)) return [];
+	const seenRightFooterLinks = new Set(baseRightFooterLinks.map((link) => link.href));
+	let donationOrder = baseRightFooterLinks.length;
+	const donationLinks: LinkItem[] = [];
 
-			return [
-				{
-					href,
-					name,
-					icon: iconModule.default,
-					order: rightFooterLinks.length + 1
-				}
-			];
+	for (const platform of donationPlatforms) {
+		const href = (env as Record<string, string | undefined>)[platform.key];
+		if (!href || seenRightFooterLinks.has(href)) continue;
+
+		seenRightFooterLinks.add(href);
+		donationOrder += 1;
+		donationLinks.push({
+			href,
+			name: platform.name,
+			icon: Link,
+			order: donationOrder,
+			iconLoader: platform.iconLoader
 		});
+	}
 
-		if (additions.length > 0) {
-			rightFooterLinks = [
-				...rightFooterLinks,
-				...additions.map((item, i) => ({
-					...item,
-					order: rightFooterLinks.length + i + 1
-				}))
-			];
+	let rightFooterLinks: LinkItem[] = $state([...baseRightFooterLinks, ...donationLinks]);
+
+	const donationIconPromises = new Map<string, Promise<void>>();
+
+	$effect.pre(() => {
+		for (const link of rightFooterLinks) {
+			if (!link.iconLoader || donationIconPromises.has(link.href)) continue;
+
+			const promise = link
+				.iconLoader()
+				.then((mod) => {
+					rightFooterLinks = rightFooterLinks.map((item) =>
+						item.href === link.href ? { ...item, icon: mod.default } : item
+					);
+				})
+				.catch(() => undefined);
+
+			donationIconPromises.set(link.href, promise);
 		}
 	});
 </script>
@@ -199,10 +210,8 @@
 					<Dropdown.Trigger>
 						<div class="my-0.5">
 							<Avatar.Root>
-								{#if userData.data.email}
-									{#key hashedAvatar}
-										<Avatar.Image src={hashedAvatar} alt="@{userData.data.username}" />
-									{/key}
+								{#if hashedAvatar}
+									<Avatar.Image src={hashedAvatar} alt="@{userData.data.username}" />
 								{/if}
 								<Avatar.Fallback>{initials}</Avatar.Fallback>
 							</Avatar.Root>
