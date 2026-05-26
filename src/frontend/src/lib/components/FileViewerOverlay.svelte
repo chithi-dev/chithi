@@ -107,10 +107,6 @@
 	let conversionToken = 0;
 	let conversionPromise: Promise<Blob | null> | null = null;
 	let isOptimizing = $state(false); // Tracks oxipng status
-	let gifConverting = $state(false);
-	let gifOptimizing = $state(false);
-	let gifConversionToken = 0;
-	let gifConversionPromise: Promise<Blob | null> | null = null;
 
 	const resetConversionState = () => {
 		conversionToken += 1;
@@ -122,10 +118,6 @@
 		convertedUrl = null;
 		sourceBlob = null;
 		isOptimizing = false;
-		gifConversionToken += 1;
-		gifConversionPromise = null;
-		gifConverting = false;
-		gifOptimizing = false;
 	};
 
 	const getPngFilename = (name: string) => {
@@ -134,12 +126,6 @@
 		if (matched) return `${name.slice(0, -matched.length)}.png`;
 		if (lower.endsWith('.svg') || lower.endsWith('.jxl')) return `${name.slice(0, -4)}.png`;
 		return `${name}.png`;
-	};
-
-	const getWebpFilename = (name: string) => {
-		const lower = name.toLowerCase();
-		if (lower.endsWith('.gif')) return `${name.slice(0, -4)}.webp`;
-		return `${name}.webp`;
 	};
 
 	const downloadBlob = (blob: Blob, name: string) => {
@@ -290,73 +276,6 @@
 		return await conversionPromise;
 	};
 
-	const startGifToWebpConversion = async () => {
-		if (gifConversionPromise) return await gifConversionPromise;
-		if (!sourceBlob) return null;
-
-		gifConversionToken += 1;
-		const token = gifConversionToken;
-		gifConverting = true;
-		gifOptimizing = true;
-
-		gifConversionPromise = new Promise<Blob | null>((resolve, reject) => {
-			const worker = new ConverterWorker();
-			worker.onmessage = (e) => {
-				const { data } = e;
-				if (data.type === 'status' && data.status === 'optimizing') {
-					gifOptimizing = true;
-					return;
-				}
-				if (data.type === 'success') {
-					const outputBlob = data.outputBlob;
-					const outputMime = data.outputMime ?? null;
-					if (token === gifConversionToken) {
-						if (!outputBlob || !(outputBlob instanceof Blob)) {
-							reject(new Error('Worker returned invalid blob'));
-							worker.terminate();
-							return;
-						}
-						if (outputMime !== 'image/webp') {
-							reject(new Error('Worker returned unexpected output format'));
-							worker.terminate();
-							return;
-						}
-						resolve(outputBlob);
-					} else {
-						resolve(null);
-					}
-					worker.terminate();
-					return;
-				}
-				if (data.type === 'error') {
-					if (token === gifConversionToken) {
-						reject(new Error(data.message));
-						worker.terminate();
-					}
-				}
-			};
-			worker.onerror = (event) => {
-				if (token === gifConversionToken) {
-					reject(event);
-					worker.terminate();
-				}
-			};
-			worker.postMessage({
-				type: 'gif',
-				blob: sourceBlob,
-				optimize: true
-			});
-		}).finally(() => {
-			if (token === gifConversionToken) {
-				gifConverting = false;
-				gifOptimizing = false;
-				gifConversionPromise = null;
-			}
-		});
-
-		return await gifConversionPromise;
-	};
-
 	const handleDownloadOriginal = () => {
 		if (ondownload) {
 			ondownload();
@@ -380,13 +299,6 @@
 		const pngBlob = await startConversion(true); // Explicit optimization requested
 		if (pngBlob) {
 			downloadBlob(pngBlob, getPngFilename(baseName));
-		}
-	};
-
-	const handleDownloadWebp = async () => {
-		const webpBlob = await startGifToWebpConversion();
-		if (webpBlob) {
-			downloadBlob(webpBlob, getWebpFilename(baseName));
 		}
 	};
 
@@ -423,7 +335,6 @@
 						mime === 'image/qoi' ||
 						mime === 'image/svg+xml' ||
 						mime === 'image/webp' ||
-						mime === 'image/gif' ||
 						mime === 'image/png'
 					) {
 						sourceBlob = blob;
@@ -460,7 +371,6 @@
 	const isSvg = $derived(sniffedMime === 'image/svg+xml');
 	const isWebp = $derived(sniffedMime === 'image/webp');
 	const isPng = $derived(sniffedMime === 'image/png');
-	const isGif = $derived(sniffedMime === 'image/gif');
 	const isImage = $derived(sniffedKind === 'image');
 	const isVideo = $derived(sniffedKind === 'video');
 	const isAudio = $derived(sniffedKind === 'audio');
@@ -541,14 +451,6 @@
 			icon: WandSparkles,
 			onClick: handleOptimizePng,
 			disabled: converting && !isOptimizing
-		},
-		{
-			key: 'optimize-webp',
-			isVisible: Boolean(ondownload) && isGif,
-			label: gifConverting ? (gifOptimizing ? 'Optimizing...' : 'Converting...') : 'Optimize WebP',
-			icon: WandSparkles,
-			onClick: handleDownloadWebp,
-			disabled: gifConverting
 		}
 	]);
 	const visibleToolbarActions = $derived(toolbarActions.filter((action) => action.isVisible));
