@@ -15,27 +15,37 @@
 	import { MetaTags, deepMerge } from 'svelte-meta-tags';
 	import { WORKER_CONCURRENCY } from '#consts/concurrency';
 
-	const { configure } = await import('@zip.js/zip.js');
-
 	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 
-	async function loadDevtools() {
-		if (!import.meta.env.DEV) return null;
+	const loadDevtools = async () => {
+		if (!import.meta.env.DEV) return Promise.resolve<Component<any> | null>(null);
 
 		const mod = await import('@tanstack/svelte-query-devtools');
 		return mod.SvelteQueryDevtools;
-	}
+	};
 
 	let SvelteQueryDevtools = $state<Component<any> | null>(null);
 
-	SvelteQueryDevtools = await loadDevtools();
+	void loadDevtools().then((component) => {
+		SvelteQueryDevtools = component;
+	});
 
 	// zip.js initialize
 	$effect.pre(() => {
-		configure({
-			useWebWorkers: true,
-			maxWorkers: WORKER_CONCURRENCY
-		});
+		let cancelled = false;
+
+		void (async () => {
+			const { configure } = await import('@zip.js/zip.js');
+			if (cancelled) return;
+			configure({
+				useWebWorkers: true,
+				maxWorkers: WORKER_CONCURRENCY
+			});
+		})();
+
+		return () => {
+			cancelled = true;
+		};
 	});
 
 	// NProgress
