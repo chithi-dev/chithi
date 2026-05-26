@@ -8,23 +8,25 @@ export const B_VALS = {
 
 export type ByteUnit = keyof typeof B_VALS;
 
-export function formatBytes(bytes: number): { val: number; unit: ByteUnit } {
-	if (!bytes || bytes === 0) return { val: 0, unit: 'MB' };
-	const units: ByteUnit[] = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-	const i = Math.floor(Math.log(bytes) / Math.log(1024));
-	return {
-		val: parseFloat((bytes / Math.pow(1024, i)).toFixed(2)),
-		unit: units[i]
-	};
-}
+const BYTE_UNITS = Object.keys(B_VALS) as ByteUnit[];
 
-export function bytesToNumber(value: number, unit: ByteUnit): number {
-	return Math.floor(value * B_VALS[unit]);
-}
+export const formatBytes = (bytes: number): { val: number; unit: ByteUnit } => {
+	if (!bytes) return { val: 0, unit: 'MB' };
+
+	const i = Math.floor(Math.log(bytes) / Math.log(1024));
+
+	return {
+		val: +(bytes / 1024 ** i).toFixed(2),
+		unit: BYTE_UNITS[i]
+	};
+};
+
+export const bytesToNumber = (value: number, unit: ByteUnit) => Math.floor(value * B_VALS[unit]);
+
 export const formatFileSize = (bytes: number): string => {
-	if (bytes === 0) return '0 Bytes';
-	const k = 1024;
-	const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-	const i = Math.floor(Math.log(bytes) / Math.log(k));
-	return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+	if (!bytes) return '0 Bytes';
+
+	const i = Math.floor(Math.log(bytes) / Math.log(1024));
+
+	return `${+(bytes / 1024 ** i).toFixed(2)} ${BYTE_UNITS[i]}`;
 };

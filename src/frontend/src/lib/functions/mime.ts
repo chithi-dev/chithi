@@ -69,12 +69,11 @@ const mimeMap: Record<string, string> = {
 
 export function getMimeType(name: string): string {
 	const ext = name.split('.').at(-1)?.toLowerCase() ?? '';
-
-	return mimeMap[ext] || 'application/octet-stream';
+	return mimeMap[ext] ?? 'application/octet-stream';
 }
 
 export function detectMimeFromBytes(bytes: Uint8Array): string | null {
-	const has = (offset: number, ...header: number[]) =>
+	const has = (offset: number, ...header: number[]): boolean =>
 		offset + header.length <= bytes.length &&
 		header.every((value, index) => bytes[offset + index] === value);
 
