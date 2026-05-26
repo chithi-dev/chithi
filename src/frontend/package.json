@@ -25,6 +25,7 @@
 		"@codemirror/language-data": "^6.5.2",
 		"@codemirror/state": "^6.6.0",
 		"@codemirror/view": "^6.41.1",
+		"@discourse/gif": "^1.0.0",
 		"@discourse/heic": "^1.0.0",
 		"@discourse/jxr": "^1.0.0",
 		"@eslint/compat": "^2.0.5",
