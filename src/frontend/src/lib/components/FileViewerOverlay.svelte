@@ -84,6 +84,8 @@
 	};
 
 	const heicExtensions = ['.heic', '.heif'];
+	const jxrExtensions = ['.jxr', '.wdp', '.hdp'];
+	const qoiExtensions = ['.qoi'];
 	let sniffedKind = $state<MediaKind | null>(null);
 	let sniffedMime = $state<string | null>(null);
 	let imageSupport = $state<ImageSupportInfo | null>(null);
@@ -111,7 +113,9 @@
 
 	function getPngFilename(name: string) {
 		const lower = name.toLowerCase();
-		const matched = heicExtensions.find((ext) => lower.endsWith(ext));
+		const matched = [...heicExtensions, ...jxrExtensions, ...qoiExtensions].find((ext) =>
+			lower.endsWith(ext)
+		);
 		if (matched) return `${name.slice(0, -matched.length)}.png`;
 		if (lower.endsWith('.svg')) return `${name.slice(0, -4)}.png`;
 		if (lower.endsWith('.jxl')) return `${name.slice(0, -4)}.png`;
@@ -156,19 +160,26 @@
 				const isHeic = sniffedMime === 'image/heic' || sniffedMime === 'image/heif';
 				const isSvg = sniffedMime === 'image/svg+xml';
 				const isJxl = sniffedMime === 'image/jxl';
+				const isJxr = sniffedMime === 'image/jxr';
+				const isQoi = sniffedMime === 'image/qoi';
 				const isPng = sniffedMime === 'image/png';
-				const type = isHeic ? 'heic' : isSvg ? 'svg' : isJxl ? 'jxl' : isPng ? 'png' : null;
+				const type = isHeic
+					? 'heic'
+					: isSvg
+						? 'svg'
+						: isJxl
+							? 'jxl'
+							: isJxr
+								? 'jxr'
+								: isQoi
+									? 'qoi'
+									: isPng
+										? 'png'
+										: null;
 				if (!type) return null;
 
 				let svgText = null;
-				let heicPngBuffer: ArrayBuffer | null = null;
-
-				// HEIC conversion must happen on main thread (heic-to requires DOM)
-				if (isHeic) {
-					const { heicTo } = await import('heic-to');
-					const resultBlob = await heicTo({ blob: sourceBlob!, type: 'image/png' });
-					heicPngBuffer = await resultBlob.arrayBuffer();
-				} else if (type === 'svg') {
+				if (type === 'svg') {
 					svgText = contentText;
 					if (!svgText && contentUrl) {
 						const response = await fetch(contentUrl);
@@ -219,10 +230,9 @@
 					};
 					// Send pre-converted HEIC buffer or let worker handle conversion
 					worker.postMessage({
-						type: isHeic ? 'png' : type,
-						blob: isHeic ? null : sourceBlob,
+						type,
+						blob: sourceBlob,
 						text: svgText,
-						pngBuffer: heicPngBuffer,
 						optimize
 					});
 				});
@@ -297,6 +307,8 @@
 						mime === 'image/heic' ||
 						mime === 'image/heif' ||
 						mime === 'image/jxl' ||
+						mime === 'image/jxr' ||
+						mime === 'image/qoi' ||
 						mime === 'image/svg+xml' ||
 						mime === 'image/png'
 					) {
@@ -326,6 +338,8 @@
 
 	const isHeic = $derived(sniffedMime === 'image/heic' || sniffedMime === 'image/heif');
 	const isJxl = $derived(sniffedMime === 'image/jxl');
+	const isJxr = $derived(sniffedMime === 'image/jxr');
+	const isQoi = $derived(sniffedMime === 'image/qoi');
 	const isSvg = $derived(sniffedMime === 'image/svg+xml');
 	const isPng = $derived(sniffedMime === 'image/png');
 	const isImage = $derived(sniffedKind === 'image');
@@ -333,10 +347,16 @@
 	const isAudio = $derived(sniffedKind === 'audio');
 	const isPending = $derived(sniffedKind === null);
 	const isImageUnsupported = $derived(
-		!isHeic && !isJxl && !isSvg && !isPng && imageSupport?.status === 'unsupported'
+		!isHeic &&
+			!isJxl &&
+			!isJxr &&
+			!isQoi &&
+			!isSvg &&
+			!isPng &&
+			imageSupport?.status === 'unsupported'
 	);
 	const imageSupportMessage = $derived(imageSupport?.message ?? null);
-	const isConvertible = $derived(isHeic || isJxl || isSvg || isPng);
+	const isConvertible = $derived(isHeic || isJxl || isJxr || isQoi || isSvg || isPng);
 	const imageInfo = $derived<ImageInfo | null>(
 		isConvertible && conversionStarted && !converting && !convertedUrl
 			? {
@@ -491,7 +511,17 @@
 									<Spinner class="size-4" />
 									<span>
 										{isOptimizing ? 'Optimizing PNG...' : 'Converting'}
-										{isHeic ? 'HEIC' : isJxl ? 'JXL' : isSvg ? 'SVG' : 'PNG'} to PNG...
+										{isHeic
+											? 'HEIC'
+											: isJxl
+												? 'JXL'
+												: isJxr
+													? 'JXR'
+													: isQoi
+														? 'QOI'
+														: isSvg
+															? 'SVG'
+															: 'PNG'} to PNG...
 									</span>
 								</div>
 							</div>
