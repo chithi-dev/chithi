@@ -1,6 +1,7 @@
 import { Resvg, initWasm as initResvg } from '@resvg/resvg-wasm';
 
 // JSquash pacakges
+import decodeGif, { init as initGif } from '@discourse/gif/decode';
 import decodeHeic, { init as initHeic } from '@discourse/heic/decode';
 import decodeJxr, { init as initJxr } from '@discourse/jxr/decode';
 import decodeJxl, { init as initJxl } from '@jsquash/jxl/decode';
@@ -8,8 +9,10 @@ import optimisePng, { init as initOxipng } from '@jsquash/oxipng/optimise';
 import encodePng, { init as initPng } from '@jsquash/png/encode';
 import decodeQoi, { init as initQoi } from '@jsquash/qoi/decode';
 import decodeWebp, { init as initWebp } from '@jsquash/webp/decode';
+import encodeWebp, { init as initWebpEncode } from '@jsquash/webp/encode';
 
 // Vite will resolve these WASM URLs at build time.
+import gifWasmUrl from '@discourse/gif/codec/pkg/squoosh_gif_bg.wasm?url';
 import heicWasmUrl from '@discourse/heic/codec/dec/heic_dec.wasm?url';
 import jxrWasmUrl from '@discourse/jxr/codec/dec/jxr_dec.wasm?url';
 import jxlWasmUrl from '@jsquash/jxl/codec/dec/jxl_dec.wasm?url';
@@ -19,21 +22,43 @@ import qoiWasmUrl from '@jsquash/qoi/codec/dec/qoi_dec.wasm?url';
 import webpWasmUrl from '@jsquash/webp/codec/dec/webp_dec.wasm?url';
 import resvgWasmUrl from '@resvg/resvg-wasm/index_bg.wasm?url';
 
+let gifInitialized = false;
 let heicInitialized = false;
 let jxrInitialized = false;
 let jxlInitialized = false;
 let pngInitialized = false;
 let qoiInitialized = false;
 let webpInitialized = false;
+let webpEncodeInitialized = false;
 let oxipngInitialized = false;
 let resvgInitialized = false;
 
 self.addEventListener('message', async (event) => {
 	const { type, blob, text, optimize = false } = event.data;
 	try {
-		let pngBuffer: ArrayBufferLike | null = null;
+		let outputBuffer: ArrayBufferLike | null = null;
+		let outputMime: 'image/png' | 'image/webp' = 'image/png';
 
-		if (type === 'heic') {
+		if (type === 'gif') {
+			if (!gifInitialized) {
+				await initGif(gifWasmUrl);
+				gifInitialized = true;
+			}
+			if (!webpEncodeInitialized) {
+				await initWebpEncode();
+				webpEncodeInitialized = true;
+			}
+			if (optimize) {
+				self.postMessage({ type: 'status', status: 'optimizing' });
+			}
+			const buffer = await blob.arrayBuffer();
+			const imageData = await decodeGif(buffer);
+			outputBuffer = await encodeWebp(
+				imageData,
+				optimize ? { quality: 75, method: 4 } : { quality: 90, method: 4 }
+			);
+			outputMime = 'image/webp';
+		} else if (type === 'heic') {
 			if (!heicInitialized) {
 				await initHeic({ locateFile: () => heicWasmUrl });
 				heicInitialized = true;
@@ -44,7 +69,7 @@ self.addEventListener('message', async (event) => {
 			}
 			const buffer = await blob.arrayBuffer();
 			const imageData = await decodeHeic(buffer);
-			pngBuffer = await encodePng(imageData);
+			outputBuffer = await encodePng(imageData);
 		} else if (type === 'jxr') {
 			if (!jxrInitialized) {
 				await initJxr({ locateFile: () => jxrWasmUrl });
@@ -56,7 +81,7 @@ self.addEventListener('message', async (event) => {
 			}
 			const buffer = await blob.arrayBuffer();
 			const imageData = await decodeJxr(buffer);
-			pngBuffer = await encodePng(imageData);
+			outputBuffer = await encodePng(imageData);
 		} else if (type === 'qoi') {
 			if (!qoiInitialized) {
 				await initQoi({ locateFile: () => qoiWasmUrl });
@@ -68,7 +93,7 @@ self.addEventListener('message', async (event) => {
 			}
 			const buffer = await blob.arrayBuffer();
 			const imageData = await decodeQoi(buffer);
-			pngBuffer = await encodePng(imageData);
+			outputBuffer = await encodePng(imageData);
 		} else if (type === 'webp') {
 			if (!webpInitialized) {
 				await initWebp({ locateFile: () => webpWasmUrl });
@@ -80,7 +105,7 @@ self.addEventListener('message', async (event) => {
 			}
 			const buffer = await blob.arrayBuffer();
 			const imageData = await decodeWebp(buffer);
-			pngBuffer = await encodePng(imageData);
+			outputBuffer = await encodePng(imageData);
 		} else if (type === 'jxl') {
 			if (!jxlInitialized) {
 				await initJxl({ locateFile: () => jxlWasmUrl });
@@ -92,42 +117,43 @@ self.addEventListener('message', async (event) => {
 			}
 			const buffer = await blob.arrayBuffer();
 			const imageData = await decodeJxl(buffer);
-			pngBuffer = await encodePng(imageData);
+			outputBuffer = await encodePng(imageData);
 		} else if (type === 'svg') {
 			if (!resvgInitialized) {
 				await initResvg(resvgWasmUrl);
 				resvgInitialized = true;
 			}
 			const resvg = new Resvg(text);
-			pngBuffer = resvg.render().asPng().buffer;
+			outputBuffer = resvg.render().asPng().buffer;
 		} else if (type === 'png') {
-			pngBuffer = await blob.arrayBuffer();
+			outputBuffer = await blob.arrayBuffer();
 		}
 
-		if (pngBuffer) {
-			if (optimize) {
+		if (outputBuffer) {
+			if (outputMime === 'image/png' && optimize) {
 				self.postMessage({ type: 'status', status: 'optimizing' });
 
 				if (!oxipngInitialized) {
 					await initOxipng(oxipngWasmUrl);
 					oxipngInitialized = true;
 				}
-				const optimizedBuffer = await optimisePng(pngBuffer as ArrayBuffer, { level: 3 });
-				pngBuffer = optimizedBuffer;
+				const optimizedBuffer = await optimisePng(outputBuffer as ArrayBuffer, { level: 3 });
+				outputBuffer = optimizedBuffer;
 			}
 
-			const resultBlob = new Blob([pngBuffer as ArrayBuffer], { type: 'image/png' });
-			const transferList = pngBuffer instanceof ArrayBuffer ? [pngBuffer] : [];
+			const resultBlob = new Blob([outputBuffer as ArrayBuffer], { type: outputMime });
+			const transferList = outputBuffer instanceof ArrayBuffer ? [outputBuffer] : [];
 
 			(self as any).postMessage(
 				{
 					type: 'success',
-					pngBlob: resultBlob
+					outputBlob: resultBlob,
+					outputMime
 				},
 				transferList
 			);
 		} else {
-			throw new Error('Conversion failed: No PNG buffer produced');
+			throw new Error('Conversion failed: No output buffer produced');
 		}
 	} catch (error: any) {
 		(self as any).postMessage({
