@@ -1,84 +1,79 @@
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 const getElapsedSeconds = (startTime: number) => (performance.now() - startTime) / 1_000;
 const getMbps = (bytes: number, seconds: number) => (bytes * 8) / seconds / 1_000_000;
-const reportProgress = (
-	phase: 'latency' | 'download' | 'upload',
-	value: number,
-	progress: number
-) => {
-	self.postMessage({ type: 'progress', phase, speed: value, progress });
-};
 
-let endpoints: { DOWNLOAD: string; UPLOAD: string; LATENCY: string } | null = null;
+type Phase = 'latency' | 'download' | 'upload';
+type EndpointConfig = { DOWNLOAD: string; UPLOAD: string; LATENCY: string };
 
-self.addEventListener('message', async ({ data }: MessageEvent) => {
-	const {
-		type,
-		duration = 10,
-		urls
-	} = data as {
-		type: string;
-		duration?: number;
-		urls?: { DOWNLOAD: string; UPLOAD: string; LATENCY: string };
-	};
+const reportProgress = (phase: Phase, value: number, progress: number) =>
+	self.postMessage({ type: 'progress' as const, phase, speed: value, progress });
+
+let endpoints: EndpointConfig | null = null;
+
+self.addEventListener('message', async ({ data }: MessageEvent<{ type: string; duration?: number; urls?: EndpointConfig }>) => {
+	const { type, duration = 10, urls } = data;
 	if (type !== 'start' || !urls) return;
 
 	endpoints = urls;
 
 	try {
 		await runSpeedTest(duration);
-	} catch (err: unknown) {
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		self.postMessage({ type: 'error', error: errorMessage });
+	} catch (err) {
+		self.postMessage({ type: 'error' as const, error: err instanceof Error ? err.message : String(err) });
 	}
 });
 
 const runSpeedTest = async (duration: number) => {
-	self.postMessage({ type: 'phase', phase: 'latency' });
-	const latency = await testLatency();
-	self.postMessage({ type: 'result', key: 'latency', value: latency });
+	const phases: Phase[] = ['latency', 'download', 'upload'];
+	for (let i = 0; i < phases.length; i++) {
+		self.postMessage({ type: 'phase' as const, phase: phases[i] });
 
-	await sleep(500);
+		switch (phases[i]) {
+			case 'latency': {
+				const value = await testLatency();
+				self.postMessage({ type: 'result' as const, key: 'latency', value });
+				break;
+			}
+			case 'download': {
+				await sleep(500);
+				const value = await testDownload(duration);
+				self.postMessage({ type: 'result' as const, key: 'download', value });
+				break;
+			}
+			case 'upload': {
+				await sleep(1_000);
+				const value = await testUpload(duration);
+				self.postMessage({ type: 'result' as const, key: 'upload', value });
+				break;
+			}
+		}
+	}
 
-	self.postMessage({ type: 'phase', phase: 'download' });
-	const downloadSpeed = await testDownload(duration);
-	self.postMessage({ type: 'result', key: 'download', value: downloadSpeed });
-
-	await sleep(1_000);
-
-	self.postMessage({ type: 'phase', phase: 'upload' });
-	const uploadSpeed = await testUpload(duration);
-	self.postMessage({ type: 'result', key: 'upload', value: uploadSpeed });
-
-	self.postMessage({ type: 'finish' });
+	self.postMessage({ type: 'finish' as const });
 };
 
 const testLatency = async (): Promise<number> => {
-	const pings = 5;
 	let totalLatency = 0;
 
-	for (let i = 0; i < pings; i++) {
+	for (let i = 1; i <= 5; i++) {
 		const start = performance.now();
 		try {
-			await fetch(endpoints!.LATENCY, {
-				cache: 'no-store'
-			});
-		} catch (e) {
-			/* ignore errors for individual pings */
+			await fetch(endpoints!.LATENCY, { cache: 'no-store' });
+		} catch {
+			/* ignore */
 		}
-		const elapsed = performance.now() - start;
-		totalLatency += elapsed;
-		reportProgress('latency', elapsed, (i + 1) / pings);
+		totalLatency += performance.now() - start;
+		reportProgress('latency', performance.now() - start, i / 5);
 		await sleep(50);
 	}
 
-	const finalLatency = totalLatency / pings;
+	const finalLatency = totalLatency / 5;
 	reportProgress('latency', finalLatency, 1);
 	return finalLatency;
 };
 
 const testDownload = async (duration: number): Promise<number> => {
-	const size = 100 << 20; // 100MB | 1 << 20 = 1024 * 1024 = 1,048,576
+	const size = 100 << 20; // 100MB
 	const endpoint = new URL(endpoints!.DOWNLOAD);
 	endpoint.searchParams.set('bytes', size.toString());
 
@@ -88,38 +83,25 @@ const testDownload = async (duration: number): Promise<number> => {
 
 	while (getElapsedSeconds(startTime) < duration) {
 		const remainingMs = Math.max(0, duration * 1_000 - (performance.now() - startTime));
-		const controller = new AbortController();
-		const timeoutId = setTimeout(() => controller.abort(), remainingMs);
-		const signal = controller.signal;
+		const signal = AbortSignal.timeout(remainingMs);
 
 		try {
 			const response = await fetch(endpoint, { signal, cache: 'no-store' });
 			if (!response.body) throw new Error('No response body');
 
-			const reader = response.body.getReader();
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-
+			for await (const value of response.body) {
 				totalBytes += value.byteLength;
 				const elapsed = getElapsedSeconds(startTime);
 
-				if (elapsed >= duration) {
-					reader.cancel();
-					break;
-				}
+				if (elapsed >= duration) break;
 
 				if (performance.now() - lastReport > 100) {
 					reportProgress('download', getMbps(totalBytes, elapsed), Math.min(elapsed / duration, 1));
 					lastReport = performance.now();
 				}
 			}
-		} catch (err: unknown) {
-			if (err instanceof Error && err.name !== 'AbortError' && err.name !== 'TimeoutError') {
-				throw err;
-			}
-		} finally {
-			clearTimeout(timeoutId);
+		} catch (err) {
+			if (err instanceof Error && err.name !== 'AbortError' && err.name !== 'TimeoutError') throw err;
 		}
 	}
 
@@ -135,9 +117,8 @@ const testUpload = async (duration: number): Promise<number> => {
 	const startTime = performance.now();
 	let lastReport = startTime;
 
-	// On iOS Safari, Web Workers have very strict memory limits that can silently kill the process.
-	// We use a smaller payload (e.g., 5MB) generated dynamically to prevent iOS memory limit crashes (Jetsam).
-	const payloadSize = 5 << 20; // 5 MB | 1 << 20 = 1024 * 1024 = 1,048,576
+	// On iOS Safari, Web Workers have strict memory limits — use smaller payload to prevent Jetsam crashes.
+	const payloadSize = 5 << 20; // 5 MB
 	const buffer = new Uint8Array(payloadSize);
 	crypto.getRandomValues(buffer.subarray(0, 65536));
 	const payload = new Blob([buffer], { type: 'application/octet-stream' });
@@ -148,17 +129,11 @@ const testUpload = async (duration: number): Promise<number> => {
 			let lastLoaded = 0;
 
 			xhr.upload.onprogress = (e) => {
-				// Add only the new bytes uploaded since the last progress event
-				const diff = e.loaded - lastLoaded;
-				totalBytes += diff;
+				totalBytes += e.loaded - lastLoaded;
 				lastLoaded = e.loaded;
-
 				const elapsed = getElapsedSeconds(startTime);
 
-				if (elapsed >= duration) {
-					xhr.abort();
-					return; // onabort will then handle resolving the promise
-				}
+				if (elapsed >= duration) return xhr.abort();
 
 				if (performance.now() - lastReport > 100) {
 					reportProgress('upload', getMbps(totalBytes, elapsed), Math.min(elapsed / duration, 1));
@@ -166,11 +141,7 @@ const testUpload = async (duration: number): Promise<number> => {
 				}
 			};
 
-			xhr.onload = () => resolve();
-			xhr.onerror = () => resolve();
-			xhr.onabort = () => resolve();
-
-			// Cache busting parameter to prevent any caching optimisations
+			xhr.onload = xhr.onerror = xhr.onabort = () => resolve();
 			xhr.open('POST', `${endpoints!.UPLOAD}`, true);
 			xhr.send(payload);
 		});

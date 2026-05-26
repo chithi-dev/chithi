@@ -19,7 +19,7 @@ const makeUnique = (name: string) => {
 		usedNames.set(name, 1);
 		return name;
 	}
-	const count = usedNames.get(name) || 1;
+	const count = usedNames.get(name) ?? 1;
 	usedNames.set(name, count + 1);
 
 	const lastDot = name.lastIndexOf('.');
@@ -89,7 +89,7 @@ async function handleWorkerEncryptedMessage(ctx: EncryptionContext, data: any): 
 			ctx.encryptedMap.delete(ctx.nextToEnqueue);
 			ctx.controllerRef!.enqueue(arr);
 			ctx.nextToEnqueue++;
-			const sz = ctx.chunkSizes.get(ctx.nextToEnqueue - 1) || 0;
+			const sz = ctx.chunkSizes.get(ctx.nextToEnqueue - 1) ?? 0;
 			ctx.processedTotal += sz;
 			if (ctx.onProgress) ctx.onProgress(ctx.processedTotal, ctx.originalSize);
 		}
@@ -98,7 +98,7 @@ async function handleWorkerEncryptedMessage(ctx: EncryptionContext, data: any): 
 			if (ctx.onProgress) ctx.onProgress(ctx.originalSize ?? ctx.processedTotal, ctx.originalSize);
 		}
 	} else if (data?.type === 'error') {
-		await handleEncryptionError(ctx, new Error(data.message || 'Worker error'));
+		await handleEncryptionError(ctx, new Error(data.message ?? 'Worker error'));
 	}
 }
 
@@ -258,7 +258,7 @@ async function handleWorkerDecryptedMessage(ctx: DecryptionContext, data: any): 
 			ctx.allDoneResolve();
 		}
 	} else if (data?.type === 'error') {
-		const err = new Error(data.message || 'Worker error');
+		const err = new Error(data.message ?? 'Worker error');
 		if (data.name) err.name = data.name;
 		await handleDecryptionError(ctx, err);
 	}
@@ -386,7 +386,7 @@ async function writeZipFiles(
 ): Promise<void> {
 	try {
 		for (const file of files) {
-			let filename = (file as any).relativePath || file.name;
+			let filename = ((file as File & { relativePath?: string }).relativePath ?? file.name);
 			filename = makeUnique(filename);
 			try {
 				await zipWriter.add(filename, file.stream(), {
@@ -396,9 +396,9 @@ async function writeZipFiles(
 					signal
 				});
 			} catch (err: any) {
-				const msg = String(err?.message || err || '');
+				const msg = String(err?.message ?? String(err) ?? '');
 				if (msg.includes('File already exists') || msg.includes('already exists')) {
-					const altName = makeUnique((file as any).relativePath || file.name);
+					const altName = makeUnique(((file as File & { relativePath?: string }).relativePath ?? file.name));
 					await zipWriter.add(altName, file.stream(), {
 						password: password?.length ? password : undefined,
 						encryptionStrength: password?.length ? 3 : undefined,

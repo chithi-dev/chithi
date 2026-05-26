@@ -6,18 +6,16 @@ import {
 
 export function bytesToBase64(u8: Uint8Array) {
 	let binary = '';
-	for (let i = 0; i < u8.byteLength; i++) {
-		binary += String.fromCharCode(u8[i]);
+	for (const byte of u8) {
+		binary += String.fromCharCode(byte);
 	}
 	return btoa(binary);
 }
 
 export function base64ToBytes(b64: string) {
-	const binary = atob(b64);
-	const len = binary.length;
-	const bytes = new Uint8Array(len);
-	for (let i = 0; i < len; i++) {
-		bytes[i] = binary.charCodeAt(i);
+	const bytes = new Uint8Array(b64.length);
+	for (let i = 0; i < b64.length; i++) {
+		bytes[i] = b64.charCodeAt(i);
 	}
 	return bytes;
 }
@@ -37,7 +35,7 @@ export function base64urlToBytes(str: string) {
 export function xorBytes(a: Uint8Array, b: Uint8Array) {
 	const out = new Uint8Array(Math.max(a.length, b.length));
 	for (let i = 0; i < out.length; i++) {
-		out[i] = (a[i] || 0) ^ (b[i] || 0);
+		out[i] = (a[i] ?? 0) ^ (b[i] ?? 0);
 	}
 	return out;
 }
@@ -58,7 +56,7 @@ export async function deriveAESKeyFromIKM(
 		1
 	);
 	// Import key as exportable so we can pass raw key material to workers for parallel encryption
-	return await crypto.subtle.importKey('raw', derivedBits as any, { name: 'AES-GCM' }, true, [
+	return await crypto.subtle.importKey('raw', derivedBits as ArrayBuffer, { name: 'AES-GCM' }, true, [
 		'encrypt',
 		'decrypt'
 	]);

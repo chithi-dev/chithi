@@ -2,6 +2,7 @@ import { Api } from '#consts/backend';
 import { browser } from '$app/environment';
 import { login as loginRemote, logout as logoutRemote } from '$lib/remote/auth.remote';
 import { user_store } from '$lib/store/user.svelte';
+import type { QueryClient } from '@tanstack/svelte-query';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 export const queryKey = ['auth-user'];
@@ -11,11 +12,9 @@ const resolveFetch = (fetch?: typeof globalThis.fetch) => fetch ?? globalThis.fe
 const fetchUser = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
 	if (browser && user_store.is_authenticated === false) return null;
 
-	let runtimeFetch = resolveFetch(fetch);
+	const runtimeFetch = resolveFetch(fetch);
 
-	const res = await runtimeFetch(Api.USER, {
-		credentials: 'include'
-	});
+	const res = await runtimeFetch(Api.USER, { credentials: 'include' });
 
 	const AUTH_ERRORS = new Set([401, 403]);
 	if (!res.ok || AUTH_ERRORS.has(res.status)) {
@@ -29,9 +28,15 @@ const fetchUser = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
 	return data;
 };
 
-export const prefetch = async ({ queryClient, fetch }: { queryClient: any; fetch: any }) => {
+export const prefetch = async ({
+	queryClient,
+	fetch
+}: {
+	queryClient: QueryClient;
+	fetch?: typeof globalThis.fetch;
+}) => {
 	await queryClient.prefetchQuery({
-		queryKey: queryKey,
+		queryKey,
 		queryFn: () => fetchUser({ fetch }),
 		staleTime: Infinity,
 		retry: false
@@ -42,7 +47,7 @@ export const useAuth = () => {
 	const queryClient = useQueryClient();
 
 	const query = createQuery(() => ({
-		queryKey: queryKey,
+		queryKey,
 		queryFn: () => fetchUser({}),
 		staleTime: Infinity,
 		retry: false
@@ -54,9 +59,10 @@ export const useAuth = () => {
 			await loginRemote({ username, password });
 			user_store.authenticate();
 			await queryClient.invalidateQueries({ queryKey });
-		} catch (error: any) {
+		} catch (error) {
+			const err = error instanceof Error ? error : new Error(String(error));
 			user_store.unauthenticate();
-			throw new Error(error?.message || 'Invalid username or password');
+			throw new Error(err.message ?? 'Invalid username or password');
 		}
 	};
 
@@ -66,25 +72,19 @@ export const useAuth = () => {
 
 		const res = await runtimeFetch(Api.ADMIN.USER_UPDATE, {
 			method: 'PATCH',
-			headers: {
-				'Content-Type': 'application/json'
-			},
+			headers: { 'Content-Type': 'application/json' },
 			credentials: 'include',
 			body: JSON.stringify(data)
 		});
 
 		if (!res.ok) {
 			const err = await res.json();
-			throw new Error(err.detail || 'Failed to update user');
+			throw new Error(err.detail ?? 'Failed to update user');
 		}
 
-		await queryClient.invalidateQueries({ queryKey: queryKey });
+		await queryClient.invalidateQueries({ queryKey });
 		return res.json();
 	};
 
-	return {
-		user: query,
-		login,
-		updateUser
-	};
+	return { user: query, login, updateUser };
 };

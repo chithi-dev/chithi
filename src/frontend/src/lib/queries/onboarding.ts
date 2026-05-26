@@ -1,4 +1,5 @@
 import { Api } from '#consts/backend';
+import type { QueryClient } from '@tanstack/svelte-query';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 const queryKey = ['onboarding-status'];
@@ -8,15 +9,19 @@ const resolveFetch = (fetch?: typeof globalThis.fetch) => fetch ?? globalThis.fe
 const fetchOnboarding = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
 	const runtimeFetch = resolveFetch(fetch);
 	const res = await runtimeFetch(Api.ONBOARDING, { credentials: 'include' });
-	if (!res.ok) {
-		throw new Error('Failed to fetch onboarding status');
-	}
+	if (!res.ok) throw new Error('Failed to fetch onboarding status');
 	return res.json() as Promise<{ onboarded: boolean }>;
 };
 
-export const prefetch = async ({ queryClient, fetch }: { queryClient: any; fetch: any }) => {
+export const prefetch = async ({
+	queryClient,
+	fetch
+}: {
+	queryClient: QueryClient;
+	fetch?: typeof globalThis.fetch;
+}) => {
 	await queryClient.prefetchQuery({
-		queryKey: queryKey,
+		queryKey,
 		queryFn: () => fetchOnboarding({ fetch }),
 		staleTime: 10,
 		retry: false
@@ -27,7 +32,7 @@ export const useOnboarding = () => {
 	const queryClient = useQueryClient();
 
 	const status = createQuery(() => ({
-		queryKey: queryKey,
+		queryKey,
 		queryFn: () => fetchOnboarding({}),
 		retry: false
 	}));
@@ -39,23 +44,18 @@ export const useOnboarding = () => {
 	}) => {
 		const res = await fetch(Api.ONBOARDING, {
 			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
+			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(user)
 		});
 
 		if (!res.ok) {
 			const err = await res.json();
-			throw new Error(err.detail || 'Failed to complete onboarding');
+			throw new Error(err.detail ?? 'Failed to complete onboarding');
 		}
 
-		await queryClient.invalidateQueries({ queryKey: queryKey });
+		await queryClient.invalidateQueries({ queryKey });
 		return res.json();
 	};
 
-	return {
-		status,
-		completeOnboarding
-	};
+	return { status, completeOnboarding };
 };

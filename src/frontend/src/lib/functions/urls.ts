@@ -3,7 +3,7 @@ export function resolve_partial_path(path: string) {
 }
 
 export function strip_trailing_slash(input: string) {
-	if (!input || input === '/') return input;
+	if (input === '' || input === '/') return input;
 
 	// Split off query string and hash
 	const [path, query = ''] = input.split('?');

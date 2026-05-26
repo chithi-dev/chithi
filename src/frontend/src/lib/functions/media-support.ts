@@ -138,6 +138,31 @@ const parseVersion = (value: string | null) => {
 	return Number.isNaN(parsed) ? null : parsed;
 };
 
+type PlatformType = 'browser' | 'mobile' | 'tablet';
+
+const mobileBrowserMap: Record<string, AgentKey> = {
+	Chrome: 'and_chr',
+	Firefox: 'and_ff',
+	'UC Browser': 'and_uc',
+	'QQ Browser': 'and_qq',
+	Baidu: 'baidu',
+	'Android Browser': 'android',
+	BlackBerry: 'bb',
+	'Opera Mini': 'op_mob',
+	Opera: 'op_mob',
+	'Internet Explorer': 'ie_mob'
+};
+
+const desktopBrowserMap: Record<string, AgentKey> = {
+	Chrome: 'chrome',
+	Firefox: 'firefox',
+	'Microsoft Edge': 'edge',
+	Opera: 'opera',
+	Safari: 'safari',
+	'Samsung Internet for Android': 'samsung',
+	'Internet Explorer': 'ie'
+};
+
 const getBrowserInfo = (): BrowserInfo | null => {
 	if (typeof navigator === 'undefined') return null;
 
@@ -147,161 +172,36 @@ const getBrowserInfo = (): BrowserInfo | null => {
 	const platform = parser.getPlatform();
 
 	const version = parseVersion(browser.version ?? null);
-	if (version === null) return null;
+	if (!version) return null;
+
+	if (os.name === 'iOS') return { agent: 'ios_saf', version };
 
 	const name = browser.name;
+	if (!name) return null;
+	const isMobile = platform.type === 'mobile' || platform.type === 'tablet';
+	const map = isMobile ? mobileBrowserMap : desktopBrowserMap;
+	const agent = map[name];
+	if (!agent) return null;
 
-	if (os.name === 'iOS') {
-		return {
-			agent: 'ios_saf',
-			version
-		};
-	}
-
-	if (platform.type === 'mobile' || platform.type === 'tablet') {
-		if (name === 'Chrome') {
-			return {
-				agent: 'and_chr',
-				version
-			};
-		}
-		if (name === 'Firefox') {
-			return {
-				agent: 'and_ff',
-				version
-			};
-		}
-		if (name === 'UC Browser') {
-			return {
-				agent: 'and_uc',
-				version
-			};
-		}
-		if (name === 'QQ Browser') {
-			return {
-				agent: 'and_qq',
-				version
-			};
-		}
-		if (name === 'Baidu') {
-			return {
-				agent: 'baidu',
-				version
-			};
-		}
-		if (name === 'Android Browser') {
-			return {
-				agent: 'android',
-				version
-			};
-		}
-		if (name === 'BlackBerry') {
-			return {
-				agent: 'bb',
-				version
-			};
-		}
-		if (name === 'Opera Mini') {
-			return {
-				agent: 'op_mini',
-				version
-			};
-		}
-		if (name === 'Opera') {
-			return {
-				agent: 'op_mob',
-				version
-			};
-		}
-		if (name === 'Internet Explorer') {
-			return {
-				agent: 'ie_mob',
-				version
-			};
-		}
-	}
-
-	if (name === 'Chrome') {
-		return {
-			agent: 'chrome',
-			version
-		};
-	}
-
-	if (name === 'Firefox') {
-		return {
-			agent: 'firefox',
-			version
-		};
-	}
-
-	if (name === 'Microsoft Edge') {
-		return {
-			agent: 'edge',
-			version
-		};
-	}
-
-	if (name === 'Opera') {
-		return {
-			agent: 'opera',
-			version
-		};
-	}
-
-	if (name === 'Safari') {
-		return {
-			agent: 'safari',
-			version
-		};
-	}
-
-	if (name === 'Samsung Internet for Android') {
-		return {
-			agent: 'samsung',
-			version
-		};
-	}
-
-	if (name === 'Internet Explorer') {
-		return {
-			agent: 'ie',
-			version
-		};
-	}
-
-	return null;
+	return { agent, version };
 };
 
-const getMinSupportedVersion = (stats: Record<string, string>) => {
-	let minVersion: number | null = null;
+const getMinSupportedVersion = (stats: Record<string, string>) =>
+	Object.entries(stats)
+		.filter(([, support]) => isSupported(support))
+		.map(([version]) => parseVersion(version.split('-')[0]))
+		.toSorted()
+		.findLast(Boolean);
 
-	for (const [version, support] of Object.entries(stats)) {
-		if (!isSupported(support)) continue;
+const supportedAgentsSet = new Set(Object.keys(agentLabels));
 
-		const numeric = parseVersion(version.split('-')[0]);
-
-		if (numeric === null) continue;
-
-		minVersion = minVersion === null ? numeric : Math.min(minVersion, numeric);
-	}
-
-	return minVersion;
-};
-
-const getSupportedAgents = (stats: CaniuseStats) => {
-	const supported: AgentKey[] = [];
-
-	for (const [agent, versions] of Object.entries(stats)) {
-		if (!Object.hasOwn(agentLabels, agent)) continue;
-
-		if (Object.values(versions).some(isSupported)) {
-			supported.push(agent as AgentKey);
-		}
-	}
-
-	return supported;
-};
+const getSupportedAgents = (stats: CaniuseStats) =>
+	Object.entries(stats)
+		.filter(
+			([agent, versions]) =>
+				supportedAgentsSet.has(agent) && Object.values(versions).some(isSupported)
+		)
+		.map(([agent]) => agent as AgentKey);
 
 export const getImageSupportInfo = async (mime: string): Promise<ImageSupportInfo> => {
 	let featureData: CaniuseFeature | null;
@@ -346,11 +246,8 @@ export const getImageSupportInfo = async (mime: string): Promise<ImageSupportInf
 
 	const minVersion = getMinSupportedVersion(agentStats);
 
-	if (minVersion === null) {
-		return {
-			status: 'unsupported',
-			message
-		};
+	if (!minVersion) {
+		return { status: 'unsupported' as const, message };
 	}
 
 	return {

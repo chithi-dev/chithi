@@ -1,4 +1,4 @@
-import { Api } from '#consts/backend';
+import type { QueryClient } from '@tanstack/svelte-query';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 export type FileInfo = {
@@ -24,36 +24,31 @@ export type PaginatedFiles = {
 
 const queryKey = ['admin-files'];
 
-export const useFilesQuery = (page: () => number = () => 1, pageSize: number = 20) => {
+type UseFilesQueryParams = { page: () => number; page_size: number };
+
+export const useFilesQuery = ({ page, page_size }: UseFilesQueryParams) => {
 	const queryClient = useQueryClient();
 	const query = createQuery(() => ({
-		queryKey: [...queryKey, page(), pageSize],
+		queryKey: [...queryKey, page(), page_size],
 		queryFn: async () => {
 			const url = new URL(Api.ADMIN.FILES, window.location.origin);
 			url.searchParams.set('page', page().toString());
-			url.searchParams.set('page_size', pageSize.toString());
+			url.searchParams.set('page_size', page_size.toString());
 
-			const res = await fetch(url.toString(), {
-				credentials: 'include'
-			});
+			const res = await fetch(url.toString(), { credentials: 'include' });
 
 			if (!res.ok) {
-				if (res.status === 401) {
-					throw new Error('Authentication failed');
-				}
+				if (res.status === 401) throw new Error('Authentication failed');
 				throw new Error(`Failed to fetch files: ${res.statusText}`);
 			}
 			return res.json() as Promise<PaginatedFiles>;
 		},
-		refetchInterval: 1000, // 1 second
+		refetchInterval: 1_000,
 		retry: true
 	}));
 
-	const revokeFile = async (id: string) => {
-		const res = await fetch(Api.ADMIN.FILE_REVOKE(id), {
-			method: 'DELETE',
-			credentials: 'include'
-		});
+	const revoke_file = async ({ file_id }: { file_id: string }) => {
+		const res = await fetch(Api.ADMIN.FILE_REVOKE(file_id), { credentials: 'include' });
 
 		if (res.ok) {
 			await queryClient.invalidateQueries({ queryKey: [...queryKey] });
@@ -62,8 +57,5 @@ export const useFilesQuery = (page: () => number = () => 1, pageSize: number = 2
 		}
 	};
 
-	return {
-		files: query,
-		revokeFile
-	};
+	return { files: query, revoke_file };
 };

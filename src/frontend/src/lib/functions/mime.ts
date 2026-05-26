@@ -71,7 +71,7 @@ const mimeMap: Record<string, string> = {
 export function getMimeType(name: string): string {
 	const ext = name.split('.').at(-1)?.toLowerCase() ?? '';
 
-	return mimeMap[ext] || 'application/octet-stream';
+	return mimeMap[ext] ?? 'application/octet-stream';
 }
 
 export function detectMimeFromBytes(bytes: Uint8Array): string | null {
