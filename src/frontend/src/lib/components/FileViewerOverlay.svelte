@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import { Download, Link, Check, ArrowLeft, Copy, WandSparkles } from '@lucide/svelte';
+	import { Download, Link, Check, ArrowLeft, Copy, WandSparkles, ChevronDown } from '@lucide/svelte';
 	import { fade } from 'svelte/transition';
 	import CodeViewer from '$lib/components/CodeViewer.svelte';
 	import { detectMimeFromBlob } from '$lib/functions/mime';
 	import { getImageSupportInfo, type ImageSupportInfo } from '$lib/functions/media-support';
 	import ConverterWorker from '$lib/workers/file-converter.worker?worker';
+	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
+	import { buttonVariants } from '$lib/components/ui/button';
 
 	let {
 		filename,
@@ -94,7 +96,21 @@
 	const jxrExtensions = ['.jxr', '.wdp', '.hdp'];
 	const qoiExtensions = ['.qoi'];
 	const webpExtensions = ['.webp'];
-	const pngExtensions = [...heicExtensions, ...jxrExtensions, ...qoiExtensions, ...webpExtensions];
+	const avifExtensions = ['.avif'];
+	const jxlExtensions = ['.jxl'];
+	const imageExtensions = [
+		...heicExtensions,
+		...jxrExtensions,
+		...qoiExtensions,
+		...webpExtensions,
+		...avifExtensions,
+		...jxlExtensions,
+		'.png',
+		'.jpg',
+		'.jpeg',
+		'.svg'
+	];
+
 	let sniffedKind = $state<MediaKind | null>(null);
 	let sniffedMime = $state<string | null>(null);
 	let imageSupport = $state<ImageSupportInfo | null>(null);
@@ -120,12 +136,12 @@
 		isOptimizing = false;
 	};
 
-	const getPngFilename = (name: string) => {
+	const getTargetFilename = (name: string, extension: string) => {
 		const lower = name.toLowerCase();
-		const matched = pngExtensions.find((ext) => lower.endsWith(ext));
-		if (matched) return `${name.slice(0, -matched.length)}.png`;
-		if (lower.endsWith('.svg') || lower.endsWith('.jxl')) return `${name.slice(0, -4)}.png`;
-		return `${name}.png`;
+		const matched = imageExtensions.find((ext) => lower.endsWith(ext));
+		if (matched) return `${name.slice(0, -matched.length)}.${extension}`;
+		if (name.includes('.')) return `${name.split('.').slice(0, -1).join('.')}.${extension}`;
+		return `${name}.${extension}`;
 	};
 
 	const downloadBlob = (blob: Blob, name: string) => {
@@ -150,10 +166,12 @@
 		document.body.removeChild(a);
 	};
 
-	const startConversion = async (optimize = false) => {
-		// Only return cached blob if we're not explicitly requesting optimization
-		if (!optimize && convertedBlob) return convertedBlob;
-		if (conversionPromise && !optimize) return await conversionPromise;
+	const startConversion = async (toMime = 'image/png', optimize = false) => {
+		const isDefaultPng = toMime === 'image/png' && !optimize;
+
+		// Only return cached blob if we're not explicitly requesting optimization and it's for preview
+		if (isDefaultPng && convertedBlob) return convertedBlob;
+		if (isDefaultPng && conversionPromise) return await conversionPromise;
 
 		const token = conversionToken;
 		converting = true;
@@ -161,7 +179,7 @@
 		conversionError = null;
 		isOptimizing = false;
 
-		conversionPromise = (async () => {
+		const promise = (async () => {
 			try {
 				const isHeic = sniffedMime === 'image/heic' || sniffedMime === 'image/heif';
 				const isSvg = sniffedMime === 'image/svg+xml';
@@ -170,23 +188,18 @@
 				const isQoi = sniffedMime === 'image/qoi';
 				const isWebp = sniffedMime === 'image/webp';
 				const isPng = sniffedMime === 'image/png';
+				const isAvif = sniffedMime === 'image/avif';
 
-				let type: 'heic' | 'svg' | 'jxl' | 'jxr' | 'qoi' | 'webp' | 'png' | null = null;
-				if (isHeic) {
-					type = 'heic';
-				} else if (isSvg) {
-					type = 'svg';
-				} else if (isJxl) {
-					type = 'jxl';
-				} else if (isJxr) {
-					type = 'jxr';
-				} else if (isQoi) {
-					type = 'qoi';
-				} else if (isWebp) {
-					type = 'webp';
-				} else if (isPng) {
-					type = 'png';
-				}
+				let type: string | null = null;
+				if (isHeic) type = 'heic';
+				else if (isSvg) type = 'svg';
+				else if (isJxl) type = 'jxl';
+				else if (isJxr) type = 'jxr';
+				else if (isQoi) type = 'qoi';
+				else if (isWebp) type = 'webp';
+				else if (isPng) type = 'png';
+				else if (isAvif) type = 'avif';
+				else type = sniffedMime?.split('/')[1] || null;
 
 				if (!type) return null;
 
@@ -213,20 +226,16 @@
 
 						if (data.type === 'success') {
 							const outputBlob = data.outputBlob;
-							const outputMime = data.outputMime ?? 'image/png';
 							if (token === conversionToken) {
 								if (!outputBlob || !(outputBlob instanceof Blob)) {
 									reject(new Error('Worker returned invalid blob'));
 									worker.terminate();
 									return;
 								}
-								if (outputMime !== 'image/png') {
-									reject(new Error('Worker returned unexpected output format'));
-									worker.terminate();
-									return;
+								if (isDefaultPng) {
+									convertedBlob = outputBlob;
+									convertedUrl = URL.createObjectURL(outputBlob);
 								}
-								convertedBlob = outputBlob;
-								convertedUrl = URL.createObjectURL(outputBlob);
 								conversionError = null;
 								isOptimizing = false;
 								resolve(outputBlob);
@@ -239,7 +248,7 @@
 
 						if (data.type === 'error') {
 							if (token === conversionToken) {
-								conversionError = `Could not convert this ${sniffedMime?.split('/')[1]?.toUpperCase()} image.`;
+								conversionError = `Could not convert this ${sniffedMime?.split('/')[1]?.toUpperCase()} image to ${toMime.split('/')[1].toUpperCase()}.`;
 								isOptimizing = false;
 							}
 							reject(new Error(data.message));
@@ -254,6 +263,7 @@
 					// Send source data to the worker for conversion
 					worker.postMessage({
 						type,
+						toType: toMime,
 						blob: sourceBlob,
 						text: svgText,
 						optimize
@@ -262,18 +272,19 @@
 			} catch (error) {
 				console.error('Conversion failed:', error);
 				if (token === conversionToken) {
-					conversionError = `Could not convert this ${sniffedMime?.split('/')[1]?.toUpperCase()} image.`;
+					conversionError = `Could not convert image.`;
 					isOptimizing = false;
 				}
 				return null;
 			} finally {
 				if (token === conversionToken) {
 					converting = false;
-					conversionPromise = null;
+					if (isDefaultPng) conversionPromise = null;
 				}
 			}
 		})();
-		return await conversionPromise;
+		if (isDefaultPng) conversionPromise = promise;
+		return await promise;
 	};
 
 	const handleDownloadOriginal = () => {
@@ -288,17 +299,11 @@
 		if (contentUrl) downloadFromUrl(contentUrl, baseName);
 	};
 
-	const handleDownloadPng = async () => {
-		const pngBlob = await startConversion(false); // Fast conversion, no optimization
-		if (pngBlob) {
-			downloadBlob(pngBlob, getPngFilename(baseName));
-		}
-	};
-
-	const handleOptimizePng = async () => {
-		const pngBlob = await startConversion(true); // Explicit optimization requested
-		if (pngBlob) {
-			downloadBlob(pngBlob, getPngFilename(baseName));
+	const handleDownload = async (mime: string, optimize = false) => {
+		const blob = await startConversion(mime, optimize);
+		if (blob) {
+			const extension = mime.split('/')[1];
+			downloadBlob(blob, getTargetFilename(baseName, extension));
 		}
 	};
 
@@ -371,6 +376,7 @@
 	const isSvg = $derived(sniffedMime === 'image/svg+xml');
 	const isWebp = $derived(sniffedMime === 'image/webp');
 	const isPng = $derived(sniffedMime === 'image/png');
+	const isAvif = $derived(sniffedMime === 'image/avif');
 	const isImage = $derived(sniffedKind === 'image');
 	const isVideo = $derived(sniffedKind === 'video');
 	const isAudio = $derived(sniffedKind === 'audio');
@@ -383,10 +389,13 @@
 			!isSvg &&
 			!isWebp &&
 			!isPng &&
+			!isAvif &&
 			imageSupport?.status === 'unsupported'
 	);
 	const imageSupportMessage = $derived(imageSupport?.message ?? null);
-	const isConvertible = $derived(isHeic || isJxl || isJxr || isQoi || isSvg || isWebp || isPng);
+	const isConvertible = $derived(
+		isHeic || isJxl || isJxr || isQoi || isSvg || isWebp || isPng || isAvif
+	);
 	const shouldAutoConvert = $derived(
 		isConvertible && (!isWebp || imageSupport?.status === 'unsupported')
 	);
@@ -428,36 +437,16 @@
 			activeIcon: Check,
 			active: copied,
 			onClick: handleCopyLink
-		},
-		{
-			key: 'save-original',
-			isVisible: Boolean(ondownload) && isConvertible,
-			label: 'Save Original',
-			icon: Download,
-			onClick: handleDownloadOriginal
-		},
-		{
-			key: 'save-png',
-			isVisible: Boolean(ondownload) && isConvertible,
-			label: converting && !convertedBlob ? 'Converting...' : 'Save PNG',
-			icon: Download,
-			onClick: handleDownloadPng,
-			disabled: converting && !convertedBlob
-		},
-		{
-			key: 'optimize-png',
-			isVisible: Boolean(ondownload) && isConvertible,
-			label: converting && !convertedBlob && isOptimizing ? 'Optimizing...' : 'Optimize PNG',
-			icon: WandSparkles,
-			onClick: handleOptimizePng,
-			disabled: converting && !isOptimizing
 		}
 	]);
 	const visibleToolbarActions = $derived(toolbarActions.filter((action) => action.isVisible));
+	const isDownloadable = $derived(
+		Boolean(ondownload) || Boolean(contentUrl) || contentText !== null
+	);
 
 	$effect(() => {
 		if (!sourceBlob || !shouldAutoConvert) return;
-		startConversion(false); // Default to fast conversion for preview
+		startConversion('image/png', false); // Default to fast conversion for preview
 	});
 
 	const handleKeydown = (event: KeyboardEvent) => {
@@ -505,6 +494,86 @@
 						{action.active ? (action.activeLabel ?? action.label) : action.label}
 					</Button>
 				{/each}
+
+				{#if isDownloadable}
+					<DropdownMenu.Root>
+						<DropdownMenu.Trigger
+							class={buttonVariants({
+								variant: 'ghost',
+								size: 'sm',
+								class:
+									'h-7 gap-1.5 px-2 text-xs text-white/70 hover:bg-white/10 hover:text-white cursor-pointer'
+							})}
+							disabled={converting && !convertedBlob}
+						>
+							<Download class="h-3.5 w-3.5" />
+							{converting && !convertedBlob ? 'Converting...' : 'Download'}
+							<ChevronDown class="h-3 w-3 opacity-50" />
+						</DropdownMenu.Trigger>
+						<DropdownMenu.Content align="end" class="w-48 border-white/10 bg-black/90 text-white">
+							<DropdownMenu.Group>
+								<DropdownMenu.Label class="text-xs text-white/50">Original File</DropdownMenu.Label>
+								<DropdownMenu.Item
+									class="cursor-pointer focus:bg-white/10 focus:text-white"
+									onSelect={handleDownloadOriginal}
+								>
+									<Download class="mr-2 h-4 w-4" />
+									<span>Save Original</span>
+								</DropdownMenu.Item>
+							</DropdownMenu.Group>
+							{#if isConvertible}
+								<DropdownMenu.Separator class="bg-white/10" />
+								<DropdownMenu.Group>
+									<DropdownMenu.Label class="text-xs text-white/50"
+										>Conversion Options</DropdownMenu.Label
+									>
+									<DropdownMenu.Item
+										class="cursor-pointer focus:bg-white/10 focus:text-white"
+										onSelect={() => handleDownload('image/png', true)}
+									>
+										<WandSparkles class="mr-2 h-4 w-4" />
+										<span>PNG (Optimized)</span>
+									</DropdownMenu.Item>
+									<DropdownMenu.Item
+										class="cursor-pointer focus:bg-white/10 focus:text-white"
+										onSelect={() => handleDownload('image/png', false)}
+									>
+										<Download class="mr-2 h-4 w-4" />
+										<span>PNG (Fast)</span>
+									</DropdownMenu.Item>
+									<DropdownMenu.Item
+										class="cursor-pointer focus:bg-white/10 focus:text-white"
+										onSelect={() => handleDownload('image/webp')}
+									>
+										<Download class="mr-2 h-4 w-4" />
+										<span>WebP</span>
+									</DropdownMenu.Item>
+									<DropdownMenu.Item
+										class="cursor-pointer focus:bg-white/10 focus:text-white"
+										onSelect={() => handleDownload('image/avif')}
+									>
+										<Download class="mr-2 h-4 w-4" />
+										<span>AVIF</span>
+									</DropdownMenu.Item>
+									<DropdownMenu.Item
+										class="cursor-pointer focus:bg-white/10 focus:text-white"
+										onSelect={() => handleDownload('image/jxl')}
+									>
+										<Download class="mr-2 h-4 w-4" />
+										<span>JXL</span>
+									</DropdownMenu.Item>
+									<DropdownMenu.Item
+										class="cursor-pointer focus:bg-white/10 focus:text-white"
+										onSelect={() => handleDownload('image/qoi')}
+									>
+										<Download class="mr-2 h-4 w-4" />
+										<span>QOI</span>
+									</DropdownMenu.Item>
+								</DropdownMenu.Group>
+							{/if}
+						</DropdownMenu.Content>
+					</DropdownMenu.Root>
+				{/if}
 			</div>
 		</div>
 		<!-- Content -->
