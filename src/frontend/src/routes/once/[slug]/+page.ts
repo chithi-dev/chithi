@@ -4,13 +4,7 @@ import type { PageLoad } from './$types';
 export const trailingSlash = 'ignore';
 
 export const load: PageLoad = ({ url }) => {
-	const ogUrl = new URL('/og', url.origin);
-	ogUrl.searchParams.set('type', 'once');
-	ogUrl.searchParams.set('title', 'One-time View');
-	ogUrl.searchParams.set(
-		'description',
-		'View your encrypted file once. The link will expire immediately after.'
-	);
+	const ogUrl = new URL('/og/once', url.origin);
 
 	const pageTags = definePageMetaTags({
 		title: 'Once',

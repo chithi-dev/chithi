@@ -3,7 +3,6 @@
 	import '#css/nprogress.scss';
 	import '#css/tailwind.css';
 
-	import { configure } from '@zip.js/zip.js';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
 	import NProgress from 'nprogress';
@@ -15,6 +14,8 @@
 	import { type Component, type Snippet } from 'svelte';
 	import { MetaTags, deepMerge } from 'svelte-meta-tags';
 	import { WORKER_CONCURRENCY } from '#consts/concurrency';
+
+	const { configure } = await import('@zip.js/zip.js');
 
 	let { children, data }: { children: Snippet; data: LayoutData } = $props();
 

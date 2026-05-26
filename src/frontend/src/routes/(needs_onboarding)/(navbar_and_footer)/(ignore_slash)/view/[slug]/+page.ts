@@ -20,8 +20,7 @@ export const load: PageLoad = async ({ fetch, params, url }) => {
 		console.error('Failed to fetch file info for meta tags', e);
 	}
 
-	const ogUrl = new URL('/og', url.origin);
-	ogUrl.searchParams.set('type', 'view');
+	const ogUrl = new URL('/og/view', url.origin);
 	ogUrl.searchParams.set('filename', filename);
 	if (fileSizeStr) {
 		ogUrl.searchParams.set('size', fileSizeStr);

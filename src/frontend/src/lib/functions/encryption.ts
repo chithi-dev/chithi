@@ -3,7 +3,6 @@ import {
 	DEFAULT_ARGON2_MEMORY_KIB,
 	MAX_ARGON2_MEMORY_KIB
 } from '#consts/encryption';
-import { argon2id } from 'hash-wasm';
 
 export function bytesToBase64(u8: Uint8Array) {
 	let binary = '';
@@ -75,6 +74,7 @@ export async function argon2Derive(
 ) {
 	// Cap memory to avoid excessive allocations in constrained environments (<512 MiB)
 	const memKb = Math.min(memorySize, MAX_ARGON2_MEMORY_KIB);
+	const { argon2id } = await import('hash-wasm');
 	return await argon2id({
 		password,
 		salt,

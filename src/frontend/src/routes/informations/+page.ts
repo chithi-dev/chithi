@@ -2,8 +2,7 @@ import { definePageMetaTags } from 'svelte-meta-tags';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ url }) => {
-	const ogUrl = new URL('/og', url.origin);
-	ogUrl.searchParams.set('type', 'info');
+	const ogUrl = new URL('/og/info', url.origin);
 	ogUrl.searchParams.set('label', 'INSTANCE OVERVIEW');
 	ogUrl.searchParams.set('title', 'System Information');
 	ogUrl.searchParams.set(
