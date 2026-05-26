@@ -6,6 +6,7 @@
 	import CodeViewer from '$lib/components/CodeViewer.svelte';
 	import { detectMimeFromBlob } from '$lib/functions/mime';
 	import { getImageSupportInfo, type ImageSupportInfo } from '$lib/functions/media-support';
+	import ConverterWorker from '$lib/workers/file-converter.worker?worker';
 
 	let {
 		filename,
@@ -198,7 +199,6 @@
 					}
 				}
 
-				const ConverterWorker = (await import('$lib/workers/file-converter.worker?worker')).default;
 				const worker = new ConverterWorker();
 
 				return await new Promise<Blob | null>((resolve, reject) => {
