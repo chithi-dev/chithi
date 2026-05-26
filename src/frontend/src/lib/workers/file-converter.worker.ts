@@ -1,15 +1,18 @@
 import { Resvg, initWasm as initResvg } from '@resvg/resvg-wasm';
 
-// JSquash pacakges
+// #region discourse imports
 import decodeGif, { init as initGif } from '@discourse/gif/decode';
 import decodeHeic, { init as initHeic } from '@discourse/heic/decode';
 import decodeJxr, { init as initJxr } from '@discourse/jxr/decode';
+// #endregion
+// #region jsquash imports
 import decodeJxl, { init as initJxl } from '@jsquash/jxl/decode';
 import optimisePng, { init as initOxipng } from '@jsquash/oxipng/optimise';
 import encodePng, { init as initPng } from '@jsquash/png/encode';
 import decodeQoi, { init as initQoi } from '@jsquash/qoi/decode';
 import decodeWebp, { init as initWebp } from '@jsquash/webp/decode';
 import encodeWebp, { init as initWebpEncode } from '@jsquash/webp/encode';
+// #endregion
 
 // Vite will resolve these WASM URLs at build time.
 import gifWasmUrl from '@discourse/gif/codec/pkg/squoosh_gif_bg.wasm?url';
