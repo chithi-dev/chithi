@@ -25,24 +25,30 @@
 
 	let copied = $state(false);
 	let copyTimeout: ReturnType<typeof setTimeout> | undefined;
-	function handleCopyLink() {
+
+	const handleCopyLink = () => {
 		oncopylink?.();
 		copied = true;
 		clearTimeout(copyTimeout);
-		copyTimeout = setTimeout(() => (copied = false), 2000);
-	}
+		copyTimeout = setTimeout(() => {
+			copied = false;
+		}, 2000);
+	};
+
 	let textCopied = $state(false);
 	let textCopyTimeout: ReturnType<typeof setTimeout> | undefined;
-	function handleCopyText() {
-		if (contentText) {
-			navigator.clipboard.writeText(contentText);
-			textCopied = true;
-			clearTimeout(textCopyTimeout);
-			textCopyTimeout = setTimeout(() => (textCopied = false), 2000);
-		}
-	}
 
-	const baseName = $derived(filename.split(/[/\\]/).pop() ?? filename);
+	const handleCopyText = () => {
+		if (!contentText) return;
+		navigator.clipboard.writeText(contentText);
+		textCopied = true;
+		clearTimeout(textCopyTimeout);
+		textCopyTimeout = setTimeout(() => {
+			textCopied = false;
+		}, 2000);
+	};
+
+	const baseName = $derived(filename.split(/[/\\]/).at(-1) ?? filename);
 	const unopenableExtensions = [
 		'.exe',
 		'.bin',
@@ -87,6 +93,7 @@
 	const jxrExtensions = ['.jxr', '.wdp', '.hdp'];
 	const qoiExtensions = ['.qoi'];
 	const webpExtensions = ['.webp'];
+	const pngExtensions = [...heicExtensions, ...jxrExtensions, ...qoiExtensions, ...webpExtensions];
 	let sniffedKind = $state<MediaKind | null>(null);
 	let sniffedMime = $state<string | null>(null);
 	let imageSupport = $state<ImageSupportInfo | null>(null);
@@ -100,7 +107,7 @@
 	let conversionPromise: Promise<Blob | null> | null = null;
 	let isOptimizing = $state(false); // Tracks oxipng status
 
-	function resetConversionState() {
+	const resetConversionState = () => {
 		conversionToken += 1;
 		conversionPromise = null;
 		converting = false;
@@ -110,20 +117,17 @@
 		convertedUrl = null;
 		sourceBlob = null;
 		isOptimizing = false;
-	}
+	};
 
-	function getPngFilename(name: string) {
+	const getPngFilename = (name: string) => {
 		const lower = name.toLowerCase();
-		const matched = [...heicExtensions, ...jxrExtensions, ...qoiExtensions, ...webpExtensions].find(
-			(ext) => lower.endsWith(ext)
-		);
+		const matched = pngExtensions.find((ext) => lower.endsWith(ext));
 		if (matched) return `${name.slice(0, -matched.length)}.png`;
-		if (lower.endsWith('.svg')) return `${name.slice(0, -4)}.png`;
-		if (lower.endsWith('.jxl')) return `${name.slice(0, -4)}.png`;
+		if (lower.endsWith('.svg') || lower.endsWith('.jxl')) return `${name.slice(0, -4)}.png`;
 		return `${name}.png`;
-	}
+	};
 
-	function downloadBlob(blob: Blob, name: string) {
+	const downloadBlob = (blob: Blob, name: string) => {
 		const blobUrl = URL.createObjectURL(blob);
 		const a = document.createElement('a');
 		a.href = blobUrl;
@@ -133,9 +137,9 @@
 		a.click();
 		document.body.removeChild(a);
 		URL.revokeObjectURL(blobUrl);
-	}
+	};
 
-	function downloadFromUrl(url: string, name: string) {
+	const downloadFromUrl = (url: string, name: string) => {
 		const a = document.createElement('a');
 		a.href = url;
 		a.download = name;
@@ -143,9 +147,9 @@
 		document.body.appendChild(a);
 		a.click();
 		document.body.removeChild(a);
-	}
+	};
 
-	async function startConversion(optimize = false) {
+	const startConversion = async (optimize = false) => {
 		// Only return cached blob if we're not explicitly requesting optimization
 		if (!optimize && convertedBlob) return convertedBlob;
 		if (conversionPromise && !optimize) return await conversionPromise;
@@ -165,18 +169,27 @@
 				const isQoi = sniffedMime === 'image/qoi';
 				const isWebp = sniffedMime === 'image/webp';
 				const isPng = sniffedMime === 'image/png';
-				const type =
-					(isHeic && 'heic') ||
-					(isSvg && 'svg') ||
-					(isJxl && 'jxl') ||
-					(isJxr && 'jxr') ||
-					(isQoi && 'qoi') ||
-					(isWebp && 'webp') ||
-					(isPng && 'png') ||
-					null;
+
+				let type: 'heic' | 'svg' | 'jxl' | 'jxr' | 'qoi' | 'webp' | 'png' | null = null;
+				if (isHeic) {
+					type = 'heic';
+				} else if (isSvg) {
+					type = 'svg';
+				} else if (isJxl) {
+					type = 'jxl';
+				} else if (isJxr) {
+					type = 'jxr';
+				} else if (isQoi) {
+					type = 'qoi';
+				} else if (isWebp) {
+					type = 'webp';
+				} else if (isPng) {
+					type = 'png';
+				}
+
 				if (!type) return null;
 
-				let svgText = null;
+				let svgText: string | null = null;
 				if (type === 'svg') {
 					svgText = contentText;
 					if (!svgText && contentUrl) {
@@ -190,14 +203,16 @@
 
 				return await new Promise<Blob | null>((resolve, reject) => {
 					worker.onmessage = (e) => {
+						const { data } = e;
+
 						// Handle optimization status update from worker
-						if (e.data.type === 'status' && e.data.status === 'optimizing') {
+						if (data.type === 'status' && data.status === 'optimizing') {
 							isOptimizing = true;
 							return;
 						}
 
-						if (e.data.type === 'success') {
-							const pngBlob = e.data.pngBlob;
+						if (data.type === 'success') {
+							const pngBlob = data.pngBlob;
 							if (token === conversionToken) {
 								if (pngBlob && pngBlob instanceof Blob) {
 									convertedBlob = pngBlob;
@@ -212,18 +227,21 @@
 								resolve(null);
 							}
 							worker.terminate();
-						} else if (e.data.type === 'error') {
+							return;
+						}
+
+						if (data.type === 'error') {
 							if (token === conversionToken) {
-								conversionError = `Could not convert this ${sniffedMime?.split('/')[1].toUpperCase()} image.`;
+								conversionError = `Could not convert this ${sniffedMime?.split('/')[1]?.toUpperCase()} image.`;
 								isOptimizing = false;
 							}
-							reject(new Error(e.data.message));
+							reject(new Error(data.message));
 							worker.terminate();
 						}
 					};
-					worker.onerror = (e) => {
+					worker.onerror = (event) => {
 						if (token === conversionToken) isOptimizing = false;
-						reject(e);
+						reject(event);
 						worker.terminate();
 					};
 					// Send source data to the worker for conversion
@@ -234,10 +252,10 @@
 						optimize
 					});
 				});
-			} catch (e: any) {
-				console.error('Conversion failed:', e);
+			} catch (error) {
+				console.error('Conversion failed:', error);
 				if (token === conversionToken) {
-					conversionError = `Could not convert this ${sniffedMime?.split('/')[1].toUpperCase()} image.`;
+					conversionError = `Could not convert this ${sniffedMime?.split('/')[1]?.toUpperCase()} image.`;
 					isOptimizing = false;
 				}
 				return null;
@@ -249,9 +267,9 @@
 			}
 		})();
 		return await conversionPromise;
-	}
+	};
 
-	function handleDownloadOriginal() {
+	const handleDownloadOriginal = () => {
 		if (ondownload) {
 			ondownload();
 			return;
@@ -261,21 +279,21 @@
 			return;
 		}
 		if (contentUrl) downloadFromUrl(contentUrl, baseName);
-	}
+	};
 
-	async function handleDownloadPng() {
+	const handleDownloadPng = async () => {
 		const pngBlob = await startConversion(false); // Fast conversion, no optimization
 		if (pngBlob) {
 			downloadBlob(pngBlob, getPngFilename(baseName));
 		}
-	}
+	};
 
-	async function handleOptimizePng() {
+	const handleOptimizePng = async () => {
 		const pngBlob = await startConversion(true); // Explicit optimization requested
 		if (pngBlob) {
 			downloadBlob(pngBlob, getPngFilename(baseName));
 		}
-	}
+	};
 
 	$effect(() => {
 		sniffedKind = null;
@@ -284,7 +302,8 @@
 		resetConversionState();
 		if (!contentUrl || contentText !== null || isUnopenable) return;
 		let cancelled = false;
-		(async () => {
+
+		const sniff = async () => {
 			try {
 				const response = await fetch(contentUrl);
 				const blob = await response.blob();
@@ -322,7 +341,10 @@
 			} catch {
 				if (!cancelled) sniffedKind = 'other';
 			}
-		})();
+		};
+
+		sniff();
+
 		return () => {
 			cancelled = true;
 		};
@@ -366,7 +388,7 @@
 			? {
 					title:
 						conversionError ??
-						`Unable to preview this ${sniffedMime?.split('/')[1].toUpperCase()} image.`,
+						`Unable to preview this ${sniffedMime?.split('/')[1]?.toUpperCase()} image.`,
 					message: imageSupportMessage,
 					mime: sniffedMime
 				}
@@ -431,9 +453,9 @@
 		startConversion(false); // Default to fast conversion for preview
 	});
 
-	function handleKeydown(event: KeyboardEvent) {
+	const handleKeydown = (event: KeyboardEvent) => {
 		if (event.key === 'Escape') onclose?.();
-	}
+	};
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -515,19 +537,21 @@
 									<Spinner class="size-4" />
 									<span>
 										{isOptimizing ? 'Optimizing PNG...' : 'Converting'}
-										{isHeic
-											? 'HEIC'
-											: isJxl
-												? 'JXL'
-												: isJxr
-													? 'JXR'
-													: isQoi
-														? 'QOI'
-														: isWebp
-															? 'WEBP'
-															: isSvg
-																? 'SVG'
-																: 'PNG'} to PNG...
+										{#if isHeic}
+											HEIC
+										{:else if isJxl}
+											JXL
+										{:else if isJxr}
+											JXR
+										{:else if isQoi}
+											QOI
+										{:else if isWebp}
+											WEBP
+										{:else if isSvg}
+											SVG
+										{:else}
+											PNG
+										{/if} to PNG...
 									</span>
 								</div>
 							</div>
