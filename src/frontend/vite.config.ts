@@ -35,7 +35,7 @@ export default defineConfig({
 
 	build: {
 		sourcemap: true,
-		minify: 'terser',
+		// minify: 'terser',
 		rolldownOptions: {
 			output: {
 				generatedCode: {
