@@ -35,7 +35,7 @@ class WebSocketManager:
         for ws in self._connections:
             try:
                 await ws.send_text(payload)
-            except WebSocketDisconnect, RuntimeError:
+            except (WebSocketDisconnect, RuntimeError):
                 stale.append(ws)
         for ws in stale:
             self._connections.discard(ws)

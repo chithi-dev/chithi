@@ -1,0 +1,2 @@
+[tool.pyrefly]
+python = ".venv/Scripts/python.exe"

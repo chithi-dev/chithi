@@ -22,6 +22,23 @@ S3_CHUNK_SIZE: Final[int] = ByteSize(kb=256).total_bytes()  # 256 KB read chunks
 
 s3_semaphore = asyncio.Semaphore(settings.MAX_CONCURRENT_S3_READS)
 
+KEEPALIVE_INTERVAL: Final[int] = 15  # seconds between WebSocket pings
+
+
+def _key_in_seen(seen_keys: set[str], key: str, room_id: str) -> bool:
+    """Check *key* against seen set using both raw and prefixed forms.
+
+    File keys in Redis may appear with the storage prefix ``rooms/<id>/`` or
+    without it (short UUID).  Catch-up populates ``seen_keys`` from whatever
+    format Redis returned at snapshot time while incoming events carry their
+    own key variant - this helper ensures both match.
+    """
+    if key in seen_keys:
+        return True
+    prefix = f"rooms/{room_id}/"
+    candidate = key.removeprefix(prefix) if key.startswith(prefix) else prefix + key
+    return candidate in seen_keys
+
 
 async def _stream_file_to_ws(
     ws: WebSocket,
@@ -206,7 +223,7 @@ async def room_ws(
                             json.dumps({"type": "file_added", "file": public_file})
                         )
 
-                    if event.file.key in seen_keys:
+                    if _key_in_seen(seen_keys, event.file.key, room_id):
                         continue
                     seen_keys.add(event.file.key)
                     tg.create_task(_dispatch_file(event.file))
@@ -230,6 +247,17 @@ async def room_ws(
                         )
 
     listen_task = asyncio.create_task(_listen_and_stream())
+
+    # WebSocket keepalive: send periodic pings to detect dead connections.
+    async def _keepalive() -> None:
+        while not done_event.is_set():
+            await asyncio.sleep(KEEPALIVE_INTERVAL)
+            try:
+                await ws.send_ping(b"")
+            except Exception:
+                break
+
+    keepalive_task = asyncio.create_task(_keepalive())
 
     try:
         while True:
@@ -283,10 +311,13 @@ async def room_ws(
         pass
     finally:
         await RoomState.client_offline(room_id, client_id, is_host)
-        listen_task.cancel()
         done_event.set()
+        listen_task.cancel()
+        keepalive_task.cancel()
         with suppress(asyncio.CancelledError, ExceptionGroup):
             await listen_task
+        with suppress(asyncio.CancelledError):
+            await keepalive_task
 
         await pubsub.unsubscribe(channel)
         await pubsub.aclose()
