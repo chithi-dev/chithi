@@ -33,7 +33,10 @@
 		return res.json() as Promise<FileInformationOut>;
 	};
 
-	onMount(() => setInterval(cleanupExpiredEntries, 60_000));
+	onMount(() => {
+		const id = setInterval(cleanupExpiredEntries, 60_000);
+		return () => clearInterval(id);
+	});
 
 	let pending = $state(false);
 

@@ -207,7 +207,7 @@ const getSupportedAgents = (stats: CaniuseStats) =>
 		)
 		.map(([agent]) => agent as AgentKey);
 
-export const getImageSupportInfo = async (mime: string) => {
+export const getImageSupportInfo = async (mime: string): Promise<ImageSupportInfo> => {
 	let featureData: CaniuseFeature | null;
 
 	try {

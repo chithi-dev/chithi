@@ -428,11 +428,11 @@
 		isUploading = false;
 	}
 
-	function uploadFileXhr(
+	async function uploadFileXhr(
 		file: Blob,
 		filename: string,
 		onProgress: (pct: number) => void
-	) {
+	): Promise<RoomFileEntry> {
 		return new Promise((resolve, reject) => {
 			const fd = new FormData();
 			fd.append('file', file, filename);

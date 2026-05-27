@@ -54,11 +54,11 @@ self.addEventListener('message', async (ev: MessageEvent<InitMessage | EncryptMe
 				postMessage({ type: 'encrypted' as const, index: msg.index, encrypted }, [encrypted]);
 			} catch (e) {
 				const err = e instanceof Error ? e : new Error(String(e));
-				postMessage({ type: 'error' as const, index: msg.index, message: err.message });
+				postMessage({ type: 'error' as const, index: msg.index, name: err.name, message: err.message });
 			}
 		}
 	} catch (e) {
 		const err = e instanceof Error ? e : new Error(String(e));
-		postMessage({ type: 'error' as const, message: err.message });
+		postMessage({ type: 'error' as const, name: err.name, message: err.message });
 	}
 });
