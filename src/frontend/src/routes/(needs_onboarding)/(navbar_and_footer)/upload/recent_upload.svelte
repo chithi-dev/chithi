@@ -47,13 +47,16 @@
 							await deleteHistoryEntry(entry.id);
 							return;
 						}
-						await updateHistoryEntry({ id: entry.id, updates: {
-							name: info.filename,
-							size: formatFileSize(info.size),
-							expiry: new Date(info.expires_at).getTime(),
-							created_at: new Date(info.created_at).getTime(),
-							download_count: info.download_count
-						}});
+						await updateHistoryEntry({
+							id: entry.id,
+							updates: {
+								name: info.filename,
+								size: formatFileSize(info.size),
+								expiry: new Date(info.expires_at).getTime(),
+								created_at: new Date(info.created_at).getTime(),
+								download_count: info.download_count
+							}
+						});
 					} catch (error) {
 						console.error(`Failed to update info for ${entry.id}`, error);
 						await deleteHistoryEntry(entry.id);

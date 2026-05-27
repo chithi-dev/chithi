@@ -56,14 +56,14 @@
 	let defaultsLoaded = $state(false);
 
 	// Flattened status
-	const _encTween = new Tween(0, { duration: 500, easing: cubicOut });
-	const _uploadTween = new Tween(0, { duration: 500, easing: cubicOut });
+	const encTween = new Tween(0, { duration: 500, easing: cubicOut });
+	const uploadTween = new Tween(0, { duration: 500, easing: cubicOut });
 
-	let encryptionProgress = _encTween;
-	let uploadProgress = _uploadTween;
+	let encryptionProgress = encTween;
+	let uploadProgress = uploadTween;
 
-	const isEncrypting = $derived(_encTween.current > 0 && _uploadTween.current < 10);
-	const inProgress = $derived(_uploadTween.current > 0 || _encTween.current > 0);
+	const isEncrypting = $derived(encTween.current > 0 && uploadTween.current < 10);
+	const inProgress = $derived(uploadTween.current > 0 || encTween.current > 0);
 
 	const totalSize = $derived(formatFileSize(files.reduce((sum, file) => sum + file.size, 0)));
 
@@ -152,15 +152,14 @@
 		}
 
 		try {
-			_uploadTween.set(0);
+			uploadTween.set(0);
 
 			// Create Zip Stream
 			const stream = await createZipStream(files, isPasswordProtected ? password : undefined);
 
 			//  Encrypt
 			const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
-			// start encryption progress reporting
-			_encTween.set(0);
+			encTween.set(0);
 			const { stream: encryptedStream, keySecret } = await createEncryptedStream(
 				stream,
 				isPasswordProtected ? password : undefined,
@@ -169,7 +168,7 @@
 					if (total && total > 0) {
 						encryptionProgress.target = Math.min(100, Math.round((processed / total) * 100));
 					} else {
-						_encTween.set(0);
+						encTween.set(0);
 					}
 				}
 			);
@@ -252,8 +251,8 @@
 		} catch (err: any) {
 			console.error('Upload failed', err);
 			toast.error('Upload failed: ' + (err?.message ?? err));
-			_uploadTween.set(0);
-			_encTween.set(0);
+			uploadTween.set(0);
+			encTween.set(0);
 		} finally {
 		}
 	};
