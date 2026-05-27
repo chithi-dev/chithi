@@ -144,6 +144,89 @@ self.addEventListener('message', async (event) => {
 					break;
 				}
 			}
+			if (!webpEncodeInitialized) {
+				await initWebpEncode();
+				webpEncodeInitialized = true;
+			}
+			if (optimize) {
+				self.postMessage({ type: 'status', status: 'optimizing' });
+			}
+			const buffer = await blob.arrayBuffer();
+			const imageData = await decodeGif(buffer);
+			outputBuffer = await encodeWebp(
+				imageData,
+				optimize ? { quality: 75, method: 4 } : { quality: 90, method: 4 }
+			);
+			outputMime = 'image/webp';
+		} else if (type === 'heic') {
+			if (!heicInitialized) {
+				await initHeic({ locateFile: () => heicWasmUrl });
+				heicInitialized = true;
+			}
+			if (!pngInitialized) {
+				await initPng(pngWasmUrl);
+				pngInitialized = true;
+			}
+			const buffer = await blob.arrayBuffer();
+			const imageData = await decodeHeic(buffer);
+			outputBuffer = await encodePng(imageData);
+		} else if (type === 'jxr') {
+			if (!jxrInitialized) {
+				await initJxr({ locateFile: () => jxrWasmUrl });
+				jxrInitialized = true;
+			}
+			if (!pngInitialized) {
+				await initPng(pngWasmUrl);
+				pngInitialized = true;
+			}
+			const buffer = await blob.arrayBuffer();
+			const imageData = await decodeJxr(buffer);
+			outputBuffer = await encodePng(imageData);
+		} else if (type === 'qoi') {
+			if (!qoiInitialized) {
+				await initQoi({ locateFile: () => qoiWasmUrl });
+				qoiInitialized = true;
+			}
+			if (!pngInitialized) {
+				await initPng(pngWasmUrl);
+				pngInitialized = true;
+			}
+			const buffer = await blob.arrayBuffer();
+			const imageData = await decodeQoi(buffer);
+			outputBuffer = await encodePng(imageData);
+		} else if (type === 'webp') {
+			if (!webpInitialized) {
+				await initWebp({ locateFile: () => webpWasmUrl });
+				webpInitialized = true;
+			}
+			if (!pngInitialized) {
+				await initPng(pngWasmUrl);
+				pngInitialized = true;
+			}
+			const buffer = await blob.arrayBuffer();
+			const imageData = await decodeWebp(buffer);
+			outputBuffer = await encodePng(imageData);
+		} else if (type === 'jxl') {
+			if (!jxlInitialized) {
+				await initJxl({ locateFile: () => jxlWasmUrl });
+				jxlInitialized = true;
+			}
+			if (!pngInitialized) {
+				await initPng(pngWasmUrl);
+				pngInitialized = true;
+			}
+			const buffer = await blob.arrayBuffer();
+			const imageData = await decodeJxl(buffer);
+			outputBuffer = await encodePng(imageData);
+		} else if (type === 'svg') {
+			if (!resvgInitialized) {
+				await initResvg(resvgWasmUrl);
+				resvgInitialized = true;
+			}
+			const resvg = new Resvg(text);
+			outputBuffer = resvg.render().asPng().buffer;
+		} else if (type === 'png') {
+			outputBuffer = await blob.arrayBuffer();
 		}
 
 		if (outputBuffer) {

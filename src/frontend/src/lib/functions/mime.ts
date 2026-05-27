@@ -1,5 +1,5 @@
 export function detectMimeFromBytes(bytes: Uint8Array): string | null {
-	const has = (offset: number, ...header: number[]) =>
+	const has = (offset: number, ...header: number[]): boolean =>
 		offset + header.length <= bytes.length &&
 		header.every((value, index) => bytes[offset + index] === value);
 

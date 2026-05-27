@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { buildOgResponse } from './og-response';
-import type { OgConfig } from './og-types';
+import { buildOgResponse } from '../og-response';
+import type { OgConfig } from '../og-types';
 
 const baseOgConfig: OgConfig = {
 	label: 'Private by design',

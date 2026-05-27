@@ -325,6 +325,10 @@
 	let conversionToken = 0;
 	let conversionPromise: Promise<Blob | null> | null = null;
 	let isOptimizing = $state(false); // Tracks oxipng status
+	let gifConverting = $state(false);
+	let gifOptimizing = $state(false);
+	let gifConversionToken = 0;
+	let gifConversionPromise: Promise<Blob | null> | null = null;
 
 	const resetConversionState = () => {
 		conversionToken += 1;
