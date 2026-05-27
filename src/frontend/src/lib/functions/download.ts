@@ -143,7 +143,7 @@ export async function downloadAndDecryptFile(
 	const blob = new Blob(chunks as BlobPart[]);
 
 	if ('showSaveFilePicker' in window) {
-		const pickerHandle = await ((window as any).showSaveFilePicker)({
+		const pickerHandle = await (window as any).showSaveFilePicker({
 			suggestedName: finalDownloadName
 		});
 		const writable = await (pickerHandle as FileSystemFileHandle).createWritable();

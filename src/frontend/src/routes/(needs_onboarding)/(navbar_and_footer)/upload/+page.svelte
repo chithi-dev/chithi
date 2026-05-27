@@ -40,9 +40,7 @@
 	let hasMounted = $state(false);
 
 	const detailsMarkdown = $derived(configData.data?.site_description ?? '');
-	let detailsPromise = $derived(
-		detailsMarkdown ? markdown_to_html(detailsMarkdown) : null
-	);
+	let detailsPromise = $derived(detailsMarkdown ? markdown_to_html(detailsMarkdown) : null);
 
 	// Handle physical mouse back button (X1) to return from stage 2 to stage 1
 	const handleMouseBack = (e: MouseEvent) => {
@@ -345,8 +343,8 @@
 							class="prose w-full max-w-none prose-zinc md:text-sm lg:text-lg lg:leading-relaxed dark:prose-invert"
 						>
 							{#if detailsPromise}{#await detailsPromise then html}
-							{@html html}
-							{/await}{/if}
+									{@html html}
+								{/await}{/if}
 						</div>
 					</ScrollArea>
 				</div>

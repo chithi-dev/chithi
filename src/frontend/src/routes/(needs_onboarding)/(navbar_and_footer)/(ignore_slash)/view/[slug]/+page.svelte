@@ -35,7 +35,7 @@
 	import { createViewableText } from '$lib/functions/viewer';
 	import { saveBlobUrl } from '#functions/download';
 
-		const { default: FileViewerOverlay } = await import('$lib/components/FileViewerOverlay.svelte');
+	const { default: FileViewerOverlay } = await import('$lib/components/FileViewerOverlay.svelte');
 
 	let key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
 	let slug = $derived(page.params.slug);
@@ -385,7 +385,10 @@
 							oncopylink={copyViewerLink}
 							ondownload={() => {
 								if (!viewingFile) return;
-								const blob = viewingFile.text !== null ? new Blob([viewingFile.text], { type: 'text/plain' }) : '';
+								const blob =
+									viewingFile.text !== null
+										? new Blob([viewingFile.text], { type: 'text/plain' })
+										: '';
 								saveBlobUrl(blob, viewingFile.filename.split('/').pop() || 'file');
 							}}
 						/>

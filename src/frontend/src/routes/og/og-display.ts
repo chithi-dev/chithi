@@ -1,4 +1,4 @@
-import type { OgConfig, OgDisplay, OgInputs } from './og-types';
+import type { OgConfig, OgInputs } from './og-types';
 
 function trimOr(value: string | null | undefined, fallback: string) {
 	const cleaned = value?.trim();
@@ -28,4 +28,4 @@ export function buildOgDisplay(config: OgConfig, inputs: OgInputs) {
 		subtitle,
 		footerTags: config.footerTags
 	};
-};
+}

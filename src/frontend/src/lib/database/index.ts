@@ -1,4 +1,4 @@
-import { recentUploads, setEntries } from './recent-uploads.svelte';
+import { setEntries } from './recent-uploads.svelte';
 
 const DB_NAME = 'chithi_db';
 const STORE_NAME = 'uploads';
@@ -38,7 +38,7 @@ const normalizeEntry = (entry: UploadEntry) => {
 
 export const getHistory = async (): Promise<UploadEntry[]> => {
 	try {
-		const db = await openDB() as IDBDatabase;
+		const db = (await openDB()) as IDBDatabase;
 		const tx = db.transaction(STORE_NAME, 'readonly');
 		const store = tx.objectStore(STORE_NAME);
 		const request = store.getAll();
@@ -65,10 +65,12 @@ const refreshStore = async () => setEntries(await getHistory());
 
 export const addHistoryEntry = async (entry: UploadEntry) => {
 	try {
-		const db = await openDB() as IDBDatabase;
+		const db = (await openDB()) as IDBDatabase;
 		const tx = db.transaction(STORE_NAME, 'readwrite');
 		tx.objectStore(STORE_NAME).add(entry);
-		await new Promise<void>((resolve) => { tx.oncomplete = () => resolve(); });
+		await new Promise<void>((resolve) => {
+			tx.oncomplete = () => resolve();
+		});
 		await refreshStore();
 	} catch (err) {
 		console.error('Failed to add history entry', err);
@@ -78,10 +80,12 @@ export const addHistoryEntry = async (entry: UploadEntry) => {
 
 export const deleteHistoryEntry = async (id: string) => {
 	try {
-		const db = await openDB() as IDBDatabase;
+		const db = (await openDB()) as IDBDatabase;
 		const tx = db.transaction(STORE_NAME, 'readwrite');
 		tx.objectStore(STORE_NAME).delete(id);
-		await new Promise<void>((resolve) => { tx.oncomplete = () => resolve(); });
+		await new Promise<void>((resolve) => {
+			tx.oncomplete = () => resolve();
+		});
 		await refreshStore();
 	} catch (err) {
 		console.error('Failed to delete history entry', err);
@@ -91,7 +95,7 @@ export const deleteHistoryEntry = async (id: string) => {
 
 export const cleanupExpiredEntries = async () => {
 	try {
-		const db = await openDB() as IDBDatabase;
+		const db = (await openDB()) as IDBDatabase;
 		const tx = db.transaction(STORE_NAME, 'readwrite');
 		const store = tx.objectStore(STORE_NAME);
 		const request = store.getAll();
@@ -112,9 +116,15 @@ export const cleanupExpiredEntries = async () => {
 	}
 };
 
-export const updateHistoryEntry = async ({ id, updates }: { id: string; updates: Partial<UploadEntry> }) => {
+export const updateHistoryEntry = async ({
+	id,
+	updates
+}: {
+	id: string;
+	updates: Partial<UploadEntry>;
+}) => {
 	try {
-		const db = await openDB() as IDBDatabase;
+		const db = (await openDB()) as IDBDatabase;
 		const tx = db.transaction(STORE_NAME, 'readwrite');
 		const store = tx.objectStore(STORE_NAME);
 		const request = store.get(id);

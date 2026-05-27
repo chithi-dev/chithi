@@ -173,7 +173,10 @@
 					class="rounded-r-none focus-visible:z-10"
 					bind:value={password}
 					onkeydown={(e) => {
-						if (e.key === 'Enter') { e.preventDefault(); handlePasswordSubmit(); }
+						if (e.key === 'Enter') {
+							e.preventDefault();
+							handlePasswordSubmit();
+						}
 					}}
 				/>
 				<Button class="rounded-l-none" onclick={handlePasswordSubmit}>Unlock</Button>

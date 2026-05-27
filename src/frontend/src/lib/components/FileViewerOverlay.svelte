@@ -243,9 +243,7 @@
 		'.numbers',
 		'.key'
 	]);
-	const isUnopenable = $derived(
-		baseName && UNOPENABLE_EXTENSIONS.has(baseName.toLowerCase())
-	);
+	const isUnopenable = $derived(baseName && UNOPENABLE_EXTENSIONS.has(baseName.toLowerCase()));
 
 	type MediaKind = 'image' | 'video' | 'audio' | 'other';
 	type ImageInfo = { title: string; message?: string | null; mime?: string | null };

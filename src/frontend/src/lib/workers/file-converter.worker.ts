@@ -9,11 +9,11 @@ import decodeJxr, { init as initJxr } from '@discourse/jxr/decode';
 
 // #region jsquash imports
 import encodeAvif, { init as initAvifEnc } from '@jsquash/avif/encode';
-import decodeQoi, { init as initQoiDec } from '@jsquash/qoi/decode';
-import encodeQoi, { init as initQoiEnc } from '@jsquash/qoi/encode';
 import encodeJxl, { init as initJxlEnc } from '@jsquash/jxl/encode';
 import optimisePng, { init as initOxipng } from '@jsquash/oxipng/optimise';
 import encodePng, { init as initPngEnc } from '@jsquash/png/encode';
+import decodeQoi, { init as initQoiDec } from '@jsquash/qoi/decode';
+import encodeQoi, { init as initQoiEnc } from '@jsquash/qoi/encode';
 // #endregion
 
 // #region discourse webp imports
@@ -30,11 +30,11 @@ import jxrWasmUrl from '@discourse/jxr/codec/dec/jxr_dec.wasm?url';
 import webpDecWasmUrl from '@discourse/webp/codec/dec/webp_dec.wasm?url';
 import webpEncWasmUrl from '@discourse/webp/codec/enc/webp_enc.wasm?url';
 import avifEncWasmUrl from '@jsquash/avif/codec/enc/avif_enc.wasm?url';
-import qoiDecWasmUrl from '@jsquash/qoi/codec/dec/qoi_dec.wasm?url';
-import qoiEncWasmUrl from '@jsquash/qoi/codec/enc/qoi_enc.wasm?url';
 import jxlEncWasmUrl from '@jsquash/jxl/codec/enc/jxl_enc.wasm?url';
 import oxipngWasmUrl from '@jsquash/oxipng/codec/pkg-parallel/squoosh_oxipng_bg.wasm?url';
 import pngEncWasmUrl from '@jsquash/png/codec/pkg/squoosh_png_bg.wasm?url';
+import qoiDecWasmUrl from '@jsquash/qoi/codec/dec/qoi_dec.wasm?url';
+import qoiEncWasmUrl from '@jsquash/qoi/codec/enc/qoi_enc.wasm?url';
 import resvgWasmUrl from '@resvg/resvg-wasm/index_bg.wasm?url';
 
 // Track initialized codecs to avoid redundant WASM loads.
@@ -56,11 +56,7 @@ async function imageBitmapToImageData(imageBitmap: ImageBitmap) {
 	return ctx.getImageData(0, 0, imageBitmap.width, imageBitmap.height);
 }
 
-async function decodeToImageData(
-	type: string,
-	blob: Blob | null,
-	text: string | null
-) {
+async function decodeToImageData(type: string, blob: Blob | null, text: string | null) {
 	if (type === 'svg' && text) {
 		await ensureInit('resvg', () => initResvg(resvgWasmUrl));
 		const resvg = new Resvg(text);
@@ -205,7 +201,10 @@ self.addEventListener('message', async (event) => {
 				}
 			} else if (toType === 'image/webp') {
 				await ensureInit('webp-enc', () => initWebpEnc({ locateFile: () => webpEncWasmUrl }));
-				outputBuffer ||= (await encodeWebp(imageData, optimize ? { quality: 75, method: 4 } : { quality: 90, method: 4 })) as ArrayBuffer;
+				outputBuffer ||= (await encodeWebp(
+					imageData,
+					optimize ? { quality: 75, method: 4 } : { quality: 90, method: 4 }
+				)) as ArrayBuffer;
 				outputMime = 'image/webp';
 			} else if (toType === 'image/avif') {
 				await ensureInit('avif-enc', () => initAvifEnc({ locateFile: () => avifEncWasmUrl }));

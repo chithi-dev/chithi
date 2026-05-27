@@ -75,7 +75,13 @@ async function main() {
 		process.exit(0);
 	}
 
-	const cmd = `npx shadcn-svelte@latest add ${components.join(' ')}`;
+	const shadcnBin = path.join(projectRoot, 'node_modules', 'shadcn-svelte', 'dist', 'index.mjs');
+	if (!(await exists(shadcnBin))) {
+		console.error('shadcn-svelte not installed. Run: npm install -D shadcn-svelte@latest');
+		process.exit(1);
+	}
+
+	const cmd = `node --experimental-strip-types "${shadcnBin}" add ${components.join(' ')}`;
 	console.log('Will run:', cmd);
 
 	if (argv.dryRun) {
@@ -84,7 +90,7 @@ async function main() {
 	}
 
 	try {
-		execSync(cmd, { stdio: 'inherit' });
+		execSync(cmd, { stdio: 'inherit', cwd: projectRoot });
 	} catch (err: any) {
 		console.error('Command failed:', err && err.message ? err.message : err);
 		process.exit(1);

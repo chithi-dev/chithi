@@ -164,7 +164,8 @@ const desktopBrowserMap: Record<string, AgentKey | undefined> = {
 };
 
 const resolveBrowserAgent = (browserName: string, platformType: string): AgentKey | undefined => {
-	const maps = platformType === 'mobile' || platformType === 'tablet' ? mobileBrowserMap : desktopBrowserMap;
+	const maps =
+		platformType === 'mobile' || platformType === 'tablet' ? mobileBrowserMap : desktopBrowserMap;
 	return maps[browserName];
 };
 

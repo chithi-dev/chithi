@@ -6,7 +6,10 @@ export const get_display_filename = (filename: string) =>
 export async function handle_binary_chunk({
 	receive_state,
 	data
-}: { receive_state: ReceiveState; data: ArrayBuffer | Blob }) {
+}: {
+	receive_state: ReceiveState;
+	data: ArrayBuffer | Blob;
+}) {
 	if (receive_state.type !== 'streaming') return;
 	const buf = data instanceof Blob ? await data.arrayBuffer() : data;
 

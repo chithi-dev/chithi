@@ -11,7 +11,13 @@ const fetchConfig = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
 	return res.json();
 };
 
-export const prefetch = async ({ queryClient, fetch }: { queryClient: QueryClient; fetch?: typeof globalThis.fetch }) => {
+export const prefetch = async ({
+	queryClient,
+	fetch
+}: {
+	queryClient: QueryClient;
+	fetch?: typeof globalThis.fetch;
+}) => {
 	await queryClient.prefetchQuery({
 		queryKey,
 		queryFn: () => fetchConfig({ fetch }),
@@ -36,7 +42,12 @@ type ConfigUpdate = {
 export const useConfigQuery = () => {
 	const queryClient = useQueryClient();
 
-	const query = createQuery(() => ({ queryKey, queryFn: () => fetchConfig({}), staleTime: 10, retry: true }));
+	const query = createQuery(() => ({
+		queryKey,
+		queryFn: () => fetchConfig({}),
+		staleTime: 10,
+		retry: true
+	}));
 
 	const update_config = async (data: Partial<ConfigUpdate>) => {
 		const res = await fetch(Api.ADMIN.CONFIG, {

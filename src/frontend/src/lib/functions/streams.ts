@@ -201,10 +201,15 @@ export async function createEncryptedStream(
 						worker.onmessage = (ev) => {
 							if (!sentInit && ev.data?.type === 'init') {
 								sentInit = true;
-								worker!.postMessage({ type: 'init' as const, mode: 'encrypt' as const, keyRaw: keyCopy, baseIv: ivCopy }, [
-									keyCopy,
-									ivCopy
-								]);
+								worker!.postMessage(
+									{
+										type: 'init' as const,
+										mode: 'encrypt' as const,
+										keyRaw: keyCopy,
+										baseIv: ivCopy
+									},
+									[keyCopy, ivCopy]
+								);
 							}
 						};
 
@@ -280,10 +285,15 @@ export async function createDecryptedStream(
 						worker.onmessage = (ev) => {
 							if (!sentInit && ev.data?.type === 'init') {
 								sentInit = true;
-								worker!.postMessage({ type: 'init' as const, mode: 'decrypt' as const, keyRaw: keyCopy, baseIv: ivCopy }, [
-									keyCopy,
-									ivCopy
-								]);
+								worker!.postMessage(
+									{
+										type: 'init' as const,
+										mode: 'decrypt' as const,
+										keyRaw: keyCopy,
+										baseIv: ivCopy
+									},
+									[keyCopy, ivCopy]
+								);
 							}
 						};
 

@@ -56,10 +56,13 @@ export async function deriveAESKeyFromIKM(
 		1
 	);
 	// Import key as exportable so we can pass raw key material to workers for parallel encryption
-	return await crypto.subtle.importKey('raw', derivedBits as unknown as ArrayBuffer, { name: 'AES-GCM' }, true, [
-		'encrypt',
-		'decrypt'
-	]);
+	return await crypto.subtle.importKey(
+		'raw',
+		derivedBits as unknown as ArrayBuffer,
+		{ name: 'AES-GCM' },
+		true,
+		['encrypt', 'decrypt']
+	);
 }
 
 export async function argon2Derive(

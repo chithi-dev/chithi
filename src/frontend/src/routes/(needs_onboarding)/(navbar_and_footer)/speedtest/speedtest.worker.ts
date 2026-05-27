@@ -10,18 +10,24 @@ const reportProgress = (phase: Phase, value: number, progress: number) =>
 
 let endpoints: EndpointConfig | null = null;
 
-self.addEventListener('message', async ({ data }: MessageEvent<{ type: string; duration?: number; urls?: EndpointConfig }>) => {
-	const { type, duration = 10, urls } = data;
-	if (type !== 'start' || !urls) return;
+self.addEventListener(
+	'message',
+	async ({ data }: MessageEvent<{ type: string; duration?: number; urls?: EndpointConfig }>) => {
+		const { type, duration = 10, urls } = data;
+		if (type !== 'start' || !urls) return;
 
-	endpoints = urls;
+		endpoints = urls;
 
-	try {
-		await runSpeedTest(duration);
-	} catch (err) {
-		self.postMessage({ type: 'error' as const, error: err instanceof Error ? err.message : String(err) });
+		try {
+			await runSpeedTest(duration);
+		} catch (err) {
+			self.postMessage({
+				type: 'error' as const,
+				error: err instanceof Error ? err.message : String(err)
+			});
+		}
 	}
-});
+);
 
 const runSpeedTest = async (duration: number) => {
 	const phases: Phase[] = ['latency', 'download', 'upload'];
@@ -101,7 +107,8 @@ const testDownload = async (duration: number) => {
 				}
 			}
 		} catch (err) {
-			if (err instanceof Error && err.name !== 'AbortError' && err.name !== 'TimeoutError') throw err;
+			if (err instanceof Error && err.name !== 'AbortError' && err.name !== 'TimeoutError')
+				throw err;
 		}
 	}
 

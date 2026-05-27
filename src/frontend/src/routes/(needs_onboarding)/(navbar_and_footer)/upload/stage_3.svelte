@@ -71,21 +71,38 @@
 			</Tooltip.Provider>
 
 			{#if isViewOnce}
-				<Button variant="outline" size="icon-sm" href={viewOnceLink} class="cursor-pointer" aria-label="View once">
+				<Button
+					variant="outline"
+					size="icon-sm"
+					href={viewOnceLink}
+					class="cursor-pointer"
+					aria-label="View once"
+				>
 					<ScanEye class="size-4" />
 				</Button>
 			{:else}
-				<Button variant="outline" class="cursor-pointer" size="icon-sm" href={finalLink} aria-label="Download">
+				<Button
+					variant="outline"
+					class="cursor-pointer"
+					size="icon-sm"
+					href={finalLink}
+					aria-label="Download"
+				>
 					<Download class="size-4" />
 				</Button>
 
-				<Button variant="outline" size="icon-sm" class="cursor-pointer" href={finalLink.replace('/download/', '/view/')} aria-label="View">
+				<Button
+					variant="outline"
+					size="icon-sm"
+					class="cursor-pointer"
+					href={finalLink.replace('/download/', '/view/')}
+					aria-label="View"
+				>
 					<Eye class="size-4" />
 				</Button>
 			{/if}
 		</ButtonGroup.Root>
 
 		<Button variant="ghost" class="cursor-pointer" onclick={onReset}>Upload more files</Button>
-
 	</div>
 </div>
