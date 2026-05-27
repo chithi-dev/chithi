@@ -3,15 +3,13 @@
 	import { Button } from '$lib/components/ui/button';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { Trash2, History, Copy, Check, Download } from '@lucide/svelte';
-	import { onMount } from 'svelte';
 	import {
 		deleteHistoryEntry,
 		cleanupExpiredEntries,
-		recentUploads,
 		updateHistoryEntry
 	} from '$lib/database';
+	import { recentUploads, setEntries } from '$lib/database/recent-uploads.svelte';
 	import { formatFileSize } from '#functions/bytes';
-	import { get } from 'svelte/store';
 	import { Api } from '#consts/backend';
 
 	let open = $state(false);
@@ -34,11 +32,11 @@
 		return res.json();
 	};
 
-	onMount(() => {
-		const init = async () => {
-			await cleanupExpiredEntries();
-			const entries = get(recentUploads);
-
+	$effect(() => {
+		let cancelled = false;
+		cleanupExpiredEntries().then(async () => {
+			if (cancelled) return;
+			const entries = recentUploads.entries;
 			await Promise.all(
 				entries.map(async (entry) => {
 					try {
@@ -63,11 +61,19 @@
 					}
 				})
 			);
-		};
-		init();
+		});
 
 		const interval = setInterval(cleanupExpiredEntries, 60000);
-		return () => clearInterval(interval);
+		return () => {
+			cancelled = true;
+			clearInterval(interval);
+		};
+	});
+
+	$effect(() => {
+		if (open) {
+			cleanupExpiredEntries();
+		}
 	});
 
 	const handleDelete = async (id: string) => {
@@ -83,13 +89,11 @@
 	};
 
 	$effect(() => {
-		if (open) {
-			cleanupExpiredEntries();
-		}
+		setEntries(recentUploads.entries);
 	});
 </script>
 
-{#if $recentUploads.length > 0}
+{#if recentUploads.entries.length > 0}
 	<Dialog.Root bind:open>
 		<Dialog.Trigger>
 			{#snippet child({ props })}
@@ -111,7 +115,7 @@
 			</Dialog.Header>
 			<ScrollArea class="h-75 w-full rounded-md border p-4">
 				<div class="space-y-4">
-					{#each $recentUploads as entry (entry.id)}
+					{#each recentUploads.entries as entry (entry.id)}
 						<div
 							class="flex flex-col gap-2 rounded-lg border bg-card p-3 text-sm shadow-sm transition-colors hover:bg-accent/5"
 						>

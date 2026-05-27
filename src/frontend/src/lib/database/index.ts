@@ -1,4 +1,4 @@
-import { writable } from 'svelte/store';
+import { recentUploads, setEntries } from './recent-uploads.svelte';
 
 const DB_NAME = 'chithi_db';
 const STORE_NAME = 'uploads';
@@ -14,8 +14,6 @@ export interface UploadEntry {
 	created_at: number;
 	size: string;
 }
-
-export const recentUploads = writable<UploadEntry[]>([]);
 
 const openDB = (): Promise<IDBDatabase> => {
 	if (!indexedDB) return Promise.reject(new Error('IndexedDB is not supported'));
@@ -63,7 +61,7 @@ export const getHistory = async (): Promise<UploadEntry[]> => {
 	}
 };
 
-const refreshStore = async () => recentUploads.set(await getHistory());
+const refreshStore = async () => setEntries(await getHistory());
 
 export const addHistoryEntry = async (entry: UploadEntry) => {
 	try {
