@@ -62,6 +62,7 @@
 	const baseName = $derived(filename.split(/[/\\]/).at(-1) ?? filename);
 
 	const unopenableExtensions = [
+		// Executables & binaries
 		'.exe',
 		'.bin',
 		'.so',
@@ -80,8 +81,169 @@
 		'.pyo',
 		'.pyd',
 		'.deb',
-		'.rpm'
-	];
+		'.rpm',
+
+		// Archives & disk images
+		'.zip',
+		'.rar',
+		'.7z',
+		'.tar',
+		'.gz',
+		'.bz2',
+		'.xz',
+		'.lz4',
+		'.lzh',
+		'.zst',
+		'.tgz',
+		'.tbz2',
+		'.txz',
+		'.tlz4',
+		'.taz',
+		'.tzst',
+
+		// Disk images (other)
+		'.img',
+		'.nrg',
+		'.pdi',
+		'.smi',
+		'.mds',
+		'.cue',
+		'.cif',
+		'.b6t',
+		'.bwt',
+		'.ccd',
+
+		// Video containers not handled by browser
+		'.mkv',
+		'.avi',
+		'.flv',
+		'.wmv',
+		'.m4v',
+		'.mpg',
+		'.mpeg',
+		'.3gp',
+		'.asf',
+		'.ogv',
+
+		// Audio formats not handled by <audio> element
+		'.m4b',
+		'.m4p',
+		'.wma',
+		'.ra',
+		'.au',
+		'.aiff',
+		'.mid',
+		'.midi',
+		'.opus',
+		'.amr',
+
+		// Fonts (can't preview in browser)
+		'.woff',
+		'.woff2',
+		'.ttf',
+		'.otf',
+		'.eot',
+		'.fon',
+		'.fnt',
+		'.pfm',
+		'.pfa',
+
+		// Documents & office files
+		'.pdf',
+		'.eps',
+		'.svgz',
+
+		// Database files
+		'.sqlite',
+		'.db3',
+		'.db',
+		'.mdb',
+		'.accdb',
+		'.sdf',
+		'.dbf',
+		'.frm',
+		'.ldb',
+
+		// Office documents (legacy + modern)
+		'.doc',
+		'.docx',
+		'.xls',
+		'.xlsx',
+		'.ppt',
+		'.pptx',
+		'.odt',
+		'.ods',
+		'.odp',
+		'.csv',
+		'.wk1',
+		'.wks',
+		'.hwp',
+
+		// Design files
+		'.psd',
+		'.ai',
+		'.indd',
+		'.xd',
+		'.fig',
+		'.sketch',
+		'.cdr',
+
+		// CAD & 3D models
+		'.dwg',
+		'.dxf',
+		'.stl',
+		'.obj',
+		'.fbx',
+		'.glb',
+		'.gltf',
+		'.blend',
+		'.max',
+		'.mb',
+		'.c4d',
+		'.sldprt',
+		'.step',
+		'.stp',
+
+		// Compiled code & libraries (not already covered above)
+		'.class',
+		'.jar',
+		'.dylib',
+		'.elc',
+		'.hi',
+		'.suo',
+		'.user',
+
+		// System & platform files
+		'.lnk',
+		'.sys',
+		'.vxd',
+		'.386',
+		'.ko',
+		'.elf',
+		'.resx',
+		'.config',
+
+		// Browser plugins & extensions
+		'.crx',
+		'.xpi',
+		'.safariextz',
+		'.brave-ext',
+
+		// Email files
+		'.eml',
+		'.msg',
+		'.pst',
+		'.ost',
+		'.mbox',
+
+		// Compiled markup / binary docs
+		'.mojo',
+		'.mb',
+		'.rtfd',
+		'.pages',
+		'.numbers',
+		'.key'
+	].map((ext) => ext.toLowerCase());
 	const isUnopenable = $derived(
 		unopenableExtensions.some((ext) => filename.toLowerCase().endsWith(ext))
 	);
