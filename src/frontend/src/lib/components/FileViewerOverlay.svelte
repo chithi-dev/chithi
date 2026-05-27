@@ -1,7 +1,15 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Spinner } from '$lib/components/ui/spinner';
-	import { Download, Link, Check, ArrowLeft, Copy, WandSparkles, ChevronDown } from '@lucide/svelte';
+	import {
+		Download,
+		Link,
+		Check,
+		ArrowLeft,
+		Copy,
+		WandSparkles,
+		ChevronDown
+	} from '@lucide/svelte';
 	import { fade } from 'svelte/transition';
 	import CodeViewer from '$lib/components/CodeViewer.svelte';
 	import { detectMimeFromBlob } from '$lib/functions/mime';
@@ -52,6 +60,7 @@
 	};
 
 	const baseName = $derived(filename.split(/[/\\]/).at(-1) ?? filename);
+
 	const unopenableExtensions = [
 		'.exe',
 		'.bin',
@@ -92,27 +101,61 @@
 		isVisible: boolean;
 	};
 
-	const heicExtensions = ['.heic', '.heif'];
-	const jxrExtensions = ['.jxr', '.wdp', '.hdp'];
-	const qoiExtensions = ['.qoi'];
-	const webpExtensions = ['.webp'];
-	const avifExtensions = ['.avif'];
-	const jxlExtensions = ['.jxl'];
-	const imageExtensions = [
-		...heicExtensions,
-		...jxrExtensions,
-		...qoiExtensions,
-		...webpExtensions,
-		...avifExtensions,
-		...jxlExtensions,
-		'.png',
-		'.jpg',
-		'.jpeg',
-		'.svg'
+	const SUPPORTED_IMAGE_MIMES = new Set([
+		'image/heic',
+		'image/heif',
+		'image/jxr',
+		'image/qoi',
+		'image/webp',
+		'image/avif',
+		'image/jxl',
+		'image/png',
+		'image/svg+xml'
+	]);
+
+	const MIME_TO_TYPE: Record<string, string> = {
+		'image/heic': 'heic',
+		'image/heif': 'heic',
+		'image/jxr': 'jxr',
+		'image/qoi': 'qoi',
+		'image/webp': 'webp',
+		'image/avif': 'avif',
+		'image/jxl': 'jxl',
+		'image/png': 'png',
+		'image/svg+xml': 'svg'
+	};
+
+	interface DownloadFormat {
+		mime: string;
+		label: string;
+		icon: typeof WandSparkles | typeof Download;
+		optimize?: boolean;
+	}
+
+	const DOWNLOAD_FORMATS: readonly DownloadFormat[] = [
+		{ mime: 'image/png', label: 'PNG (Optimized)', icon: WandSparkles, optimize: true },
+		{ mime: 'image/png', label: 'PNG (Fast)', icon: Download, optimize: false },
+		{ mime: 'image/webp', label: 'WebP', icon: Download },
+		{ mime: 'image/avif', label: 'AVIF', icon: Download },
+		{ mime: 'image/jxl', label: 'JXL', icon: Download },
+		{ mime: 'image/qoi', label: 'QOI', icon: Download }
 	];
+
+	const FORMAT_DISPLAY_NAMES: Record<string, string> = {
+		heic: 'HEIC',
+		jxl: 'JXL',
+		jxr: 'JXR',
+		qoi: 'QOI',
+		webp: 'WEBP',
+		avif: 'AVIF',
+		svg: 'SVG',
+		png: 'PNG'
+	};
 
 	let sniffedKind = $state<MediaKind | null>(null);
 	let sniffedMime = $state<string | null>(null);
+
+	const sourceFormatName = $derived(sniffedMime ? (MIME_TO_TYPE[sniffedMime] ?? '') : '');
 	let imageSupport = $state<ImageSupportInfo | null>(null);
 	let sourceBlob = $state<Blob | null>(null);
 	let convertedBlob = $state<Blob | null>(null);
@@ -137,12 +180,12 @@
 	};
 
 	const getTargetFilename = (name: string, extension: string) => {
-		const lower = name.toLowerCase();
-		const matched = imageExtensions.find((ext) => lower.endsWith(ext));
-		if (matched) return `${name.slice(0, -matched.length)}.${extension}`;
 		if (name.includes('.')) return `${name.split('.').slice(0, -1).join('.')}.${extension}`;
 		return `${name}.${extension}`;
 	};
+
+	const isSupportedImageMime = (mime: string | null): boolean =>
+		mime !== null && SUPPORTED_IMAGE_MIMES.has(mime);
 
 	const downloadBlob = (blob: Blob, name: string) => {
 		const blobUrl = URL.createObjectURL(blob);
@@ -181,26 +224,7 @@
 
 		const promise = (async () => {
 			try {
-				const isHeic = sniffedMime === 'image/heic' || sniffedMime === 'image/heif';
-				const isSvg = sniffedMime === 'image/svg+xml';
-				const isJxl = sniffedMime === 'image/jxl';
-				const isJxr = sniffedMime === 'image/jxr';
-				const isQoi = sniffedMime === 'image/qoi';
-				const isWebp = sniffedMime === 'image/webp';
-				const isPng = sniffedMime === 'image/png';
-				const isAvif = sniffedMime === 'image/avif';
-
-				let type: string | null = null;
-				if (isHeic) type = 'heic';
-				else if (isSvg) type = 'svg';
-				else if (isJxl) type = 'jxl';
-				else if (isJxr) type = 'jxr';
-				else if (isQoi) type = 'qoi';
-				else if (isWebp) type = 'webp';
-				else if (isPng) type = 'png';
-				else if (isAvif) type = 'avif';
-				else type = sniffedMime?.split('/')[1] || null;
-
+				const type = MIME_TO_TYPE[sniffedMime ?? ''];
 				if (!type) return null;
 
 				let svgText: string | null = null;
@@ -332,18 +356,7 @@
 				if (!cancelled) {
 					sniffedMime = mime;
 					sniffedKind = kind;
-					if (
-						mime === 'image/heic' ||
-						mime === 'image/heif' ||
-						mime === 'image/jxl' ||
-						mime === 'image/jxr' ||
-						mime === 'image/qoi' ||
-						mime === 'image/svg+xml' ||
-						mime === 'image/webp' ||
-						mime === 'image/png'
-					) {
-						sourceBlob = blob;
-					}
+					if (isSupportedImageMime(mime)) sourceBlob = blob;
 				}
 
 				if (kind === 'image' && mime) {
@@ -369,36 +382,19 @@
 		};
 	});
 
-	const isHeic = $derived(sniffedMime === 'image/heic' || sniffedMime === 'image/heif');
-	const isJxl = $derived(sniffedMime === 'image/jxl');
-	const isJxr = $derived(sniffedMime === 'image/jxr');
-	const isQoi = $derived(sniffedMime === 'image/qoi');
-	const isSvg = $derived(sniffedMime === 'image/svg+xml');
-	const isWebp = $derived(sniffedMime === 'image/webp');
-	const isPng = $derived(sniffedMime === 'image/png');
-	const isAvif = $derived(sniffedMime === 'image/avif');
 	const isImage = $derived(sniffedKind === 'image');
 	const isVideo = $derived(sniffedKind === 'video');
 	const isAudio = $derived(sniffedKind === 'audio');
 	const isPending = $derived(sniffedKind === null);
-	const isImageUnsupported = $derived(
-		!isHeic &&
-			!isJxl &&
-			!isJxr &&
-			!isQoi &&
-			!isSvg &&
-			!isWebp &&
-			!isPng &&
-			!isAvif &&
-			imageSupport?.status === 'unsupported'
-	);
+
 	const imageSupportMessage = $derived(imageSupport?.message ?? null);
-	const isConvertible = $derived(
-		isHeic || isJxl || isJxr || isQoi || isSvg || isWebp || isPng || isAvif
-	);
+	const isConvertible = $derived(isSupportedImageMime(sniffedMime));
+	const isWebp = $derived(sniffedMime === 'image/webp');
+
 	const shouldAutoConvert = $derived(
 		isConvertible && (!isWebp || imageSupport?.status === 'unsupported')
 	);
+	const isImageUnsupported = $derived(isConvertible && imageSupport?.status === 'unsupported');
 	const imageInfo = $derived<ImageInfo | null>(
 		isConvertible && conversionStarted && !converting && !convertedUrl
 			? {
@@ -527,48 +523,16 @@
 									<DropdownMenu.Label class="text-xs text-white/50"
 										>Conversion Options</DropdownMenu.Label
 									>
-									<DropdownMenu.Item
-										class="cursor-pointer focus:bg-white/10 focus:text-white"
-										onSelect={() => handleDownload('image/png', true)}
-									>
-										<WandSparkles class="mr-2 h-4 w-4" />
-										<span>PNG (Optimized)</span>
-									</DropdownMenu.Item>
-									<DropdownMenu.Item
-										class="cursor-pointer focus:bg-white/10 focus:text-white"
-										onSelect={() => handleDownload('image/png', false)}
-									>
-										<Download class="mr-2 h-4 w-4" />
-										<span>PNG (Fast)</span>
-									</DropdownMenu.Item>
-									<DropdownMenu.Item
-										class="cursor-pointer focus:bg-white/10 focus:text-white"
-										onSelect={() => handleDownload('image/webp')}
-									>
-										<Download class="mr-2 h-4 w-4" />
-										<span>WebP</span>
-									</DropdownMenu.Item>
-									<DropdownMenu.Item
-										class="cursor-pointer focus:bg-white/10 focus:text-white"
-										onSelect={() => handleDownload('image/avif')}
-									>
-										<Download class="mr-2 h-4 w-4" />
-										<span>AVIF</span>
-									</DropdownMenu.Item>
-									<DropdownMenu.Item
-										class="cursor-pointer focus:bg-white/10 focus:text-white"
-										onSelect={() => handleDownload('image/jxl')}
-									>
-										<Download class="mr-2 h-4 w-4" />
-										<span>JXL</span>
-									</DropdownMenu.Item>
-									<DropdownMenu.Item
-										class="cursor-pointer focus:bg-white/10 focus:text-white"
-										onSelect={() => handleDownload('image/qoi')}
-									>
-										<Download class="mr-2 h-4 w-4" />
-										<span>QOI</span>
-									</DropdownMenu.Item>
+									{#each DOWNLOAD_FORMATS as format (format.mime)}
+										<DropdownMenu.Item
+											class="cursor-pointer focus:bg-white/10 focus:text-white"
+											onSelect={() => handleDownload(format.mime, format.optimize ?? false)}
+										>
+											{@const Icon = format.icon}
+											<Icon class="mr-2 h-4 w-4" />
+											<span>{format.label}</span>
+										</DropdownMenu.Item>
+									{/each}
 								</DropdownMenu.Group>
 							{/if}
 						</DropdownMenu.Content>
@@ -612,22 +576,9 @@
 								<div class="flex items-center gap-2">
 									<Spinner class="size-4" />
 									<span>
-										{isOptimizing ? 'Optimizing PNG...' : 'Converting'}
-										{#if isHeic}
-											HEIC
-										{:else if isJxl}
-											JXL
-										{:else if isJxr}
-											JXR
-										{:else if isQoi}
-											QOI
-										{:else if isWebp}
-											WEBP
-										{:else if isSvg}
-											SVG
-										{:else}
-											PNG
-										{/if} to PNG...
+										{isOptimizing
+											? 'Optimizing PNG...'
+											: `Converting ${FORMAT_DISPLAY_NAMES[sourceFormatName] ?? 'PNG'} to PNG...`}
 									</span>
 								</div>
 							</div>

@@ -140,7 +140,7 @@ const parseVersion = (value: string | null) => {
 
 type PlatformType = 'browser' | 'mobile' | 'tablet';
 
-const mobileBrowserMap: Record<string, AgentKey> = {
+const mobileBrowserMap: Record<string, AgentKey | undefined> = {
 	Chrome: 'and_chr',
 	Firefox: 'and_ff',
 	'UC Browser': 'and_uc',
@@ -153,7 +153,7 @@ const mobileBrowserMap: Record<string, AgentKey> = {
 	'Internet Explorer': 'ie_mob'
 };
 
-const desktopBrowserMap: Record<string, AgentKey> = {
+const desktopBrowserMap: Record<string, AgentKey | undefined> = {
 	Chrome: 'chrome',
 	Firefox: 'firefox',
 	'Microsoft Edge': 'edge',
@@ -161,6 +161,11 @@ const desktopBrowserMap: Record<string, AgentKey> = {
 	Safari: 'safari',
 	'Samsung Internet for Android': 'samsung',
 	'Internet Explorer': 'ie'
+};
+
+const resolveBrowserAgent = (browserName: string, platformType: string): AgentKey | undefined => {
+	const maps = platformType === 'mobile' || platformType === 'tablet' ? mobileBrowserMap : desktopBrowserMap;
+	return maps[browserName];
 };
 
 const getBrowserInfo = (): BrowserInfo | null => {
@@ -178,9 +183,8 @@ const getBrowserInfo = (): BrowserInfo | null => {
 
 	const name = browser.name;
 	if (!name) return null;
-	const isMobile = platform.type === 'mobile' || platform.type === 'tablet';
-	const map = isMobile ? mobileBrowserMap : desktopBrowserMap;
-	const agent = map[name];
+
+	const agent = resolveBrowserAgent(name, platform.type ?? 'browser');
 	if (!agent) return null;
 
 	return { agent, version };

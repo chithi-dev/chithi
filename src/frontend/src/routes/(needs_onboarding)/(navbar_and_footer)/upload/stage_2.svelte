@@ -289,8 +289,8 @@
 				name: entryName,
 				link: viewOnce ? viewOnceLink : finalLink,
 				expiry: expiryTime,
-				downloadLimit: viewOnce ? '1' : downloadLimit,
-				createdAt: Date.now(),
+				download_limit: viewOnce ? '1' : downloadLimit,
+				created_at: Date.now(),
 				size: totalSize
 			});
 

@@ -130,10 +130,10 @@ export async function downloadAndDecryptFile(
 	const blob = new Blob(chunks as BlobPart[]);
 
 	if ('showSaveFilePicker' in window) {
-		const handle = await (window as Pick<typeof window, 'showSaveFilePicker'>).showSaveFilePicker({
+		const pickerHandle = await ((window as any).showSaveFilePicker)({
 			suggestedName: finalDownloadName
 		});
-		const writable = await handle.createWritable();
+		const writable = await (pickerHandle as FileSystemFileHandle).createWritable();
 		await blob.stream().pipeTo(writable);
 	} else {
 		const url = window.URL.createObjectURL(blob);

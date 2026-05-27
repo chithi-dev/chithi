@@ -1,3 +1,4 @@
+import { Api } from '#consts/backend';
 import type { QueryClient } from '@tanstack/svelte-query';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 

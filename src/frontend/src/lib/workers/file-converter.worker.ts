@@ -18,7 +18,7 @@ import decodeWebp, { init as initWebpDec } from '@jsquash/webp/decode';
 import encodeWebp, { init as initWebpEnc } from '@jsquash/webp/encode';
 // #endregion
 
-// Vite will resolve these WASM URLs at build time.
+// Vite resolves these WASM URLs at build time.
 import heicWasmUrl from '@discourse/heic/codec/dec/heic_dec.wasm?url';
 import jxrWasmUrl from '@discourse/jxr/codec/dec/jxr_dec.wasm?url';
 import avifDecWasmUrl from '@jsquash/avif/codec/dec/avif_dec.wasm?url';
@@ -33,19 +33,14 @@ import webpDecWasmUrl from '@jsquash/webp/codec/dec/webp_dec.wasm?url';
 import webpEncWasmUrl from '@jsquash/webp/codec/enc/webp_enc.wasm?url';
 import resvgWasmUrl from '@resvg/resvg-wasm/index_bg.wasm?url';
 
-let heicInitialized = false;
-let jxrInitialized = false;
-let avifDecInitialized = false;
-let avifEncInitialized = false;
-let jxlDecInitialized = false;
-let jxlEncInitialized = false;
-let pngEncInitialized = false;
-let qoiDecInitialized = false;
-let qoiEncInitialized = false;
-let webpDecInitialized = false;
-let webpEncInitialized = false;
-let oxipngInitialized = false;
-let resvgInitialized = false;
+// Track initialized codecs to avoid redundant WASM loads.
+const initialized = new Set<string>();
+
+const ensureInit = async (name: string, initFn: () => Promise<unknown>) => {
+	if (initialized.has(name)) return;
+	await initFn();
+	initialized.add(name);
+};
 
 async function imageBitmapToImageData(imageBitmap: ImageBitmap): Promise<ImageData> {
 	const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
@@ -61,10 +56,7 @@ async function decodeToImageData(
 	text: string | null
 ): Promise<ImageData> {
 	if (type === 'svg' && text) {
-		if (!resvgInitialized) {
-			await initResvg(resvgWasmUrl);
-			resvgInitialized = true;
-		}
+		await ensureInit('resvg', () => initResvg(resvgWasmUrl));
 		const resvg = new Resvg(text);
 		const pngBuffer = resvg.render().asPng().buffer as ArrayBuffer;
 		const pngBlob = new Blob([pngBuffer], { type: 'image/png' });
@@ -76,140 +68,111 @@ async function decodeToImageData(
 
 	const buffer = await blob.arrayBuffer();
 
-	if (type === 'heic' || type === 'heif') {
-		if (!heicInitialized) {
-			await initHeic({ locateFile: () => heicWasmUrl });
-			heicInitialized = true;
+	switch (type) {
+		case 'heic':
+		case 'heif': {
+			await ensureInit('heic', () => initHeic({ locateFile: () => heicWasmUrl }));
+			return decodeHeic(buffer);
 		}
-		return await decodeHeic(buffer);
-	}
-
-	if (type === 'jxr') {
-		if (!jxrInitialized) {
-			await initJxr({ locateFile: () => jxrWasmUrl });
-			jxrInitialized = true;
+		case 'jxr': {
+			await ensureInit('jxr', () => initJxr({ locateFile: () => jxrWasmUrl }));
+			return decodeJxr(buffer);
 		}
-		return await decodeJxr(buffer);
-	}
-
-	if (type === 'avif') {
-		if (!avifDecInitialized) {
-			await initAvifDec({ locateFile: () => avifDecWasmUrl });
-			avifDecInitialized = true;
+		case 'avif': {
+			await ensureInit('avif-dec', () => initAvifDec({ locateFile: () => avifDecWasmUrl }));
+			const decoded = await decodeAvif(buffer);
+			if (!decoded) throw new Error('AVIF decoding failed');
+			return decoded;
 		}
-		const decoded = await decodeAvif(buffer);
-		if (!decoded) throw new Error('AVIF decoding failed');
-		return decoded;
-	}
-
-	if (type === 'webp') {
-		if (!webpDecInitialized) {
-			await initWebpDec({ locateFile: () => webpDecWasmUrl });
-			webpDecInitialized = true;
+		case 'webp': {
+			await ensureInit('webp-dec', () => initWebpDec({ locateFile: () => webpDecWasmUrl }));
+			return decodeWebp(buffer);
 		}
-		return await decodeWebp(buffer);
-	}
-
-	if (type === 'jxl') {
-		if (!jxlDecInitialized) {
-			await initJxlDec({ locateFile: () => jxlDecWasmUrl });
-			jxlDecInitialized = true;
+		case 'jxl': {
+			await ensureInit('jxl-dec', () => initJxlDec({ locateFile: () => jxlDecWasmUrl }));
+			return decodeJxl(buffer);
 		}
-		return await decodeJxl(buffer);
-	}
-
-	if (type === 'qoi') {
-		if (!qoiDecInitialized) {
-			await initQoiDec({ locateFile: () => qoiDecWasmUrl });
-			qoiDecInitialized = true;
+		case 'qoi': {
+			await ensureInit('qoi-dec', () => initQoiDec({ locateFile: () => qoiDecWasmUrl }));
+			return decodeQoi(buffer);
 		}
-		return await decodeQoi(buffer);
+		default:
+			// Fallback to browser decoding for PNG, JPEG, GIF, etc.
+			const imageBitmap = await createImageBitmap(blob);
+			return imageBitmapToImageData(imageBitmap);
 	}
-
-	// Fallback to browser decoding for PNG, JPEG, GIF, etc.
-	const imageBitmap = await createImageBitmap(blob);
-	return imageBitmapToImageData(imageBitmap);
 }
+
+const postMessage = (msg: unknown, transfer?: Transferable[]) =>
+	(self as Window & typeof globalThis as unknown as Worker).postMessage(msg, { transfer });
 
 self.addEventListener('message', async (event) => {
 	const { type, toType = 'image/png', blob, text, optimize = false } = event.data;
+
 	try {
 		let outputBuffer: ArrayBuffer | null = null;
-		const outputMime = toType;
 
-		// If source is same as target and no optimization requested, just return the blob
-		if (
-			(type === toType || (type === 'png' && toType === 'image/png')) &&
-			!optimize &&
-			blob
-		) {
+		if ((type === toType || (type === 'png' && toType === 'image/png')) && !optimize && blob) {
 			outputBuffer = await blob.arrayBuffer();
 		} else {
 			const imageData = await decodeToImageData(type, blob, text);
 
-			if (toType === 'image/png') {
-				if (!pngEncInitialized) {
-					await initPngEnc(pngEncWasmUrl);
-					pngEncInitialized = true;
+			switch (toType) {
+				case 'image/png': {
+					await ensureInit('png-enc', () => initPngEnc(pngEncWasmUrl));
+					outputBuffer = await encodePng(imageData) as ArrayBuffer;
+					break;
 				}
-				outputBuffer = await encodePng(imageData) as ArrayBuffer;
-			} else if (toType === 'image/webp') {
-				if (!webpEncInitialized) {
-					await initWebpEnc({ locateFile: () => webpEncWasmUrl });
-					webpEncInitialized = true;
+				case 'image/webp': {
+					await ensureInit('webp-enc', () => initWebpEnc({ locateFile: () => webpEncWasmUrl }));
+					outputBuffer = await encodeWebp(imageData) as ArrayBuffer;
+					break;
 				}
-				outputBuffer = await encodeWebp(imageData) as ArrayBuffer;
-			} else if (toType === 'image/avif') {
-				if (!avifEncInitialized) {
-					await initAvifEnc({ locateFile: () => avifEncWasmUrl });
-					avifEncInitialized = true;
+				case 'image/avif': {
+					await ensureInit('avif-enc', () => initAvifEnc({ locateFile: () => avifEncWasmUrl }));
+					outputBuffer = await encodeAvif(imageData) as ArrayBuffer;
+					break;
 				}
-				outputBuffer = await encodeAvif(imageData) as ArrayBuffer;
-			} else if (toType === 'image/jxl') {
-				if (!jxlEncInitialized) {
-					await initJxlEnc({ locateFile: () => jxlEncWasmUrl });
-					jxlEncInitialized = true;
+				case 'image/jxl': {
+					await ensureInit('jxl-enc', () => initJxlEnc({ locateFile: () => jxlEncWasmUrl }));
+					outputBuffer = await encodeJxl(imageData) as ArrayBuffer;
+					break;
 				}
-				outputBuffer = await encodeJxl(imageData) as ArrayBuffer;
-			} else if (toType === 'image/qoi') {
-				if (!qoiEncInitialized) {
-					await initQoiEnc({ locateFile: () => qoiEncWasmUrl });
-					qoiEncInitialized = true;
+				case 'image/qoi': {
+					await ensureInit('qoi-enc', () => initQoiEnc({ locateFile: () => qoiEncWasmUrl }));
+					outputBuffer = await encodeQoi(imageData) as ArrayBuffer;
+					break;
 				}
-				outputBuffer = await encodeQoi(imageData) as ArrayBuffer;
 			}
 		}
 
 		if (outputBuffer) {
-			if (outputMime === 'image/png' && optimize) {
-				self.postMessage({ type: 'status', status: 'optimizing' });
+			if (toType === 'image/png' && optimize) {
+				postMessage({ type: 'status', status: 'optimizing' });
 
-				if (!oxipngInitialized) {
-					await initOxipng(oxipngWasmUrl);
-					oxipngInitialized = true;
-				}
+				await ensureInit('oxipng', () => initOxipng(oxipngWasmUrl));
 				const optimizedBuffer = await optimisePng(outputBuffer, { level: 3 });
 				outputBuffer = optimizedBuffer as ArrayBuffer;
 			}
 
-			const resultBlob = new Blob([outputBuffer!], { type: outputMime });
+			const resultBlob = new Blob([outputBuffer], { type: toType });
 			const transferList = outputBuffer instanceof ArrayBuffer ? [outputBuffer] : [];
 
-			(self as any).postMessage(
+			postMessage(
 				{
 					type: 'success',
 					outputBlob: resultBlob,
-					outputMime
+					outputMime: toType
 				},
 				transferList
 			);
 		} else {
 			throw new Error('Conversion failed: No output buffer produced');
 		}
-	} catch (error: any) {
-		(self as any).postMessage({
+	} catch (error) {
+		postMessage({
 			type: 'error',
-			message: error.message || String(error)
+			message: (error as Error).message ?? String(error)
 		});
 	}
 });

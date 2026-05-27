@@ -47,13 +47,13 @@
 							await deleteHistoryEntry(entry.id);
 							return;
 						}
-						await updateHistoryEntry(entry.id, {
+						await updateHistoryEntry({ id: entry.id, updates: {
 							name: info.filename,
 							size: formatFileSize(info.size),
 							expiry: new Date(info.expires_at).getTime(),
-							createdAt: new Date(info.created_at).getTime(),
-							downloadCount: info.download_count
-						});
+							created_at: new Date(info.created_at).getTime(),
+							download_count: info.download_count
+						}});
 					} catch (error) {
 						console.error(`Failed to update info for ${entry.id}`, error);
 						await deleteHistoryEntry(entry.id);
@@ -119,7 +119,7 @@
 										<span>{entry.size}</span>
 										<span>•</span>
 										<span
-											>{Math.max(0, parseInt(entry.downloadLimit) - (entry.downloadCount || 0))} left</span
+											>{Math.max(0, parseInt(entry.download_limit) - (entry.download_count || 0))} left</span
 										>
 									</div>
 									<div class="text-xs text-muted-foreground">

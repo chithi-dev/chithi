@@ -68,14 +68,14 @@ interface EncryptionContext {
 	nextToEnqueue: number;
 	pendingCount: number;
 	allDoneResolve: (() => void) | null;
-	allDoneReject: ((e: any) => void) | null;
+	allDoneReject: ((e: unknown) => void) | null;
 	streamEnded: boolean;
 	controllerRef: TransformStreamDefaultController<Uint8Array> | null;
 	originalSize?: number;
 	onProgress?: (processed: number, total?: number) => void;
 }
 
-async function handleEncryptionError(ctx: EncryptionContext, e: any): Promise<void> {
+async function handleEncryptionError(ctx: EncryptionContext, e: unknown): Promise<void> {
 	if (ctx.allDoneReject) ctx.allDoneReject(e);
 	if (ctx.controllerRef) ctx.controllerRef.error(e);
 }
@@ -221,6 +221,10 @@ async function assignEncryptionChunk(
 	}
 }
 
+interface FileWithRelativePath extends File {
+	relativePath?: string;
+}
+
 interface DecryptionContext {
 	workers: Worker[];
 	nextWorker: number;
@@ -228,7 +232,7 @@ interface DecryptionContext {
 	nextToEnqueue: number;
 	pendingCount: number;
 	allDoneResolve: (() => void) | null;
-	allDoneReject: ((e: any) => void) | null;
+	allDoneReject: ((e: unknown) => void) | null;
 	streamEnded: boolean;
 	controllerRef: ReadableStreamDefaultController<Uint8Array> | null;
 	processedTotal: number;
@@ -236,7 +240,7 @@ interface DecryptionContext {
 	onProgress?: (processed: number, total?: number) => void;
 }
 
-async function handleDecryptionError(ctx: DecryptionContext, e: any): Promise<void> {
+async function handleDecryptionError(ctx: DecryptionContext, e: unknown): Promise<void> {
 	if (ctx.allDoneReject) ctx.allDoneReject(e);
 	if (ctx.controllerRef) ctx.controllerRef.error(e);
 }
@@ -386,19 +390,20 @@ async function writeZipFiles(
 ): Promise<void> {
 	try {
 		for (const file of files) {
-			let filename = ((file as File & { relativePath?: string }).relativePath ?? file.name);
-			filename = makeUnique(filename);
+			const displayName = ((file as FileWithRelativePath).relativePath ?? file.name);
+			const uniqueName = makeUnique(displayName);
+
 			try {
-				await zipWriter.add(filename, file.stream(), {
+				await zipWriter.add(uniqueName, file.stream(), {
 					password: password?.length ? password : undefined,
 					encryptionStrength: password?.length ? 3 : undefined,
 					level: 9,
 					signal
 				});
-			} catch (err: any) {
-				const msg = String(err?.message ?? String(err) ?? '');
+			} catch (err) {
+				const msg = String((err as Error).message ?? String(err) ?? '');
 				if (msg.includes('File already exists') || msg.includes('already exists')) {
-					const altName = makeUnique(((file as File & { relativePath?: string }).relativePath ?? file.name));
+					const altName = makeUnique(displayName);
 					await zipWriter.add(altName, file.stream(), {
 						password: password?.length ? password : undefined,
 						encryptionStrength: password?.length ? 3 : undefined,
@@ -415,7 +420,7 @@ async function writeZipFiles(
 		console.error('Error creating zip stream:', error);
 		try {
 			await writable.abort(error);
-		} catch (e) {
+		} catch {
 			// ignore
 		}
 	}

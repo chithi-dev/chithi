@@ -16,25 +16,28 @@ interface DecryptMessage {
 }
 
 const postMessage = (msg: unknown, transfer?: Transferable[]) =>
-	(self as Worker).postMessage(msg, { transfer });
+	(self as Window & typeof globalThis as unknown as Worker).postMessage(msg, { transfer });
+
+// Lazily import the AES key and set up the IV. The ??= guards ensure we only
+// pay the import cost once, even if called from both init and decrypt handlers.
+const ensureInitialized = async (keyRaw: ArrayBuffer, baseIvSource: ArrayBuffer) => {
+	aesKey ??= await crypto.subtle.importKey('raw', keyRaw, { name: 'AES-GCM' }, false, ['decrypt']);
+	baseIv = new Uint8Array(baseIvSource);
+};
 
 self.addEventListener('message', async (ev: MessageEvent<InitMessage | DecryptMessage>) => {
 	const msg = ev.data;
+
 	try {
 		if (msg.type === 'init') {
-			aesKey ??= await crypto.subtle.importKey(
-				'raw', msg.keyRaw, { name: 'AES-GCM' }, false, ['decrypt']
-			);
-			baseIv = new Uint8Array(msg.baseIv);
+			await ensureInitialized(msg.keyRaw, msg.baseIv);
 			postMessage({ type: 'ready' as const });
 			return;
 		}
 
 		if (msg.type === 'decrypt') {
-			aesKey ??= await crypto.subtle.importKey(
-				'raw', msg.keyRaw, { name: 'AES-GCM' }, false, ['decrypt']
-			);
-			baseIv ??= new Uint8Array(msg.baseIv);
+			const initMsg = ev.data as InitMessage;
+			await ensureInitialized(initMsg.keyRaw, initMsg.baseIv);
 
 			if (!aesKey || !baseIv) {
 				postMessage({ type: 'error' as const, index: msg.index, message: 'Worker not initialized' });
@@ -46,7 +49,7 @@ self.addEventListener('message', async (ev: MessageEvent<InitMessage | DecryptMe
 			try {
 				const buf = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength);
 				const decrypted = await crypto.subtle.decrypt(
-					{ name: 'AES-GCM', iv: iv as ArrayBuffer }, aesKey, buf
+					{ name: 'AES-GCM', iv: iv as unknown as ArrayBuffer }, aesKey, buf
 				);
 				postMessage({ type: 'decrypted' as const, index: msg.index, decrypted }, [decrypted]);
 			} catch (e) {

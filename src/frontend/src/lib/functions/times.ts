@@ -9,12 +9,14 @@ const T_VALS = {
 export type TimeUnit = keyof typeof T_VALS;
 export const T_UNITS = Object.keys(T_VALS) as TimeUnit[];
 export function formatSeconds(seconds: number): { val: number; unit: TimeUnit } {
-	if (seconds === 0) return { val: 0, unit: 'Seconds' };
+	if (seconds <= 0) return { val: 0, unit: 'Seconds' };
+
 	for (const unit of [...T_UNITS].reverse()) {
 		if (seconds >= T_VALS[unit]) {
 			return { val: parseFloat((seconds / T_VALS[unit]).toFixed(2)), unit };
 		}
 	}
+
 	return { val: seconds, unit: 'Seconds' };
 }
 

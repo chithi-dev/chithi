@@ -45,7 +45,7 @@
 	import { base64urlToBytes } from '#functions/encryption';
 	import { resolve } from '$app/paths';
 	import { extractEncryptionKey, extractHostToken } from './utils';
-	import { getDisplayFilename, handleBinaryChunk } from './functions';
+	import { get_display_filename, handle_binary_chunk } from './functions';
 	import type {
 		DownloadedFile,
 		ReceiveState,
@@ -162,7 +162,7 @@
 					'[reverse/host] binary frame received, size=',
 					ev.data instanceof ArrayBuffer ? ev.data.byteLength : (ev.data as Blob).size
 				);
-				handleBinaryChunk(receiveState, ev.data);
+				handle_binary_chunk({ receive_state: receiveState, data: ev.data });
 				return;
 			}
 
@@ -829,7 +829,7 @@
 									<div class="flex items-center gap-2">
 										<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
 										<span class="min-w-0 flex-1 truncate text-sm"
-											>{getDisplayFilename(u.filename)}</span
+											>{get_display_filename(u.filename)}</span
 										>
 										<span class="shrink-0 text-xs text-muted-foreground">
 											{formatFileSize(u.uploadedBytes)} / {formatFileSize(u.size)}
@@ -847,7 +847,7 @@
 								{@const isThisProcessing =
 									receiveState.type === 'processing' && receiveState.key === f.key}
 								{@const isAnyActive = isAnyStreaming || isAnyProcessing}
-								{@const displayName = getDisplayFilename(f.filename)}
+								{@const displayName = get_display_filename(f.filename)}
 								<div class="rounded-md border px-3 py-2">
 									<div class="flex items-center gap-3">
 										<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
