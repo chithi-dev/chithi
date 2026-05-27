@@ -12,7 +12,7 @@
 	} from '@lucide/svelte';
 	import { fade } from 'svelte/transition';
 	import CodeViewer from '$lib/components/CodeViewer.svelte';
-	import { detectMimeFromBlob } from '$lib/functions/mime';
+	import { detectMimeFromBlobWithFallback } from '$lib/functions/mime';
 	import { getImageSupportInfo, type ImageSupportInfo } from '$lib/functions/media-support';
 	import * as DropdownMenu from '$lib/components/ui/dropdown-menu';
 	import { buttonVariants } from '$lib/components/ui/button';
@@ -62,56 +62,186 @@
 
 	const UNOPENABLE_EXTENSIONS = new Set([
 		// Executables & binaries
-		'.exe', '.bin', '.so', '.dll', '.msi', '.app', '.dmg', '.pkg', '.iso', '.vmdk',
-		'.a', '.lib', '.obj', '.o', '.pyc', '.pyo', '.pyd', '.deb', '.rpm',
+		'.exe',
+		'.bin',
+		'.so',
+		'.dll',
+		'.msi',
+		'.app',
+		'.dmg',
+		'.pkg',
+		'.iso',
+		'.vmdk',
+		'.a',
+		'.lib',
+		'.obj',
+		'.o',
+		'.pyc',
+		'.pyo',
+		'.pyd',
+		'.deb',
+		'.rpm',
 
 		// Archives & disk images
-		'.zip', '.rar', '.7z', '.tar', '.gz', '.bz2', '.xz', '.lz4', '.lzh', '.zst',
-		'.tgz', '.tbz2', '.txz', '.tlz4', '.taz', '.tzst',
+		'.zip',
+		'.rar',
+		'.7z',
+		'.tar',
+		'.gz',
+		'.bz2',
+		'.xz',
+		'.lz4',
+		'.lzh',
+		'.zst',
+		'.tgz',
+		'.tbz2',
+		'.txz',
+		'.tlz4',
+		'.taz',
+		'.tzst',
 
 		// Disk images (other)
-		'.img', '.nrg', '.pdi', '.smi', '.mds', '.cue', '.cif', '.b6t', '.bwt', '.ccd',
+		'.img',
+		'.nrg',
+		'.pdi',
+		'.smi',
+		'.mds',
+		'.cue',
+		'.cif',
+		'.b6t',
+		'.bwt',
+		'.ccd',
 
 		// Video containers not handled by browser
-		'.mkv', '.avi', '.flv', '.wmv', '.m4v', '.mpg', '.mpeg', '.3gp', '.asf', '.ogv',
+		'.mkv',
+		'.avi',
+		'.flv',
+		'.wmv',
+		'.m4v',
+		'.mpg',
+		'.mpeg',
+		'.3gp',
+		'.asf',
+		'.ogv',
 
 		// Audio formats not handled by <audio> element
-		'.m4b', '.m4p', '.wma', '.ra', '.au', '.aiff', '.mid', '.midi', '.opus', '.amr',
+		'.m4b',
+		'.m4p',
+		'.wma',
+		'.ra',
+		'.au',
+		'.aiff',
+		'.mid',
+		'.midi',
+		'.opus',
+		'.amr',
 
 		// Fonts (can't preview in browser)
-		'.woff', '.woff2', '.ttf', '.otf', '.eot', '.fon', '.fnt', '.pfm', '.pfa',
+		'.woff',
+		'.woff2',
+		'.ttf',
+		'.otf',
+		'.eot',
+		'.fon',
+		'.fnt',
+		'.pfm',
+		'.pfa',
 
 		// Documents & office files
-		'.pdf', '.eps', '.svgz',
+		'.pdf',
+		'.eps',
+		'.svgz',
 
 		// Database files
-		'.sqlite', '.db3', '.db', '.mdb', '.accdb', '.sdf', '.dbf', '.frm', '.ldb',
+		'.sqlite',
+		'.db3',
+		'.db',
+		'.mdb',
+		'.accdb',
+		'.sdf',
+		'.dbf',
+		'.frm',
+		'.ldb',
 
 		// Office documents (legacy + modern)
-		'.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.odt', '.ods', '.odp',
-		'.csv', '.wk1', '.wks', '.hwp',
+		'.doc',
+		'.docx',
+		'.xls',
+		'.xlsx',
+		'.ppt',
+		'.pptx',
+		'.odt',
+		'.ods',
+		'.odp',
+		'.csv',
+		'.wk1',
+		'.wks',
+		'.hwp',
 
 		// Design files
-		'.psd', '.ai', '.indd', '.xd', '.fig', '.sketch', '.cdr',
+		'.psd',
+		'.ai',
+		'.indd',
+		'.xd',
+		'.fig',
+		'.sketch',
+		'.cdr',
 
 		// CAD & 3D models
-		'.dwg', '.dxf', '.stl', '.obj', '.fbx', '.glb', '.gltf', '.blend', '.max',
-		'.mb', '.c4d', '.sldprt', '.step', '.stp',
+		'.dwg',
+		'.dxf',
+		'.stl',
+		'.obj',
+		'.fbx',
+		'.glb',
+		'.gltf',
+		'.blend',
+		'.max',
+		'.mb',
+		'.c4d',
+		'.sldprt',
+		'.step',
+		'.stp',
 
 		// Compiled code & libraries (not already covered above)
-		'.class', '.jar', '.dylib', '.elc', '.hi', '.suo', '.user',
+		'.class',
+		'.jar',
+		'.dylib',
+		'.elc',
+		'.hi',
+		'.suo',
+		'.user',
 
 		// System & platform files
-		'.lnk', '.sys', '.vxd', '.386', '.ko', '.elf', '.resx', '.config',
+		'.lnk',
+		'.sys',
+		'.vxd',
+		'.386',
+		'.ko',
+		'.elf',
+		'.resx',
+		'.config',
 
 		// Browser plugins & extensions
-		'.crx', '.xpi', '.safariextz', '.brave-ext',
+		'.crx',
+		'.xpi',
+		'.safariextz',
+		'.brave-ext',
 
 		// Email files
-		'.eml', '.msg', '.pst', '.ost', '.mbox',
+		'.eml',
+		'.msg',
+		'.pst',
+		'.ost',
+		'.mbox',
 
 		// Compiled markup / binary docs
-		'.mojo', '.mb', '.rtfd', '.pages', '.numbers', '.key'
+		'.mojo',
+		'.mb',
+		'.rtfd',
+		'.pages',
+		'.numbers',
+		'.key'
 	]);
 	const isUnopenable = $derived(UNOPENABLE_EXTENSIONS.has(filename.toLowerCase().slice(-4)));
 
@@ -265,8 +395,9 @@
 					}
 				}
 
-				const { default: ConverterWorker } = await import('$lib/workers/file-converter.worker?worker');
-					const worker = new ConverterWorker();
+				const { default: ConverterWorker } =
+					await import('$lib/workers/file-converter.worker?worker');
+				const worker = new ConverterWorker();
 
 				return await new Promise<Blob | null>((resolve, reject) => {
 					worker.onmessage = (e) => {
@@ -373,16 +504,18 @@
 			try {
 				const response = await fetch(contentUrl);
 				const blob = await response.blob();
-				const detectedMime = await detectMimeFromBlob(blob);
-				const blobMime = blob.type && blob.type !== 'application/octet-stream' ? blob.type : null;
-				const mime = detectedMime ?? blobMime;
-				const kind: MediaKind = mime?.startsWith('image/')
-					? 'image'
-					: mime?.startsWith('video/')
-						? 'video'
-						: mime?.startsWith('audio/')
-							? 'audio'
-							: 'other';
+				const mime = await detectMimeFromBlobWithFallback(blob);
+				let kind: MediaKind;
+				const prefix = mime?.split('/')[0];
+				if (prefix === 'image') {
+					kind = 'image';
+				} else if (prefix === 'video') {
+					kind = 'video';
+				} else if (prefix === 'audio') {
+					kind = 'audio';
+				} else {
+					kind = 'other';
+				}
 				if (!cancelled) {
 					sniffedMime = mime;
 					sniffedKind = kind;
@@ -449,12 +582,36 @@
 	const visibleToolbarActions = $derived(
 		[
 			contentText !== null && !isUnopenable
-				? { key: COPY_TEXT_ACTION_KEY, label: 'Copy Text', activeLabel: 'Copied Text', icon: Copy, activeIcon: Check, active: textCopied, onClick: handleCopyText }
+				? {
+						key: COPY_TEXT_ACTION_KEY,
+						label: 'Copy Text',
+						activeLabel: 'Copied Text',
+						icon: Copy,
+						activeIcon: Check,
+						active: textCopied,
+						onClick: handleCopyText
+					}
 				: null,
 			oncopylink
-				? { key: COPY_LINK_ACTION_KEY, label: 'Copy Link', activeLabel: 'Copied Link', icon: Link, activeIcon: Check, active: copied, onClick: handleCopyLink }
+				? {
+						key: COPY_LINK_ACTION_KEY,
+						label: 'Copy Link',
+						activeLabel: 'Copied Link',
+						icon: Link,
+						activeIcon: Check,
+						active: copied,
+						onClick: handleCopyLink
+					}
 				: null
-		].filter(Boolean) as readonly { key: string; label: string; activeLabel?: string; icon: typeof Copy; activeIcon: typeof Check; active: boolean; onClick: () => void }[]
+		].filter(Boolean) as readonly {
+			key: string;
+			label: string;
+			activeLabel?: string;
+			icon: typeof Copy;
+			activeIcon: typeof Check;
+			active: boolean;
+			onClick: () => void;
+		}[]
 	);
 	const isDownloadable = $derived(
 		Boolean(ondownload) || Boolean(contentUrl) || contentText !== null
@@ -503,7 +660,6 @@
 						variant="ghost"
 						size="sm"
 						class="h-7 gap-1.5 px-2 text-xs text-white/70 hover:bg-white/10 hover:text-white cursor-pointer"
-						
 						onclick={action.onClick}
 					>
 						<Icon class="h-3.5 w-3.5" />

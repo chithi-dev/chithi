@@ -1,20 +1,4 @@
-import type { OgConfig } from './og-types';
-
-export type OgInputs = {
-	label?: string | null;
-	title?: string | null;
-	description?: string | null;
-	filename?: string | null;
-	size?: string | null;
-	fileCount?: number | null;
-};
-
-export type OgDisplay = {
-	label: string;
-	title: string;
-	subtitle: string;
-	footerTags?: string[];
-};
+import type { OgConfig, OgDisplay, OgInputs } from './og-types';
 
 function trimOr(value: string | null | undefined, fallback: string) {
 	const cleaned = value?.trim();

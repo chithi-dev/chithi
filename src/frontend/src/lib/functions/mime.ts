@@ -1,5 +1,3 @@
-
-
 export function detectMimeFromBytes(bytes: Uint8Array): string | null {
 	const has = (offset: number, ...header: number[]) =>
 		offset + header.length <= bytes.length &&
@@ -45,6 +43,14 @@ export function detectMimeFromBytes(bytes: Uint8Array): string | null {
 
 export async function detectMimeFromBlob(blob: Blob, sampleSize = 2048): Promise<string | null> {
 	if (!blob.size) return null;
+	const buffer = await blob.slice(0, sampleSize).arrayBuffer();
+	return detectMimeFromBytes(new Uint8Array(buffer));
+}
+
+export async function detectMimeFromBlobWithFallback(blob: Blob, sampleSize = 2048): Promise<string | null> {
+	if (!blob.size) return null;
+	const blobType = blob.type && blob.type !== 'application/octet-stream' ? blob.type : null;
+	if (blobType) return blobType;
 	const buffer = await blob.slice(0, sampleSize).arrayBuffer();
 	return detectMimeFromBytes(new Uint8Array(buffer));
 }

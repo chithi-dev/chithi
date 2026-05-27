@@ -1,8 +1,7 @@
 import { Api } from '#consts/backend';
-import type { QueryClient } from '@tanstack/svelte-query';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
-export const usersQueryKey = ['admin-users'];
+const usersQueryKey = ['admin-users'];
 
 type CreateUserInput = Record<string, unknown>;
 
@@ -12,7 +11,9 @@ export const useUsersQuery = (page: () => number, size: number) => {
 	const users = createQuery(() => ({
 		queryKey: [...usersQueryKey, page()],
 		queryFn: async () => {
-			const res = await fetch(`${Api.ADMIN.USERS}?page=${page()}&size=${size}`, { credentials: 'include' });
+			const res = await fetch(`${Api.ADMIN.USERS}?page=${page()}&size=${size}`, {
+				credentials: 'include'
+			});
 			if (!res.ok) throw new Error('Failed to fetch users');
 			return res.json();
 		}
