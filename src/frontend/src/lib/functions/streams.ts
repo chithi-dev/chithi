@@ -197,50 +197,42 @@ export async function createEncryptedStream(
 				return new ReadableStream<Uint8Array>({
 					async start(controller) {
 						worker = new EncryptionWorker();
-						let sentInit = false;
+						let initialized = false;
+
 						worker.onmessage = (ev) => {
-							if (!sentInit && ev.data?.type === 'init') {
-								sentInit = true;
-								worker!.postMessage(
-									{
-										type: 'init' as const,
-										mode: 'encrypt' as const,
-										keyRaw: keyCopy,
-										baseIv: ivCopy
-									},
-									[keyCopy, ivCopy]
-								);
+							if (!initialized && ev.data?.type === 'init') {
+								initialized = true;
+								worker!.postMessage({ type: 'init' as const, keyRaw: keyCopy, baseIv: ivCopy }, [keyCopy, ivCopy]);
+								return;
+							}
+							if (ev.data?.type === 'encrypted') {
+								const buf = ev.data.encrypted;
+								bytesProcessed += buf.byteLength;
+								controller.enqueue(new Uint8Array(buf));
+								onProgress?.(bytesProcessed, originalSize);
 							}
 						};
 
+						let bytesProcessed = 0;
+
 						const io = new TransformStream<Uint8Array, Uint8Array>();
+						let chunkIndex = 0;
 
-						const outputWriter = new WritableStream<ArrayBuffer>({
-							write(chunk) {
-								controller.enqueue(new Uint8Array(chunk));
-							},
-							close() {
-								controller.close();
-							}
-						});
+						async function pumpInput() {
+							try {
+								while (true) {
+									const { done, value } = await io.readable.getReader().read();
+									if (done) break;
+									worker!.postMessage({ type: 'data' as const, index: chunkIndex++, chunk: value }, [value]);
+								}
+							} catch {}
+						}
 
-						(worker as any)._inputQueue = io.writable;
-						(worker as any)._outputQueue = outputWriter;
-
-						range
-							.pipeTo(io.writable)
-							.then(() => {
-								outputWriter.close();
-							})
-							.catch(() => {
-								controller.error();
-							});
+						pumpInput();
+						range.pipeTo(io.writable).catch(() => {});
 					},
 					cancel() {
-						if (worker)
-							try {
-								worker.terminate();
-							} catch {}
+						if (worker) try { worker.terminate(); } catch {}
 					}
 				});
 			})
@@ -281,41 +273,43 @@ export async function createDecryptedStream(
 				return new ReadableStream<Uint8Array>({
 					async start(controller) {
 						worker = new EncryptionWorker();
-						let sentInit = false;
+						let initialized = false;
+						let bytesProcessed = 0;
+
 						worker.onmessage = (ev) => {
-							if (!sentInit && ev.data?.type === 'init') {
-								sentInit = true;
-								worker!.postMessage(
-									{
-										type: 'init' as const,
-										mode: 'decrypt' as const,
-										keyRaw: keyCopy,
-										baseIv: ivCopy
-									},
-									[keyCopy, ivCopy]
-								);
+							if (!initialized && ev.data?.type === 'init') {
+								initialized = true;
+								worker!.postMessage({ type: 'init' as const, keyRaw: keyCopy, baseIv: ivCopy }, [keyCopy, ivCopy]);
+								return;
+							}
+							if (ev.data?.type === 'decrypted') {
+								const buf = ev.data.decrypted;
+								bytesProcessed += buf.byteLength;
+								controller.enqueue(new Uint8Array(buf));
+								onProgress?.(bytesProcessed, originalSize);
 							}
 						};
 
 						const io = new TransformStream<Uint8Array, Uint8Array>();
 						let chunkIndex = startChunkIndex;
+						const outputReader = io.readable.getReader();
 
-						const inputWriter = io.writable.getWriter();
+						async function pumpOutput() {
+							try {
+								while (true) {
+									const { done, value } = await outputReader.read();
+									if (done) break;
+									worker!.postMessage({ type: 'data' as const, index: chunkIndex++, chunk: value }, [value]);
+								}
+							} catch {}
+						}
 
-						(worker as any)._inputQueue = io.writable;
-						(worker as any)._outputQueue = new WritableStream({
-							async write(chunk) {
-								controller.enqueue(new Uint8Array(chunk));
-							},
-							close() {
-								controller.close();
-							}
-						});
+						pumpOutput();
 
 						const reader = inputStream.getReader();
 						let buffer = new Uint8Array(0);
 
-						async function pumpChunks() {
+						async function pumpInput() {
 							try {
 								while (chunkIndex < endChunkIndex) {
 									while (buffer.length < CHUNK_WITH_TAG) {
@@ -334,27 +328,24 @@ export async function createDecryptedStream(
 
 									const chunkData = buffer.slice(0, currentChunkSize);
 									buffer = buffer.slice(currentChunkSize);
-
-									await inputWriter.write(new Uint8Array(chunkData.buffer));
+									await io.writable.getWriter().write(new Uint8Array(chunkData.buffer));
 									chunkIndex++;
 								}
 							} finally {
 								await reader.cancel();
-								inputWriter.close().catch(() => {});
+								try { io.writable.getWriter().close(); } catch {}
 							}
 						}
 
-						pumpChunks();
+						pumpInput();
 					},
 					cancel() {
-						if (worker)
-							try {
-								worker.terminate();
-							} catch {}
+						if (worker) try { worker.terminate(); } catch {}
 					}
 				});
 			})
-		)
+		),
+		keySecret: base64url(ikm)
 	};
 }
 

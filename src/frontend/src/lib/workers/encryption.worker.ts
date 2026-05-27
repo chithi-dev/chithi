@@ -1,50 +1,30 @@
 import { getChunkIv } from '#functions/encryption';
 
-interface InitMessage {
-	type: 'init';
-	keyRaw: ArrayBuffer;
-	baseIv: ArrayBuffer;
-	mode: 'encrypt' | 'decrypt';
-}
+interface InitMessage { type: 'init'; keyRaw: ArrayBuffer; baseIv: ArrayBuffer }
+interface DataMessage { type: 'data'; index: number; chunk: ArrayBuffer }
+
+let aesKey: CryptoKey | null = null;
+let baseIv: Uint8Array | null = null;
+
+const ensureInitialized = async (keyRaw: ArrayBuffer, baseIvSource: ArrayBuffer) => {
+	aesKey ??= await crypto.subtle.importKey('raw', keyRaw, { name: 'AES-GCM' }, false, ['encrypt']);
+	baseIv = new Uint8Array(baseIvSource);
+};
 
 self.addEventListener('message', async (ev) => {
-	const msg = ev.data as InitMessage;
+	const msg = ev.data as InitMessage | DataMessage;
 
 	if (msg.type === 'init') {
-		const aesKey = await crypto.subtle.importKey(
-			'raw',
-			new Uint8Array(msg.keyRaw),
-			{ name: 'AES-GCM' },
-			false,
-			[msg.mode]
-		);
-		const baseIv = new Uint8Array(msg.baseIv);
+		await ensureInitialized(msg.keyRaw, msg.baseIv);
+		return;
+	}
 
-		let chunkIndex = 0;
+	if (msg.type === 'data' && aesKey && baseIv) {
 		try {
-			for await (const raw of (self as any).inputQueue) {
-				if (!(raw instanceof ArrayBuffer)) break;
-				const iv = getChunkIv(baseIv, chunkIndex++);
-				if (msg.mode === 'encrypt') {
-					const encrypted = await crypto.subtle.encrypt(
-						{ name: 'AES-GCM', iv: iv as unknown as ArrayBuffer },
-						aesKey,
-						raw
-					);
-					(self as any).outputQueue.enqueue(encrypted);
-				} else {
-					const decrypted = await crypto.subtle.decrypt(
-						{ name: 'AES-GCM', iv: iv as unknown as ArrayBuffer },
-						aesKey,
-						raw
-					);
-					(self as any).outputQueue.enqueue(decrypted);
-				}
-			}
-		} catch {
-			/* EOF — worker done */
-		}
-
-		(self as any).outputQueue.close();
+			const iv = getChunkIv(baseIv, msg.index);
+			const buf = new Uint8Array(msg.chunk).buffer.slice(0);
+			const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv as unknown as ArrayBuffer }, aesKey, buf);
+			(self as any).postMessage({ type: 'encrypted' as const, index: msg.index, encrypted }, [encrypted]);
+		} catch { /* worker error */ }
 	}
 });
