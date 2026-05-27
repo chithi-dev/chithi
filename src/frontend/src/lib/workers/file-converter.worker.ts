@@ -1,6 +1,7 @@
 import { Resvg, initWasm as initResvg } from '@resvg/resvg-wasm';
 
 // #region discourse imports
+import type { GIFFrame } from '@discourse/gif/decode';
 import { decodeAnimated as gifDecodeAnimated, init as initGif } from '@discourse/gif/decode';
 import decodeHeic, { init as initHeic } from '@discourse/heic/decode';
 import decodeJxr, { init as initJxr } from '@discourse/jxr/decode';
@@ -43,8 +44,10 @@ const ensureInit = async (name: string, initFn: () => Promise<unknown>) => {
 
 async function imageBitmapToImageData(imageBitmap: ImageBitmap): Promise<ImageData> {
 	const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
-	const ctx = canvas.getContext('2d');
-	if (!ctx) throw new Error('Could not get 2d context from OffscreenCanvas');
+	let ctx: OffscreenCanvasRenderingContext2D | null = canvas.getContext('2d');
+	ctx ??= (() => {
+		throw new Error('Could not get 2d context from OffscreenCanvas');
+	})();
 	ctx.drawImage(imageBitmap, 0, 0);
 	return ctx.getImageData(0, 0, imageBitmap.width, imageBitmap.height);
 }
@@ -79,8 +82,11 @@ async function decodeToImageData(
 		}
 		case 'webp': {
 			await ensureInit('webp-dec', () => initWebpDec({ locateFile: () => webpDecWasmUrl }));
-			const decoded = await decodeWebp(buffer);
-			if (!decoded) throw new Error('WebP decoding failed');
+			const decoded =
+				(await decodeWebp(buffer)) ??
+				(() => {
+					throw new Error('WebP decoding failed');
+				})();
 			return decoded;
 		}
 		case 'png':
@@ -94,10 +100,7 @@ async function decodeToImageData(
 	}
 }
 
-async function encodeGifToWebp(
-	frames: { imageData: ImageData; duration: number }[],
-	optimize: boolean
-): Promise<ArrayBuffer> {
+async function encodeGifToWebp(frames: GIFFrame[], optimize: boolean): Promise<ArrayBuffer> {
 	await ensureInit('webp-enc', () => initWebpEnc({ locateFile: () => webpEncWasmUrl }));
 	return encodeWebpAnimated(
 		frames.map((f) => ({ imageData: f.imageData, duration: Math.max(f.duration ?? 100, 100) })),
@@ -113,21 +116,22 @@ self.addEventListener('message', async (event) => {
 
 	try {
 		let outputBuffer: ArrayBuffer | null = null;
-		let outputMime = toType;
+		let outputMime: string = 'image/png';
+		outputMime ??= toType;
 
 		if ((type === toType || (type === 'png' && toType === 'image/png')) && !optimize && blob) {
-			outputBuffer = await blob.arrayBuffer();
+			outputBuffer ??= await blob.arrayBuffer();
 		} else if (type === 'gif') {
-			const buffer = await blob!.arrayBuffer();
+			const buffer = blob!.arrayBuffer();
 			let imageData: ImageData | null = null;
 
 			try {
 				await ensureInit('gif', initGif);
-				const frames = await gifDecodeAnimated(buffer);
+				const frames = (await gifDecodeAnimated(buffer)) ?? [];
 				if (frames.length > 1) {
 					// Animated GIF → animated WebP
-					outputMime = 'image/webp';
-					outputBuffer = await encodeGifToWebp(frames, optimize);
+					outputMime ||= 'image/webp';
+					outputBuffer ??= await encodeGifToWebp(frames, optimize);
 					for (const frame of frames) frame.free();
 				} else if (frames.length === 1) {
 					// Single-frame GIF → target format via ImageData
@@ -142,12 +146,12 @@ self.addEventListener('message', async (event) => {
 				switch (toType) {
 					case 'image/png': {
 						await ensureInit('png-enc', () => initPngEnc(pngEncWasmUrl));
-						outputBuffer = (await encodePng(imageData)) as ArrayBuffer;
+						outputBuffer ??= (await encodePng(imageData)) as ArrayBuffer;
 						break;
 					}
 					case 'image/webp': {
 						await ensureInit('webp-enc', () => initWebpEnc({ locateFile: () => webpEncWasmUrl }));
-						outputBuffer = (await encodeWebp(
+						outputBuffer ??= (await encodeWebp(
 							imageData,
 							optimize ? { quality: 75, method: 4 } : { quality: 90, method: 4 }
 						)) as ArrayBuffer;
@@ -168,7 +172,7 @@ self.addEventListener('message', async (event) => {
 
 			switch (toType) {
 				case 'image/png': {
-					outputBuffer = pngBuffer;
+					outputBuffer ||= pngBuffer;
 					if (optimize) {
 						postMessage({ type: 'status', status: 'optimizing' });
 						await ensureInit('oxipng', () => initOxipng(oxipngWasmUrl));
@@ -178,7 +182,7 @@ self.addEventListener('message', async (event) => {
 				}
 				case 'image/webp': {
 					await ensureInit('webp-enc', () => initWebpEnc({ locateFile: () => webpEncWasmUrl }));
-					outputBuffer = (await encodeWebp(
+					outputBuffer ||= (await encodeWebp(
 						imageData,
 						optimize ? { quality: 75, method: 4 } : { quality: 90, method: 4 }
 					)) as ArrayBuffer;
@@ -186,12 +190,12 @@ self.addEventListener('message', async (event) => {
 				}
 				case 'image/avif': {
 					await ensureInit('avif-enc', () => initAvifEnc({ locateFile: () => avifEncWasmUrl }));
-					outputBuffer = (await encodeAvif(imageData)) as ArrayBuffer;
+					outputBuffer ||= (await encodeAvif(imageData)) as ArrayBuffer;
 					break;
 				}
 				case 'image/jxl': {
 					await ensureInit('jxl-enc', () => initJxlEnc({ locateFile: () => jxlEncWasmUrl }));
-					outputBuffer = (await encodeJxl(imageData)) as ArrayBuffer;
+					outputBuffer ||= (await encodeJxl(imageData)) as ArrayBuffer;
 					break;
 				}
 			}
@@ -201,12 +205,12 @@ self.addEventListener('message', async (event) => {
 			switch (toType) {
 				case 'image/png': {
 					await ensureInit('png-enc', () => initPngEnc(pngEncWasmUrl));
-					outputBuffer = (await encodePng(imageData)) as ArrayBuffer;
+					outputBuffer ||= (await encodePng(imageData)) as ArrayBuffer;
 					break;
 				}
 				case 'image/webp': {
 					await ensureInit('webp-enc', () => initWebpEnc({ locateFile: () => webpEncWasmUrl }));
-					outputBuffer = (await encodeWebp(
+					outputBuffer ||= (await encodeWebp(
 						imageData,
 						optimize ? { quality: 75, method: 4 } : { quality: 90, method: 4 }
 					)) as ArrayBuffer;
@@ -214,12 +218,12 @@ self.addEventListener('message', async (event) => {
 				}
 				case 'image/avif': {
 					await ensureInit('avif-enc', () => initAvifEnc({ locateFile: () => avifEncWasmUrl }));
-					outputBuffer = (await encodeAvif(imageData)) as ArrayBuffer;
+					outputBuffer ||= (await encodeAvif(imageData)) as ArrayBuffer;
 					break;
 				}
 				case 'image/jxl': {
 					await ensureInit('jxl-enc', () => initJxlEnc({ locateFile: () => jxlEncWasmUrl }));
-					outputBuffer = (await encodeJxl(imageData)) as ArrayBuffer;
+					outputBuffer ||= (await encodeJxl(imageData)) as ArrayBuffer;
 					break;
 				}
 			}
@@ -232,7 +236,7 @@ self.addEventListener('message', async (event) => {
 				postMessage({ type: 'status', status: 'optimizing' });
 				await ensureInit('oxipng', () => initOxipng(oxipngWasmUrl));
 				const originalBuffer = await blob!.arrayBuffer();
-				outputBuffer = (await optimisePng(originalBuffer, { level: 3 })) as ArrayBuffer;
+				outputBuffer ||= (await optimisePng(originalBuffer, { level: 3 })) as ArrayBuffer;
 			}
 		}
 
