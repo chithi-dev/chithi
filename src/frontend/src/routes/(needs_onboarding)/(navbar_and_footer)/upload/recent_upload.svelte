@@ -3,12 +3,14 @@
 	import { Button } from '$lib/components/ui/button';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { Trash2, History, Copy, Check, Download } from '@lucide/svelte';
+	import { onMount } from 'svelte';
 	import {
 		deleteHistoryEntry,
 		cleanupExpiredEntries,
+		getHistory,
 		updateHistoryEntry
 	} from '$lib/database';
-	import { recentUploads, setEntries } from '$lib/database/recent-uploads.svelte';
+	import { setEntries, recentUploads } from '$lib/database/recent-uploads.svelte';
 	import { formatFileSize } from '#functions/bytes';
 	import { Api } from '#consts/backend';
 
@@ -24,26 +26,32 @@
 		expires_at: string;
 		expired: boolean;
 	};
-	const fetchFileInformation = async (key: string): Promise<FileInformationOut> => {
+
+	const fetchFileInformation = async (key: string) => {
 		const res = await fetch(Api.FILE_INFO(key));
-		if (!res.ok) {
-			throw new Error('Failed to fetch file information');
-		}
-		return res.json();
+		if (!res.ok) throw new Error('Failed to fetch file information');
+		return res.json() as Promise<FileInformationOut>;
 	};
 
+	onMount(() => setInterval(cleanupExpiredEntries, 60_000));
+
+	let pending = $state(false);
+
 	$effect(() => {
-		let cancelled = false;
-		cleanupExpiredEntries().then(async () => {
-			if (cancelled) return;
-			const entries = recentUploads.entries;
-			await Promise.all(
-				entries.map(async (entry) => {
+		if (!open || pending) return;
+
+		pending = true;
+		const refresh = async () => {
+			try {
+				await cleanupExpiredEntries();
+				setEntries(await getHistory());
+
+				for (const entry of [...recentUploads.entries]) {
 					try {
 						const info = await fetchFileInformation(entry.id);
 						if (info.expired) {
 							await deleteHistoryEntry(entry.id);
-							return;
+							continue;
 						}
 						await updateHistoryEntry({
 							id: entry.id,
@@ -55,45 +63,26 @@
 								download_count: info.download_count
 							}
 						});
-					} catch (error) {
-						console.error(`Failed to update info for ${entry.id}`, error);
+					} catch {
 						await deleteHistoryEntry(entry.id);
 					}
-				})
-			);
-		});
-
-		const interval = setInterval(cleanupExpiredEntries, 60000);
-		return () => {
-			cancelled = true;
-			clearInterval(interval);
+				}
+			} finally {
+				pending = false;
+			}
 		};
-	});
 
-	$effect(() => {
-		if (open) {
-			cleanupExpiredEntries();
-		}
+		refresh();
 	});
-
-	const handleDelete = async (id: string) => {
-		await deleteHistoryEntry(id);
-	};
 
 	const handleCopy = (id: string, link: string) => {
 		navigator.clipboard.writeText(link);
 		copiedId = id;
-		setTimeout(() => {
-			if (copiedId === id) copiedId = null;
-		}, 2000);
+		setTimeout(() => (copiedId ??= null), 2000);
 	};
-
-	$effect(() => {
-		setEntries(recentUploads.entries);
-	});
 </script>
 
-{#if recentUploads.entries.length > 0}
+{#if recentUploads.entries.length}
 	<Dialog.Root bind:open>
 		<Dialog.Trigger>
 			{#snippet child({ props })}
@@ -126,7 +115,7 @@
 										<span>{entry.size}</span>
 										<span>•</span>
 										<span
-											>{Math.max(0, parseInt(entry.download_limit) - (entry.download_count || 0))} left</span
+											>{Math.max(0, parseInt(entry.download_limit) - (entry.download_count ?? 0))} left</span
 										>
 									</div>
 									<div class="text-xs text-muted-foreground">
@@ -137,7 +126,7 @@
 									variant="ghost"
 									size="icon"
 									class="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
-									onclick={() => handleDelete(entry.id)}
+									onclick={() => deleteHistoryEntry(entry.id)}
 								>
 									<Trash2 class="h-3 w-3" />
 								</Button>
