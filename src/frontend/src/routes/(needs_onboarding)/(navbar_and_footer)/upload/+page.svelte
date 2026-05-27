@@ -11,6 +11,7 @@
 	import { onMount } from 'svelte';
 	import { CloudOff } from '@lucide/svelte';
 	import { UploadStage, isWhichUploadStage } from './enums';
+	import { traverseFileTree } from '#functions/files';
 
 	// Stages
 	const { default: Stage1 } = await import('./stage_1.svelte');
@@ -39,15 +40,9 @@
 	let hasMounted = $state(false);
 
 	const detailsMarkdown = $derived(configData.data?.site_description ?? '');
-	let detailsHtml = $state('');
-
-	$effect(() => {
-		if (detailsMarkdown) {
-			markdown_to_html(detailsMarkdown).then((html) => {
-				detailsHtml = html;
-			});
-		}
-	});
+	let detailsPromise = $derived(
+		detailsMarkdown ? markdown_to_html(detailsMarkdown) : null
+	);
 
 	// Handle physical mouse back button (X1) to return from stage 2 to stage 1
 	const handleMouseBack = (e: MouseEvent) => {
@@ -118,49 +113,15 @@
 		dragOverZone = false;
 	};
 
-	const traverseFileTree = async (item: any, path = ''): Promise<File[]> => {
-		try {
-			if (item.isFile) {
-				return new Promise((resolve) => {
-					item.file(
-						(file: File) => {
-							if (path) {
-								(file as any).relativePath = path + file.name;
-							}
-							resolve([file]);
-						},
-						(err: Error) => {
-							console.error('Error reading file:', err);
-							resolve([]);
-						}
-					);
-				});
-			} else if (item.isDirectory) {
-				const dirReader = item.createReader();
-				const entries: any[] = [];
-				const readEntries = async () => {
-					try {
-						const result = await new Promise<any[]>((resolve, reject) => {
-							dirReader.readEntries(resolve, reject);
-						});
-						if (result.length > 0) {
-							entries.push(...result);
-							await readEntries();
-						}
-					} catch (err) {
-						console.error('Error reading directory:', err);
-					}
-				};
-				await readEntries();
-				const fileArrays = await Promise.all(
-					entries.map((entry) => traverseFileTree(entry, path + item.name + '/'))
-				);
-				return fileArrays.flat();
-			}
-		} catch (err) {
-			console.error('Error traversing item:', err);
-		}
-		return [];
+	const handleCardDrop = (e: DragEvent) => {
+		if (stage === UploadStage.Stage_3) return;
+		e.preventDefault();
+		e.stopPropagation();
+		dragCounter = 0;
+		dragActive = false;
+		dragOverZone = false;
+		dragOverCard = false;
+		toast.error('File/Folder must be dropped in the bordered area');
 	};
 
 	const handlePaste = async (e: ClipboardEvent) => {
@@ -337,16 +298,7 @@
 		dragOverCard && 'shadow-[0_0_40px_-10px_var(--primary)]',
 		dragOverZone && 'shadow-[0_0_60px_-10px_var(--primary)]'
 	]}
-	ondrop={(e) => {
-		if (stage === UploadStage.Stage_3) return;
-		e.preventDefault();
-		e.stopPropagation();
-		dragCounter = 0;
-		dragActive = false;
-		dragOverZone = false;
-		dragOverCard = false;
-		toast.error('File/Folder must be dropped in the bordered area');
-	}}
+	ondrop={handleCardDrop}
 	ondragenter={handleCardDragEnter}
 	ondragleave={handleCardDragLeave}
 >
@@ -384,6 +336,7 @@
 						isDraggingOverZone={dragOverZone}
 						onZoneDragEnter={handleZoneDragEnter}
 						onZoneDragLeave={handleZoneDragLeave}
+						maxFileSize={configData.data?.max_file_size_limit ?? 0}
 					/>
 				</div>
 				<div class="flex h-full w-full flex-col p-4 lg:p-8" in:fade>
@@ -391,7 +344,9 @@
 						<div
 							class="prose w-full max-w-none prose-zinc md:text-sm lg:text-lg lg:leading-relaxed dark:prose-invert"
 						>
-							{@html detailsHtml}
+							{#if detailsPromise}{#await detailsPromise then html}
+							{@html html}
+							{/await}{/if}
 						</div>
 					</ScrollArea>
 				</div>

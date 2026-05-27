@@ -66,7 +66,7 @@ function connect() {
 }
 
 function scheduleReconnect() {
-	if (reconnectTimer) return;
+	if (reconnectTimer || ws) return;
 	reconnectTimer = setTimeout(() => {
 		reconnectTimer = null;
 		if (refCount > 0) connect();

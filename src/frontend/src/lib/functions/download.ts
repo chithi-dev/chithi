@@ -2,6 +2,19 @@ import { Api } from '#consts/backend';
 import { createDecryptedStream } from '#functions/streams';
 import { ZipReader } from '@zip.js/zip.js';
 
+/** Download a blob or URL via an invisible anchor element. */
+export function saveBlobUrl(blobOrUrl: Blob | string, filename: string) {
+	const url = blobOrUrl instanceof Blob ? URL.createObjectURL(blobOrUrl) : blobOrUrl;
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = filename;
+	a.style.display = 'none';
+	document.body.appendChild(a);
+	a.click();
+	URL.revokeObjectURL(url);
+	document.body.removeChild(a);
+}
+
 export class PasswordRequiredError extends Error {
 	constructor() {
 		super('Password required for decryption');

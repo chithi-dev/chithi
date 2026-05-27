@@ -4,12 +4,12 @@
 	import { CircleAlert, LoaderCircle, KeyRound } from '@lucide/svelte';
 	import { page } from '$app/state';
 	import { Api } from '#consts/backend';
-	import { PasswordRequiredError } from '#functions/download';
+	import { PasswordRequiredError, saveBlobUrl } from '#functions/download';
 	import { createDecryptedStream } from '#functions/streams';
 	import { BlobWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
 	import { detectMimeFromBlob } from '#functions/mime';
 	import { createViewableText } from '$lib/functions/viewer';
-	import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
+	const { default: FileViewerOverlay } = await import('$lib/components/FileViewerOverlay.svelte');
 
 	let key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
 	let slug = $derived(page.params.slug);
@@ -144,15 +144,8 @@
 	function handleDownloadFile() {
 		const url = contentUrl;
 		if (!url && contentText === null) return;
-		const blobUrl = url || URL.createObjectURL(new Blob([contentText!], { type: 'text/plain' }));
-		const a = document.createElement('a');
-		a.href = blobUrl;
-		a.download = entryFilename;
-		a.style.display = 'none';
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
-		if (!url) URL.revokeObjectURL(blobUrl);
+		const blob = contentText !== null ? new Blob([contentText], { type: 'text/plain' }) : '';
+		saveBlobUrl(blob || url!, entryFilename);
 	}
 
 	// Auto-start on mount
@@ -179,7 +172,9 @@
 					placeholder="Password"
 					class="rounded-r-none focus-visible:z-10"
 					bind:value={password}
-					onkeydown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+					onkeydown={(e) => {
+						if (e.key === 'Enter') { e.preventDefault(); handlePasswordSubmit(); }
+					}}
 				/>
 				<Button class="rounded-l-none" onclick={handlePasswordSubmit}>Unlock</Button>
 			</div>

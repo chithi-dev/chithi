@@ -33,7 +33,9 @@
 	import { ZipReader, BlobReader, BlobWriter, type Entry } from '@zip.js/zip.js';
 	import { detectMimeFromBlob } from '#functions/mime';
 	import { createViewableText } from '$lib/functions/viewer';
-	import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
+	import { saveBlobUrl } from '#functions/download';
+
+		const { default: FileViewerOverlay } = await import('$lib/components/FileViewerOverlay.svelte');
 
 	let key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
 	let slug = $derived(page.params.slug);
@@ -47,7 +49,7 @@
 	let filename = $state('file');
 	let fileSize = $state(0);
 	let password = $state('');
-	let downloadProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
+	const downloadTween = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 
 	let zipEntries = $state<Entry[]>([]);
 	let decryptedBlob = $state<Blob | null>(null);
@@ -104,11 +106,16 @@
 		await fetchAndUnzip();
 	}
 
+	function handleEnterPassword(e: KeyboardEvent) {
+		e.preventDefault();
+		handlePasswordSubmit();
+	}
+
 	async function fetchAndUnzip() {
 		if (!key || !slug) return;
 		const previousStatus = status;
 		status = 'downloading';
-		downloadProgress = new Tween(0, { duration: 500, easing: cubicOut });
+		downloadTween.target = 0;
 
 		try {
 			const blob = await downloadFileBlob(
@@ -116,7 +123,7 @@
 				key,
 				password,
 				fileSize,
-				(p) => (downloadProgress.target = p)
+				(p) => (downloadTween.target = p)
 			);
 			decryptedBlob = blob;
 
@@ -252,29 +259,13 @@
 	async function saveEntry(entry: Entry) {
 		if (entry.directory || !entry.getData) return;
 		const blob = await entry.getData(new BlobWriter());
-		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = entry.filename.split('/').pop() || 'file';
-		a.style.display = 'none';
-		document.body.appendChild(a);
-		a.click();
-		URL.revokeObjectURL(url);
-		document.body.removeChild(a);
+		saveBlobUrl(blob, entry.filename.split('/').pop() || 'file');
 	}
 
 	function handleDownloadOriginal() {
 		if (!decryptedBlob) return;
 		const downloadName = filename.toLowerCase().endsWith('.zip') ? filename : `${filename}.zip`;
-		const url = URL.createObjectURL(decryptedBlob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = downloadName;
-		a.style.display = 'none';
-		document.body.appendChild(a);
-		a.click();
-		URL.revokeObjectURL(url);
-		document.body.removeChild(a);
+		saveBlobUrl(decryptedBlob, downloadName);
 	}
 </script>
 
@@ -333,7 +324,7 @@
 										placeholder="Password"
 										class="rounded-r-none focus-visible:z-10"
 										bind:value={password}
-										onkeydown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+										onkeydown={handleEnterPassword}
 									/>
 									<Button class="rounded-l-none" onclick={handlePasswordSubmit}>Unlock</Button>
 								</div>
@@ -357,9 +348,9 @@
 							<Card.Footer class="flex w-full flex-col gap-6 px-0">
 								{#if status === 'downloading' || status === 'unzipping'}
 									<div class="w-full space-y-2">
-										<Progress value={downloadProgress.current} class="h-2" />
+										<Progress value={downloadTween.current} class="h-2" />
 										<div class="flex justify-between text-xs text-muted-foreground">
-											<span>{Math.round(downloadProgress.current)}%</span>
+											<span>{Math.round(downloadTween.current)}%</span>
 											<span class="flex items-center">
 												{#if status === 'unzipping'}
 													<FolderOpen class="mr-2 h-3 w-3 animate-pulse" />
@@ -394,17 +385,8 @@
 							oncopylink={copyViewerLink}
 							ondownload={() => {
 								if (!viewingFile) return;
-								const blobUrl =
-									viewingFile.url ||
-									URL.createObjectURL(new Blob([viewingFile.text!], { type: 'text/plain' }));
-								const a = document.createElement('a');
-								a.href = blobUrl;
-								a.download = viewingFile.filename.split('/').pop() || 'file';
-								a.style.display = 'none';
-								document.body.appendChild(a);
-								a.click();
-								document.body.removeChild(a);
-								if (!viewingFile.url) URL.revokeObjectURL(blobUrl);
+								const blob = viewingFile.text !== null ? new Blob([viewingFile.text], { type: 'text/plain' }) : '';
+								saveBlobUrl(blob, viewingFile.filename.split('/').pop() || 'file');
 							}}
 						/>
 					</div>
@@ -424,7 +406,7 @@
 						<div class="rounded-md border">
 							<ScrollArea class="h-125">
 								<div class="p-2">
-									{#each zipEntries as entry}
+									{#each zipEntries as entry (entry.filename)}
 										<div
 											class="group flex w-full items-center gap-3 rounded-md p-2 transition-colors hover:bg-muted/50"
 										>

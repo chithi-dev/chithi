@@ -1,70 +1,26 @@
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button';
 	import { Plus } from '@lucide/svelte';
+	import { traverseFileTree } from '#functions/files';
 	import { formatFileSize } from '#functions/bytes';
-	import { useConfigQuery } from '#queries/config';
 
 	interface Props {
 		onFilesSelected: (files: File[]) => void;
 		isDraggingOverZone: boolean;
 		onZoneDragEnter: (e: DragEvent) => void;
 		onZoneDragLeave: (e: DragEvent) => void;
+		maxFileSize: number;
 	}
 
-	let { onFilesSelected, isDraggingOverZone, onZoneDragEnter, onZoneDragLeave }: Props = $props();
+	let {
+		onFilesSelected,
+		isDraggingOverZone,
+		onZoneDragEnter,
+		onZoneDragLeave,
+		maxFileSize
+	}: Props = $props();
 
-	const { config: configData } = useConfigQuery();
-
-	let fileInputInitial = $state<HTMLInputElement>();
-
-	const traverseFileTree = async (item: any, path = ''): Promise<File[]> => {
-		try {
-			if (item.isFile) {
-				return new Promise((resolve) => {
-					item.file(
-						(file: File) => {
-							if (path) {
-								(file as any).relativePath = path + file.name;
-							}
-							resolve([file]);
-						},
-						(err: Error) => {
-							console.error('Error reading file:', err);
-							resolve([]);
-						}
-					);
-				});
-			} else if (item.isDirectory) {
-				const dirReader = item.createReader();
-				const entries: any[] = [];
-
-				const readEntries = async () => {
-					try {
-						const result = await new Promise<any[]>((resolve, reject) => {
-							dirReader.readEntries(resolve, reject);
-						});
-
-						if (result.length > 0) {
-							entries.push(...result);
-							await readEntries();
-						}
-					} catch (err) {
-						console.error('Error reading directory:', err);
-					}
-				};
-
-				await readEntries();
-
-				const fileArrays = await Promise.all(
-					entries.map((entry) => traverseFileTree(entry, path + item.name + '/'))
-				);
-				return fileArrays.flat();
-			}
-		} catch (err) {
-			console.error('Error traversing item:', err);
-		}
-		return [];
-	};
+	let fileInputInitial: HTMLInputElement | undefined;
 
 	const handleZoneDrop = async (e: DragEvent) => {
 		e.preventDefault();
@@ -149,8 +105,7 @@
 				isDraggingOverZone ? 'text-primary/80' : 'text-muted-foreground'
 			]}
 		>
-			or click to send up to {formatFileSize(configData.data?.max_file_size_limit ?? 0)} of files with
-			end-to-end encryption
+			or click to send up to {formatFileSize(maxFileSize)} of files with end-to-end encryption
 		</p>
 
 		<!-- Button -->

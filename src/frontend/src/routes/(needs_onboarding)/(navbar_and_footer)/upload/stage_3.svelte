@@ -55,81 +55,37 @@
 	</div>
 	<div class="flex flex-col gap-4">
 		<ButtonGroup.Root>
-			<ButtonGroup.Root>
-				<Tooltip.Provider>
-					<Tooltip.Root>
-						<Tooltip.Trigger>
-							<Button variant="outline" size="sm" onclick={copyLink} class="w-32 cursor-pointer">
-								{#if isCopied}
-									<Check class="mr-2 size-4" /> Copied
-								{:else}
-									<Copy class="mr-2 size-4" /> Copy link
-								{/if}
-							</Button>
-						</Tooltip.Trigger>
-						<Tooltip.Content>Copy link to clipboard</Tooltip.Content>
-					</Tooltip.Root>
-				</Tooltip.Provider>
-			</ButtonGroup.Root>
+			<Tooltip.Provider delayDuration={100}>
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						<Button variant="outline" size="sm" onclick={copyLink} class="w-32 cursor-pointer">
+							{#if isCopied}
+								<Check class="mr-2 size-4" /> Copied
+							{:else}
+								<Copy class="mr-2 size-4" /> Copy link
+							{/if}
+						</Button>
+					</Tooltip.Trigger>
+					<Tooltip.Content>Copy link to clipboard</Tooltip.Content>
+				</Tooltip.Root>
+			</Tooltip.Provider>
 
 			{#if isViewOnce}
-				<ButtonGroup.Root>
-					<Button
-						variant="outline"
-						size="icon-sm"
-						href={viewOnceLink}
-						class="cursor-pointer"
-						aria-label="View once"
-					>
-						<Tooltip.Provider>
-							<Tooltip.Root>
-								<Tooltip.Trigger>
-									<ScanEye class="size-4" />
-								</Tooltip.Trigger>
-								<Tooltip.Content>View once in browser</Tooltip.Content>
-							</Tooltip.Root>
-						</Tooltip.Provider>
-					</Button>
-				</ButtonGroup.Root>
+				<Button variant="outline" size="icon-sm" href={viewOnceLink} class="cursor-pointer" aria-label="View once">
+					<ScanEye class="size-4" />
+				</Button>
 			{:else}
-				<ButtonGroup.Root>
-					<Button
-						variant="outline"
-						class="cursor-pointer"
-						size="icon-sm"
-						href={finalLink}
-						aria-label="Download"
-					>
-						<Tooltip.Provider>
-							<Tooltip.Root>
-								<Tooltip.Trigger>
-									<Download class="size-4" />
-								</Tooltip.Trigger>
-								<Tooltip.Content>Download file</Tooltip.Content>
-							</Tooltip.Root>
-						</Tooltip.Provider>
-					</Button>
+				<Button variant="outline" class="cursor-pointer" size="icon-sm" href={finalLink} aria-label="Download">
+					<Download class="size-4" />
+				</Button>
 
-					<Button
-						variant="outline"
-						size="icon-sm"
-						class="cursor-pointer"
-						href={finalLink.replace('/download/', '/view/')}
-						aria-label="View"
-					>
-						<Tooltip.Provider>
-							<Tooltip.Root>
-								<Tooltip.Trigger>
-									<Eye class="size-4" />
-								</Tooltip.Trigger>
-								<Tooltip.Content>View file in browser</Tooltip.Content>
-							</Tooltip.Root>
-						</Tooltip.Provider>
-					</Button>
-				</ButtonGroup.Root>
+				<Button variant="outline" size="icon-sm" class="cursor-pointer" href={finalLink.replace('/download/', '/view/')} aria-label="View">
+					<Eye class="size-4" />
+				</Button>
 			{/if}
 		</ButtonGroup.Root>
 
 		<Button variant="ghost" class="cursor-pointer" onclick={onReset}>Upload more files</Button>
+
 	</div>
 </div>
