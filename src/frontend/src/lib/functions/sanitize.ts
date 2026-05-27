@@ -1,3 +1,3 @@
-export function sanitizeExt(ext: string): string {
+export function sanitizeExt(ext: string) {
 	return ext.replace(/^\./, '').trim().toLowerCase();
 }

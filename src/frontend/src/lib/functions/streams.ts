@@ -75,12 +75,12 @@ interface EncryptionContext {
 	onProgress?: (processed: number, total?: number) => void;
 }
 
-async function handleEncryptionError(ctx: EncryptionContext, e: unknown): Promise<void> {
+async function handleEncryptionError(ctx: EncryptionContext, e: unknown) {
 	if (ctx.allDoneReject) ctx.allDoneReject(e);
 	if (ctx.controllerRef) ctx.controllerRef.error(e);
 }
 
-async function handleWorkerEncryptedMessage(ctx: EncryptionContext, data: any): Promise<void> {
+async function handleWorkerEncryptedMessage(ctx: EncryptionContext, data: any) {
 	if (data?.type === 'encrypted') {
 		ctx.pendingCount--;
 		ctx.encryptedMap.set(data.index, new Uint8Array(data.encrypted));
@@ -107,7 +107,7 @@ async function initializeEncryptionWorkers(
 	aesKey: CryptoKey,
 	baseIv: Uint8Array,
 	concurrency: number
-): Promise<void> {
+) {
 	const keyRaw = await crypto.subtle.exportKey('raw', aesKey);
 	const initPromises: Promise<Worker | null>[] = [];
 
@@ -157,7 +157,7 @@ async function encryptChunkWithWorker(
 	ctx: EncryptionContext,
 	index: number,
 	chunkData: Uint8Array
-): Promise<void> {
+) {
 	ctx.pendingCount++;
 	const transferable = chunkData.buffer.slice(
 		chunkData.byteOffset,
@@ -174,7 +174,7 @@ async function encryptChunkFallback(
 	chunkData: Uint8Array,
 	aesKey: CryptoKey,
 	baseIv: Uint8Array
-): Promise<void> {
+) {
 	ctx.pendingCount++;
 	try {
 		const iv = getChunkIv(baseIv, index);
@@ -213,7 +213,7 @@ async function assignEncryptionChunk(
 	chunkData: Uint8Array,
 	aesKey: CryptoKey,
 	baseIv: Uint8Array
-): Promise<void> {
+) {
 	if (ctx.workers.length > 0) {
 		await encryptChunkWithWorker(ctx, index, chunkData);
 	} else {
@@ -240,12 +240,12 @@ interface DecryptionContext {
 	onProgress?: (processed: number, total?: number) => void;
 }
 
-async function handleDecryptionError(ctx: DecryptionContext, e: unknown): Promise<void> {
+async function handleDecryptionError(ctx: DecryptionContext, e: unknown) {
 	if (ctx.allDoneReject) ctx.allDoneReject(e);
 	if (ctx.controllerRef) ctx.controllerRef.error(e);
 }
 
-async function handleWorkerDecryptedMessage(ctx: DecryptionContext, data: any): Promise<void> {
+async function handleWorkerDecryptedMessage(ctx: DecryptionContext, data: any) {
 	if (data?.type === 'decrypted') {
 		ctx.pendingCount--;
 		ctx.decryptedMap.set(data.index, new Uint8Array(data.decrypted));
@@ -273,7 +273,7 @@ async function initializeDecryptionWorkers(
 	aesKey: CryptoKey,
 	baseIv: Uint8Array,
 	concurrency: number
-): Promise<void> {
+) {
 	const keyRaw = await crypto.subtle.exportKey('raw', aesKey);
 	const initPromises: Promise<Worker | null>[] = [];
 
@@ -323,7 +323,7 @@ async function decryptChunkWithWorker(
 	ctx: DecryptionContext,
 	index: number,
 	chunkBuf: Uint8Array
-): Promise<void> {
+) {
 	ctx.pendingCount++;
 	const transferable = chunkBuf.buffer.slice(
 		chunkBuf.byteOffset,
@@ -340,7 +340,7 @@ async function decryptChunkFallback(
 	chunkBuf: Uint8Array,
 	aesKey: CryptoKey,
 	baseIv: Uint8Array
-): Promise<void> {
+) {
 	ctx.pendingCount++;
 	try {
 		const iv = getChunkIv(baseIv, index);
@@ -373,7 +373,7 @@ async function assignDecryptionChunk(
 	chunkBuf: Uint8Array,
 	aesKey: CryptoKey,
 	baseIv: Uint8Array
-): Promise<void> {
+) {
 	if (ctx.workers.length > 0) {
 		await decryptChunkWithWorker(ctx, index, chunkBuf);
 	} else {
@@ -387,7 +387,7 @@ async function writeZipFiles(
 	files: File[],
 	password?: string,
 	signal?: AbortSignal
-): Promise<void> {
+) {
 	try {
 		for (const file of files) {
 			const displayName = ((file as FileWithRelativePath).relativePath ?? file.name);
@@ -470,7 +470,7 @@ export async function createEncryptedStream(
 		onProgress
 	};
 
-	function readChunk(size: number): Uint8Array {
+	function readChunk(size: number) {
 		const out = new Uint8Array(size);
 		let offset = 0;
 

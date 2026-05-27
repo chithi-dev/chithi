@@ -93,7 +93,7 @@ export type InnerEncryptionMeta = {
 
 export const CHUNK_SIZE = 64 * 1024; // 64KB
 
-export function getChunkIv(baseIv: Uint8Array, chunkIndex: number): Uint8Array {
+export function getChunkIv(baseIv: Uint8Array, chunkIndex: number) {
 	const iv = new Uint8Array(baseIv);
 	const view = new DataView(iv.buffer, iv.byteOffset, iv.byteLength);
 	// XOR the chunk index into the last 4 bytes (big-endian)

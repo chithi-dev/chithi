@@ -162,7 +162,7 @@
 		password: string,
 		totalSize: number,
 		onProgress: (percent: number) => void
-	): Promise<Blob> {
+	) {
 		const res = await fetch(Api.DOWNLOAD(slug));
 		if (!res.ok) throw new Error('Download failed');
 		if (!res.body) throw new Error('No response body');

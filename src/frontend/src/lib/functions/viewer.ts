@@ -22,7 +22,7 @@ export async function createViewableText(
 	blob: Blob,
 	_filename: string,
 	mimeHint: string | null = null
-): Promise<string | null> {
+) {
 	const mime = mimeHint ?? (blob.type || null);
 
 	if (mime && isTextMime(mime)) {

@@ -42,7 +42,7 @@ const ensureInit = async (name: string, initFn: () => Promise<unknown>) => {
 	initialized.add(name);
 };
 
-async function imageBitmapToImageData(imageBitmap: ImageBitmap): Promise<ImageData> {
+async function imageBitmapToImageData(imageBitmap: ImageBitmap) {
 	const canvas = new OffscreenCanvas(imageBitmap.width, imageBitmap.height);
 	let ctx: OffscreenCanvasRenderingContext2D | null = canvas.getContext('2d');
 	ctx ??= (() => {
@@ -56,7 +56,7 @@ async function decodeToImageData(
 	type: string,
 	blob: Blob | null,
 	text: string | null
-): Promise<ImageData> {
+) {
 	if (type === 'svg' && text) {
 		await ensureInit('resvg', () => initResvg(resvgWasmUrl));
 		const resvg = new Resvg(text);
@@ -100,7 +100,7 @@ async function decodeToImageData(
 	}
 }
 
-async function encodeGifToWebp(frames: GIFFrame[], optimize: boolean): Promise<ArrayBuffer> {
+async function encodeGifToWebp(frames: GIFFrame[], optimize: boolean) {
 	await ensureInit('webp-enc', () => initWebpEnc({ locateFile: () => webpEncWasmUrl }));
 	return encodeWebpAnimated(
 		frames.map((f) => ({ imageData: f.imageData, duration: Math.max(f.duration ?? 100, 100) })),

@@ -52,7 +52,7 @@ const runSpeedTest = async (duration: number) => {
 	self.postMessage({ type: 'finish' as const });
 };
 
-const testLatency = async (): Promise<number> => {
+const testLatency = async () => {
 	let totalLatency = 0;
 
 	for (let i = 1; i <= 5; i++) {
@@ -72,7 +72,7 @@ const testLatency = async (): Promise<number> => {
 	return finalLatency;
 };
 
-const testDownload = async (duration: number): Promise<number> => {
+const testDownload = async (duration: number) => {
 	const size = 100 << 20; // 100MB
 	const endpoint = new URL(endpoints!.DOWNLOAD);
 	endpoint.searchParams.set('bytes', size.toString());
@@ -112,7 +112,7 @@ const testDownload = async (duration: number): Promise<number> => {
 	return finalSpeed;
 };
 
-const testUpload = async (duration: number): Promise<number> => {
+const testUpload = async (duration: number) => {
 	let totalBytes = 0;
 	const startTime = performance.now();
 	let lastReport = startTime;

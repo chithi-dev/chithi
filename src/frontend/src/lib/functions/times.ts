@@ -20,6 +20,6 @@ export function formatSeconds(seconds: number): { val: number; unit: TimeUnit } 
 	return { val: seconds, unit: 'Seconds' };
 }
 
-export function secondsToNumber(value: number, unit: TimeUnit): number {
+export function secondsToNumber(value: number, unit: TimeUnit) {
 	return value * T_VALS[unit];
 }

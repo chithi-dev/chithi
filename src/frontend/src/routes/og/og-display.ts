@@ -5,7 +5,7 @@ function trimOr(value: string | null | undefined, fallback: string) {
 	return cleaned ? cleaned : fallback;
 }
 
-export function buildOgDisplay(config: OgConfig, inputs: OgInputs): OgDisplay {
+export function buildOgDisplay(config: OgConfig, inputs: OgInputs) {
 	const label = config.labelFromQuery ? trimOr(inputs.label, config.label) : config.label;
 
 	const title = (

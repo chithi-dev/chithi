@@ -347,7 +347,7 @@
 		return `${name}.${extension}`;
 	};
 
-	const isSupportedImageMime = (mime: string | null): boolean =>
+	const isSupportedImageMime = (mime: string | null) =>
 		mime !== null && SUPPORTED_IMAGE_MIMES.has(mime);
 
 	const downloadBlob = (blob: Blob, name: string) => {

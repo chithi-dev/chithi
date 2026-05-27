@@ -76,7 +76,7 @@ const featureLoaders: Record<string, FeatureLoader> = {
 const featureCache = new Map<string, CaniuseFeature>();
 const featureInflight = new Map<string, Promise<CaniuseFeature>>();
 
-const loadFeatureForMime = async (mime: string): Promise<CaniuseFeature | null> => {
+const loadFeatureForMime = async (mime: string) => {
 	const loader = featureLoaders[mime];
 	if (!loader) return null;
 
@@ -207,7 +207,7 @@ const getSupportedAgents = (stats: CaniuseStats) =>
 		)
 		.map(([agent]) => agent as AgentKey);
 
-export const getImageSupportInfo = async (mime: string): Promise<ImageSupportInfo> => {
+export const getImageSupportInfo = async (mime: string) => {
 	let featureData: CaniuseFeature | null;
 
 	try {

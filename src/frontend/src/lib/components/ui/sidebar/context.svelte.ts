@@ -65,7 +65,7 @@ const SYMBOL_KEY = 'scn-sidebar';
  * @param props The constructor props for the `SidebarState` class.
  * @returns  The `SidebarState` instance.
  */
-export function setSidebar(props: SidebarStateProps): SidebarState {
+export function setSidebar(props: SidebarStateProps) {
 	return setContext(Symbol.for(SYMBOL_KEY), new SidebarState(props));
 }
 
@@ -74,6 +74,6 @@ export function setSidebar(props: SidebarStateProps): SidebarState {
  * so you cannot destructure it.
  * @returns The `SidebarState` instance.
  */
-export function useSidebar(): SidebarState {
+export function useSidebar() {
 	return getContext(Symbol.for(SYMBOL_KEY));
 }

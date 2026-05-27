@@ -10,7 +10,7 @@ export function strip_trailing_slash(input: string) {
 	return normalizedPath + (query ? '?' + query : '') + (hash ? '#' + hash : '');
 }
 
-export function validateRedirectUrl(url: string, origin: string): string {
+export function validateRedirectUrl(url: string, origin: string) {
 	try {
 		const parsed = new URL(url, origin);
 

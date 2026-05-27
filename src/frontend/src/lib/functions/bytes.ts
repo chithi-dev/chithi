@@ -23,7 +23,7 @@ export const formatBytes = (bytes: number): { val: number; unit: ByteUnit } => {
 
 export const bytesToNumber = (value: number, unit: ByteUnit) => Math.floor(value * B_VALS[unit]);
 
-export const formatFileSize = (bytes: number): string => {
+export const formatFileSize = (bytes: number) => {
 	if (!bytes) return '0 Bytes';
 
 	const i = Math.floor(Math.log(bytes) / Math.log(1024));
