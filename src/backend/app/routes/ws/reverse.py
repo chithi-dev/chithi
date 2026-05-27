@@ -102,7 +102,7 @@ async def _stream_file_to_ws(
 
         await UploadProgress.finish(upload_key=upload_key, final_size=entry.size)
         success = True
-    except asyncio.CancelledError, Exception:
+    except (asyncio.CancelledError, Exception):
         raise
     finally:
         if not success:
@@ -314,7 +314,7 @@ async def room_ws(
         done_event.set()
         listen_task.cancel()
         keepalive_task.cancel()
-        with suppress(asyncio.CancelledError, ExceptionGroup):
+        with suppress((asyncio.CancelledError, ExceptionGroup)):
             await listen_task
         with suppress(asyncio.CancelledError):
             await keepalive_task

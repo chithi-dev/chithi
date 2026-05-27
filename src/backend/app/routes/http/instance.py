@@ -94,7 +94,9 @@ async def get_instance_statistics(
     total_files = (await session.exec(total_files_query)).one()
 
     # Total downloads
-    total_downloads_query = select(func.coalesce(func.sum(File.download_count), 0)).select_from(File)
+    total_downloads_query = select(
+        func.coalesce(func.sum(File.download_count), 0)
+    ).select_from(File)
     total_downloads = (await session.exec(total_downloads_query)).one()
 
     # Active URLs
