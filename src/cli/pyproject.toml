@@ -7,8 +7,8 @@ requires-python = ">=3.14"
 dependencies = [
     # CLI
     "async-typer>=0.1.10",
-    # Http Client
-    "httpx2[brotli,http2,zstd]>=2.2.0",
+    # Http Client (GraphQL transport via httpx)
+    "httpx>=0.28.0",
     # Encryption (AES-256-GCM + Argon2id KDF)
     "cryptography==46.0.3",
     # ZIP with WinZip AES-256 support (matches web front-end)
@@ -39,7 +39,7 @@ nuitka-build = "python build.py"
 nuitka-debug = "python build.py debug"
 
 [tool.setuptools]
-packages = ["app"]
+include-package-data = true
 
 [tool.uv]
 package = true
@@ -47,7 +47,7 @@ default-groups = ['build', 'dev']
 
 
 [project.scripts]
-chithi = "app.__main__:main"
+chithi = "cli.main:main"
 
 [tool.ruff.lint]
 extend-select = ["I"] 

@@ -1,0 +1,2 @@
+# Django project package marker
+
