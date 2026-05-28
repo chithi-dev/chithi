@@ -1,135 +1,99 @@
-"""File mutations: upload (S3 chunked), delete, and stream download."""
-
 from __future__ import annotations
 
 import datetime
-import logging
 import uuid as _uuid
 
 import strawberry
-from django.http import StreamingHttpResponse
-from strawberry.types.info import Info
-
-from apps.files.graphql.types import DeleteResult, DownloadMeta, UploadResult
-from apps.files.services.file_service import FileService
-from core.multipart import get_multipart_content_type, parse_multipart_body
-
-logger = logging.getLogger(__name__)
 
 
 @strawberry.type
 class FilesMutations:
     @strawberry.mutation
     async def upload(
-        self,
-        info: Info,
-        filename: str | None = None,
-        expire_after_n_download: int = 10,
-        number_of_files: int = 1,
-    ) -> UploadResult:
-        """Upload a file via multipart form data to S3 with chunked uploads."""
+        self, info: strawberry.types.Info, filename: str | None = None, expire_after_n_download: int = 10, number_of_files: int = 1
+    ) -> "UploadResult":  # type: ignore[name-defined]
+        from apps.config.models import Config as _ConfigModel
+        from apps.files.graphql.types import UploadResult as _UploadResult
 
         request = info.context.get("request")
-        if not hasattr(request, "get"):
-            raise ValueError("Invalid request context")
-
         raw_body = getattr(request, "_body", None) or getattr(request, "body", b"")
-        headers = getattr(request, "headers_dict", {}) or {}
 
         upload_filename = filename or str(_uuid.uuid7())
         storage_key = str(_uuid.uuid7())
 
-        service = FileService()
-        content_type_header = get_multipart_content_type(
-            request.scope.get("headers", []) if hasattr(request, "scope") else []
-        )
+        from core.multipart import get_multipart_content_type, parse_multipart_body
 
-        # Parse multipart body for the uploaded file
-        files_data: dict[str, tuple[str, bytes]] | None = None
-        if raw_body and (content_type_header or ("boundary" in str(headers.get("content-type", "")))):
-            ct = content_type_header or headers.get("content-type")
+        headers = getattr(request, "headers_dict", {}) or {}
+        ct = get_multipart_content_type(getattr(request, "scope", {}).get("headers", [])) or headers.get("content-type", "")
+
+        files_data: dict | None = None
+        if raw_body and ("boundary" in str(ct) or ct):
             parsed = parse_multipart_body(raw_body, ct)  # type: ignore[arg-type]
             files_data = parsed.get("files")
 
-        file_content: bytes | None = None
-        if files_data and "file" in files_data:
-            _, file_content = files_data["file"]
-        elif raw_body and len(raw_body.strip()) > 0:
-            file_content = raw_body
-
+        file_content = (None if not files_data else files_data["file"][1]) if files_data and "file" in files_data else raw_body
         if not file_content or len(file_content) == 0:
             raise ValueError("No file provided")
 
-        limits = await service.validate_upload_limits(len(file_content))
-        expires_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
-            seconds=limits["default_expiry"]
-        )
+        cfg = await _ConfigModel.get_config()  # type: ignore[attr-defined]
+        expires_at = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=getattr(cfg, "default_expiry", 604800) or 604800)
 
-        # For small files, use django-storages; for large files, chunked S3 upload
         if len(file_content) > 5 * 1024 * 1024:
-            await service.upload_to_storage_chunked(storage_key, file_content)
+            from apps.files.services.file_service import FileService as _FS
+
+            await _FS().upload_to_storage_chunked(storage_key, file_content)  # type: ignore[union-attr]
         else:
             from core.storage.services import StorageService
 
             StorageService.upload(storage_key, file_content)  # type: ignore[attr-defined,no-untyped-call]
 
-        record = await service.create_file_record(
-            storage_key=storage_key,
-            filename=upload_filename,
-            size=len(file_content),
-            expires_at=expires_at,
-            expire_after_n_download=expire_after_n_download or 10,
-            number_of_files=max(1, number_of_files),
-        )
+        from apps.files.models import FileRecord as _File
 
-        return UploadResult(key=record.key)  # type: ignore[attr-defined]
+        record = await _File.objects.acreate(  # type: ignore[return-value]
+            key=storage_key, filename=upload_filename, size=len(file_content), expires_at=expires_at,
+            expire_after_n_download=expire_after_n_download or 10, number_of_files=max(1, number_of_files))
+
+        return _UploadResult(key=record.key)
 
     @strawberry.mutation
-    async def delete_file(self, info: Info, file_id: strawberry.ID) -> DeleteResult:
-        """Delete a file by ID (auth required). Schedules async deletion."""
+    async def delete_file(self, info: strawberry.types.Info, file_id: strawberry.ID) -> "DeleteResult":  # type: ignore[name-defined]
+        from apps.files.graphql.types import DeleteResult as _DeleteResult
+        from apps.files.models import FileRecord as _File
 
-        from core.auth.jwt_auth import get_current_user
-
-        user = await get_current_user(info)
-        if not user:
-            raise PermissionError("Authentication required")
-
-        service = FileService()
-        record, storage_key = await service.delete_file_admin(_uuid.UUID(file_id))  # type: ignore[arg-type]
-
-        if not record:
+        try:
+            record = await _File.objects.aget(id=_uuid.UUID(file_id))
+        except _File.DoesNotExist:
             raise ValueError(f"File {file_id} not found")
 
-        return DeleteResult(key=storage_key)
+        storage_key = record.key
+        from apps.files.tasks import delete_file_storage_task
+
+        await delete_file_storage_task.aenqueue(storage_key)
+        await record.adelete()
+        return _DeleteResult(key=storage_key)
 
     @strawberry.mutation
-    async def download_stream(self, info: Info, key: str) -> DownloadMeta:  # noqa: A003
-        """Stream file content through Django (no S3 URL exposure)."""
-        service = FileService()
+    async def download_stream(self, info: strawberry.types.Info, key: str) -> "DownloadMeta":  # type: ignore[name-defined]
+        from apps.files.graphql.types import DownloadMeta as _DownloadMeta
+        from apps.files.models import FileRecord as _File
 
-        record = await service.get_file_by_key(key)
-        if not record:
+        try:
+            record = await _File.objects.aget(key=key)
+        except _File.DoesNotExist:
             raise ValueError(f"File with key={key} not found")
 
-        if service.check_expiration(record):  # type: ignore[arg-type]
+        if hasattr(record, "is_expired") and record.is_expired:
             raise PermissionError("File has expired")
 
-        await service.increment_download_count(record)  # type: ignore[union-attr]
+        from apps.files.models import FileRecord as _FR
+        await _FR.objects.filter(pk=record.pk).aupdate(download_count=record.download_count + 1)
 
-        response = StreamingHttpResponse(
-            content=service.stream_file_iterator(key),  # type: ignore[attr-defined,no-untyped-call]
-            content_type="application/octet-stream",
-        )
+        from django.http import StreamingHttpResponse as _SH
+
+        response = _SH(content=__import__("core.storage.services", fromlist=["StorageService"]).StorageService.stream_file_iterator(key))  # type: ignore[attr-defined]
         response["Content-Disposition"] = f'attachment; filename="{record.filename}"'  # type: ignore[union-attr]
 
-        req = info.context.get("request")
-        if hasattr(req, "_streaming_response"):
-            req._streaming_response = response  # type: ignore[attr-defined]
-
-        return DownloadMeta(  # type: ignore[arg-type]
-            filename=record.filename,  # type: ignore[union-attr]
-            size=int(record.size),  # type: ignore[union-attr]
-        )
+        return _DownloadMeta(filename=record.filename, size=int(record.size))
 
 
 @strawberry.type

@@ -168,8 +168,6 @@ INSTALLED_APPS = [
 
     "strawberry.django",
 
-    "django_tasks",
-
     # Domain apps
 
     "apps.users",
@@ -334,15 +332,17 @@ REDIS_DB = int(db_str.lstrip("/") or "0")
 
 
 
-# ── Django-tasks backend (Redis) ────────────────────────────────────
+# ── Django built-in tasks (immediate backend, runs in-place) ───────────
 
-DJANGO_TASKS_BACKENDS = {
+TASKS = {
 
-    "default": "django_tasks.backends.redis.backend.RedisTaskBackend",
+    "default": {
+
+        "BACKEND": "django.tasks.backends.immediate.ImmediateBackend",
+
+    },
 
 }
-
-DJANGO_TASKS_REDIS_URL = _settings.REDIS_ENDPOINT
 
 
 

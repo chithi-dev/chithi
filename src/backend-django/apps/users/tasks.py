@@ -2,7 +2,7 @@
 
 import logging
 
-from django_tasks import task
+from django.tasks import task
 
 
 logger = logging.getLogger(__name__)

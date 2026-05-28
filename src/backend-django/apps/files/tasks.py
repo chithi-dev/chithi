@@ -1,11 +1,7 @@
-"""Async background tasks for the files domain (django-tasks)."""
-
-from __future__ import annotations
-
 import logging
 
 from django.db.models import Q
-from django_tasks import task
+from django.tasks import task
 
 logger = logging.getLogger(__name__)
 
@@ -18,9 +14,15 @@ async def delete_file_storage_task(storage_key: str) -> None:
         from core.storage.services import StorageService
 
         deleted = StorageService.delete(storage_key)  # type: ignore[attr-defined]
-        logger.info("Deleted file %s from storage: %s", storage_key, "ok" if deleted else "failed")
+        logger.info(
+            "Deleted file %s from storage: %s",
+            storage_key,
+            "ok" if deleted else "failed",
+        )
     except Exception:
-        logger.error("Failed to delete file %s from storage", storage_key, exc_info=True)
+        logger.error(
+            "Failed to delete file %s from storage", storage_key, exc_info=True
+        )
 
 
 @task()
@@ -54,7 +56,6 @@ async def delete_expired_file_by_id(file_id: str) -> None:
         return
 
     storage_key = record.key
-    await delete_file_storage_task.schedule(args=[storage_key])
+    await delete_file_storage_task.aenqueue(storage_key)
     await record.adelete()
     logger.info("Deleted expired file %s (key=%s)", file_id, storage_key)
-

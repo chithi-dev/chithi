@@ -1,99 +1,56 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import datetime
-import strawberry
-from typing import List, Optional
-from uuid import UUID
+from uuid import UUID as _UUID
 
-from apps.reverse_rooms.graphql.types import (
-    RoomOut, RoomFileEntry
-)
-from apps.reverse_rooms.services.room_service import RoomService
+import strawberry
 
 
 @strawberry.type
 class ReverseRoomsQueries:
     @strawberry.field
-    async def room(self, info: strawberry.types.Info, id: strawberry.ID) -> Optional[RoomOut]:
-        """Get a single room by ID (no auth required)."""
-        service = RoomService()
-        result = await service.get_room(UUID(id))  # type: ignore[arg-type]
-        if not result:
+    async def room(self, info: strawberry.types.Info, id: strawberry.ID) -> "RoomOut | None":  # type: ignore[name-defined]
+        from apps.reverse_rooms.graphql import types as _types
+        from apps.reverse_rooms.models import Room as _Room
+
+        from apps.reverse_rooms.models import Room as _Room, RoomFile
+
+        try:
+            room = await _Room.objects.aget(id=_UUID(str(id)))
+        except Exception:
             return None
 
-        files_list = [
-            RoomFileEntry(
-                key=f["key"],
-                filename=f["filename"],
-                size=f["size"],
-                uploaded_at=f["uploaded_at"],
-            )
-            for f in result.get("files", [])
-        ]
+        files_list = [{"key": f.key, "filename": f.filename, "size": int(f.size), "uploaded_at": f.uploaded_at} async for f in RoomFile.objects.filter(room=room).order_by("-uploaded_at")]  # noqa: F841
 
-        return RoomOut(
-            id=result["id"],
-            name=result["name"],
-            created_at=result["created_at"],
-            expires_at=result["expires_at"],
-            expire_after=result["expire_after"],
-            number_of_downloads=result.get("number_of_downloads"),
-            files=files_list,
-        )
+        return _types.RoomOut(  # type: ignore[call-arg,name-defined]
+            id=room.id, name=room.name, created_at=room.created_at, expires_at=room.expires_at,
+            expire_after=room.expire_after, number_of_downloads=room.number_of_downloads,
+            files=[_types.RoomFileEntry(key=f["key"], filename=f["filename"], size=f["size"], uploaded_at=f["uploaded_at"]) for f in files_list])
 
     @strawberry.field
-    async def rooms(self, info: strawberry.types.Info) -> List[RoomOut]:
-        """List all rooms (no auth required)."""
-        from apps.reverse_rooms.models import Room, RoomFile
+    async def rooms(self, info: strawberry.types.Info) -> "list[RoomOut]":  # type: ignore[name-defined]
+        from apps.reverse_rooms.graphql import types as _types
+        from apps.reverse_rooms.models import Room as _Room, RoomFile as _RF
 
-        rooms_qs = Room.objects.all().order_by("-created_at")
-        result_list: List[RoomOut] = []
-
-        async for room in rooms_qs:
-            files_qs = RoomFile.objects.filter(room=room).order_by("-uploaded_at")
+        result_list: list["_types.RoomOut"] = []
+        async for room in _Room.objects.all().order_by("-created_at"):
             files_list = [
-                RoomFileEntry(
-                    key=f.key,  # type: ignore[arg-type]
-                    filename=f.filename,  # type: ignore[arg-type]
-                    size=int(f.size),  # type: ignore[union-attr]
-                    uploaded_at=f.uploaded_at if f.uploaded_at else datetime.datetime.now(datetime.timezone.utc),  # type: ignore[union-attr]
-                )
-                async for f in files_qs
-            ]
+                _types.RoomFileEntry(key=f.key, filename=f.filename, size=int(f.size), uploaded_at=f.uploaded_at or datetime.datetime.now(datetime.timezone.utc))  # noqa: F821
+                async for f in _RF.objects.filter(room=room).order_by("-uploaded_at")]
 
-            result_list.append(
-                RoomOut(
-                    id=room.id,
-                    name=room.name,
-                    created_at=room.created_at,
-                    expires_at=room.expires_at,
-                    expire_after=room.expire_after,
-                    number_of_downloads=room.number_of_downloads,
-                    files=files_list,
-                )
-            )
+            result_list.append(_types.RoomOut(  # type: ignore[call-arg]
+                id=room.id, name=room.name, created_at=room.created_at, expires_at=room.expires_at,
+                expire_after=room.expire_after, number_of_downloads=room.number_of_downloads, files=files_list))
 
         return result_list
 
     @strawberry.field
-    async def room_files(
-        self, info: strawberry.types.Info, id: strawberry.ID
-    ) -> List[RoomFileEntry]:
-        """List files in a room (no auth required)."""
-        service = RoomService()
-        result = await service.list_room_files(UUID(id))  # type: ignore[arg-type]
-        if not result:
-            return []
+    async def room_files(self, info: strawberry.types.Info, id: strawberry.ID) -> "list[RoomFileEntry]":  # type: ignore[name-defined]
+        from apps.reverse_rooms.graphql import types as _types
+        from apps.reverse_rooms.models import RoomFile as _RF
 
-        return [
-            RoomFileEntry(
-                key=f["key"],
-                filename=f["filename"],
-                size=f["size"],
-                uploaded_at=datetime.datetime.fromisoformat(f["uploaded_at"]) if isinstance(f.get("uploaded_at"), str) else f.get("uploaded_at", datetime.datetime.now(datetime.timezone.utc)),  # type: ignore[arg-type]
-            )
-            for f in result
-        ]
+        files_qs = _RF.objects.filter(room_id=id).order_by("-uploaded_at")
+        return [_types.RoomFileEntry(key=f.key, filename=f.filename, size=int(f.size), uploaded_at=f.uploaded_at) async for f in files_qs if f.uploaded_at]
 
 
 @strawberry.type

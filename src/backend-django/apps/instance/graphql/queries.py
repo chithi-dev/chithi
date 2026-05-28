@@ -59,9 +59,8 @@ class InstanceQueries:
     @strawberry.field
     async def admin_stats(self, info: strawberry.types.Info) -> AdminStatsOut:
         """Aggregate instance statistics (auth required)."""
-        from core.auth.jwt_auth import get_current_user
+        user = info.context.user  # type: ignore[union-attr]
 
-        user = await get_current_user(info)
         if not user or not getattr(user, "is_staff", False):  # type: ignore[union-attr]
             raise PermissionError("Admin access required")
 

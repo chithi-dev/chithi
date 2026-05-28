@@ -1,54 +1,36 @@
-
-import uuid
-
-from django.contrib.auth.models import AbstractUser, UserManager as _AuthUserManager
-from django.db import models
-
-
-class UuidV7Default:
-    """Generate UUIDv7-like identifiers via uuid4 for compatibility."""
-
-    def __init__(self) -> None:
-        pass  # uuid4 is time-ordered enough for our purposes
-
-    def __repr__(self) -> str:
-        return "uuidv7()"
-
-
-class UserManager(_AuthUserManager):
-    """Custom manager alias - keeps default behavior."""
-
-    pass
-
-
-class User(AbstractUser):
-    """Extended user model with UUID PK and nullable email.
-
-    Replaces the FastAPI ``app.models.user.User`` table.
-    """
-
-    objects = UserManager()
-
-    # Override id → UUID (PK) instead of auto-created BigAutoField
-    id = models.UUIDField(
-        primary_key=True,
-        default=uuid.uuid4,
-        editable=False,
-        db_comment="Primary key - UUID",
-    )
-
-    class Meta:
-        app_label = "users"
-        db_table = "users_user"
-        indexes = [
-            models.Index(fields=["username"], name="idx_users_username"),
-            models.Index(fields=["email"], name="idx_users_email"),
-        ]
-
-    def __str__(self) -> str:
-        return self.username or ""
-
-
-# ── Ensure AbstractUser fields are present ────────────────────────
-# password, last_login, is_active, is_staff, is_superuser, date_joined, groups, user_permissions
-# All inherited from AbstractUser; we only override `id` and add indexes.
+import uuid
+
+from django.contrib.auth.models import AbstractUser, UserManager
+from django.db import models
+
+
+class User(AbstractUser):
+    """Extends Django's ``AbstractUser`` with a UUID primary key.
+
+    Inherits from AbstractUser:
+        username, first_name, last_name, email, password, is_staff,
+        is_active, is_superuser, date_joined, last_login, groups,
+        user_permissions.
+    """
+
+    objects = UserManager()
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+    )
+
+    # Enforce uniqueness on email (AbstractUser does not).
+    class Meta:
+        app_label = "users"
+        db_table = "users_user"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["email"],
+                name="uq_users_email",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return self.username or ""

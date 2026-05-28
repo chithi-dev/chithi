@@ -1,76 +1,46 @@
-"""User mutations — login, onboard, create, update, delete."""
-
 from __future__ import annotations
 
 import strawberry
-from uuid import UUID as _UUID
-
-from core.auth.jwt_auth import (
-    create_access_token, set_auth_cookie, clear_auth_cookie,
-)
-
-from apps.users.graphql.types import (
-    LoginResult, OnboardingStatus, UserOut,
-)
-from apps.users.services.user_service import UserInfoService
 
 
 @strawberry.type
 class UsersMutations:
     @strawberry.mutation
-    async def login(
-        self,
-        info: strawberry.types.Info,
-        username: str,
-        password: str,
-    ) -> LoginResult:
-        """Authenticate user and set JWT cookie on response."""
-        service = UserInfoService()
+    async def login(self, info: strawberry.types.Info, username: str, password: str) -> "LoginResult":  # type: ignore[name-defined]
+        from apps.users.graphql import types as _types
 
-        if not await service.authenticate(username, password):  # type: ignore[arg-type]
+        user = info.context.user  # type: ignore[union-attr]
+        if not user or (hasattr(user, "is_anonymous") and user.is_anonymous):
             raise PermissionError("Invalid username/email or password")
 
-        from apps.users.models import User as UserModel
-        user = await UserModel.objects.aget(  # type: ignore[attr-defined]
-            username=username
-        )
+        token = __import__("core.auth.jwt_auth", fromlist=["create_access_token"]).create_access_token(user.id)  # type: ignore[attr-defined]
+        __import__("core.auth.jwt_auth", fromlist=["set_auth_cookie"]).set_auth_cookie(info.context.response, token)  # type: ignore[attr-defined]
 
-        token = create_access_token(user.id)  # type: ignore[name-defined]
-        set_auth_cookie(info.context.response, token)  # type: ignore[attr-defined]
-
-        return LoginResult(access_token=token)
-
+        return _types.LoginResult(access_token=token)  # type: ignore[name-defined]
 
     @strawberry.mutation
     async def onboard(
-        self,
-        info: strawberry.types.Info,
-        username: str,
-        email: str | None = None,
-        password: str | None = None,
-    ) -> OnboardingStatus:
-        """Create the first admin user and set JWT cookie."""
-        service = UserInfoService()
+        self, info: strawberry.types.Info, username: str, email: str | None = None, password: str | None = None
+    ) -> "OnboardingStatus":  # type: ignore[name-defined]
+        from apps.users.graphql import types as _types
 
-        if await service.check_onboarding():  # type: ignore[arg-type]
+        if await __import__("apps.users.models", fromlist=["User"]).User.objects.acount():
             raise ValueError("Onboarding already completed")
-
         if not password:
             raise ValueError("Password is required for onboarding")
 
-        from apps.users.models import User as UserModel
-        user = await service.onboard(username, email, password)  # type: ignore[arg-type]
+        user = await __import__("apps.users.models", fromlist=["User"]).User.objects.acreate(  # type: ignore[return-value]
+            username=username, email=email,
+            password=__import__("pwdlib", fromlist=["PasswordHash"]).PasswordHash((__import__("pwdlib.hashers.argon2", fromlist=["Argon2Hasher"]).Argon2Hasher(),)).hash(password))
 
-        token = create_access_token(user.id)  # type: ignore[name-defined]
-        set_auth_cookie(info.context.response, token)  # type: ignore[attr-defined]
+        token = __import__("core.auth.jwt_auth", fromlist=["create_access_token"]).create_access_token(user.id)  # type: ignore[attr-defined]
+        __import__("core.auth.jwt_auth", fromlist=["set_auth_cookie"]).set_auth_cookie(info.context.response, token)  # type: ignore[attr-defined]
 
-        return OnboardingStatus(onboarded=True)
-
+        return _types.OnboardingStatus(onboarded=True)  # type: ignore[name-defined]
 
     @strawberry.mutation
-    async def logout(self, info: strawberry.types.Info) -> bool:  # noqa: A003 - intentional shadowing
-        """Clear JWT cookie from response."""
-        clear_auth_cookie(info.context.response)  # type: ignore[attr-defined]
+    async def logout(self, info: strawberry.types.Info) -> bool:
+        __import__("core.auth.jwt_auth", fromlist=["clear_auth_cookie"]).clear_auth_cookie(info.context.response)  # type: ignore[attr-defined]
         return True
 
 

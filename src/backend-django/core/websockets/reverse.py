@@ -8,8 +8,7 @@ import json
 import logging
 import uuid
 from contextlib import suppress
-
-
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -74,19 +73,20 @@ async def reverse_room_websocket_endpoint(
     host_token_query: str | None = None,
 ) -> None:
     """ASGI WebSocket endpoint for /ws/reverse/rooms/{room_id}."""
-    import aioboto3
+    import aioboto3  # type: ignore[import-untyped,unused-ignore]
 
     redis_url = redis_url or "redis://localhost:6379/1"
     bucket_name = bucket_name or "chithi"
 
     # Verify room exists
     room_key = f"chithi:room:{room_id}"
-    client = aioboto3.Session()
+    client = aioboto3.Session()  # type: ignore[attr-defined]
     async with client.client("s3", endpoint_url=s3_endpoint or "http://localhost:9000") as s3:
         room_data_raw = None
 
     # Use Redis to check room
-    r = __import__("redis.asyncio", try_index=0)
+    _r_mod = __import__("redis.asyncio")  # type: ignore[misc]
+    r = _r_mod
     redis_client = r.from_url(redis_url)
 
     # Check room exists in Redis (using JSON)

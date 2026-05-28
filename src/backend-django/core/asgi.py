@@ -16,10 +16,10 @@ def _create_asgi_app() -> Callable[[Any, Any, Any], Awaitable[None]]:
     rustfs_endpoint = getattr(dj_settings, "RUSTFS_ENDPOINT_URL", "http://localhost:9000")
     bucket_name = getattr(dj_settings, "RUSTFS_BUCKET_NAME", "chithi")
 
-    from strawberry.django.asgi import GraphQL as AsyncGraphQLView
+    from core.auth.jwt_auth import AuthGraphQLView
     from core.graphql import schema
 
-    graphql_app = AsyncGraphQLView(schema=schema, allow_queries_via_get=True)  # type: ignore[arg-type]
+    graphql_app = AuthGraphQLView(schema=schema)  # type: ignore[arg-type]
 
     async def asgi_app(scope: Any, receive: Any, send: Any) -> None:  # noqa: F811
         if scope["type"] == "websocket":
@@ -59,9 +59,14 @@ def _create_asgi_app() -> Callable[[Any, Any, Any], Awaitable[None]]:
                 )
                 return
 
-        # Non-WS requests go through GraphQL view.
-        # The view provides info.context.request and info.context.response
-        # to resolvers for cookie read/write (Strawberry Django pattern).
+            # Fall through to GraphQL WebSocket subscriptions.
+            await graphql_app(scope, receive, send)  # type: ignore[arg-type]
+            return
+
+        # Non-WS requests go through the auth-aware GraphQL view.
+        # The custom context provides info.context.request / .response for
+        # cookie read/write and injects info.context.user with the authenticated
+        # User (from Authorization: Bearer <token>).
         await graphql_app(scope, receive, send)  # type: ignore[arg-type]
 
     return asgi_app
