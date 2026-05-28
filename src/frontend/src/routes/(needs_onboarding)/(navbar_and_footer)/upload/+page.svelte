@@ -28,6 +28,7 @@
 	let dragOverZone = $state(false);
 	let dragCounter = $state(0);
 	let files = $state<File[]>([]);
+	let initialFolderName = $state<string | undefined>(undefined);
 	let debugLoading = $state(false);
 	let uploadResult = $state<{
 		finalLink: string;
@@ -195,8 +196,11 @@
 		}
 	};
 
-	const onFilesSelected = (newFiles: File[]) => {
-		files = [...files, ...newFiles];
+	const onFilesSelected = (newFiles: File[], folderName?: string) => {
+					if (folderName) {
+				initialFolderName = folderName;
+			}
+			files = [...files, ...newFiles];
 		dragCounter = 0;
 		dragActive = false;
 		dragOverZone = false;

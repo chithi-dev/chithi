@@ -5,7 +5,7 @@
 	import { useConfigQuery } from '#queries/config';
 
 	interface Props {
-		onFilesSelected: (files: File[]) => void;
+		onFilesSelected: (files: File[], folderName?: string) => void;
 		isDraggingOverZone: boolean;
 		onZoneDragEnter: (e: DragEvent) => void;
 		onZoneDragLeave: (e: DragEvent) => void;
@@ -16,6 +16,7 @@
 	const { config: configData } = useConfigQuery();
 
 	let fileInputInitial = $state<HTMLInputElement>();
+	let folderInputInitial = $state<HTMLInputElement>();
 
 	const traverseFileTree = async (item: any, path = ''): Promise<File[]> => {
 		try {
@@ -73,11 +74,15 @@
 		const items = e.dataTransfer?.items;
 		if (items) {
 			const promises: Promise<File[]>[] = [];
+			let folderName: string | undefined;
 			for (let i = 0; i < items.length; i++) {
 				const item = items[i];
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
 				if (entry) {
+					if (entry.isDirectory && !folderName) {
+						folderName = entry.name;
+					}
 					promises.push(traverseFileTree(entry));
 				} else if (item.kind === 'file') {
 					const file = item.getAsFile();
@@ -87,7 +92,7 @@
 			const fileArrays = await Promise.all(promises);
 			const newFiles = fileArrays.flat();
 			if (newFiles.length > 0) {
-				onFilesSelected(newFiles);
+				onFilesSelected(newFiles, folderName);
 			}
 		} else if (e.dataTransfer?.files) {
 			onFilesSelected(Array.from(e.dataTransfer.files));
@@ -98,6 +103,20 @@
 		const target = e.target as HTMLInputElement;
 		if (target.files) {
 			onFilesSelected(Array.from(target.files));
+		}
+		target.value = '';
+	};
+
+	const handleFolderSelect = (e: Event) => {
+		const target = e.target as HTMLInputElement;
+		if (target.files) {
+			const filesArray = Array.from(target.files);
+			if (filesArray.length > 0) {
+				// The first file's webkitRelativePath starts with the folder name
+				const relativePath = (filesArray[0] as any).webkitRelativePath;
+				const folderName = relativePath ? relativePath.split('/')[0] : undefined;
+				onFilesSelected(filesArray, folderName);
+			}
 		}
 		target.value = '';
 	};
@@ -153,23 +172,37 @@
 			end-to-end encryption
 		</p>
 
-		<!-- Button -->
-		<Button
-			variant="default"
-			size="lg"
-			class={[
-				'cursor-pointer px-8 py-6 text-lg transition-all duration-200 md:px-6 md:py-4 md:text-base',
-				isDraggingOverZone && 'scale-105 shadow-lg'
-			]}
-			onclick={(e) => {
-				e.stopPropagation();
-				fileInputInitial?.click();
-			}}
-		>
-			Select files to upload
-		</Button>
+		<!-- Buttons container -->
+		<div class="flex flex-col gap-3">
+			<Button
+				variant="default"
+				size="lg"
+				class={[
+					'cursor-pointer px-8 py-6 text-lg transition-all duration-200 md:px-6 md:py-4 md:text-base',
+					isDraggingOverZone && 'scale-105 shadow-lg'
+				]}
+				onclick={(e) => {
+					e.stopPropagation();
+					fileInputInitial?.click();
+				}}
+			>
+				Select files to upload
+			</Button>
 
-		<!-- Hidden file input -->
+			<Button
+				variant="outline"
+				size="lg"
+				class="cursor-pointer px-8 py-6 text-lg transition-all duration-200 md:px-6 md:py-4 md:text-base"
+				onclick={(e) => {
+					e.stopPropagation();
+					folderInputInitial?.click();
+				}}
+			>
+				Select folder to upload
+			</Button>
+		</div>
+
+		<!-- Hidden file inputs -->
 		<input
 			bind:this={fileInputInitial}
 			type="file"
@@ -177,6 +210,15 @@
 			class="hidden"
 			multiple
 			onchange={handleFileSelect}
+		/>
+		<input
+			bind:this={folderInputInitial}
+			type="file"
+			id="file-input-folder"
+			class="hidden"
+			webkitdirectory
+			directory
+			onchange={handleFolderSelect}
 		/>
 	</div>
 
