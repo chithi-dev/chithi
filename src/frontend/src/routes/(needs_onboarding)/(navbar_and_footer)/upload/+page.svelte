@@ -29,6 +29,7 @@
 	let dragOverZone = $state(false);
 	let dragCounter = $state(0);
 	let files = $state<File[]>([]);
+	let initialFolderName = $state<string | undefined>(undefined);
 	let debugLoading = $state(false);
 	let uploadResult = $state<{
 		finalLink: string;
@@ -154,7 +155,10 @@
 		}
 	};
 
-	const onFilesSelected = (newFiles: File[]) => {
+	const onFilesSelected = $derived((newFiles: File[], folderName?: string) => {
+		if (folderName) {
+			initialFolderName = folderName;
+		}
 		files = [...files, ...newFiles];
 		dragCounter = 0;
 		dragActive = false;
@@ -162,9 +166,9 @@
 		dragOverCard = false;
 		stage = UploadStage.Stage_2;
 		window.history.pushState({ stage: UploadStage.Stage_2 }, '', window.location.href);
-	};
+	});
 
-	const onUploadComplete = (result: {
+	const onUploadComplete = $derived((result: {
 		finalLink: string;
 		viewOnceLink: string;
 		isViewOnce: boolean;
@@ -172,7 +176,7 @@
 		uploadResult = result;
 		stage = UploadStage.Stage_3;
 		window.history.pushState({ stage: UploadStage.Stage_3 }, '', window.location.href);
-	};
+	});
 
 	const resetState = (historyMode: 'push' | 'replace' = 'push') => {
 		files = [];
@@ -194,6 +198,10 @@
 	const onReset = () => {
 		resetState('push');
 	};
+
+	const onBack = $derived(() => {
+		stage = UploadStage.Stage_1;
+	});
 
 	const handlePopState = (e: PopStateEvent) => {
 		// Ignore popstate until after initial microtask flush completes
@@ -354,7 +362,7 @@
 						bind:files
 						onFilesUpdated={(newFiles) => (files = newFiles)}
 						{onUploadComplete}
-						onBack={() => (stage = UploadStage.Stage_1)}
+						{onBack}
 						isDraggingOverZone={dragOverZone}
 						onZoneDragEnter={handleZoneDragEnter}
 						onZoneDragLeave={handleZoneDragLeave}

@@ -145,7 +145,7 @@
 	};
 
 	const handleUpload = async (viewOnce = false) => {
-		if (files.length === 0) return;
+		if (files.length === 0 || inProgress) return;
 		if (viewOnce && files.length !== 1) {
 			toast.error('View Once only supports a single file');
 			return;
@@ -494,10 +494,10 @@
 		<Button
 			class="w-full cursor-pointer"
 			onclick={() => handleUpload(false)}
-			disabled={files.length === 0}>Upload</Button
+			disabled={files.length === 0 || inProgress}>Upload</Button
 		>
 		{#if files.length === 1}
-			<Button variant="outline" class="w-full cursor-pointer" onclick={() => handleUpload(true)}>
+			<Button variant="outline" class="w-full cursor-pointer" onclick={() => handleUpload(true)} disabled={inProgress}>
 				<Eye class="mr-2 size-4" /> View Once
 			</Button>
 		{:else}

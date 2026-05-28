@@ -2,6 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { CircleAlert, LoaderCircle, KeyRound } from '@lucide/svelte';
+	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { Api } from '#consts/backend';
 	import { PasswordRequiredError, saveBlobUrl } from '#functions/download';
@@ -148,8 +149,8 @@
 		saveBlobUrl(blob || url!, entryFilename);
 	}
 
-	// Auto-start on mount
-	$effect.pre(() => {
+	// Auto-start on mount (use onMount to avoid re-running on page store changes during navigation)
+	onMount(() => {
 		fetchDecryptAndShow();
 	});
 </script>
