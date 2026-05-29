@@ -4,55 +4,31 @@ import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 const queryKey = ['onboarding-status'];
 
-const resolveFetch = (fetch?: typeof globalThis.fetch) => fetch ?? globalThis.fetch;
-
-const fetchOnboarding = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
-	const runtimeFetch = resolveFetch(fetch);
-	const res = await runtimeFetch(Api.ONBOARDING, { credentials: 'include' });
+const fetchOnboarding = async (fn = globalThis.fetch) => {
+	const res = await fn(Api.ONBOARDING, { credentials: 'include' });
 	if (!res.ok) throw new Error('Failed to fetch onboarding status');
 	return res.json() as Promise<{ onboarded: boolean }>;
 };
 
-export const prefetch = async ({
-	queryClient,
-	fetch
-}: {
-	queryClient: QueryClient;
-	fetch?: typeof globalThis.fetch;
-}) => {
-	await queryClient.prefetchQuery({
-		queryKey,
-		queryFn: () => fetchOnboarding({ fetch }),
-		staleTime: 10,
-		retry: false
-	});
+export const prefetch = async ({ queryClient, fetch }: { queryClient: QueryClient; fetch?: typeof globalThis.fetch }) => {
+	await queryClient.prefetchQuery({ queryKey, queryFn: () => fetchOnboarding(fetch), retry: false });
 };
 
 export const useOnboarding = () => {
 	const queryClient = useQueryClient();
 
-	const status = createQuery(() => ({
-		queryKey,
-		queryFn: () => fetchOnboarding({}),
-		retry: false
-	}));
+	const status = createQuery(() => ({ queryKey, queryFn: () => fetchOnboarding(), retry: false }));
 
-	const completeOnboarding = async (user: {
-		username: string;
-		email: string;
-		password: string;
-	}) => {
+	const completeOnboarding = async (user: { username: string; email: string; password: string }) => {
 		const res = await fetch(Api.ONBOARDING, {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify(user)
 		});
-
 		if (!res.ok) {
 			const err = await res.json();
 			throw new Error(err.detail ?? 'Failed to complete onboarding');
 		}
-
 		await queryClient.invalidateQueries({ queryKey });
 		return res.json();
 	};

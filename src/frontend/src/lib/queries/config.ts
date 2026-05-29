@@ -3,27 +3,14 @@ import type { QueryClient } from '@tanstack/svelte-query';
 import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 
 const queryKey = ['config'];
-const resolveFetch = (fetch?: typeof globalThis.fetch) => fetch ?? globalThis.fetch;
 
-const fetchConfig = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
-	const runtimeFetch = resolveFetch(fetch);
-	const res = await runtimeFetch(Api.CONFIG, { credentials: 'include' });
+const fetchConfig = async (fn = globalThis.fetch) => {
+	const res = await fn(Api.CONFIG, { credentials: 'include' });
 	return res.json();
 };
 
-export const prefetch = async ({
-	queryClient,
-	fetch
-}: {
-	queryClient: QueryClient;
-	fetch?: typeof globalThis.fetch;
-}) => {
-	await queryClient.prefetchQuery({
-		queryKey,
-		queryFn: () => fetchConfig({ fetch }),
-		staleTime: 10,
-		retry: true
-	});
+export const prefetch = async ({ queryClient, fetch }: { queryClient: QueryClient; fetch?: typeof globalThis.fetch }) => {
+	await queryClient.prefetchQuery({ queryKey, queryFn: () => fetchConfig(fetch) });
 };
 
 type ConfigUpdate = {
@@ -42,12 +29,7 @@ type ConfigUpdate = {
 export const useConfigQuery = () => {
 	const queryClient = useQueryClient();
 
-	const query = createQuery(() => ({
-		queryKey,
-		queryFn: () => fetchConfig({}),
-		staleTime: 10,
-		retry: true
-	}));
+	const query = createQuery(() => ({ queryKey, queryFn: () => fetchConfig() }));
 
 	const update_config = async (data: Partial<ConfigUpdate>) => {
 		const res = await fetch(Api.ADMIN.CONFIG, {

@@ -1,74 +1,25 @@
 import { strip_trailing_slash } from '#functions/urls';
 import { env } from '$env/dynamic/public';
 
-const environment_variable = env.PUBLIC_BACKEND_API ?? 'http://localhost:8000';
-const normalized_env = strip_trailing_slash(environment_variable);
+const root = strip_trailing_slash(env.PUBLIC_BACKEND_API ?? 'http://localhost:8000');
 
-/**
- * Single source of truth for the Backend API.
- * Uses string templates for reliable path joining and the URL API for complex transformations.
- */
 export class Api {
-	static #root = normalized_env;
+	static #url = (path: string) => `${root}/${path}`;
+	static #ws = (path: string) => new URL(this.#url(path).replace(/^http/, 'ws'));
 
-	/**
-	 * Internal helper to build absolute HTTP URLs.
-	 */
-	static #url = (path: string) => `${this.#root}/${path}`;
+	static get BASE() { return root; }
+	static get LOGIN() { return this.#url('login'); }
+	static get USER() { return this.#url('user'); }
+	static get CONFIG() { return this.#url('config'); }
+	static get ONBOARDING() { return this.#url('onboarding'); }
+	static get INSTANCE() { return this.#url('instance/information'); }
+	static get INSTANCE_STATISTICS() { return this.#url('instance/statistics'); }
+	static get UPLOAD() { return this.#url('upload'); }
+	static get STATE_WS() { return this.#ws('ws/state').href; }
 
-	/**
-	 * Internal helper to build absolute WebSocket URLs.
-	 */
-	static #ws = (path: string) => {
-		const url = this.#url(path).replace(/^http/, 'ws');
-		return new URL(url);
-	};
+	static FILE_INFO(slug: string) { return this.#url(`information/${slug}`); }
+	static DOWNLOAD(slug: string) { return this.#url(`download/${slug}`); }
 
-	// --- Core Routes ---
-	static get BASE() {
-		return this.#root;
-	}
-	static get LOGIN() {
-		return this.#url('login');
-	}
-	static get USER() {
-		return this.#url('user');
-	}
-	static get CONFIG() {
-		return this.#url('config');
-	}
-	static get ONBOARDING() {
-		return this.#url('onboarding');
-	}
-
-	static get INSTANCE() {
-		return this.#url('instance/information');
-	}
-
-	static get INSTANCE_STATISTICS() {
-		return this.#url('instance/statistics');
-	}
-
-	static get UPLOAD() {
-		return this.#url('upload');
-	}
-
-	/**
-	 * App state WebSocket URL.
-	 */
-	static get STATE_WS() {
-		return this.#ws('ws/state').href;
-	}
-
-	// --- Parameterized Routes ---
-	static FILE_INFO(slug: string) {
-		return this.#url(`information/${slug}`);
-	}
-	static DOWNLOAD(slug: string) {
-		return this.#url(`download/${slug}`);
-	}
-
-	// --- Admin Namespace ---
 	static get ADMIN() {
 		return {
 			CONFIG: this.#url('admin/config'),
@@ -81,17 +32,12 @@ export class Api {
 		};
 	}
 
-	// --- Reverse Share Namespace ---
 	static get REVERSE() {
 		return {
 			ROOMS: this.#url('reverse/rooms'),
 			ROOM_DETAIL: (id: string) => this.#url(`reverse/rooms/${id}`),
 			ROOM_UPLOAD: (id: string) => this.#url(`reverse/rooms/${id}/upload`),
 			ROOM_HOSTS: (id: string) => this.#url(`reverse/rooms/${id}/hosts`),
-
-			/**
-			 * Builds a WebSocket URL for a room.
-			 */
 			WS_URL: (id: string, token?: string) => {
 				const ws = this.#ws(`ws/reverse/rooms/${id}`);
 				if (token) ws.searchParams.set('host_token', token);

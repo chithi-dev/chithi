@@ -76,12 +76,7 @@
 
 		try {
 			await downloadAndDecryptFile(
-				slug,
-				key,
-				password,
-				filename,
-				fileSize,
-				numberOfFiles,
+				slug, key, password, filename, fileSize,
 				(p) => (downloadProgress.target = p)
 			);
 
