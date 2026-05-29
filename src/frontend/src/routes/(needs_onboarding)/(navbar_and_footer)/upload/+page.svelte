@@ -11,7 +11,7 @@
 	import { onMount } from 'svelte';
 	import { CloudOff } from '@lucide/svelte';
 	import { UploadStage, isWhichUploadStage } from './enums';
-	import { traverseFileTree } from '#functions/files';
+	import { processDataTransferItems } from '#functions/files';
 
 	// Stages
 	const { default: Stage1 } = await import('./stage_1.svelte');
@@ -124,33 +124,10 @@
 	const handlePaste = async (e: ClipboardEvent) => {
 		if (stage === UploadStage.Stage_3) return;
 		const items = e.clipboardData?.items;
-		if (!items) return;
-		let hasFiles = false;
-		for (let i = 0; i < items.length; i++) {
-			if (items[i].kind === 'file') {
-				hasFiles = true;
-				break;
-			}
-		}
-		if (!hasFiles) return;
+		if (!items?.some(i => i.kind === 'file')) return;
 		e.preventDefault();
-		const promises: Array<Promise<Array<File>>> = new Array();
-		for (let i = 0; i < items.length; i++) {
-			const item = items[i];
-			if (item.kind !== 'file') continue;
-			const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
-			if (entry) {
-				promises.push(traverseFileTree(entry));
-			} else {
-				const file = item.getAsFile();
-				if (file) promises.push(Promise.resolve([file]));
-			}
-		}
-		const fileArrays = await Promise.all(promises);
-		const newFiles = fileArrays.flat();
-		if (newFiles.length > 0) {
-			onFilesSelected(newFiles);
-		}
+		const files = await processDataTransferItems(Array.from(items) as any);
+		files.length && onFilesSelected(files);
 	};
 
 	const onFilesSelected = (newFiles: File[]) => {

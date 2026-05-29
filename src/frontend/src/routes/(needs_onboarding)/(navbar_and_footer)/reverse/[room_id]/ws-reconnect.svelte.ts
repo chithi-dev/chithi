@@ -24,11 +24,11 @@ interface MessageHandler {
 
 export function useWsReconnect(
 	opts: {
-		room_id: string;
-		host_token?: string;
-		receive_state: ReceiveState;
-		downloaded_files: Array<{ key: string }>;
-		room_key: string | null;
+		get_room_id: () => string;
+		get_host_token: () => string | undefined;
+		get_receive_state: () => ReceiveState;
+		get_downloaded_files: () => Array<{ key: string }>;
+		get_room_key: () => string | null;
 	} & MessageHandler,
 ) {
 	let ws: WebSocket | null = null;
@@ -37,7 +37,7 @@ export function useWsReconnect(
 	let delay = INITIAL_DELAY;
 
 	function getWsUrl() {
-		return Api.REVERSE.WS_URL(opts.room_id, opts.host_token);
+		return Api.REVERSE.WS_URL(opts.get_room_id(), opts.get_host_token());
 	}
 
 	function scheduleReconnect() {
@@ -89,7 +89,7 @@ export function useWsReconnect(
 
 	function handleWsMessage(ev: MessageEvent) {
 		if (ev.data instanceof ArrayBuffer || ev.data instanceof Blob) {
-			handle_binary_chunk({ receive_state: opts.receive_state, data: ev.data });
+			handle_binary_chunk({ receive_state: opts.get_receive_state(), data: ev.data });
 			return;
 		}
 

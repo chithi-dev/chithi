@@ -2,7 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Plus } from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
-	import { traverseFileTree } from '#functions/files';
+	import { processDataTransferItems } from '#functions/files';
 	import { useConfigQuery } from '#queries/config';
 
 	interface Props {
@@ -22,51 +22,23 @@
 	const handleZoneDrop = async (e: DragEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
-
 		const items = e.dataTransfer?.items;
-		if (items) {
-			const promises: Promise<File[]>[] = [];
-			for (let i = 0; i < items.length; i++) {
-				const item = items[i];
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
-				if (entry) {
-					promises.push(traverseFileTree(entry));
-				} else if (item.kind === 'file') {
-					const file = item.getAsFile();
-					if (file) promises.push(Promise.resolve([file]));
-				}
-			}
-			const fileArrays = await Promise.all(promises);
-			const newFiles = fileArrays.flat();
-			if (newFiles.length > 0) {
-				onFilesSelected(newFiles);
-			}
-		} else if (e.dataTransfer?.files) {
-			onFilesSelected(Array.from(e.dataTransfer.files));
-		}
+		const files = items
+			? await processDataTransferItems(items)
+			: e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : [];
+		files.length && onFilesSelected(files);
 	};
 
 	const handleFileSelect = (e: Event) => {
-		const target = e.target as HTMLInputElement;
-		if (target.files) {
-			onFilesSelected(Array.from(target.files));
-		}
-		target.value = '';
+		const t = e.target as HTMLInputElement;
+		t.files && onFilesSelected(Array.from(t.files));
+		t.value = '';
 	};
 
 	const handleFolderSelect = (e: Event) => {
-		const target = e.target as HTMLInputElement;
-		if (target.files) {
-			const filesArray = Array.from(target.files);
-			if (filesArray.length > 0) {
-				// The first file's webkitRelativePath starts with the folder name
-				const relativePath = (filesArray[0] as any).webkitRelativePath;
-				const folderName = relativePath ? relativePath.split('/')[0] : undefined;
-				onFilesSelected(filesArray);
-			}
-		}
-		target.value = '';
+		const t = e.target as HTMLInputElement;
+		if (t.files?.length) onFilesSelected(Array.from(t.files));
+		t.value = '';
 	};
 </script>
 

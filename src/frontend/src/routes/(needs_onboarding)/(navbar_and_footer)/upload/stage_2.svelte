@@ -5,7 +5,7 @@
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { useConfigQuery } from '#queries/config';
 	import { Plus, ArrowLeft, X, FileIcon, Eye, EyeOff, Trash2, Upload } from '@lucide/svelte';
-	import { traverseFileTree } from '#functions/files';
+	import { processDataTransferItems } from '#functions/files';
 	import { formatFileSize } from '#functions/bytes';
 	import { formatSeconds } from '#functions/times';
 	import { createZipStream, createEncryptedStream } from '#functions/streams';
@@ -103,30 +103,16 @@
 		e.preventDefault();
 		e.stopPropagation();
 		onZoneDragLeave(e);
-
 		const items = e.dataTransfer?.items;
-		if (items) {
-			const promises = Array.from(items).map((item) => {
-				const entry = (item as any).webkitGetAsEntry?.();
-				return entry
-					? traverseFileTree(entry)
-					: item.kind === 'file'
-						? Promise.resolve([item.getAsFile()].filter(Boolean) as File[])
-						: Promise.resolve([]);
-			});
-			const fileArrays = await Promise.all(promises);
-			const newFiles = fileArrays.flat();
-			newFiles.length > 0 && addFiles(newFiles);
-		} else if (e.dataTransfer?.files) {
-			addFiles(Array.from(e.dataTransfer.files));
-		}
+		const files = items
+			? await processDataTransferItems(items)
+			: e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : [];
+		files.length && addFiles(files);
 	};
 
 	const handleFileSelect = (e: Event) => {
-		const target = e.target as HTMLInputElement;
-		if (target.files) {
-			addFiles(Array.from(target.files));
-		}
+		const t = e.target as HTMLInputElement;
+		t.files && addFiles(Array.from(t.files));
 		target.value = '';
 	};
 
@@ -250,7 +236,6 @@
 			toast.error('Upload failed: ' + (err?.message ?? err));
 			uploadTween.set(0);
 			encTween.set(0);
-		} finally {
 		}
 	};
 </script>

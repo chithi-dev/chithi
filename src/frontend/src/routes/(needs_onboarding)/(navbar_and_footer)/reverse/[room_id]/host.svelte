@@ -212,11 +212,11 @@
 	}
 
 	const wsReconnect = useWsReconnect({
-		room_id,
-		host_token: hostToken,
-		receive_state: receiveState,
-		downloaded_files: downloadedFiles,
-		room_key: roomKey,
+		get_room_id: () => room_id,
+		get_host_token: () => hostToken,
+		get_receive_state: () => receiveState,
+		get_downloaded_files: () => downloadedFiles,
+		get_room_key: () => roomKey,
 		onSnapshot,
 		onHostCount,
 		onConnectionCounts,
