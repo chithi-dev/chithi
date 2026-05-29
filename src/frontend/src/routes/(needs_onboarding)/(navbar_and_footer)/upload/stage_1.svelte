@@ -2,6 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Plus } from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
+	import { traverseFileTree } from '#functions/files';
 	import { useConfigQuery } from '#queries/config';
 
 	interface Props {
@@ -17,55 +18,6 @@
 
 	let fileInputInitial = $state<HTMLInputElement>();
 	let folderInputInitial = $state<HTMLInputElement>();
-
-	const traverseFileTree = async (item: any, path = ''): Promise<File[]> => {
-		try {
-			if (item.isFile) {
-				return new Promise((resolve) => {
-					item.file(
-						(file: File) => {
-							if (path) {
-								(file as any).relativePath = path + file.name;
-							}
-							resolve([file]);
-						},
-						(err: Error) => {
-							console.error('Error reading file:', err);
-							resolve([]);
-						}
-					);
-				});
-			} else if (item.isDirectory) {
-				const dirReader = item.createReader();
-				const entries: any[] = [];
-
-				const readEntries = async () => {
-					try {
-						const result = await new Promise<any[]>((resolve, reject) => {
-							dirReader.readEntries(resolve, reject);
-						});
-
-						if (result.length > 0) {
-							entries.push(...result);
-							await readEntries();
-						}
-					} catch (err) {
-						console.error('Error reading directory:', err);
-					}
-				};
-
-				await readEntries();
-
-				const fileArrays = await Promise.all(
-					entries.map((entry) => traverseFileTree(entry, path + item.name + '/'))
-				);
-				return fileArrays.flat();
-			}
-		} catch (err) {
-			console.error('Error traversing item:', err);
-		}
-		return [];
-	};
 
 	const handleZoneDrop = async (e: DragEvent) => {
 		e.preventDefault();
@@ -213,7 +165,7 @@
 			id="file-input-folder"
 			class="hidden"
 			webkitdirectory
-			{...({ directory: true } as Record<string, unknown>)}
+			{...{ directory: true } as Record<string, unknown>}
 			onchange={handleFolderSelect}
 		/>
 	</div>
