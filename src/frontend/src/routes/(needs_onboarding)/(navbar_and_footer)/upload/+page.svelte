@@ -29,7 +29,6 @@
 	let dragOverZone = $state(false);
 	let dragCounter = $state(0);
 	let files = $state<File[]>([]);
-	let initialFolderName = $state<string | undefined>(undefined);
 	let debugLoading = $state(false);
 	let uploadResult = $state<{
 		finalLink: string;
@@ -37,16 +36,15 @@
 		isViewOnce: boolean;
 	} | null>(null);
 
-	// Prevent popstate from overriding initial mount state
-	let hasMounted = $state(false);
-
 	const detailsMarkdown = $derived(configData.data?.site_description ?? '');
 	let detailsPromise = $derived(detailsMarkdown ? markdown_to_html(detailsMarkdown) : null);
 
 	// Handle physical mouse back button (X1) to return from stage 2 to stage 1
 	const handleMouseBack = (e: MouseEvent) => {
 		if (e.button === 3 && stage === UploadStage.Stage_2) {
+			files = [];
 			stage = UploadStage.Stage_1;
+			history.replaceState({ stage: UploadStage.Stage_1 }, '');
 			e.preventDefault();
 		}
 	};
@@ -155,10 +153,7 @@
 		}
 	};
 
-	const onFilesSelected = $derived((newFiles: File[], folderName?: string) => {
-		if (folderName) {
-			initialFolderName = folderName;
-		}
+	const onFilesSelected = (newFiles: File[]) => {
 		files = [...files, ...newFiles];
 		dragCounter = 0;
 		dragActive = false;
@@ -166,9 +161,9 @@
 		dragOverCard = false;
 		stage = UploadStage.Stage_2;
 		window.history.pushState({ stage: UploadStage.Stage_2 }, '', window.location.href);
-	});
+	};
 
-	const onUploadComplete = $derived((result: {
+	const onUploadComplete = (result: {
 		finalLink: string;
 		viewOnceLink: string;
 		isViewOnce: boolean;
@@ -176,7 +171,7 @@
 		uploadResult = result;
 		stage = UploadStage.Stage_3;
 		window.history.pushState({ stage: UploadStage.Stage_3 }, '', window.location.href);
-	});
+	};
 
 	const resetState = (historyMode: 'push' | 'replace' = 'push') => {
 		files = [];
@@ -199,23 +194,28 @@
 		resetState('push');
 	};
 
-	const onBack = $derived(() => {
+	const onBack = () => {
+		files = [];
+		uploadResult = null;
 		stage = UploadStage.Stage_1;
-	});
+		history.replaceState({ stage: UploadStage.Stage_1 }, '');
+	};
 
 	const handlePopState = (e: PopStateEvent) => {
-		// Ignore popstate until after initial microtask flush completes
-		if (!hasMounted) return;
-		stage = isWhichUploadStage(e.state?.stage) ? e.state.stage : UploadStage.Stage_1;
+		const restoredStage = isWhichUploadStage(e.state?.stage) ? e.state.stage : UploadStage.Stage_1;
+		if (restoredStage === UploadStage.Stage_1) {
+			files = [];
+			uploadResult = null;
+		}
+		stage = restoredStage;
 	};
 
 	onMount(() => {
-		// Queue reset & mount guard in the microtask queue
-		// Runs immediately after current call stack, before next macrotask/repaint
-		queueMicrotask(() => {
-			resetState('replace');
-			hasMounted = true;
-		});
+		// Restore stage from current history entry (e.g., after page reload)
+		stage = isWhichUploadStage(history.state?.stage) ? history.state.stage : UploadStage.Stage_1;
+		if (stage === UploadStage.Stage_1) {
+			history.replaceState({ stage: UploadStage.Stage_1 }, '');
+		}
 	});
 </script>
 
@@ -342,7 +342,6 @@
 						isDraggingOverZone={dragOverZone}
 						onZoneDragEnter={handleZoneDragEnter}
 						onZoneDragLeave={handleZoneDragLeave}
-						maxFileSize={configData.data?.max_file_size_limit ?? 0}
 					/>
 				</div>
 				<div class="flex h-full w-full flex-col p-4 lg:p-8" in:fade>
@@ -360,9 +359,13 @@
 				<div in:fly={{ x: 20, duration: 400 }}>
 					<Stage2
 						bind:files
-						onFilesUpdated={(newFiles) => (files = newFiles)}
+						onFilesUpdated={(newFiles) => {
+							files = newFiles;
+							if (files.length === 0 && stage === UploadStage.Stage_2) {
+								onBack();
+							}
+						}}
 						{onUploadComplete}
-						{onBack}
 						isDraggingOverZone={dragOverZone}
 						onZoneDragEnter={handleZoneDragEnter}
 						onZoneDragLeave={handleZoneDragLeave}

@@ -26,7 +26,6 @@
 			viewOnceLink: string;
 			isViewOnce: boolean;
 		}) => void;
-		onBack: () => void;
 		isDraggingOverZone: boolean;
 		onZoneDragEnter: (e: DragEvent) => void;
 		onZoneDragLeave: (e: DragEvent) => void;
@@ -36,7 +35,6 @@
 		files = $bindable(),
 		onFilesUpdated,
 		onUploadComplete,
-		onBack,
 		isDraggingOverZone,
 		onZoneDragEnter,
 		onZoneDragLeave
@@ -135,13 +133,12 @@
 	const removeFile = (file: File) => {
 		files = files.filter((f) => f !== file);
 		onFilesUpdated(files);
-		files.length === 0 && onBack();
 	};
 
 	const clearAllFiles = () => {
+		if (files.length === 0) return;
 		files = [];
 		onFilesUpdated(files);
-		onBack();
 	};
 
 	const handleUpload = async (viewOnce = false) => {
@@ -344,7 +341,7 @@
 				<Tooltip.Provider>
 					<Tooltip.Root>
 						<Tooltip.Trigger>
-							<Button variant="ghost" size="sm" class="mb-2" onclick={onBack}>
+							<Button variant="ghost" size="sm" class="mb-2" onclick={() => { files = []; onFilesUpdated(files); }}>
 								<ArrowLeft class="mr-2 h-4 w-4" />
 								Back
 							</Button>

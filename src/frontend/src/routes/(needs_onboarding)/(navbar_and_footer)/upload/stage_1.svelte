@@ -5,7 +5,7 @@
 	import { useConfigQuery } from '#queries/config';
 
 	interface Props {
-		onFilesSelected: (files: File[], folderName?: string) => void;
+		onFilesSelected: (files: File[]) => void;
 		isDraggingOverZone: boolean;
 		onZoneDragEnter: (e: DragEvent) => void;
 		onZoneDragLeave: (e: DragEvent) => void;
@@ -74,15 +74,11 @@
 		const items = e.dataTransfer?.items;
 		if (items) {
 			const promises: Promise<File[]>[] = [];
-			let folderName: string | undefined;
 			for (let i = 0; i < items.length; i++) {
 				const item = items[i];
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
 				if (entry) {
-					if (entry.isDirectory && !folderName) {
-						folderName = entry.name;
-					}
 					promises.push(traverseFileTree(entry));
 				} else if (item.kind === 'file') {
 					const file = item.getAsFile();
@@ -92,7 +88,7 @@
 			const fileArrays = await Promise.all(promises);
 			const newFiles = fileArrays.flat();
 			if (newFiles.length > 0) {
-				onFilesSelected(newFiles, folderName);
+				onFilesSelected(newFiles);
 			}
 		} else if (e.dataTransfer?.files) {
 			onFilesSelected(Array.from(e.dataTransfer.files));
@@ -115,7 +111,7 @@
 				// The first file's webkitRelativePath starts with the folder name
 				const relativePath = (filesArray[0] as any).webkitRelativePath;
 				const folderName = relativePath ? relativePath.split('/')[0] : undefined;
-				onFilesSelected(filesArray, folderName);
+				onFilesSelected(filesArray);
 			}
 		}
 		target.value = '';
@@ -217,7 +213,7 @@
 			id="file-input-folder"
 			class="hidden"
 			webkitdirectory
-			directory
+			{...({ directory: true } as Record<string, unknown>)}
 			onchange={handleFolderSelect}
 		/>
 	</div>
