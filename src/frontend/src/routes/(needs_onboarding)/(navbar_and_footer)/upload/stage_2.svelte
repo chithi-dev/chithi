@@ -105,7 +105,7 @@
 		onZoneDragLeave(e);
 		const items = e.dataTransfer?.items;
 		const files = items
-			? await processDataTransferItems(items)
+			? await processDataTransferItems(Array.from(items))
 			: e.dataTransfer?.files
 				? Array.from(e.dataTransfer.files)
 				: [];

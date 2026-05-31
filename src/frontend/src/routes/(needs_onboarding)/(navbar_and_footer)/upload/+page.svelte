@@ -124,10 +124,10 @@
 
 	const handlePaste = async (e: ClipboardEvent) => {
 		if (stage === Stage_3) return;
-		const items = e.clipboardData?.items;
-		if (!items?.some((i) => i.kind === 'file')) return;
+		const items = Array.from(e.clipboardData?.items ?? []);
+		if (!items.some((i) => i.kind === 'file')) return;
 		e.preventDefault();
-		const files = await processDataTransferItems(Array.from(items) as any);
+		const files = await processDataTransferItems(items);
 		files.length && onFilesSelected(files);
 	};
 
