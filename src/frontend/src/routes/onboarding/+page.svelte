@@ -7,7 +7,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import FancyGrid from '$lib/components/FancyGrid.svelte';
-	import { OnboardingStep } from './enums';
+	import { Stage_1, Stage_2, type OnboardingStep } from './enums';
 
 	// Steps
 	const { default: Step1 } = await import('./stage_1.svelte');
@@ -15,17 +15,17 @@
 
 	const { status } = useOnboarding();
 
-	let step = $state<OnboardingStep | null>(null);
+	let step: OnboardingStep | null = $state(null);
 
 	$effect(() => {
 		if (!status.isLoading && step === null && !status.data?.onboarded) {
-			step = OnboardingStep.Stage_1;
+			step = Stage_1;
 		}
 	});
 
 	function nextStep() {
-		if (step === OnboardingStep.Stage_1) {
-			step = OnboardingStep.Stage_2;
+		if (step === Stage_1) {
+			step = Stage_2;
 		} else {
 			goto('/');
 		}
@@ -39,7 +39,7 @@
 
 	<!-- Step Content Container -->
 	<div
-		class:max-w-xl={step === OnboardingStep.Stage_2}
+		class:max-w-xl={step === Stage_2}
 		class="z-10 w-full max-w-100 transition-all duration-500"
 	>
 		{#if status.isLoading && step === null}
@@ -104,7 +104,7 @@
 					</Card.Content>
 				</Card.Root>
 			</div>
-		{:else if step === OnboardingStep.Stage_1}
+		{:else if step === Stage_1}
 			<div
 				in:fly={{ x: -20, duration: 400, delay: 200 }}
 				out:fade={{ duration: 200 }}
@@ -112,7 +112,7 @@
 			>
 				<Step1 onNext={nextStep} />
 			</div>
-		{:else if step === OnboardingStep.Stage_2}
+		{:else if step === Stage_2}
 			<div in:fly={{ x: 20, duration: 400, delay: 200 }} class="relative w-full">
 				<Step2 onNext={nextStep} />
 			</div>
