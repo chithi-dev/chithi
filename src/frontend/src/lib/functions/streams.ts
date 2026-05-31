@@ -1,5 +1,6 @@
 import { CHUNK_SIZE as STREAM_CHUNK_SIZE, WORKER_CONCURRENCY } from '#consts/concurrency';
 import { HKDF_IV_STR } from '#consts/encryption';
+import EncryptionWorker from '#workers/encryption.worker?worker';
 import { ZipWriter } from '@zip.js/zip.js';
 import {
 	argon2Derive,
@@ -174,9 +175,6 @@ function createWorkerStream(
 	messageType: 'encrypted' | 'decrypted',
 	onProgress?: (bytes: number) => void
 ) {
-	const EncryptionWorker = (async () =>
-		(await import('#workers/encryption.worker?worker')).default)();
-
 	let worker: Worker | null = null;
 
 	return new ReadableStream<Uint8Array>({
