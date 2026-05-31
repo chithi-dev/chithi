@@ -5,14 +5,25 @@ import type { PageLoad } from './$types';
 import { schema } from './schema';
 
 export const load: PageLoad = async ({ url }) => {
-	const og = new URL('/og/login', url.origin);
-	const form = await superValidate(zod4(schema));
-	return {
-		form,
-		...definePageMetaTags({
+	const ogUrl = new URL('/og/login', url.origin);
+
+	const pageTags = definePageMetaTags({
+		title: 'Login',
+		description: 'Login to your chithi instance.',
+		openGraph: {
 			title: 'Login',
 			description: 'Login to your chithi instance.',
-			openGraph: { title: 'Login', images: [{ url: og.toString(), width: 1200, height: 630 }] }
-		})
-	};
+			images: [
+				{
+					url: ogUrl.toString(),
+					width: 1200,
+					height: 630,
+					alt: 'Login'
+				}
+			]
+		}
+	});
+	const form = await superValidate(zod4(schema));
+
+	return { form, ...pageTags };
 };

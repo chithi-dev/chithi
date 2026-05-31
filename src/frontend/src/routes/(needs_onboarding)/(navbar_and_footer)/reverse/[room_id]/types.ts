@@ -1,4 +1,5 @@
 import type { Tween } from 'svelte/motion';
+
 export interface RoomFileEntry {
 	key: string;
 	filename: string;
@@ -22,6 +23,7 @@ export interface RoomOut {
 	connected_hosts: number;
 	connected_guests: number;
 }
+
 export type ReceiveState =
 	| { type: 'idle' }
 	| {
@@ -32,13 +34,20 @@ export type ReceiveState =
 			received: number;
 			chunks: BlobPart[];
 	  }
-	| { type: 'processing'; key: string; filename: string; size: number };
+	| {
+			type: 'processing';
+			key: string;
+			filename: string;
+			size: number;
+	  };
+
 export interface DownloadedFile {
 	key: string;
 	filename: string;
 	size: number;
 	objectUrl?: string;
 }
+
 export interface RemoteUpload {
 	key: string;
 	filename: string;
@@ -46,6 +55,7 @@ export interface RemoteUpload {
 	uploadedBytes: number;
 	progress: Tween<number>;
 }
+
 export interface UploadEntry {
 	file: File;
 	progress: Tween<number>;

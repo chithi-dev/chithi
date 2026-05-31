@@ -1,30 +1,12 @@
 import { Api } from '#consts/backend';
 import { createDecryptedStream } from '#functions/streams';
-import { PasswordRequiredError } from '$lib/errors/password';
 import { ZipReader } from '@zip.js/zip.js';
 
-const hasSavePicker = 'showSaveFilePicker' in window;
-
-export function saveBlobUrl(blobOrUrl: Blob | string, filename: string) {
-	const url = blobOrUrl instanceof Blob ? URL.createObjectURL(blobOrUrl) : blobOrUrl;
-	const a = document.createElement('a');
-	a.href = url;
-	a.download = filename;
-	a.style.display = 'none';
-	document.body.appendChild(a);
-	a.click();
-	URL.revokeObjectURL(url);
-	document.body.removeChild(a);
-}
-
-async function triggerDownload(blob: Blob, filename: string) {
-	if (hasSavePicker) {
-		const handle = await (window as any).showSaveFilePicker({ suggestedName: filename });
-		const writable = await (handle as FileSystemFileHandle).createWritable();
-		await blob.stream().pipeTo(writable);
-		return;
+export class PasswordRequiredError extends Error {
+	constructor() {
+		super('Password required for decryption');
+		this.name = 'PasswordRequiredError';
 	}
-	saveBlobUrl(blob, filename);
 }
 
 export async function downloadAndDecryptFile(
@@ -33,24 +15,38 @@ export async function downloadAndDecryptFile(
 	password: string,
 	filename: string,
 	fileSize: number,
+	_numberOfFiles: number,
 	onProgress: (percent: number) => void
 ) {
 	const res = await fetch(Api.DOWNLOAD(slug));
 	if (!res.ok) throw new Error('Download failed');
 	if (!res.body) throw new Error('No response body');
 
-	const reader = res.body.getReader();
+	const totalSize = fileSize;
 	let loaded = 0;
 
+	const reader = res.body.getReader();
 	const streamWithProgress = new ReadableStream({
 		async pull(controller) {
-			const { done, value } = await reader.read();
-			if (done) return controller.close();
-			loaded += value.byteLength;
-			if (fileSize > 0) onProgress(Math.round((loaded / fileSize) * 100));
-			controller.enqueue(value);
+			try {
+				const { done, value } = await reader.read();
+				if (done) {
+					controller.close();
+					return;
+				}
+				loaded += value.byteLength;
+				if (totalSize > 0) {
+					onProgress(Math.round((loaded / totalSize) * 100));
+				}
+				controller.enqueue(value);
+			} catch (e) {
+				controller.error(e);
+				throw e;
+			}
 		},
-		cancel: (reason) => reader.cancel(reason)
+		cancel(reason) {
+			return reader.cancel(reason);
+		}
 	});
 
 	const { stream: decryptedStream } = await createDecryptedStream(
@@ -59,26 +55,50 @@ export async function downloadAndDecryptFile(
 		password
 	);
 
-	// Collect all decrypted chunks into a blob
-	const chunks: Uint8Array[] = [];
+	const decReader = decryptedStream.getReader();
+	let firstChunk: Uint8Array | undefined;
+	let isDone = false;
+
 	try {
-		for await (const chunk of decryptedStream) {
-			chunks.push(chunk);
-		}
+		const { done, value } = await decReader.read();
+		isDone = done;
+		if (!done) firstChunk = value;
 	} catch (e: any) {
-		if (e.name === 'OperationError') throw new PasswordRequiredError();
+		if (e.name === 'OperationError') {
+			await reader.cancel('Wrong password');
+			throw new PasswordRequiredError();
+		}
 		throw e;
 	}
 
-	const blob = new Blob(chunks as BlobPart[]);
-	const zipReader = new ZipReader(blob.stream());
+	const verifiedStream = new ReadableStream({
+		async start(controller) {
+			if (firstChunk) controller.enqueue(firstChunk);
+			if (isDone) controller.close();
+		},
+		async pull(controller) {
+			const { done, value } = await decReader.read();
+			if (done) {
+				controller.close();
+				return;
+			}
+			controller.enqueue(value);
+		},
+		cancel(reason) {
+			return decReader.cancel(reason);
+		}
+	});
 
+	let finalStream = verifiedStream;
+	let finalDownloadName = filename.toLowerCase().endsWith('.zip') ? filename : `${filename}.zip`;
+
+	const zipReader = new ZipReader(verifiedStream);
 	let entries;
 	try {
 		entries = await zipReader.getEntries();
-	} catch {
+	} catch (err) {
 		await zipReader.close();
-		throw new Error('Failed to read archive');
+		throw err;
 	}
 
 	const firstEntry = entries.find((e) => !e.directory);
@@ -87,9 +107,9 @@ export async function downloadAndDecryptFile(
 		throw new Error('No files found in the archive');
 	}
 
-	const downloadName = firstEntry.filename.split(/[/\\]/).pop() ?? filename;
+	finalDownloadName = firstEntry.filename.split(/[/\\]/).pop() || firstEntry.filename;
 	const { readable, writable } = new TransformStream();
-
+	// Start extracting in the background
 	firstEntry
 		.getData(writable, { password: password?.length ? password : undefined })
 		.then(() => zipReader.close())
@@ -98,14 +118,32 @@ export async function downloadAndDecryptFile(
 			writable.abort(err);
 			zipReader.close().catch(() => undefined);
 		});
+	finalStream = readable;
 
-	const fileChunks: Uint8Array[] = [];
-	const finalReader = readable.getReader();
+	const chunks: Uint8Array[] = [];
+	const finalReader = finalStream.getReader();
 	while (true) {
 		const { done, value } = await finalReader.read();
 		if (done) break;
-		fileChunks.push(value);
+		chunks.push(value);
 	}
+	const blob = new Blob(chunks as any);
 
-	await triggerDownload(new Blob(fileChunks as BlobPart[]), downloadName);
+	if ((window as any).showSaveFilePicker) {
+		const handle = await (window as any).showSaveFilePicker({
+			suggestedName: finalDownloadName
+		});
+		const writable = await handle.createWritable();
+		await blob.stream().pipeTo(writable);
+	} else {
+		const url = window.URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = finalDownloadName;
+		a.style.display = 'none';
+		document.body.appendChild(a);
+		a.click();
+		window.URL.revokeObjectURL(url);
+		document.body.removeChild(a);
+	}
 }

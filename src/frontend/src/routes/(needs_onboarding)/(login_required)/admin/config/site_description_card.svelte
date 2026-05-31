@@ -13,16 +13,16 @@
 		wordLimit,
 		save,
 		openEditor
-	} = $props<{
-		editing: string | null;
+	}: {
+		editing: 'storage' | 'file' | 'desc' | 'time' | 'allowed' | 'banned' | 'steps' | null;
 		descDraft: string;
 		previewMarkdown: string;
 		descWordCount: number;
 		descExceeds: boolean;
 		wordLimit: number;
-		save: (p: any) => Promise<void>;
+		save: (payload: any) => Promise<void>;
 		openEditor: () => void;
-	}>();
+	} = $props();
 </script>
 
 <Card.Root class="border bg-background">

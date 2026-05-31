@@ -1,7 +1,8 @@
 export function kebab_to_initials(s: string) {
-	const initials = s
+	return s
 		.split('-')
-		.map((w) => w[0])
-		.join('');
-	return initials.slice(0, 2).toUpperCase();
+		.map((w: String) => w[0])
+		.join('')
+		.slice(0, 2)
+		.toUpperCase();
 }

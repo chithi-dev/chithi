@@ -1,2 +1,9 @@
-export const OgDirection = { Ltr: 'ltr', Rtl: 'rtl' };
-export const OgSecurity = { Secure: 'secure', Insecure: 'insecure' };
+export enum OgDirection {
+	Ltr = 'ltr',
+	Rtl = 'rtl'
+}
+
+export enum OgSecurity {
+	Secure = 'secure',
+	Insecure = 'insecure'
+}

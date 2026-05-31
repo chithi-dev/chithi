@@ -11,7 +11,7 @@
 	let currentPage = $state(1);
 	const pageSize = 20;
 
-	const { files, revoke_file } = useFilesQuery({ page: () => currentPage, page_size: pageSize });
+	const { files, revokeFile } = useFilesQuery(() => currentPage, pageSize);
 
 	let totalItems = $derived(files.data?.total_items ?? 0);
 
@@ -30,7 +30,7 @@
 
 		try {
 			isRevoking = true;
-			await revoke_file({ file_id: fileToRevoke });
+			await revokeFile(fileToRevoke);
 			toast.success('URL revoked successfully');
 			isRevokeDialogOpen = false;
 		} catch (e) {

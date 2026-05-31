@@ -6,8 +6,7 @@
 	import { page } from '$app/state';
 	import { fly } from 'svelte/transition';
 	import { Api } from '#consts/backend';
-	import { downloadAndDecryptFile } from '#functions/download';
-	import { PasswordRequiredError } from '$lib/errors/password';
+	import { downloadAndDecryptFile, PasswordRequiredError } from '#functions/download';
 	import { formatFileSize } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';
 	import { Progress } from '$lib/components/ui/progress';
@@ -82,6 +81,7 @@
 				password,
 				filename,
 				fileSize,
+				numberOfFiles,
 				(p) => (downloadProgress.target = p)
 			);
 

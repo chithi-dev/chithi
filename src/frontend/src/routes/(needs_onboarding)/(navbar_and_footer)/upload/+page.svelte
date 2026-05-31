@@ -10,9 +10,7 @@
 	import { fly, fade } from 'svelte/transition';
 	import { onMount } from 'svelte';
 	import { CloudOff } from '@lucide/svelte';
-	import { Stage_1, Stage_2, Stage_3, isWhichUploadStage } from './enums';
-	import type { UploadStage } from './enums';
-	import { processDataTransferItems } from '#functions/files';
+	import { UploadStage, isWhichUploadStage } from './enums';
 
 	// Stages
 	const { default: Stage1 } = await import('./stage_1.svelte');
@@ -24,12 +22,13 @@
 	const { default: RecentUpload } = await import('./recent_upload.svelte');
 
 	const { config: configData } = useConfigQuery();
-	let stage = $state<UploadStage>(Stage_1);
+	let stage = $state<UploadStage>(UploadStage.Stage_1);
 	let dragActive = $state(false);
 	let dragOverCard = $state(false);
 	let dragOverZone = $state(false);
 	let dragCounter = $state(0);
 	let files = $state<File[]>([]);
+	let initialFolderName = $state<string | undefined>(undefined);
 	let debugLoading = $state(false);
 	let uploadResult = $state<{
 		finalLink: string;
@@ -37,21 +36,30 @@
 		isViewOnce: boolean;
 	} | null>(null);
 
-	const detailsMarkdown = $derived(configData.data?.site_description ?? '');
-	let detailsPromise = $derived(detailsMarkdown ? markdown_to_html(detailsMarkdown) : null);
+	// Prevent popstate from overriding initial mount state
+	let hasMounted = $state(false);
 
-	// Handle physical mouse back button (X1) to return to stage 1
+	const detailsMarkdown = $derived(configData.data?.site_description ?? '');
+	let detailsHtml = $state('');
+
+	$effect(() => {
+		if (detailsMarkdown) {
+			markdown_to_html(detailsMarkdown).then((html) => {
+				detailsHtml = html;
+			});
+		}
+	});
+
+	// Handle physical mouse back button (X1) to return from stage 2 to stage 1
 	const handleMouseBack = (e: MouseEvent) => {
-		if (e.button === 3 && stage === Stage_2) {
-			files = [];
-			stage = Stage_1;
-			history.replaceState({ stage: Stage_1 }, '');
+		if (e.button === 3 && stage === UploadStage.Stage_2) {
+			stage = UploadStage.Stage_1;
 			e.preventDefault();
 		}
 	};
 
 	const handleWindowDragEnter = (e: DragEvent) => {
-		if (stage === Stage_3) return;
+		if (stage === UploadStage.Stage_3) return;
 		e.preventDefault();
 		dragCounter++;
 		e.dataTransfer && (e.dataTransfer.dropEffect = 'copy');
@@ -59,7 +67,7 @@
 	};
 
 	const handleWindowDragLeave = (e: DragEvent) => {
-		if (stage === Stage_3) return;
+		if (stage === UploadStage.Stage_3) return;
 		dragCounter--;
 		if (dragCounter <= 0) {
 			dragActive = false;
@@ -68,13 +76,13 @@
 	};
 
 	const handleWindowDragOver = (e: DragEvent) => {
-		if (stage === Stage_3) return;
+		if (stage === UploadStage.Stage_3) return;
 		e.preventDefault();
 		dragActive ||= true;
 	};
 
 	const handleWindowDrop = (e: DragEvent) => {
-		if (stage === Stage_3) return;
+		if (stage === UploadStage.Stage_3) return;
 		e.preventDefault();
 		dragCounter = 0;
 		dragActive = false;
@@ -86,13 +94,13 @@
 	};
 
 	const handleCardDragEnter = (e: DragEvent) => {
-		if (stage === Stage_3) return;
+		if (stage === UploadStage.Stage_3) return;
 		e.preventDefault();
 		dragOverCard = true;
 	};
 
 	const handleCardDragLeave = (e: DragEvent) => {
-		if (stage === Stage_3) return;
+		if (stage === UploadStage.Stage_3) return;
 		const currentTarget = e.currentTarget as Node;
 		const relatedTarget = e.relatedTarget as Node;
 		if (currentTarget?.contains(relatedTarget)) return;
@@ -111,69 +119,144 @@
 		dragOverZone = false;
 	};
 
-	const handleCardDrop = (e: DragEvent) => {
-		if (stage === Stage_3) return;
-		e.preventDefault();
-		e.stopPropagation();
-		dragCounter = 0;
-		dragActive = false;
-		dragOverZone = false;
-		dragOverCard = false;
-		toast.error('File/Folder must be dropped in the bordered area');
+	const traverseFileTree = async (item: any, path = ''): Promise<File[]> => {
+		try {
+			if (item.isFile) {
+				return new Promise((resolve) => {
+					item.file(
+						(file: File) => {
+							if (path) {
+								(file as any).relativePath = path + file.name;
+							}
+							resolve([file]);
+						},
+						(err: Error) => {
+							console.error('Error reading file:', err);
+							resolve([]);
+						}
+					);
+				});
+			} else if (item.isDirectory) {
+				const dirReader = item.createReader();
+				const entries: any[] = [];
+				const readEntries = async () => {
+					try {
+						const result = await new Promise<any[]>((resolve, reject) => {
+							dirReader.readEntries(resolve, reject);
+						});
+						if (result.length > 0) {
+							entries.push(...result);
+							await readEntries();
+						}
+					} catch (err) {
+						console.error('Error reading directory:', err);
+					}
+				};
+				await readEntries();
+				const fileArrays = await Promise.all(
+					entries.map((entry) => traverseFileTree(entry, path + item.name + '/'))
+				);
+				return fileArrays.flat();
+			}
+		} catch (err) {
+			console.error('Error traversing item:', err);
+		}
+		return [];
 	};
 
 	const handlePaste = async (e: ClipboardEvent) => {
-		if (stage === Stage_3) return;
-		const items = Array.from(e.clipboardData?.items ?? []);
-		if (!items.some((i) => i.kind === 'file')) return;
+		if (stage === UploadStage.Stage_3) return;
+		const items = e.clipboardData?.items;
+		if (!items) return;
+		let hasFiles = false;
+		for (let i = 0; i < items.length; i++) {
+			if (items[i].kind === 'file') {
+				hasFiles = true;
+				break;
+			}
+		}
+		if (!hasFiles) return;
 		e.preventDefault();
-		const files = await processDataTransferItems(items);
-		files.length && onFilesSelected(files);
+		const promises: Array<Promise<Array<File>>> = new Array();
+		for (let i = 0; i < items.length; i++) {
+			const item = items[i];
+			if (item.kind !== 'file') continue;
+			const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
+			if (entry) {
+				promises.push(traverseFileTree(entry));
+			} else {
+				const file = item.getAsFile();
+				if (file) promises.push(Promise.resolve([file]));
+			}
+		}
+		const fileArrays = await Promise.all(promises);
+		const newFiles = fileArrays.flat();
+		if (newFiles.length > 0) {
+			onFilesSelected(newFiles);
+		}
 	};
 
-	const pushStage = (s: UploadStage) => {
-		stage = s;
-		history.pushState({ stage: s }, '', location.href);
-	};
-	const onFilesSelected = (f: File[]) => {
-		files = [...files, ...f];
-		dragCounter = dragActive = dragOverZone = dragOverCard = false as any;
-		pushStage(Stage_2);
-	};
-	const onUploadComplete = (result: NonNullable<typeof uploadResult>) => {
-		uploadResult = result;
-		pushStage(Stage_3);
-	};
-
-	const reset = (push = true) => {
-		files = [];
-		uploadResult = null;
-		stage = Stage_1;
+	const onFilesSelected = $derived((newFiles: File[], folderName?: string) => {
+		if (folderName) {
+			initialFolderName = folderName;
+		}
+		files = [...files, ...newFiles];
 		dragCounter = 0;
 		dragActive = false;
 		dragOverZone = false;
 		dragOverCard = false;
-		const h = { stage: Stage_1 };
-		push ? history.pushState(h, '', location.href) : history.replaceState(h, '');
+		stage = UploadStage.Stage_2;
+		window.history.pushState({ stage: UploadStage.Stage_2 }, '', window.location.href);
+	});
+
+	const onUploadComplete = $derived((result: {
+		finalLink: string;
+		viewOnceLink: string;
+		isViewOnce: boolean;
+	}) => {
+		uploadResult = result;
+		stage = UploadStage.Stage_3;
+		window.history.pushState({ stage: UploadStage.Stage_3 }, '', window.location.href);
+	});
+
+	const resetState = (historyMode: 'push' | 'replace' = 'push') => {
+		files = [];
+		uploadResult = null;
+		stage = UploadStage.Stage_1;
+		dragCounter = 0;
+		dragActive = false;
+		dragOverZone = false;
+		dragOverCard = false;
+
+		const state = { stage: UploadStage.Stage_1 };
+		if (historyMode === 'replace') {
+			window.history.replaceState(state, '', window.location.href);
+		} else {
+			window.history.pushState(state, '', window.location.href);
+		}
 	};
-	const onReset = () => reset();
-	const onBack = () => reset(false);
+
+	const onReset = () => {
+		resetState('push');
+	};
+
+	const onBack = $derived(() => {
+		stage = UploadStage.Stage_1;
+	});
 
 	const handlePopState = (e: PopStateEvent) => {
-		const restoredStage = isWhichUploadStage(e.state?.stage) ? e.state.stage : Stage_1;
-		if (restoredStage === Stage_1) {
-			files = [];
-			uploadResult = null;
-		}
-		stage = restoredStage;
+		// Ignore popstate until after initial microtask flush completes
+		if (!hasMounted) return;
+		stage = isWhichUploadStage(e.state?.stage) ? e.state.stage : UploadStage.Stage_1;
 	};
 
 	onMount(() => {
-		// Restore stage from current history entry (e.g., after page reload)
-		stage = isWhichUploadStage(history.state?.stage) ? history.state.stage : Stage_1;
-		if (stage === Stage_1) {
-			history.replaceState({ stage: Stage_1 }, '');
-		}
+		// Queue reset & mount guard in the microtask queue
+		// Runs immediately after current call stack, before next macrotask/repaint
+		queueMicrotask(() => {
+			resetState('replace');
+			hasMounted = true;
+		});
 	});
 </script>
 
@@ -262,7 +345,16 @@
 		dragOverCard && 'shadow-[0_0_40px_-10px_var(--primary)]',
 		dragOverZone && 'shadow-[0_0_60px_-10px_var(--primary)]'
 	]}
-	ondrop={handleCardDrop}
+	ondrop={(e) => {
+		if (stage === UploadStage.Stage_3) return;
+		e.preventDefault();
+		e.stopPropagation();
+		dragCounter = 0;
+		dragActive = false;
+		dragOverZone = false;
+		dragOverCard = false;
+		toast.error('File/Folder must be dropped in the bordered area');
+	}}
 	ondragenter={handleCardDragEnter}
 	ondragleave={handleCardDragLeave}
 >
@@ -293,7 +385,7 @@
 						files can still be downloaded.
 					</p>
 				</div>
-			{:else if stage === Stage_1}
+			{:else if stage === UploadStage.Stage_1}
 				<div in:fly={{ x: -20, duration: 400 }}>
 					<Stage1
 						{onFilesSelected}
@@ -307,25 +399,17 @@
 						<div
 							class="prose w-full max-w-none prose-zinc md:text-sm lg:text-lg lg:leading-relaxed dark:prose-invert"
 						>
-							{#if detailsPromise}
-								{#await detailsPromise then html}
-									{@html html}
-								{/await}
-							{/if}
+							{@html detailsHtml}
 						</div>
 					</ScrollArea>
 				</div>
-			{:else if stage === Stage_2}
+			{:else if stage === UploadStage.Stage_2}
 				<div in:fly={{ x: 20, duration: 400 }}>
 					<Stage2
 						bind:files
-						onFilesUpdated={(newFiles) => {
-							files = newFiles;
-							if (files.length === 0 && stage === Stage_2) {
-								onBack();
-							}
-						}}
+						onFilesUpdated={(newFiles) => (files = newFiles)}
 						{onUploadComplete}
+						{onBack}
 						isDraggingOverZone={dragOverZone}
 						onZoneDragEnter={handleZoneDragEnter}
 						onZoneDragLeave={handleZoneDragLeave}
@@ -334,7 +418,7 @@
 				<div in:fade>
 					{@render encryptionInfo()}
 				</div>
-			{:else if stage === Stage_3 && uploadResult}
+			{:else if stage === UploadStage.Stage_3 && uploadResult}
 				<div class="col-span-1 lg:col-span-2" in:fly={{ y: 20, duration: 400 }}>
 					<Stage3
 						finalLink={uploadResult.finalLink}
@@ -348,7 +432,9 @@
 	</CardContent>
 </Card>
 
-<UploadShowcase localUploadSize={stage === Stage_2 ? files.reduce((s, f) => s + f.size, 0) : 0} />
+<UploadShowcase
+	localUploadSize={stage === UploadStage.Stage_2 ? files.reduce((s, f) => s + f.size, 0) : 0}
+/>
 
 {#if dev}
 	<div class="fixed bottom-4 left-4 z-50">

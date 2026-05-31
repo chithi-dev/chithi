@@ -5,13 +5,12 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { Api } from '#consts/backend';
-	import { PasswordRequiredError } from '$lib/errors/password';
-	import { saveBlobUrl } from '#functions/download';
+	import { PasswordRequiredError } from '#functions/download';
 	import { createDecryptedStream } from '#functions/streams';
 	import { BlobWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
 	import { detectMimeFromBlob } from '#functions/mime';
 	import { createViewableText } from '$lib/functions/viewer';
-	const { default: FileViewerOverlay } = await import('$lib/components/FileViewerOverlay.svelte');
+	import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
 
 	let key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
 	let slug = $derived(page.params.slug);
@@ -42,14 +41,21 @@
 			if (!res.body) throw new Error('No response body');
 
 			const reader = res.body.getReader();
-			const streamForDecrypt = new ReadableStream({
-				async pull(c) {
+			const streamForDecrypt = new ReadableStream<Uint8Array>({
+				async pull(controller) {
 					const { done, value } = await reader.read();
-					done ? c.close() : c.enqueue(value);
+					if (done) {
+						controller.close();
+						return;
+					}
+					controller.enqueue(value);
 				},
-				cancel: (r) => reader.cancel(r)
+				cancel(reason) {
+					return reader.cancel(reason);
+				}
 			});
 
+			// Decrypt
 			const { stream: decryptedStream } = await createDecryptedStream(
 				streamForDecrypt,
 				key,
@@ -139,8 +145,15 @@
 	function handleDownloadFile() {
 		const url = contentUrl;
 		if (!url && contentText === null) return;
-		const blob = contentText !== null ? new Blob([contentText], { type: 'text/plain' }) : '';
-		saveBlobUrl(blob || url!, entryFilename);
+		const blobUrl = url || URL.createObjectURL(new Blob([contentText!], { type: 'text/plain' }));
+		const a = document.createElement('a');
+		a.href = blobUrl;
+		a.download = entryFilename;
+		a.style.display = 'none';
+		document.body.appendChild(a);
+		a.click();
+		document.body.removeChild(a);
+		if (!url) URL.revokeObjectURL(blobUrl);
 	}
 
 	// Auto-start on mount (use onMount to avoid re-running on page store changes during navigation)
@@ -167,12 +180,7 @@
 					placeholder="Password"
 					class="rounded-r-none focus-visible:z-10"
 					bind:value={password}
-					onkeydown={(e) => {
-						if (e.key === 'Enter') {
-							e.preventDefault();
-							handlePasswordSubmit();
-						}
-					}}
+					onkeydown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
 				/>
 				<Button class="rounded-l-none" onclick={handlePasswordSubmit}>Unlock</Button>
 			</div>

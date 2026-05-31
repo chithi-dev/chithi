@@ -2,11 +2,10 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Plus } from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
-	import { processDataTransferItems } from '#functions/files';
 	import { useConfigQuery } from '#queries/config';
 
 	interface Props {
-		onFilesSelected: (files: File[]) => void;
+		onFilesSelected: (files: File[], folderName?: string) => void;
 		isDraggingOverZone: boolean;
 		onZoneDragEnter: (e: DragEvent) => void;
 		onZoneDragLeave: (e: DragEvent) => void;
@@ -19,28 +18,107 @@
 	let fileInputInitial = $state<HTMLInputElement>();
 	let folderInputInitial = $state<HTMLInputElement>();
 
+	const traverseFileTree = async (item: any, path = ''): Promise<File[]> => {
+		try {
+			if (item.isFile) {
+				return new Promise((resolve) => {
+					item.file(
+						(file: File) => {
+							if (path) {
+								(file as any).relativePath = path + file.name;
+							}
+							resolve([file]);
+						},
+						(err: Error) => {
+							console.error('Error reading file:', err);
+							resolve([]);
+						}
+					);
+				});
+			} else if (item.isDirectory) {
+				const dirReader = item.createReader();
+				const entries: any[] = [];
+
+				const readEntries = async () => {
+					try {
+						const result = await new Promise<any[]>((resolve, reject) => {
+							dirReader.readEntries(resolve, reject);
+						});
+
+						if (result.length > 0) {
+							entries.push(...result);
+							await readEntries();
+						}
+					} catch (err) {
+						console.error('Error reading directory:', err);
+					}
+				};
+
+				await readEntries();
+
+				const fileArrays = await Promise.all(
+					entries.map((entry) => traverseFileTree(entry, path + item.name + '/'))
+				);
+				return fileArrays.flat();
+			}
+		} catch (err) {
+			console.error('Error traversing item:', err);
+		}
+		return [];
+	};
+
 	const handleZoneDrop = async (e: DragEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
+
 		const items = e.dataTransfer?.items;
-		const files = items
-			? await processDataTransferItems(Array.from(items))
-			: e.dataTransfer?.files
-				? Array.from(e.dataTransfer.files)
-				: [];
-		files.length && onFilesSelected(files);
+		if (items) {
+			const promises: Promise<File[]>[] = [];
+			let folderName: string | undefined;
+			for (let i = 0; i < items.length; i++) {
+				const item = items[i];
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
+				if (entry) {
+					if (entry.isDirectory && !folderName) {
+						folderName = entry.name;
+					}
+					promises.push(traverseFileTree(entry));
+				} else if (item.kind === 'file') {
+					const file = item.getAsFile();
+					if (file) promises.push(Promise.resolve([file]));
+				}
+			}
+			const fileArrays = await Promise.all(promises);
+			const newFiles = fileArrays.flat();
+			if (newFiles.length > 0) {
+				onFilesSelected(newFiles, folderName);
+			}
+		} else if (e.dataTransfer?.files) {
+			onFilesSelected(Array.from(e.dataTransfer.files));
+		}
 	};
 
 	const handleFileSelect = (e: Event) => {
-		const t = e.target as HTMLInputElement;
-		t.files && onFilesSelected(Array.from(t.files));
-		t.value = '';
+		const target = e.target as HTMLInputElement;
+		if (target.files) {
+			onFilesSelected(Array.from(target.files));
+		}
+		target.value = '';
 	};
 
 	const handleFolderSelect = (e: Event) => {
-		const t = e.target as HTMLInputElement;
-		if (t.files?.length) onFilesSelected(Array.from(t.files));
-		t.value = '';
+		const target = e.target as HTMLInputElement;
+		if (target.files) {
+			const filesArray = Array.from(target.files);
+			if (filesArray.length > 0) {
+				// The first file's webkitRelativePath starts with the folder name
+				const relativePath = (filesArray[0] as any).webkitRelativePath;
+				const folderName = relativePath ? relativePath.split('/')[0] : undefined;
+				onFilesSelected(filesArray, folderName);
+			}
+		}
+		target.value = '';
 	};
 </script>
 
@@ -139,7 +217,7 @@
 			id="file-input-folder"
 			class="hidden"
 			webkitdirectory
-			{...{ directory: true } as Record<string, unknown>}
+			directory
 			onchange={handleFolderSelect}
 		/>
 	</div>

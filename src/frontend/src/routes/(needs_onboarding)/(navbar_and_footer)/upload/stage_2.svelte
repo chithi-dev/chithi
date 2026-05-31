@@ -5,7 +5,6 @@
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { useConfigQuery } from '#queries/config';
 	import { Plus, ArrowLeft, X, FileIcon, Eye, EyeOff, Trash2, Upload } from '@lucide/svelte';
-	import { processDataTransferItems } from '#functions/files';
 	import { formatFileSize } from '#functions/bytes';
 	import { formatSeconds } from '#functions/times';
 	import { createZipStream, createEncryptedStream } from '#functions/streams';
@@ -26,6 +25,7 @@
 			viewOnceLink: string;
 			isViewOnce: boolean;
 		}) => void;
+		onBack: () => void;
 		isDraggingOverZone: boolean;
 		onZoneDragEnter: (e: DragEvent) => void;
 		onZoneDragLeave: (e: DragEvent) => void;
@@ -35,6 +35,7 @@
 		files = $bindable(),
 		onFilesUpdated,
 		onUploadComplete,
+		onBack,
 		isDraggingOverZone,
 		onZoneDragEnter,
 		onZoneDragLeave
@@ -54,14 +55,10 @@
 	let defaultsLoaded = $state(false);
 
 	// Flattened status
-	const encTween = new Tween(0, { duration: 500, easing: cubicOut });
-	const uploadTween = new Tween(0, { duration: 500, easing: cubicOut });
-
-	let encryptionProgress = encTween;
-	let uploadProgress = uploadTween;
-
-	const isEncrypting = $derived(encTween.current > 0 && uploadTween.current < 10);
-	const inProgress = $derived(uploadTween.current > 0 || encTween.current > 0);
+	let inProgress = $state(false);
+	let isEncrypting = $state(false);
+	let encryptionProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
+	let uploadProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 
 	const totalSize = $derived(formatFileSize(files.reduce((sum, file) => sum + file.size, 0)));
 
@@ -80,6 +77,55 @@
 			defaultsLoaded = true;
 		}
 	});
+
+	const traverseFileTree = async (item: any, path = ''): Promise<File[]> => {
+		try {
+			if (item.isFile) {
+				return new Promise((resolve) => {
+					item.file(
+						(file: File) => {
+							if (path) {
+								(file as any).relativePath = path + file.name;
+							}
+							resolve([file]);
+						},
+						(err: Error) => {
+							console.error('Error reading file:', err);
+							resolve([]);
+						}
+					);
+				});
+			} else if (item.isDirectory) {
+				const dirReader = item.createReader();
+				const entries: any[] = [];
+
+				const readEntries = async () => {
+					try {
+						const result = await new Promise<any[]>((resolve, reject) => {
+							dirReader.readEntries(resolve, reject);
+						});
+
+						if (result.length > 0) {
+							entries.push(...result);
+							await readEntries();
+						}
+					} catch (err) {
+						console.error('Error reading directory:', err);
+					}
+				};
+
+				await readEntries();
+
+				const fileArrays = await Promise.all(
+					entries.map((entry) => traverseFileTree(entry, path + item.name + '/'))
+				);
+				return fileArrays.flat();
+			}
+		} catch (err) {
+			console.error('Error traversing item:', err);
+		}
+		return [];
+	};
 
 	const addFiles = (newFiles: File[]) => {
 		const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
@@ -103,30 +149,43 @@
 		e.preventDefault();
 		e.stopPropagation();
 		onZoneDragLeave(e);
+
 		const items = e.dataTransfer?.items;
-		const files = items
-			? await processDataTransferItems(Array.from(items))
-			: e.dataTransfer?.files
-				? Array.from(e.dataTransfer.files)
-				: [];
-		files.length && addFiles(files);
+		if (items) {
+			const promises = Array.from(items).map((item) => {
+				const entry = (item as any).webkitGetAsEntry?.();
+				return entry
+					? traverseFileTree(entry)
+					: item.kind === 'file'
+						? Promise.resolve([item.getAsFile()].filter(Boolean) as File[])
+						: Promise.resolve([]);
+			});
+			const fileArrays = await Promise.all(promises);
+			const newFiles = fileArrays.flat();
+			newFiles.length > 0 && addFiles(newFiles);
+		} else if (e.dataTransfer?.files) {
+			addFiles(Array.from(e.dataTransfer.files));
+		}
 	};
 
 	const handleFileSelect = (e: Event) => {
-		const t = e.target as HTMLInputElement;
-		t.files && addFiles(Array.from(t.files));
-		t.value = '';
+		const target = e.target as HTMLInputElement;
+		if (target.files) {
+			addFiles(Array.from(target.files));
+		}
+		target.value = '';
 	};
 
 	const removeFile = (file: File) => {
 		files = files.filter((f) => f !== file);
 		onFilesUpdated(files);
+		files.length === 0 && onBack();
 	};
 
 	const clearAllFiles = () => {
-		if (files.length === 0) return;
 		files = [];
 		onFilesUpdated(files);
+		onBack();
 	};
 
 	const handleUpload = async (viewOnce = false) => {
@@ -137,14 +196,17 @@
 		}
 
 		try {
-			uploadTween.set(0);
+			inProgress = true;
+			uploadProgress = new Tween(0, { duration: 500, easing: cubicOut });
 
 			// Create Zip Stream
 			const stream = await createZipStream(files, isPasswordProtected ? password : undefined);
 
 			//  Encrypt
 			const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
-			encTween.set(0);
+			// start encryption progress reporting
+			isEncrypting = true;
+			encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
 			const { stream: encryptedStream, keySecret } = await createEncryptedStream(
 				stream,
 				isPasswordProtected ? password : undefined,
@@ -153,7 +215,7 @@
 					if (total && total > 0) {
 						encryptionProgress.target = Math.min(100, Math.round((processed / total) * 100));
 					} else {
-						encTween.set(0);
+						encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
 					}
 				}
 			);
@@ -163,6 +225,7 @@
 			const blobFilename = uuidv7();
 			const encryptedBlob = await new Response(encryptedStream).blob();
 			// ensure encryption progress completes
+			isEncrypting = false;
 			encryptionProgress.target = 100;
 
 			const formData = new FormData();
@@ -226,8 +289,8 @@
 				name: entryName,
 				link: viewOnce ? viewOnceLink : finalLink,
 				expiry: expiryTime,
-				download_limit: viewOnce ? '1' : downloadLimit,
-				created_at: Date.now(),
+				downloadLimit: viewOnce ? '1' : downloadLimit,
+				createdAt: Date.now(),
 				size: totalSize
 			});
 
@@ -236,8 +299,13 @@
 		} catch (err: any) {
 			console.error('Upload failed', err);
 			toast.error('Upload failed: ' + (err?.message ?? err));
-			uploadTween.set(0);
-			encTween.set(0);
+			inProgress = false;
+			uploadProgress = new Tween(0, { duration: 500, easing: cubicOut });
+			isEncrypting = false;
+			encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
+		} finally {
+			inProgress = false;
+			isEncrypting = false;
 		}
 	};
 </script>
@@ -328,15 +396,7 @@
 				<Tooltip.Provider>
 					<Tooltip.Root>
 						<Tooltip.Trigger>
-							<Button
-								variant="ghost"
-								size="sm"
-								class="mb-2"
-								onclick={() => {
-									files = [];
-									onFilesUpdated(files);
-								}}
-							>
+							<Button variant="ghost" size="sm" class="mb-2" onclick={onBack}>
 								<ArrowLeft class="mr-2 h-4 w-4" />
 								Back
 							</Button>
@@ -489,12 +549,7 @@
 			disabled={files.length === 0 || inProgress}>Upload</Button
 		>
 		{#if files.length === 1}
-			<Button
-				variant="outline"
-				class="w-full cursor-pointer"
-				onclick={() => handleUpload(true)}
-				disabled={inProgress}
-			>
+			<Button variant="outline" class="w-full cursor-pointer" onclick={() => handleUpload(true)} disabled={inProgress}>
 				<Eye class="mr-2 size-4" /> View Once
 			</Button>
 		{:else}

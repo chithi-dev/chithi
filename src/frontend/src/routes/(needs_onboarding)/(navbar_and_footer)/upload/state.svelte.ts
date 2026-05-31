@@ -27,7 +27,7 @@ let ws: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let refCount = 0;
 
-function getWsUrl() {
+function getWsUrl(): string {
 	return Api.STATE_WS;
 }
 
@@ -66,7 +66,7 @@ function connect() {
 }
 
 function scheduleReconnect() {
-	if (reconnectTimer || ws) return;
+	if (reconnectTimer) return;
 	reconnectTimer = setTimeout(() => {
 		reconnectTimer = null;
 		if (refCount > 0) connect();

@@ -7,11 +7,11 @@
 	import {
 		deleteHistoryEntry,
 		cleanupExpiredEntries,
-		getHistory,
+		recentUploads,
 		updateHistoryEntry
 	} from '$lib/database';
-	import { setEntries, recentUploads } from '$lib/database/recent-uploads.svelte';
 	import { formatFileSize } from '#functions/bytes';
+	import { get } from 'svelte/store';
 	import { Api } from '#consts/backend';
 
 	let open = $state(false);
@@ -26,66 +26,67 @@
 		expires_at: string;
 		expired: boolean;
 	};
-
-	const fetchFileInformation = async (key: string) => {
+	const fetchFileInformation = async (key: string): Promise<FileInformationOut> => {
 		const res = await fetch(Api.FILE_INFO(key));
-		if (!res.ok) throw new Error('Failed to fetch file information');
-		return res.json() as Promise<FileInformationOut>;
+		if (!res.ok) {
+			throw new Error('Failed to fetch file information');
+		}
+		return res.json();
 	};
 
 	onMount(() => {
-		const id = setInterval(cleanupExpiredEntries, 60_000);
-		return () => clearInterval(id);
-	});
+		const init = async () => {
+			await cleanupExpiredEntries();
+			const entries = get(recentUploads);
 
-	let pending = $state(false);
-
-	$effect(() => {
-		if (!open || pending) return;
-
-		pending = true;
-		const refresh = async () => {
-			try {
-				await cleanupExpiredEntries();
-				setEntries(await getHistory());
-
-				for (const entry of [...recentUploads.entries]) {
+			await Promise.all(
+				entries.map(async (entry) => {
 					try {
 						const info = await fetchFileInformation(entry.id);
 						if (info.expired) {
 							await deleteHistoryEntry(entry.id);
-							continue;
+							return;
 						}
-						await updateHistoryEntry({
-							id: entry.id,
-							updates: {
-								name: info.filename,
-								size: formatFileSize(info.size),
-								expiry: new Date(info.expires_at).getTime(),
-								created_at: new Date(info.created_at).getTime(),
-								download_count: info.download_count
-							}
+						await updateHistoryEntry(entry.id, {
+							name: info.filename,
+							size: formatFileSize(info.size),
+							expiry: new Date(info.expires_at).getTime(),
+							createdAt: new Date(info.created_at).getTime(),
+							downloadCount: info.download_count
 						});
-					} catch {
+					} catch (error) {
+						console.error(`Failed to update info for ${entry.id}`, error);
 						await deleteHistoryEntry(entry.id);
 					}
-				}
-			} finally {
-				pending = false;
-			}
+				})
+			);
 		};
+		init();
 
-		refresh();
+		const interval = setInterval(cleanupExpiredEntries, 60000);
+		return () => clearInterval(interval);
 	});
+
+	const handleDelete = async (id: string) => {
+		await deleteHistoryEntry(id);
+	};
 
 	const handleCopy = (id: string, link: string) => {
 		navigator.clipboard.writeText(link);
 		copiedId = id;
-		setTimeout(() => (copiedId ??= null), 2000);
+		setTimeout(() => {
+			if (copiedId === id) copiedId = null;
+		}, 2000);
 	};
+
+	$effect(() => {
+		if (open) {
+			cleanupExpiredEntries();
+		}
+	});
 </script>
 
-{#if recentUploads.entries.length}
+{#if $recentUploads.length > 0}
 	<Dialog.Root bind:open>
 		<Dialog.Trigger>
 			{#snippet child({ props })}
@@ -107,7 +108,7 @@
 			</Dialog.Header>
 			<ScrollArea class="h-75 w-full rounded-md border p-4">
 				<div class="space-y-4">
-					{#each recentUploads.entries as entry (entry.id)}
+					{#each $recentUploads as entry (entry.id)}
 						<div
 							class="flex flex-col gap-2 rounded-lg border bg-card p-3 text-sm shadow-sm transition-colors hover:bg-accent/5"
 						>
@@ -118,7 +119,7 @@
 										<span>{entry.size}</span>
 										<span>•</span>
 										<span
-											>{Math.max(0, parseInt(entry.download_limit) - (entry.download_count ?? 0))} left</span
+											>{Math.max(0, parseInt(entry.downloadLimit) - (entry.downloadCount || 0))} left</span
 										>
 									</div>
 									<div class="text-xs text-muted-foreground">
@@ -129,7 +130,7 @@
 									variant="ghost"
 									size="icon"
 									class="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
-									onclick={() => deleteHistoryEntry(entry.id)}
+									onclick={() => handleDelete(entry.id)}
 								>
 									<Trash2 class="h-3 w-3" />
 								</Button>

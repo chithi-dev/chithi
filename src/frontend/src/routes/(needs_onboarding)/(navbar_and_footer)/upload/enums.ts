@@ -1,9 +1,13 @@
-export const Stage_1 = Symbol('Stage_1');
-export const Stage_2 = Symbol('Stage_2');
-export const Stage_3 = Symbol('Stage_3');
+export enum UploadStage {
+	Stage_1,
+	Stage_2,
+	Stage_3
+}
 
-export type UploadStage = typeof Stage_1 | typeof Stage_2 | typeof Stage_3;
+const uploadStages = new Set<UploadStage>(
+	Object.values(UploadStage).filter((value): value is UploadStage => typeof value === 'number')
+);
 
-const stages = new Set([Stage_1, Stage_2, Stage_3]);
-export const isWhichUploadStage = (v: unknown): v is UploadStage =>
-	typeof v === 'symbol' && stages.has(v);
+export const isWhichUploadStage = (value: unknown): value is UploadStage => {
+	return typeof value === 'number' && uploadStages.has(value);
+};

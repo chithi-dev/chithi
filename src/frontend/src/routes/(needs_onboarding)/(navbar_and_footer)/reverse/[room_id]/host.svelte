@@ -45,7 +45,7 @@
 	import { base64urlToBytes } from '#functions/encryption';
 	import { resolve } from '$app/paths';
 	import { extractEncryptionKey, extractHostToken } from './utils';
-	import { get_display_filename, handle_binary_chunk } from './functions';
+	import { getDisplayFilename, handleBinaryChunk } from './functions';
 	import type {
 		DownloadedFile,
 		ReceiveState,
@@ -54,7 +54,6 @@
 		RoomOut,
 		UploadEntry
 	} from './types';
-	import { useWsReconnect } from './ws-reconnect.svelte';
 
 	let { room_id }: { room_id: string } = $props();
 	let hostToken = $derived(extractHostToken(page.url.hash.slice(1)));
@@ -84,16 +83,10 @@
 	let decryptionProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 	let isDecrypting = $state(false);
 
-	// Remote uploads (from other hosts)
-	let remoteUploads = $state<
-		Array<{
-			key: string;
-			filename: string;
-			size: number;
-			uploadedBytes: number;
-			progress: Tween<number>;
-		}>
-	>([]);
+	// WebSocket
+	let ws = $state<WebSocket | null>(null);
+	let wsConnected = $state(false);
+	let remoteUploads = $state<RemoteUpload[]>([]);
 
 	// Copy/UI states
 	let copiedShareLink = $state(false);
@@ -125,136 +118,6 @@
 			: null
 	);
 
-	function onSnapshot(roomData: Record<string, unknown>) {
-		if (roomData.files && Array.isArray(roomData.files)) {
-			remoteUploads = [];
-		}
-		hostCount = typeof roomData.host_count === 'number' ? roomData.host_count : 1;
-	}
-
-	function onHostCount(count: number) {
-		hostCount = count;
-	}
-
-	function onConnectionCounts(hosts: number, guests: number) {
-		if (room) {
-			room.connected_hosts = hosts;
-			room.connected_guests = guests;
-		}
-	}
-
-	function onUploadStart(entry: RemoteUpload) {
-		if (!remoteUploads.some((u) => u.key === entry.key)) {
-			remoteUploads = [...remoteUploads, entry];
-		}
-	}
-
-	function onUploadProgress(upload_key: string, uploaded_bytes: number) {
-		const upload = remoteUploads.find((u) => u.key === upload_key);
-		if (upload) {
-			upload.uploadedBytes = uploaded_bytes;
-			upload.progress.target =
-				upload.size > 0 ? Math.min((uploaded_bytes / upload.size) * 100, 100) : 0;
-		}
-	}
-
-	function onUploadCancelled(upload_key: string) {
-		remoteUploads = remoteUploads.filter((u) => u.key !== upload_key);
-	}
-
-	function onFileAdded(file: RoomFileEntry) {
-		if (!roomFiles.some((f) => f.key === file.key)) {
-			roomFiles = [...roomFiles, file];
-		}
-		remoteUploads = remoteUploads.filter((u) => u.key !== file.key);
-	}
-
-	function onFileEnd(key: string) {
-		if (receiveState.type !== 'streaming' || receiveState.key !== key) return;
-
-		const { filename, size, chunks } = receiveState;
-		receiveState = { type: 'processing', key, filename, size };
-
-		console.debug(
-			'[reverse/host] file_end for',
-			key,
-			'filename=',
-			filename,
-			'chunks=',
-			chunks.length,
-			'expected_size=',
-			size
-		);
-		(async () => {
-			try {
-				let finalBlob = new Blob(chunks);
-				if (roomKey) {
-					isDecrypting = true;
-					decryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
-					const { stream: decryptedStream } = await createDecryptedStream(
-						finalBlob.stream() as any,
-						roomKey,
-						undefined,
-						finalBlob.size,
-						(processed, total) => {
-							if (total && total > 0)
-								decryptionProgress.target = Math.min(100, Math.round((processed / total) * 100));
-						}
-					);
-					finalBlob = await new Response(decryptedStream as any).blob();
-				}
-				const objectUrl = URL.createObjectURL(finalBlob);
-				downloadedFiles = [...downloadedFiles, { key, filename, size, objectUrl }];
-				toast.success(`Received: ${filename}`);
-
-				const a = document.createElement('a');
-				a.href = objectUrl;
-				a.download = filename;
-				a.click();
-			} catch {
-				toast.error(`Decryption failed for ${filename}`);
-			} finally {
-				receiveState = { type: 'idle' };
-				isDecrypting = false;
-			}
-		})();
-	}
-
-	function onFileError(detail: string, _key: string) {
-		if (receiveState.type === 'streaming') receiveState = { type: 'idle' };
-		toast.error(`File error: ${detail}`);
-	}
-
-	function onFileRemoved(key: string) {
-		roomFiles = roomFiles.filter((f) => f.key !== key);
-		downloadedFiles = downloadedFiles.filter((d) => d.key !== key);
-	}
-
-	function onRoomDestroyed() {
-		toast.info('The room has been destroyed.');
-		wsReconnect.close();
-		goto('/reverse');
-	}
-
-	const wsReconnect = useWsReconnect({
-		get_room_id: () => room_id,
-		get_host_token: () => hostToken,
-		get_receive_state: () => receiveState,
-		get_downloaded_files: () => downloadedFiles,
-		get_room_key: () => roomKey,
-		onSnapshot,
-		onHostCount,
-		onConnectionCounts,
-		onUploadStart,
-		onUploadProgress,
-		onUploadCancelled,
-		onFileAdded,
-		onFileEnd,
-		onFileError,
-		onFileRemoved,
-		onRoomDestroyed
-	});
-
 	async function loadRoom() {
 		loadStatus = 'loading';
 		try {
@@ -270,9 +133,206 @@
 			roomFiles = structuredClone(data.files);
 			hostCount = data.host_count ?? 1;
 			loadStatus = 'loaded';
+			connectWebSocket();
 		} catch {
 			loadStatus = 'error';
 		}
+	}
+
+	function connectWebSocket() {
+		ws?.close();
+		const socket = new WebSocket(Api.REVERSE.WS_URL(room_id, hostToken));
+		// prefer ArrayBuffer for binary frames to avoid Blob conversion
+		socket.binaryType = 'arraybuffer';
+		ws = socket;
+
+		socket.onopen = () => (wsConnected = true);
+		socket.onclose = () => {
+			wsConnected = false;
+			ws = null;
+		};
+		socket.onerror = () => {
+			wsConnected = false;
+			toast.error('WebSocket connection error');
+		};
+
+		socket.onmessage = async (ev) => {
+			if (ev.data instanceof ArrayBuffer || ev.data instanceof Blob) {
+				console.debug(
+					'[reverse/host] binary frame received, size=',
+					ev.data instanceof ArrayBuffer ? ev.data.byteLength : (ev.data as Blob).size
+				);
+				handleBinaryChunk(receiveState, ev.data);
+				return;
+			}
+
+			try {
+				const msg = JSON.parse(ev.data);
+				const { type } = msg;
+
+				switch (type) {
+					case 'snapshot': {
+						const r = msg.room as RoomOut;
+						room = r;
+						roomFiles = structuredClone(r.files);
+						hostCount = r.host_count ?? 1;
+						remoteUploads =
+							r.active_uploads?.map((u) => ({
+								key: u.upload_key,
+								filename: u.filename,
+								size: u.size,
+								uploadedBytes: u.uploaded_bytes,
+								progress: new Tween(
+									u.size > 0 ? Math.min((u.uploaded_bytes / u.size) * 100, 100) : 0,
+									{
+										duration: 300,
+										easing: cubicOut
+									}
+								)
+							})) ?? [];
+						break;
+					}
+					case 'host_count':
+						hostCount = msg.count;
+						break;
+					case 'connection_counts':
+						if (room) {
+							room.connected_hosts = msg.hosts;
+							room.connected_guests = msg.guests;
+						}
+						break;
+					case 'upload_start': {
+						const key = msg.upload_key;
+						if (!remoteUploads.some((u) => u.key === key)) {
+							remoteUploads = [
+								...remoteUploads,
+								{
+									key,
+									filename: msg.filename,
+									size: msg.size,
+									uploadedBytes: 0,
+									progress: new Tween(0, { duration: 300, easing: cubicOut })
+								}
+							];
+						}
+						break;
+					}
+					case 'upload_progress': {
+						const upload = remoteUploads.find((u) => u.key === msg.upload_key);
+						if (upload) {
+							upload.uploadedBytes = msg.uploaded_bytes;
+							upload.progress.target =
+								upload.size > 0 ? Math.min((msg.uploaded_bytes / upload.size) * 100, 100) : 0;
+						}
+						break;
+					}
+					case 'upload_cancelled':
+						remoteUploads = remoteUploads.filter((u) => u.key !== msg.upload_key);
+						break;
+					case 'file_added': {
+						const file = msg.file as RoomFileEntry;
+						if (!roomFiles.some((f) => f.key === file.key)) {
+							roomFiles = [...roomFiles, file];
+						}
+						remoteUploads = remoteUploads.filter((u) => u.key !== file.key);
+						break;
+					}
+					case 'file_start':
+						if (receiveState.type === 'idle') {
+							// Skip if already in memory
+							if (downloadedFiles.some((d) => d.key === msg.key)) {
+								return;
+							}
+							// server started streaming without an explicit client request
+							receiveState = {
+								type: 'streaming',
+								key: msg.key,
+								filename: msg.filename,
+								size: msg.size,
+								received: 0,
+								chunks: []
+							};
+						} else if (receiveState.type === 'streaming' && receiveState.key === msg.key) {
+							// confirm metadata for an in-progress request
+							receiveState.size = msg.size;
+							receiveState.filename = msg.filename;
+						}
+						break;
+					case 'file_end':
+						if (receiveState.type === 'streaming' && receiveState.key === msg.key) {
+							const { key, filename, size, chunks } = receiveState;
+							// Guard against concurrent file_end processing (e.g. multiple hosts)
+							receiveState = { type: 'processing', key, filename, size };
+
+							console.debug(
+								'[reverse/host] file_end for',
+								key,
+								'filename=',
+								filename,
+								'chunks=',
+								chunks.length,
+								'expected_size=',
+								size
+							);
+							try {
+								let finalBlob = new Blob(chunks);
+								if (roomKey) {
+									isDecrypting = true;
+									decryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
+									const { stream: decryptedStream } = await createDecryptedStream(
+										finalBlob.stream() as any,
+										roomKey,
+										undefined,
+										finalBlob.size,
+										(processed, total) => {
+											if (total && total > 0) {
+												decryptionProgress.target = Math.min(
+													100,
+													Math.round((processed / total) * 100)
+												);
+											}
+										}
+									);
+									finalBlob = await new Response(decryptedStream as any).blob();
+									isDecrypting = false;
+									decryptionProgress.target = 100;
+								}
+								const objectUrl = URL.createObjectURL(finalBlob);
+								downloadedFiles = [...downloadedFiles, { key, filename, size, objectUrl }];
+								toast.success(`Received: ${filename}`);
+
+								const a = document.createElement('a');
+								a.href = objectUrl;
+								a.download = filename;
+								a.click();
+							} catch {
+								toast.error(`Decryption failed for ${filename}`);
+							} finally {
+								receiveState = { type: 'idle' };
+								isDecrypting = false;
+							}
+						}
+						break;
+					case 'file_error':
+						if (receiveState.type === 'streaming' && receiveState.key === msg.key) {
+							receiveState = { type: 'idle' };
+						}
+						toast.error(`File error: ${msg.detail}`);
+						break;
+					case 'file_removed':
+						roomFiles = roomFiles.filter((f) => f.key !== msg.key);
+						downloadedFiles = downloadedFiles.filter((f) => f.key !== msg.key);
+						break;
+					case 'room_destroyed':
+						toast.info('The room has been destroyed.');
+						cleanup();
+						goto('/reverse');
+						break;
+				}
+			} catch {
+				/* ignore invalid JSON */
+			}
+		};
 	}
 
 	function addFiles(selected: FileList | null) {
@@ -316,14 +376,17 @@
 					undefined,
 					entry.file.size,
 					(processed, total) => {
-						if (total && total > 0)
+						if (total && total > 0) {
 							encryptionProgress.target = Math.min(100, (processed / total) * 100);
+						}
 					},
 					ikm
 				);
 
 				const encryptedBlob = await new Response(encryptedStream).blob();
 				encryptionProgress.target = 100;
+
+				// Allow time for the progress bar to animate to 100%
 				await new Promise((r) => setTimeout(r, 600));
 				isEncrypting = false;
 
@@ -337,12 +400,20 @@
 				});
 				entry.status = 'done';
 				entry.entry = fileEntry;
-				if (!roomFiles.some((f) => f.key === fileEntry.key)) roomFiles = [...roomFiles, fileEntry];
+				if (!roomFiles.some((f) => f.key === fileEntry.key)) {
+					roomFiles = [...roomFiles, fileEntry];
+				}
 
+				// Add to downloadedFiles so it shows as "Saved" instead of "Download"
 				const objectUrl = URL.createObjectURL(entry.file);
 				downloadedFiles = [
 					...downloadedFiles,
-					{ key: fileEntry.key, filename: entry.file.name, size: entry.file.size, objectUrl }
+					{
+						key: fileEntry.key,
+						filename: entry.file.name,
+						size: entry.file.size,
+						objectUrl
+					}
 				];
 			} catch (e: any) {
 				entry.status = 'error';
@@ -357,7 +428,7 @@
 		isUploading = false;
 	}
 
-	async function uploadFileXhr(
+	function uploadFileXhr(
 		file: Blob,
 		filename: string,
 		onProgress: (pct: number) => void
@@ -438,8 +509,7 @@
 	}
 
 	function leaveRoom() {
-		wsReconnect.close();
-		downloadedFiles.forEach((f) => f.objectUrl && URL.revokeObjectURL(f.objectUrl));
+		cleanup();
 		goto('/reverse');
 	}
 
@@ -466,13 +536,23 @@
 			received: 0,
 			chunks: []
 		};
-		wsReconnect.send({ type: 'request_file', key: f.key });
+
+		// Request file via WebSocket; backend will stream file_start, bytes, file_end
+		if (wsConnected && ws) {
+			ws.send(JSON.stringify({ type: 'request_file', key: f.key }));
+		} else {
+			receiveState = { type: 'idle' };
+			toast.error('WebSocket not connected. Cannot request file.');
+		}
+	}
+
+	function cleanup() {
+		ws?.close();
+		downloadedFiles.forEach((f) => f.objectUrl && URL.revokeObjectURL(f.objectUrl));
 	}
 
 	onMount(loadRoom);
-	onDestroy(() => {
-		downloadedFiles.forEach((f) => f.objectUrl && URL.revokeObjectURL(f.objectUrl));
-	});
+	onDestroy(cleanup);
 </script>
 
 {#if loadStatus === 'loading'}
@@ -524,23 +604,23 @@
 									{room.connected_hosts === 1 ? 'host' : 'hosts'}
 								</Badge>
 							</Tooltip.Trigger>
-							<Tooltip.Content
-								>{room.connected_hosts} host{room.connected_hosts === 1 ? '' : 's'} online</Tooltip.Content
-							>
+							<Tooltip.Content>
+								{room.connected_hosts} host{room.connected_hosts === 1 ? '' : 's'} online
+							</Tooltip.Content>
 						</Tooltip.Root>
 					</Tooltip.Provider>
 					<Tooltip.Provider>
 						<Tooltip.Root>
 							<Tooltip.Trigger>
-								{#if wsReconnect.connected}
+								{#if wsConnected}
 									<Wifi class="h-4 w-4 text-muted-foreground" />
 								{:else}
 									<WifiOff class="h-4 w-4 text-destructive" />
 								{/if}
 							</Tooltip.Trigger>
-							<Tooltip.Content
-								>{wsReconnect.connected ? 'WebSocket connected' : 'Disconnected'}</Tooltip.Content
-							>
+							<Tooltip.Content>
+								{wsConnected ? 'WebSocket connected' : 'Disconnected'}
+							</Tooltip.Content>
 						</Tooltip.Root>
 					</Tooltip.Provider>
 				</div>
@@ -588,7 +668,7 @@
 				</Tooltip.Provider>
 
 				<Button variant="outline" size="sm" onclick={leaveRoom}>
-					<ArrowLeft class="mr-1 h-1 w-4" />
+					<ArrowLeft class="mr-1 h-4 w-4" />
 					Leave
 				</Button>
 			</div>
@@ -603,9 +683,9 @@
 					<Upload class="h-4 w-4" />
 					Upload Files
 				</CardTitle>
-				<CardDescription
-					>Files you upload are pushed to all connected clients via WebSocket.</CardDescription
-				>
+				<CardDescription>
+					Files you upload are pushed to all connected clients via WebSocket.
+				</CardDescription>
 			</CardHeader>
 			<CardContent class="space-y-4">
 				<div
@@ -662,7 +742,9 @@
 				{#if isUploading || (uploads.length > 0 && completedUploads < totalUploads)}
 					<div class="space-y-1">
 						<div class="flex justify-between text-xs">
-							<span class="text-muted-foreground">{completedUploads}/{totalUploads} files</span>
+							<span class="text-muted-foreground"
+								>Overall — {completedUploads}/{totalUploads} files</span
+							>
 							<span class="text-muted-foreground">{overallProgress.current.toFixed(0)}%</span>
 						</div>
 						<Progress value={overallProgress.current} max={100} />
@@ -726,7 +808,10 @@
 		<Card>
 			<CardHeader>
 				<CardTitle class="flex items-center justify-between text-base">
-					<span class="flex items-center gap-2"><Users class="h-4 w-4" />Shared Files</span>
+					<span class="flex items-center gap-2">
+						<Users class="h-4 w-4" />
+						Shared Files
+					</span>
 					<Badge variant="outline">{roomFiles.length + remoteUploads.length}</Badge>
 				</CardTitle>
 			</CardHeader>
@@ -744,11 +829,11 @@
 									<div class="flex items-center gap-2">
 										<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
 										<span class="min-w-0 flex-1 truncate text-sm"
-											>{get_display_filename(u.filename)}</span
+											>{getDisplayFilename(u.filename)}</span
 										>
-										<span class="shrink-0 text-xs text-muted-foreground"
-											>{formatFileSize(u.uploadedBytes)} / {formatFileSize(u.size)}</span
-										>
+										<span class="shrink-0 text-xs text-muted-foreground">
+											{formatFileSize(u.uploadedBytes)} / {formatFileSize(u.size)}
+										</span>
 										<LoaderCircle class="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
 									</div>
 									<Progress value={u.progress.current} max={100} class="h-1" />
@@ -762,19 +847,22 @@
 								{@const isThisProcessing =
 									receiveState.type === 'processing' && receiveState.key === f.key}
 								{@const isAnyActive = isAnyStreaming || isAnyProcessing}
-								{@const displayName = get_display_filename(f.filename)}
+								{@const displayName = getDisplayFilename(f.filename)}
 								<div class="rounded-md border px-3 py-2">
 									<div class="flex items-center gap-3">
 										<FileIcon class="h-4 w-4 shrink-0 text-muted-foreground" />
 										<div class="min-w-0 flex-1">
 											<div class="flex items-center gap-2">
-												<p class="truncate text-sm font-medium">{displayName}</p>
+												<p class="truncate text-sm font-medium">
+													{displayName}
+												</p>
 												{#if downloaded}
 													<Badge
 														variant="outline"
 														class="h-4 border-green-200 bg-green-50 px-1 text-[10px] text-green-600 uppercase"
-														>Saved</Badge
 													>
+														Saved
+													</Badge>
 												{/if}
 											</div>
 											<p class="text-xs text-muted-foreground">{formatFileSize(f.size)}</p>
@@ -814,7 +902,8 @@
 													onclick={() => downloadFile(f)}
 													disabled={isAnyActive && currentTransferKey !== f.key}
 												>
-													<Download class="h-3.5 w-3.5" />Save
+													<Download class="h-3.5 w-3.5" />
+													Save
 												</Button>
 											{:else}
 												<Button
@@ -824,7 +913,8 @@
 													onclick={() => downloadFile(f)}
 													disabled={isAnyActive && currentTransferKey !== f.key}
 												>
-													<Download class="h-3.5 w-3.5" />Download
+													<Download class="h-3.5 w-3.5" />
+													Download
 												</Button>
 											{/if}
 

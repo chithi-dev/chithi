@@ -3,6 +3,7 @@
 		Card,
 		CardContent,
 		CardDescription,
+		CardFooter,
 		CardHeader,
 		CardTitle
 	} from '$lib/components/ui/card';
@@ -66,6 +67,20 @@
 			<CardContent>
 				<LoginForm {data} next_url={nextUrl} />
 			</CardContent>
+
+			<CardFooter
+				class="flex items-center justify-center border-t border-border/50 bg-muted/50 py-6"
+			>
+				<p class="text-sm text-muted-foreground">
+					Don't have an account?
+					<a
+						href="/signup"
+						class="ml-1 font-semibold text-foreground transition-colors hover:text-primary"
+					>
+						Create an account
+					</a>
+				</p>
+			</CardFooter>
 		</Card>
 	</div>
 </div>

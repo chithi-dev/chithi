@@ -1,4 +1,4 @@
-import { setEntries } from './recent-uploads.svelte';
+import { writable } from 'svelte/store';
 
 const DB_NAME = 'chithi_db';
 const STORE_NAME = 'uploads';
@@ -9,15 +9,18 @@ export interface UploadEntry {
 	name: string;
 	link: string;
 	expiry: number;
-	download_limit: string;
-	download_count?: number;
-	created_at: number;
+	downloadLimit: string;
+	downloadCount?: number;
+	createdAt: number;
 	size: string;
 }
 
-const openDB = () => {
-	if (!indexedDB) return Promise.reject(new Error('IndexedDB is not supported'));
+export const recentUploads = writable<UploadEntry[]>([]);
 
+const openDB = (): Promise<IDBDatabase> => {
+	if (typeof indexedDB === 'undefined') {
+		return Promise.reject(new Error('IndexedDB is not supported'));
+	}
 	return new Promise((resolve, reject) => {
 		const request = indexedDB.open(DB_NAME, DB_VERSION);
 		request.onerror = () => reject(request.error);
@@ -31,46 +34,51 @@ const openDB = () => {
 	});
 };
 
-const normalizeEntry = (entry: UploadEntry) => {
-	const link = entry.link.includes('?secret=') ? entry.link.replace('?secret=', '#') : entry.link;
-	return { ...entry, link };
-};
-
 export const getHistory = async (): Promise<UploadEntry[]> => {
 	try {
-		const db = (await openDB()) as IDBDatabase;
+		const db = await openDB();
 		const tx = db.transaction(STORE_NAME, 'readonly');
 		const store = tx.objectStore(STORE_NAME);
 		const request = store.getAll();
 
 		return new Promise((resolve, reject) => {
 			request.onsuccess = () => {
+				const entries = request.result as UploadEntry[];
 				const now = Date.now();
+				// Return only non-expired entries
 				resolve(
-					(request.result as UploadEntry[])
+					entries
 						.filter((e) => e.expiry > now)
-						.map(normalizeEntry)
-						.toSorted((a, b) => b.created_at - a.created_at)
+						.map((e) => {
+							// Normalize legacy links that used a query parameter into fragment form
+							if (e.link.includes('?secret=')) {
+								e.link = e.link.replace('?secret=', '#');
+							}
+							return e;
+						})
+						.sort((a, b) => b.createdAt - a.createdAt)
 				);
 			};
 			request.onerror = () => reject(request.error);
 		});
-	} catch {
-		console.error('Failed to load history');
+	} catch (err) {
+		console.error('Failed to load history', err);
 		return [];
 	}
 };
 
-const refreshStore = async () => setEntries(await getHistory());
+const refreshStore = async () => {
+	const entries = await getHistory();
+	recentUploads.set(entries);
+};
 
 export const addHistoryEntry = async (entry: UploadEntry) => {
 	try {
-		const db = (await openDB()) as IDBDatabase;
+		const db = await openDB();
 		const tx = db.transaction(STORE_NAME, 'readwrite');
-		tx.objectStore(STORE_NAME).add(entry);
-		await new Promise<void>((resolve) => {
-			tx.oncomplete = () => resolve();
-		});
+		const store = tx.objectStore(STORE_NAME);
+		store.add(entry);
+		await new Promise((resolve) => (tx.oncomplete = resolve));
 		await refreshStore();
 	} catch (err) {
 		console.error('Failed to add history entry', err);
@@ -80,12 +88,11 @@ export const addHistoryEntry = async (entry: UploadEntry) => {
 
 export const deleteHistoryEntry = async (id: string) => {
 	try {
-		const db = (await openDB()) as IDBDatabase;
+		const db = await openDB();
 		const tx = db.transaction(STORE_NAME, 'readwrite');
-		tx.objectStore(STORE_NAME).delete(id);
-		await new Promise<void>((resolve) => {
-			tx.oncomplete = () => resolve();
-		});
+		const store = tx.objectStore(STORE_NAME);
+		store.delete(id);
+		await new Promise((resolve) => (tx.oncomplete = resolve));
 		await refreshStore();
 	} catch (err) {
 		console.error('Failed to delete history entry', err);
@@ -95,36 +102,33 @@ export const deleteHistoryEntry = async (id: string) => {
 
 export const cleanupExpiredEntries = async () => {
 	try {
-		const db = (await openDB()) as IDBDatabase;
+		const db = await openDB();
 		const tx = db.transaction(STORE_NAME, 'readwrite');
 		const store = tx.objectStore(STORE_NAME);
 		const request = store.getAll();
 
 		await new Promise<void>((resolve, reject) => {
 			request.onsuccess = () => {
+				const entries = request.result as UploadEntry[];
 				const now = Date.now();
-				for (const entry of request.result as UploadEntry[]) {
-					if (entry.expiry <= now) store.delete(entry.id);
-				}
+				entries.forEach((entry) => {
+					if (entry.expiry <= now) {
+						store.delete(entry.id);
+					}
+				});
 			};
 			tx.oncomplete = () => resolve();
 			tx.onerror = () => reject(tx.error);
 		});
 		await refreshStore();
-	} catch {
-		console.error('Failed to cleanup history');
+	} catch (err) {
+		console.error('Failed to cleanup history', err);
 	}
 };
 
-export const updateHistoryEntry = async ({
-	id,
-	updates
-}: {
-	id: string;
-	updates: Partial<UploadEntry>;
-}) => {
+export const updateHistoryEntry = async (id: string, updates: Partial<UploadEntry>) => {
 	try {
-		const db = (await openDB()) as IDBDatabase;
+		const db = await openDB();
 		const tx = db.transaction(STORE_NAME, 'readwrite');
 		const store = tx.objectStore(STORE_NAME);
 		const request = store.get(id);
@@ -132,7 +136,10 @@ export const updateHistoryEntry = async ({
 		await new Promise<void>((resolve, reject) => {
 			request.onsuccess = () => {
 				const entry = request.result as UploadEntry;
-				if (entry) store.put({ ...entry, ...updates });
+				if (entry) {
+					const updatedEntry = { ...entry, ...updates };
+					store.put(updatedEntry);
+				}
 				resolve();
 			};
 			request.onerror = () => reject(request.error);

@@ -3,7 +3,7 @@
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
 	import { useConfigQuery } from '#queries/config';
-	import { calcBytes, type ByteUnit } from '#functions/bytes';
+	import { formatBytes, type ByteUnit } from '#functions/bytes';
 	import { type TimeUnit } from '#functions/times';
 	import ConfigLoadingSkeleton from './config_loading_skeleton.svelte';
 
@@ -58,7 +58,7 @@
 		if (!configData) return;
 		const bytes =
 			type === 'storage' ? configData.total_storage_limit : configData.max_file_size_limit;
-		const f = calcBytes(bytes);
+		const f = formatBytes(bytes);
 		editVal = f.val;
 		editUnit = f.unit;
 		editing = type;

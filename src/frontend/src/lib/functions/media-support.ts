@@ -13,6 +13,8 @@ export type ImageSupportInfo = {
 	message: string | null;
 };
 
+type FeatureLoader = () => Promise<CaniuseFeature>;
+
 let featurePromise: Promise<(data: unknown) => CaniuseFeature> | null = null;
 
 const loadFeature = async () => {
@@ -27,11 +29,56 @@ const loadFeature = async () => {
 	return featurePromise;
 };
 
+const loadAvifFeature: FeatureLoader = async () => {
+	const toFeature = await loadFeature();
+	// @ts-expect-error: type is not available
+	const { default: avifData } = await import('caniuse-lite/data/features/avif');
+	return toFeature(avifData);
+};
+
+const loadHeifFeature: FeatureLoader = async () => {
+	const toFeature = await loadFeature();
+	// @ts-expect-error: type is not available
+	const { default: heifData } = await import('caniuse-lite/data/features/heif');
+	return toFeature(heifData);
+};
+
+const loadWebpFeature: FeatureLoader = async () => {
+	const toFeature = await loadFeature();
+	// @ts-expect-error: type is not available
+	const { default: webpData } = await import('caniuse-lite/data/features/webp');
+	return toFeature(webpData);
+};
+
+const loadJpegxlFeature: FeatureLoader = async () => {
+	const toFeature = await loadFeature();
+	// @ts-expect-error: type is not available
+	const { default: jpegxlData } = await import('caniuse-lite/data/features/jpegxl');
+	return toFeature(jpegxlData);
+};
+
+const loadJpegxrFeature: FeatureLoader = async () => {
+	const toFeature = await loadFeature();
+	// @ts-expect-error: type is not available
+	const { default: jpegxrData } = await import('caniuse-lite/data/features/jpegxr');
+	return toFeature(jpegxrData);
+};
+
+const featureLoaders: Record<string, FeatureLoader> = {
+	'image/avif': loadAvifFeature,
+	'image/heif': loadHeifFeature,
+	'image/heic': loadHeifFeature,
+	'image/webp': loadWebpFeature,
+	'image/jxl': loadJpegxlFeature,
+	'image/jxr': loadJpegxrFeature
+};
+
 const featureCache = new Map<string, CaniuseFeature>();
 const featureInflight = new Map<string, Promise<CaniuseFeature>>();
 
-const loadFeatureForMime = async (featurePath: string | null, mime: string) => {
-	if (!featurePath) return null;
+const loadFeatureForMime = async (mime: string): Promise<CaniuseFeature | null> => {
+	const loader = featureLoaders[mime];
+	if (!loader) return null;
 
 	const cached = featureCache.get(mime);
 	if (cached) return cached;
@@ -39,29 +86,19 @@ const loadFeatureForMime = async (featurePath: string | null, mime: string) => {
 	const inflight = featureInflight.get(mime);
 	if (inflight) return inflight;
 
-	const promise = (async () => {
-		const toFeature = await loadFeature();
-		const data = await import(`caniuse-lite/data/features/${featurePath}`);
-		const feature = toFeature(data.default);
-		featureCache.set(mime, feature);
-		featureInflight.delete(mime);
-		return feature;
-	})().catch((error) => {
-		featureInflight.delete(mime);
-		throw error;
-	});
+	const promise = loader()
+		.then((featureData) => {
+			featureCache.set(mime, featureData);
+			featureInflight.delete(mime);
+			return featureData;
+		})
+		.catch((error) => {
+			featureInflight.delete(mime);
+			throw error;
+		});
 
 	featureInflight.set(mime, promise);
 	return promise;
-};
-
-const mimeFeatureMap: Record<string, string> = {
-	'image/avif': 'avif',
-	'image/heif': 'heif',
-	'image/heic': 'heif',
-	'image/webp': 'webp',
-	'image/jxl': 'jpegxl',
-	'image/jxr': 'jpegxr'
 };
 
 const agentLabels = {
@@ -88,6 +125,11 @@ const agentLabels = {
 
 type AgentKey = keyof typeof agentLabels;
 
+type BrowserInfo = {
+	agent: AgentKey;
+	version: number;
+};
+
 const isSupported = (value: string) => value.includes('y') || value.includes('a');
 
 const parseVersion = (value: string | null) => {
@@ -96,36 +138,7 @@ const parseVersion = (value: string | null) => {
 	return Number.isNaN(parsed) ? null : parsed;
 };
 
-const mobileBrowserMap: Record<string, AgentKey | undefined> = {
-	Chrome: 'and_chr',
-	Firefox: 'and_ff',
-	'UC Browser': 'and_uc',
-	'QQ Browser': 'and_qq',
-	Baidu: 'baidu',
-	'Android Browser': 'android',
-	BlackBerry: 'bb',
-	'Opera Mini': 'op_mob',
-	Opera: 'op_mob',
-	'Internet Explorer': 'ie_mob'
-};
-
-const desktopBrowserMap: Record<string, AgentKey | undefined> = {
-	Chrome: 'chrome',
-	Firefox: 'firefox',
-	'Microsoft Edge': 'edge',
-	Opera: 'opera',
-	Safari: 'safari',
-	'Samsung Internet for Android': 'samsung',
-	'Internet Explorer': 'ie'
-};
-
-const resolveBrowserAgent = (browserName: string, platformType: string): AgentKey | undefined => {
-	const maps =
-		platformType === 'mobile' || platformType === 'tablet' ? mobileBrowserMap : desktopBrowserMap;
-	return maps[browserName];
-};
-
-const getBrowserInfo = () => {
+const getBrowserInfo = (): BrowserInfo | null => {
 	if (typeof navigator === 'undefined') return null;
 
 	const parser = Bowser.getParser(navigator.userAgent);
@@ -133,56 +146,212 @@ const getBrowserInfo = () => {
 	const os = parser.getOS();
 	const platform = parser.getPlatform();
 
-	// iOS always uses Safari engine
-	if (os.name === 'iOS') {
-		const version = parseVersion(browser.version ?? null);
-		return version ? { agent: 'ios_saf' as AgentKey, version } : null;
-	}
+	const version = parseVersion(browser.version ?? null);
+	if (version === null) return null;
 
 	const name = browser.name;
-	if (!name) return null;
 
-	const agent = resolveBrowserAgent(name, platform.type ?? 'browser');
-	if (!agent) return null;
+	if (os.name === 'iOS') {
+		return {
+			agent: 'ios_saf',
+			version
+		};
+	}
 
-	const version = parseVersion(browser.version ?? null);
-	return version ? { agent, version } : null;
+	if (platform.type === 'mobile' || platform.type === 'tablet') {
+		if (name === 'Chrome') {
+			return {
+				agent: 'and_chr',
+				version
+			};
+		}
+		if (name === 'Firefox') {
+			return {
+				agent: 'and_ff',
+				version
+			};
+		}
+		if (name === 'UC Browser') {
+			return {
+				agent: 'and_uc',
+				version
+			};
+		}
+		if (name === 'QQ Browser') {
+			return {
+				agent: 'and_qq',
+				version
+			};
+		}
+		if (name === 'Baidu') {
+			return {
+				agent: 'baidu',
+				version
+			};
+		}
+		if (name === 'Android Browser') {
+			return {
+				agent: 'android',
+				version
+			};
+		}
+		if (name === 'BlackBerry') {
+			return {
+				agent: 'bb',
+				version
+			};
+		}
+		if (name === 'Opera Mini') {
+			return {
+				agent: 'op_mini',
+				version
+			};
+		}
+		if (name === 'Opera') {
+			return {
+				agent: 'op_mob',
+				version
+			};
+		}
+		if (name === 'Internet Explorer') {
+			return {
+				agent: 'ie_mob',
+				version
+			};
+		}
+	}
+
+	if (name === 'Chrome') {
+		return {
+			agent: 'chrome',
+			version
+		};
+	}
+
+	if (name === 'Firefox') {
+		return {
+			agent: 'firefox',
+			version
+		};
+	}
+
+	if (name === 'Microsoft Edge') {
+		return {
+			agent: 'edge',
+			version
+		};
+	}
+
+	if (name === 'Opera') {
+		return {
+			agent: 'opera',
+			version
+		};
+	}
+
+	if (name === 'Safari') {
+		return {
+			agent: 'safari',
+			version
+		};
+	}
+
+	if (name === 'Samsung Internet for Android') {
+		return {
+			agent: 'samsung',
+			version
+		};
+	}
+
+	if (name === 'Internet Explorer') {
+		return {
+			agent: 'ie',
+			version
+		};
+	}
+
+	return null;
 };
 
-const getMinSupportedVersion = (stats: Record<string, string>) =>
-	Object.entries(stats)
-		.filter(([, support]) => isSupported(support))
-		.map(([version]) => parseVersion(version.split('-')[0]))
-		.toSorted()
-		.findLast(Boolean);
+const getMinSupportedVersion = (stats: Record<string, string>) => {
+	let minVersion: number | null = null;
 
-const supportedAgentsSet = new Set(Object.keys(agentLabels));
+	for (const [version, support] of Object.entries(stats)) {
+		if (!isSupported(support)) continue;
 
-const getSupportedAgents = (stats: CaniuseStats) =>
-	Object.entries(stats)
-		.filter(
-			([agent, versions]) =>
-				supportedAgentsSet.has(agent) && Object.values(versions).some(isSupported)
-		)
-		.map(([agent]) => agent as AgentKey);
+		const numeric = parseVersion(version.split('-')[0]);
 
-const unknown = { status: 'unknown' as const, message: null } as const;
+		if (numeric === null) continue;
+
+		minVersion = minVersion === null ? numeric : Math.min(minVersion, numeric);
+	}
+
+	return minVersion;
+};
+
+const getSupportedAgents = (stats: CaniuseStats) => {
+	const supported: AgentKey[] = [];
+
+	for (const [agent, versions] of Object.entries(stats)) {
+		if (!Object.hasOwn(agentLabels, agent)) continue;
+
+		if (Object.values(versions).some(isSupported)) {
+			supported.push(agent as AgentKey);
+		}
+	}
+
+	return supported;
+};
 
 export const getImageSupportInfo = async (mime: string): Promise<ImageSupportInfo> => {
-	const featureData = await loadFeatureForMime(mimeFeatureMap[mime], mime).catch(() => null);
-	if (!featureData) return unknown;
+	let featureData: CaniuseFeature | null;
+
+	try {
+		featureData = await loadFeatureForMime(mime);
+	} catch {
+		return {
+			status: 'unknown',
+			message: null
+		};
+	}
+
+	if (!featureData) {
+		return {
+			status: 'unknown',
+			message: null
+		};
+	}
 
 	const supportedAgents = getSupportedAgents(featureData.stats).map((agent) => agentLabels[agent]);
+
 	const message = supportedAgents.length ? `Supported in: ${supportedAgents.join(', ')}.` : null;
 
 	const browser = getBrowserInfo();
-	if (!browser) return { status: 'unknown' as const, message };
+
+	if (!browser) {
+		return {
+			status: 'unknown',
+			message
+		};
+	}
 
 	const agentStats = featureData.stats[browser.agent];
-	if (!agentStats) return { status: 'unknown' as const, message };
+
+	if (!agentStats) {
+		return {
+			status: 'unknown',
+			message
+		};
+	}
 
 	const minVersion = getMinSupportedVersion(agentStats);
-	if (!minVersion) return { status: 'unsupported' as const, message };
+
+	if (minVersion === null) {
+		return {
+			status: 'unsupported',
+			message
+		};
+	}
 
 	return {
 		status: browser.version >= minVersion ? 'supported' : 'unsupported',

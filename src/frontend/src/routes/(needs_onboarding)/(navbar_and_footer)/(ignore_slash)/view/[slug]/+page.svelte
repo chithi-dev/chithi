@@ -23,7 +23,7 @@
 	import { goto } from '$app/navigation';
 	import { fly, fade } from 'svelte/transition';
 	import { Api } from '#consts/backend';
-	import { PasswordRequiredError } from '$lib/errors/password';
+	import { PasswordRequiredError } from '#functions/download';
 	import { createDecryptedStream } from '#functions/streams';
 	import { formatFileSize } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';
@@ -33,9 +33,7 @@
 	import { ZipReader, BlobReader, BlobWriter, type Entry } from '@zip.js/zip.js';
 	import { detectMimeFromBlob } from '#functions/mime';
 	import { createViewableText } from '$lib/functions/viewer';
-	import { saveBlobUrl } from '#functions/download';
-
-	const { default: FileViewerOverlay } = await import('$lib/components/FileViewerOverlay.svelte');
+	import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
 
 	let key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
 	let slug = $derived(page.params.slug);
@@ -49,7 +47,7 @@
 	let filename = $state('file');
 	let fileSize = $state(0);
 	let password = $state('');
-	const downloadTween = $state(new Tween(0, { duration: 500, easing: cubicOut }));
+	let downloadProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 
 	let zipEntries = $state<Entry[]>([]);
 	let decryptedBlob = $state<Blob | null>(null);
@@ -106,16 +104,11 @@
 		await fetchAndUnzip();
 	}
 
-	function handleEnterPassword(e: KeyboardEvent) {
-		e.preventDefault();
-		handlePasswordSubmit();
-	}
-
 	async function fetchAndUnzip() {
 		if (!key || !slug) return;
 		const previousStatus = status;
 		status = 'downloading';
-		downloadTween.target = 0;
+		downloadProgress = new Tween(0, { duration: 500, easing: cubicOut });
 
 		try {
 			const blob = await downloadFileBlob(
@@ -123,7 +116,7 @@
 				key,
 				password,
 				fileSize,
-				(p) => (downloadTween.target = p)
+				(p) => (downloadProgress.target = p)
 			);
 			decryptedBlob = blob;
 
@@ -162,7 +155,7 @@
 		password: string,
 		totalSize: number,
 		onProgress: (percent: number) => void
-	) {
+	): Promise<Blob> {
 		const res = await fetch(Api.DOWNLOAD(slug));
 		if (!res.ok) throw new Error('Download failed');
 		if (!res.body) throw new Error('No response body');
@@ -259,13 +252,29 @@
 	async function saveEntry(entry: Entry) {
 		if (entry.directory || !entry.getData) return;
 		const blob = await entry.getData(new BlobWriter());
-		saveBlobUrl(blob, entry.filename.split('/').pop() || 'file');
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = entry.filename.split('/').pop() || 'file';
+		a.style.display = 'none';
+		document.body.appendChild(a);
+		a.click();
+		URL.revokeObjectURL(url);
+		document.body.removeChild(a);
 	}
 
 	function handleDownloadOriginal() {
 		if (!decryptedBlob) return;
 		const downloadName = filename.toLowerCase().endsWith('.zip') ? filename : `${filename}.zip`;
-		saveBlobUrl(decryptedBlob, downloadName);
+		const url = URL.createObjectURL(decryptedBlob);
+		const a = document.createElement('a');
+		a.href = url;
+		a.download = downloadName;
+		a.style.display = 'none';
+		document.body.appendChild(a);
+		a.click();
+		URL.revokeObjectURL(url);
+		document.body.removeChild(a);
 	}
 </script>
 
@@ -324,7 +333,7 @@
 										placeholder="Password"
 										class="rounded-r-none focus-visible:z-10"
 										bind:value={password}
-										onkeydown={handleEnterPassword}
+										onkeydown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
 									/>
 									<Button class="rounded-l-none" onclick={handlePasswordSubmit}>Unlock</Button>
 								</div>
@@ -348,9 +357,9 @@
 							<Card.Footer class="flex w-full flex-col gap-6 px-0">
 								{#if status === 'downloading' || status === 'unzipping'}
 									<div class="w-full space-y-2">
-										<Progress value={downloadTween.current} class="h-2" />
+										<Progress value={downloadProgress.current} class="h-2" />
 										<div class="flex justify-between text-xs text-muted-foreground">
-											<span>{Math.round(downloadTween.current)}%</span>
+											<span>{Math.round(downloadProgress.current)}%</span>
 											<span class="flex items-center">
 												{#if status === 'unzipping'}
 													<FolderOpen class="mr-2 h-3 w-3 animate-pulse" />
@@ -385,11 +394,17 @@
 							oncopylink={copyViewerLink}
 							ondownload={() => {
 								if (!viewingFile) return;
-								const blob =
-									viewingFile.text !== null
-										? new Blob([viewingFile.text], { type: 'text/plain' })
-										: '';
-								saveBlobUrl(blob, viewingFile.filename.split('/').pop() || 'file');
+								const blobUrl =
+									viewingFile.url ||
+									URL.createObjectURL(new Blob([viewingFile.text!], { type: 'text/plain' }));
+								const a = document.createElement('a');
+								a.href = blobUrl;
+								a.download = viewingFile.filename.split('/').pop() || 'file';
+								a.style.display = 'none';
+								document.body.appendChild(a);
+								a.click();
+								document.body.removeChild(a);
+								if (!viewingFile.url) URL.revokeObjectURL(blobUrl);
 							}}
 						/>
 					</div>
@@ -409,7 +424,7 @@
 						<div class="rounded-md border">
 							<ScrollArea class="h-125">
 								<div class="p-2">
-									{#each zipEntries as entry (entry.filename)}
+									{#each zipEntries as entry}
 										<div
 											class="group flex w-full items-center gap-3 rounded-md p-2 transition-colors hover:bg-muted/50"
 										>

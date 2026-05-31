@@ -8,14 +8,15 @@ export const actions = {
 	default: async ({ request }) => {
 		const form = await superValidate(request, zod4(schema));
 
-		if (!form.valid) return fail(400, { form });
+		if (!form.valid) {
+			return fail(400, { form });
+		}
 
 		try {
 			await loginRemote({ username: form.data.email, password: form.data.password });
 			return message(form, 'Logged in successfully');
-		} catch (error) {
-			const err = error instanceof Error ? error : new Error(String(error));
-			return setError(form, '', err.message ?? 'Invalid username or password');
+		} catch (error: any) {
+			return setError(form, '', error?.message || 'Invalid username or password');
 		}
 	}
 };
