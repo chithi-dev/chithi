@@ -4,56 +4,33 @@ import { definePageMetaTags } from 'svelte-meta-tags';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch, params, url }) => {
-	let filename = 'Download File';
-	let description = 'Download your encrypted file with a link that automatically expires.';
-	let fileSizeStr = '';
-	let fileCount = 0;
-
+	let filename = 'Download File',
+		size = '',
+		count = 0;
 	try {
 		const res = await fetch(Api.FILE_INFO(params.slug));
 		if (res.ok) {
 			const info = await res.json();
 			filename = info.filename;
-			fileSizeStr = formatFileSize(info.size);
-			fileCount = info.number_of_files ?? 0;
-			const details: string[] = [];
-			if (fileSizeStr) details.push(fileSizeStr);
-			if (fileCount) {
-				details.push(`${fileCount} file${fileCount === 1 ? '' : 's'}`);
-			}
-			description = details.length
-				? `Download ${filename} (${details.join(', ')}) - an encrypted file shared via Chithi.`
-				: `Download ${filename} - an encrypted file shared via Chithi.`;
+			size = formatFileSize(info.size);
+			count = info.number_of_files ?? 0;
 		}
-	} catch (e) {
-		console.error('Failed to fetch file info for meta tags', e);
+	} catch {
+		/* ignore */
 	}
 
-	const ogUrl = new URL('/og/download', url.origin);
-	ogUrl.searchParams.set('filename', filename);
-	if (fileSizeStr) {
-		ogUrl.searchParams.set('size', fileSizeStr);
-	}
-	if (fileCount) {
-		ogUrl.searchParams.set('files', fileCount.toString());
-	}
+	const details = [size, count && `${count} file${count > 1 ? 's' : ''}`].filter(Boolean);
+	const og = new URL('/og/download', url.origin);
+	og.searchParams.set('filename', filename);
+	size && og.searchParams.set('size', size);
+	count && og.searchParams.set('files', count.toString());
 
-	const pageTags = definePageMetaTags({
+	return definePageMetaTags({
 		title: `Download ${filename}`,
-		description,
+		description: `Download ${filename}${details.length ? ` (${details.join(', ')})` : ''} - an encrypted file shared via Chithi.`,
 		openGraph: {
 			title: `Download ${filename}`,
-			description,
-			images: [
-				{
-					url: ogUrl.toString(),
-					width: 1200,
-					height: 630,
-					alt: `Download ${filename}`
-				}
-			]
+			images: [{ url: og.toString(), width: 1200, height: 630 }]
 		}
 	});
-
-	return { ...pageTags };
 };

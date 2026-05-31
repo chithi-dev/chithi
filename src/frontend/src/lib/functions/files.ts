@@ -26,8 +26,9 @@ export async function traverseFileTree(item: FileSystemEntry, path = ''): Promis
 		};
 
 		await read();
-		return (await Promise.all(entries.map((e) => traverseFileTree(e, path + item.name + '/'))))
-			.flat();
+		return (
+			await Promise.all(entries.map((e) => traverseFileTree(e, path + item.name + '/')))
+		).flat();
 	}
 
 	return [];

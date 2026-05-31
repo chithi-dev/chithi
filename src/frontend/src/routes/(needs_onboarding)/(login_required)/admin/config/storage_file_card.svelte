@@ -15,14 +15,14 @@
 		editUnit = $bindable(),
 		startEdit,
 		save
-	}: {
+	} = $props<{
 		configData: any;
-		editing: 'storage' | 'file' | 'desc' | 'time' | 'allowed' | 'banned' | 'steps' | null;
+		editing: string | null;
 		editVal: number;
-		editUnit: ByteUnit;
-		startEdit: (type: 'storage' | 'file') => void;
-		save: (payload: any) => Promise<void>;
-	} = $props();
+		editUnit: import('#functions/bytes').ByteUnit;
+		startEdit: (t: string) => void;
+		save: (p: any) => Promise<void>;
+	}>();
 </script>
 
 <Card.Root class="border bg-background">

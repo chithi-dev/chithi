@@ -7,25 +7,19 @@
 	import * as Select from '$lib/components/ui/select';
 	import { X } from '@lucide/svelte';
 	import { slide } from 'svelte/transition';
-	import { formatSeconds, secondsToNumber, T_UNITS, type TimeUnit } from '#functions/times';
+	import { formatSeconds, secondsToNumber, T_UNITS } from '#functions/times';
 
 	let {
 		configData,
 		editing = $bindable(),
 		tempInput = $bindable(),
 		save
-	}: {
+	} = $props<{
 		configData: any;
-		editing: 'storage' | 'file' | 'desc' | 'time' | 'allowed' | 'banned' | 'steps' | null;
-		tempInput: {
-			dl: number;
-			time: number;
-			timeUnit: TimeUnit;
-			allowedStr: string;
-			bannedStr: string;
-		};
-		save: (payload: any) => Promise<void>;
-	} = $props();
+		editing: string | null;
+		tempInput: any;
+		save: (p: any) => Promise<void>;
+	}>();
 </script>
 
 <Card.Root class="border bg-background">

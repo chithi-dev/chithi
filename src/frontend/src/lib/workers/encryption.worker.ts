@@ -1,7 +1,15 @@
 import { getChunkIv } from '#functions/encryption';
 
-interface InitMessage { type: 'init'; keyRaw: ArrayBuffer; baseIv: ArrayBuffer }
-interface DataMessage { type: 'data'; index: number; chunk: ArrayBuffer }
+interface InitMessage {
+	type: 'init';
+	keyRaw: ArrayBuffer;
+	baseIv: ArrayBuffer;
+}
+interface DataMessage {
+	type: 'data';
+	index: number;
+	chunk: ArrayBuffer;
+}
 
 let aesKey: CryptoKey | null = null;
 let baseIv: Uint8Array | null = null;
@@ -23,8 +31,16 @@ self.addEventListener('message', async (ev) => {
 		try {
 			const iv = getChunkIv(baseIv, msg.index);
 			const buf = new Uint8Array(msg.chunk).buffer.slice(0);
-			const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv as unknown as ArrayBuffer }, aesKey, buf);
-			(self as any).postMessage({ type: 'encrypted' as const, index: msg.index, encrypted }, [encrypted]);
-		} catch { /* worker error */ }
+			const encrypted = await crypto.subtle.encrypt(
+				{ name: 'AES-GCM', iv: iv as unknown as ArrayBuffer },
+				aesKey,
+				buf
+			);
+			(self as any).postMessage({ type: 'encrypted' as const, index: msg.index, encrypted }, [
+				encrypted
+			]);
+		} catch {
+			/* worker error */
+		}
 	}
 });

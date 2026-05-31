@@ -174,7 +174,8 @@ function createWorkerStream(
 	messageType: 'encrypted' | 'decrypted',
 	onProgress?: (bytes: number) => void
 ) {
-	const EncryptionWorker = (async () => (await import('#workers/encryption.worker?worker')).default)();
+	const EncryptionWorker = (async () =>
+		(await import('#workers/encryption.worker?worker')).default)();
 
 	let worker: Worker | null = null;
 
@@ -187,7 +188,10 @@ function createWorkerStream(
 			worker.onmessage = (ev) => {
 				if (!initialized && ev.data?.type === 'init') {
 					initialized = true;
-					worker!.postMessage({ type: 'init' as const, keyRaw: keyCopy, baseIv: ivCopy }, [keyCopy, ivCopy]);
+					worker!.postMessage({ type: 'init' as const, keyRaw: keyCopy, baseIv: ivCopy }, [
+						keyCopy,
+						ivCopy
+					]);
 					return;
 				}
 				if (ev.data?.type === messageType) {
@@ -213,7 +217,10 @@ function createWorkerStream(
 			input.pipeTo(io.writable).catch(() => {});
 		},
 		cancel() {
-			if (worker) try { worker.terminate(); } catch {}
+			if (worker)
+				try {
+					worker.terminate();
+				} catch {}
 		}
 	});
 }
@@ -237,12 +244,8 @@ export async function createEncryptedStream(
 	return {
 		stream: concatStreams(
 			ranges.map(({ range }) =>
-				createWorkerStream(
-					range,
-					keyCopy,
-					ivCopy,
-					'encrypted',
-					(bytes) => onProgress?.(bytes, originalSize)
+				createWorkerStream(range, keyCopy, ivCopy, 'encrypted', (bytes) =>
+					onProgress?.(bytes, originalSize)
 				)
 			)
 		),
@@ -296,7 +299,8 @@ function createDecryptionWorkerStream(
 	chunkWithTagSize: number,
 	onProgress?: (bytes: number) => void
 ) {
-	const EncryptionWorker = (async () => (await import('#workers/encryption.worker?worker')).default)();
+	const EncryptionWorker = (async () =>
+		(await import('#workers/encryption.worker?worker')).default)();
 
 	let worker: Worker | null = null;
 
@@ -310,7 +314,10 @@ function createDecryptionWorkerStream(
 			worker.onmessage = (ev) => {
 				if (!initialized && ev.data?.type === 'init') {
 					initialized = true;
-					worker!.postMessage({ type: 'init' as const, keyRaw: keyCopy, baseIv: ivCopy }, [keyCopy, ivCopy]);
+					worker!.postMessage({ type: 'init' as const, keyRaw: keyCopy, baseIv: ivCopy }, [
+						keyCopy,
+						ivCopy
+					]);
 					return;
 				}
 				if (ev.data?.type === 'decrypted') {
@@ -329,7 +336,9 @@ function createDecryptionWorkerStream(
 					while (true) {
 						const { done, value } = await outputReader.read();
 						if (done) break;
-						worker!.postMessage({ type: 'data' as const, index: chunkIndex++, chunk: value }, [value]);
+						worker!.postMessage({ type: 'data' as const, index: chunkIndex++, chunk: value }, [
+							value
+						]);
 					}
 				} catch {}
 			}
@@ -358,11 +367,16 @@ function createDecryptionWorkerStream(
 				}
 			} finally {
 				await reader.cancel();
-				try { io.writable.getWriter().close(); } catch {}
+				try {
+					io.writable.getWriter().close();
+				} catch {}
 			}
 		},
 		cancel() {
-			if (worker) try { worker.terminate(); } catch {}
+			if (worker)
+				try {
+					worker.terminate();
+				} catch {}
 		}
 	});
 }

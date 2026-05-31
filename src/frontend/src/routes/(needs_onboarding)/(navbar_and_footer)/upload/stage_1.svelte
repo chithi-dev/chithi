@@ -25,7 +25,9 @@
 		const items = e.dataTransfer?.items;
 		const files = items
 			? await processDataTransferItems(items)
-			: e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : [];
+			: e.dataTransfer?.files
+				? Array.from(e.dataTransfer.files)
+				: [];
 		files.length && onFilesSelected(files);
 	};
 

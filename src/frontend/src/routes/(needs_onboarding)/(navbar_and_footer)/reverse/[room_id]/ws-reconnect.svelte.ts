@@ -1,9 +1,9 @@
+import { Api } from '#consts/backend';
+import { toast } from 'svelte-sonner';
 import { cubicOut } from 'svelte/easing';
 import { Tween } from 'svelte/motion';
-import { toast } from 'svelte-sonner';
-import type { RoomFileEntry, ReceiveState, RemoteUpload } from './types';
-import { Api } from '#consts/backend';
 import { handle_binary_chunk } from './functions';
+import type { ReceiveState, RemoteUpload, RoomFileEntry } from './types';
 
 const INITIAL_DELAY = 1000;
 const MAX_DELAY = 30_000;
@@ -29,7 +29,7 @@ export function useWsReconnect(
 		get_receive_state: () => ReceiveState;
 		get_downloaded_files: () => Array<{ key: string }>;
 		get_room_key: () => string | null;
-	} & MessageHandler,
+	} & MessageHandler
 ) {
 	let ws: WebSocket | null = null;
 	let connected = $state(false);
@@ -115,7 +115,8 @@ export function useWsReconnect(
 			case 'connection_counts': {
 				const hosts = typeof msg.hosts === 'number' ? msg.hosts : undefined;
 				const guests = typeof msg.guests === 'number' ? msg.guests : undefined;
-				if (hosts !== undefined || guests !== undefined) opts.onConnectionCounts?.(hosts ?? 0, guests ?? 0);
+				if (hosts !== undefined || guests !== undefined)
+					opts.onConnectionCounts?.(hosts ?? 0, guests ?? 0);
 				break;
 			}
 			case 'upload_start': {
@@ -184,7 +185,10 @@ export function useWsReconnect(
 
 	function close() {
 		clearReconnect();
-		if (ws) { ws.onclose = null; ws.close(); }
+		if (ws) {
+			ws.onclose = null;
+			ws.close();
+		}
 		ws = null;
 	}
 

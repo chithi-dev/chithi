@@ -3,43 +3,25 @@ import { definePageMetaTags } from 'svelte-meta-tags';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ fetch, parent, url }) => {
-	const ogUrl = new URL('/og/info', url.origin);
-	ogUrl.searchParams.set('label', 'BACKEND INFRASTRUCTURE');
-	ogUrl.searchParams.set('title', 'Chithi Backend');
-	ogUrl.searchParams.set(
-		'description',
-		'Runtime environment, service versions, and architectural metadata.'
-	);
-
-	const pageTags = definePageMetaTags({
-		title: 'Backend Information',
-		description: 'Detailed information about the Chithi backend instance.',
-		openGraph: {
+	const og = new URL('/og/info', url.origin);
+	og.searchParams.set('label', 'BACKEND INFRASTRUCTURE');
+	og.searchParams.set('title', 'Chithi Backend');
+	const { queryClient } = await parent();
+	await prefetchInstanceInformation({ queryClient, fetch });
+	const header = {
+		subtitle: og.searchParams.get('label')!,
+		title: og.searchParams.get('title')!,
+		description: 'Runtime environment, service versions, and architectural metadata.'
+	};
+	return {
+		...definePageMetaTags({
 			title: 'Backend Information',
 			description: 'Detailed information about the Chithi backend instance.',
-			images: [
-				{
-					url: ogUrl.toString(),
-					width: 1200,
-					height: 630,
-					alt: 'Backend Information'
-				}
-			]
-		}
-	});
-
-	const { queryClient } = await parent();
-	await prefetchInstanceInformation({
-		queryClient: queryClient,
-		fetch
-	});
-
-	return {
-		...pageTags,
-		header: {
-			subtitle: 'BACKEND INFRASTRUCTURE',
-			title: 'Chithi Backend',
-			description: 'Runtime environment, service versions, and architectural metadata.'
-		}
+			openGraph: {
+				title: 'Backend Information',
+				images: [{ url: og.toString(), width: 1200, height: 630 }]
+			}
+		}),
+		header
 	};
 };

@@ -21,7 +21,7 @@ export function base64url(bytes: Uint8Array): string {
 
 export function base64urlToBytes(str: string): Uint8Array {
 	const padded = str.replaceAll('-', '+').replaceAll('_', '/');
-	return base64ToBytes(padded.padEnd(padded.length + (4 - (padded.length % 4)) % 4, '='));
+	return base64ToBytes(padded.padEnd(padded.length + ((4 - (padded.length % 4)) % 4), '='));
 }
 
 export function xorBytes(a: Uint8Array, b: Uint8Array): Uint8Array {

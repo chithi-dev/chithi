@@ -4,7 +4,10 @@ import type { Plugin } from 'unified';
 import { visit } from 'unist-util-visit';
 
 const mangleEmail = (email: string) =>
-	email.split('').map((c) => `&#${c.charCodeAt(0)};`).join('');
+	email
+		.split('')
+		.map((c) => `&#${c.charCodeAt(0)};`)
+		.join('');
 
 const rehypeEmailMangle: Plugin<[], Root> = () => (tree: Root) => {
 	visit(tree, 'text', (node: Text) => {

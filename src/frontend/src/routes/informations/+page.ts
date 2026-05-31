@@ -2,40 +2,32 @@ import { definePageMetaTags } from 'svelte-meta-tags';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ url }) => {
-	const ogUrl = new URL('/og/info', url.origin);
-	ogUrl.searchParams.set('label', 'INSTANCE OVERVIEW');
-	ogUrl.searchParams.set('title', 'System Information');
-	ogUrl.searchParams.set(
-		'description',
-		'Explore the infrastructure, performance metrics, and configuration of your Chithi deployment.'
+	const og = new URL('/og/info', url.origin);
+	['label', 'title', 'description'].forEach((k) =>
+		og.searchParams.set(
+			k,
+			{
+				label: 'INSTANCE OVERVIEW',
+				title: 'System Information',
+				description:
+					'Explore the infrastructure, performance metrics, and configuration of your Chithi deployment.'
+			}[k]!
+		)
 	);
-
-	const pageTags = definePageMetaTags({
-		title: 'Instance Information',
-		description:
-			'Overview of this Chithi instance, including backend, frontend, and system statistics.',
-		openGraph: {
+	return {
+		...definePageMetaTags({
 			title: 'Instance Information',
 			description:
 				'Overview of this Chithi instance, including backend, frontend, and system statistics.',
-			images: [
-				{
-					url: ogUrl.toString(),
-					width: 1200,
-					height: 630,
-					alt: 'Instance Information'
-				}
-			]
-		}
-	});
-
-	return {
-		...pageTags,
+			openGraph: {
+				title: 'Instance Information',
+				images: [{ url: og.toString(), width: 1200, height: 630 }]
+			}
+		}),
 		header: {
 			subtitle: 'INSTANCE OVERVIEW',
 			title: 'System Information',
-			description:
-				'Explore the infrastructure, performance metrics, and configuration of your Chithi deployment.'
+			description: og.searchParams.get('description')!
 		}
 	};
 };

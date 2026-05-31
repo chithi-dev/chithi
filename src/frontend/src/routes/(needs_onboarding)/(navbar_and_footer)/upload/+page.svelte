@@ -39,7 +39,7 @@
 	const detailsMarkdown = $derived(configData.data?.site_description ?? '');
 	let detailsPromise = $derived(detailsMarkdown ? markdown_to_html(detailsMarkdown) : null);
 
-	// Handle physical mouse back button (X1) to return from stage 2 to stage 1
+	// Handle physical mouse back button (X1) to return to stage 1
 	const handleMouseBack = (e: MouseEvent) => {
 		if (e.button === 3 && stage === UploadStage.Stage_2) {
 			files = [];
@@ -124,33 +124,27 @@
 	const handlePaste = async (e: ClipboardEvent) => {
 		if (stage === UploadStage.Stage_3) return;
 		const items = e.clipboardData?.items;
-		if (!items?.some(i => i.kind === 'file')) return;
+		if (!items?.some((i) => i.kind === 'file')) return;
 		e.preventDefault();
 		const files = await processDataTransferItems(Array.from(items) as any);
 		files.length && onFilesSelected(files);
 	};
 
-	const onFilesSelected = (newFiles: File[]) => {
-		files = [...files, ...newFiles];
-		dragCounter = 0;
-		dragActive = false;
-		dragOverZone = false;
-		dragOverCard = false;
-		stage = UploadStage.Stage_2;
-		window.history.pushState({ stage: UploadStage.Stage_2 }, '', window.location.href);
+	const pushStage = (s: UploadStage) => {
+		stage = s;
+		history.pushState({ stage: s }, '', location.href);
 	};
-
-	const onUploadComplete = (result: {
-		finalLink: string;
-		viewOnceLink: string;
-		isViewOnce: boolean;
-	}) => {
+	const onFilesSelected = (f: File[]) => {
+		files = [...files, ...f];
+		dragCounter = dragActive = dragOverZone = dragOverCard = false as any;
+		pushStage(UploadStage.Stage_2);
+	};
+	const onUploadComplete = (result: NonNullable<typeof uploadResult>) => {
 		uploadResult = result;
-		stage = UploadStage.Stage_3;
-		window.history.pushState({ stage: UploadStage.Stage_3 }, '', window.location.href);
+		pushStage(UploadStage.Stage_3);
 	};
 
-	const resetState = (historyMode: 'push' | 'replace' = 'push') => {
+	const reset = (push = true) => {
 		files = [];
 		uploadResult = null;
 		stage = UploadStage.Stage_1;
@@ -158,25 +152,11 @@
 		dragActive = false;
 		dragOverZone = false;
 		dragOverCard = false;
-
-		const state = { stage: UploadStage.Stage_1 };
-		if (historyMode === 'replace') {
-			window.history.replaceState(state, '', window.location.href);
-		} else {
-			window.history.pushState(state, '', window.location.href);
-		}
+		const h = { stage: UploadStage.Stage_1 };
+		push ? history.pushState(h, '', location.href) : history.replaceState(h, '');
 	};
-
-	const onReset = () => {
-		resetState('push');
-	};
-
-	const onBack = () => {
-		files = [];
-		uploadResult = null;
-		stage = UploadStage.Stage_1;
-		history.replaceState({ stage: UploadStage.Stage_1 }, '');
-	};
+	const onReset = () => reset();
+	const onBack = () => reset(false);
 
 	const handlePopState = (e: PopStateEvent) => {
 		const restoredStage = isWhichUploadStage(e.state?.stage) ? e.state.stage : UploadStage.Stage_1;

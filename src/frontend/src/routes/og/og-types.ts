@@ -6,7 +6,6 @@ export type OgConfig = {
 	labelFromQuery?: boolean;
 	usesFileMeta?: boolean;
 };
-
 export type OgInputs = {
 	label?: string | null;
 	title?: string | null;
@@ -15,10 +14,4 @@ export type OgInputs = {
 	size?: string | null;
 	fileCount?: number | null;
 };
-
-export type OgDisplay = {
-	label: string;
-	title: string;
-	subtitle: string;
-	footerTags?: string[];
-};
+export type OgDisplay = { label: string; title: string; subtitle: string; footerTags?: string[] };

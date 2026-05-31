@@ -1,7 +1,6 @@
 const textMimes = new Set(['application/json', 'application/xml', 'text/xml']);
 
-const isTextMime = (mime: string) =>
-	mime.startsWith('text/') || textMimes.has(mime);
+const isTextMime = (mime: string) => mime.startsWith('text/') || textMimes.has(mime);
 
 const looksLikeText = (bytes: Uint8Array) => {
 	let suspicious = 0;

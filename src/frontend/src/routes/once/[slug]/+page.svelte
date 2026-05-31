@@ -42,21 +42,14 @@
 			if (!res.body) throw new Error('No response body');
 
 			const reader = res.body.getReader();
-			const streamForDecrypt = new ReadableStream<Uint8Array>({
-				async pull(controller) {
+			const streamForDecrypt = new ReadableStream({
+				async pull(c) {
 					const { done, value } = await reader.read();
-					if (done) {
-						controller.close();
-						return;
-					}
-					controller.enqueue(value);
+					done ? c.close() : c.enqueue(value);
 				},
-				cancel(reason) {
-					return reader.cancel(reason);
-				}
+				cancel: (r) => reader.cancel(r)
 			});
 
-			// Decrypt
 			const { stream: decryptedStream } = await createDecryptedStream(
 				streamForDecrypt,
 				key,

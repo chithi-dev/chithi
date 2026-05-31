@@ -13,18 +13,12 @@
 		editing = $bindable(),
 		tempInput = $bindable(),
 		save
-	}: {
+	} = $props<{
 		configData: any;
-		editing: 'storage' | 'file' | 'desc' | 'time' | 'allowed' | 'banned' | 'steps' | null;
-		tempInput: {
-			dl: number;
-			time: number;
-			timeUnit: TimeUnit;
-			allowedStr: string;
-			bannedStr: string;
-		};
-		save: (payload: any) => Promise<void>;
-	} = $props();
+		editing: string | null;
+		tempInput: any;
+		save: (p: any) => Promise<void>;
+	}>();
 </script>
 
 <Card.Root class="border bg-background">

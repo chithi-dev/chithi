@@ -106,14 +106,16 @@
 		const items = e.dataTransfer?.items;
 		const files = items
 			? await processDataTransferItems(items)
-			: e.dataTransfer?.files ? Array.from(e.dataTransfer.files) : [];
+			: e.dataTransfer?.files
+				? Array.from(e.dataTransfer.files)
+				: [];
 		files.length && addFiles(files);
 	};
 
 	const handleFileSelect = (e: Event) => {
 		const t = e.target as HTMLInputElement;
 		t.files && addFiles(Array.from(t.files));
-		target.value = '';
+		t.value = '';
 	};
 
 	const removeFile = (file: File) => {
@@ -326,7 +328,15 @@
 				<Tooltip.Provider>
 					<Tooltip.Root>
 						<Tooltip.Trigger>
-							<Button variant="ghost" size="sm" class="mb-2" onclick={() => { files = []; onFilesUpdated(files); }}>
+							<Button
+								variant="ghost"
+								size="sm"
+								class="mb-2"
+								onclick={() => {
+									files = [];
+									onFilesUpdated(files);
+								}}
+							>
 								<ArrowLeft class="mr-2 h-4 w-4" />
 								Back
 							</Button>
@@ -479,7 +489,12 @@
 			disabled={files.length === 0 || inProgress}>Upload</Button
 		>
 		{#if files.length === 1}
-			<Button variant="outline" class="w-full cursor-pointer" onclick={() => handleUpload(true)} disabled={inProgress}>
+			<Button
+				variant="outline"
+				class="w-full cursor-pointer"
+				onclick={() => handleUpload(true)}
+				disabled={inProgress}
+			>
 				<Eye class="mr-2 size-4" /> View Once
 			</Button>
 		{:else}
