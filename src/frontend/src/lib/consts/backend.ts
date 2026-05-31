@@ -58,12 +58,12 @@ export const Api = {
 	// --- Admin Namespace ---
 	get ADMIN() {
 		return {
-			CONFIG: url('admin/config'),
-			USER_UPDATE: url('admin/user'),
-			USERS: url('admin/users'),
-			USER_CREATE: url('admin/user'),
+			get CONFIG() { return url('admin/config'); },
+			get USER_UPDATE() { return url('admin/user'); },
+			get USERS() { return url('admin/users'); },
+			get USER_CREATE() { return url('admin/user'); },
 			USER_DELETE: (id: string) => url(`admin/user/${id}`),
-			FILES: url('admin/files'),
+			get FILES() { return url('admin/files'); },
 			FILE_REVOKE: (id: string) => url(`admin/files/${id}`)
 		};
 	},
@@ -71,7 +71,7 @@ export const Api = {
 	// --- Reverse Share Namespace ---
 	get REVERSE() {
 		return {
-			ROOMS: url('reverse/rooms'),
+			get ROOMS() { return url('reverse/rooms'); },
 			ROOM_DETAIL: (id: string) => url(`reverse/rooms/${id}`),
 			ROOM_UPLOAD: (id: string) => url(`reverse/rooms/${id}/upload`),
 			ROOM_HOSTS: (id: string) => url(`reverse/rooms/${id}/hosts`),
@@ -89,9 +89,9 @@ export const Api = {
 
 	get SPEEDTEST() {
 		return {
-			DOWNLOAD: url('speedtest/download'),
-			UPLOAD: url('speedtest/upload'),
-			LATENCY: url('speedtest/latency')
+			get DOWNLOAD() { return url('speedtest/download'); },
+			get UPLOAD() { return url('speedtest/upload'); },
+			get LATENCY() { return url('speedtest/latency'); }
 		};
 	}
 };
