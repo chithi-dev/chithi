@@ -6,12 +6,12 @@ import { unified } from 'unified';
 import rehypeEmailMangle from './plugins/email-obfuscate';
 
 export async function markdown_to_html(markdown: string) {
-  const result = await unified()
-    .use(remarkParse)
-    .use(remarkRehype)
-    .use(rehypeEmailMangle)
-    .use(rehypeSanitize)
-    .use(rehypeStringify)
-    .process(markdown);
-  return result.toString();
+	const result = await unified()
+		.use(remarkParse)
+		.use(remarkRehype) // Markdown → HTML AST
+		.use(rehypeEmailMangle) // Obfuscate email addresses
+		.use(rehypeSanitize) // Sanitize HTML AST
+		.use(rehypeStringify) // HTML AST → string
+		.process(markdown);
+	return result.toString();
 }
