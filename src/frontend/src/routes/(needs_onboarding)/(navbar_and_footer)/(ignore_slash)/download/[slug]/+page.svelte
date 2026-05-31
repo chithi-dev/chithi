@@ -82,7 +82,6 @@
 				password,
 				filename,
 				fileSize,
-				numberOfFiles,
 				(p) => (downloadProgress.target = p)
 			);
 

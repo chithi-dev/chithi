@@ -33,7 +33,6 @@ export async function downloadAndDecryptFile(
 	password: string,
 	filename: string,
 	fileSize: number,
-	_numberOfFiles: number,
 	onProgress: (percent: number) => void
 ) {
 	const res = await fetch(Api.DOWNLOAD(slug));
@@ -60,36 +59,20 @@ export async function downloadAndDecryptFile(
 		password
 	);
 
-	const decReader = decryptedStream.getReader();
-	let firstChunk: Uint8Array | undefined;
-	let isDone = false;
-
+	// Collect all decrypted chunks into a blob
+	const chunks: Uint8Array[] = [];
 	try {
-		const { done, value } = await decReader.read();
-		isDone = done;
-		if (!done) firstChunk = value;
-	} catch (e: any) {
-		if (e.name === 'OperationError') {
-			await reader.cancel('Wrong password');
-			throw new PasswordRequiredError();
+		for await (const chunk of decryptedStream) {
+			chunks.push(chunk);
 		}
+	} catch (e: any) {
+		if (e.name === 'OperationError') throw new PasswordRequiredError();
 		throw e;
 	}
 
-	const verifiedStream = new ReadableStream({
-		async start(controller) {
-			if (firstChunk) controller.enqueue(firstChunk);
-			if (isDone) controller.close();
-		},
-		async pull(controller) {
-			const { done, value } = await decReader.read();
-			if (done) return controller.close();
-			controller.enqueue(value);
-		},
-		cancel: (reason) => decReader.cancel(reason)
-	});
+	const blob = new Blob(chunks as BlobPart[]);
+	const zipReader = new ZipReader(blob.stream());
 
-	const zipReader = new ZipReader(verifiedStream);
 	let entries;
 	try {
 		entries = await zipReader.getEntries();
@@ -116,13 +99,13 @@ export async function downloadAndDecryptFile(
 			zipReader.close().catch(() => undefined);
 		});
 
-	const chunks: Uint8Array[] = [];
+	const fileChunks: Uint8Array[] = [];
 	const finalReader = readable.getReader();
 	while (true) {
 		const { done, value } = await finalReader.read();
 		if (done) break;
-		chunks.push(value);
+		fileChunks.push(value);
 	}
 
-	await triggerDownload(new Blob(chunks as BlobPart[]), downloadName);
+	await triggerDownload(new Blob(fileChunks as BlobPart[]), downloadName);
 }
