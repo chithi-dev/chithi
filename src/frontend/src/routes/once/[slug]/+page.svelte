@@ -5,7 +5,8 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { Api } from '#consts/backend';
-	import { PasswordRequiredError, saveBlobUrl } from '#functions/download';
+	import { PasswordRequiredError } from '$lib/errors/password';
+	import { saveBlobUrl } from '#functions/download';
 	import { createDecryptedStream } from '#functions/streams';
 	import { BlobWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
 	import { detectMimeFromBlob } from '#functions/mime';

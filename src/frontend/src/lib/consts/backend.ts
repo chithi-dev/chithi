@@ -65,7 +65,7 @@ export const Api = {
 			USER_DELETE: (id: string) => url(`admin/user/${id}`),
 			get FILES() { return url('admin/files'); },
 			FILE_REVOKE: (id: string) => url(`admin/files/${id}`)
-		};
+		} as const;
 	},
 
 	// --- Reverse Share Namespace ---
@@ -84,7 +84,7 @@ export const Api = {
 				if (token) w.searchParams.set('host_token', token);
 				return w.href;
 			}
-		};
+		} as const;
 	},
 
 	get SPEEDTEST() {
@@ -92,6 +92,6 @@ export const Api = {
 			get DOWNLOAD() { return url('speedtest/download'); },
 			get UPLOAD() { return url('speedtest/upload'); },
 			get LATENCY() { return url('speedtest/latency'); }
-		};
+		} as const;
 	}
 };

@@ -23,7 +23,7 @@
 	import { goto } from '$app/navigation';
 	import { fly, fade } from 'svelte/transition';
 	import { Api } from '#consts/backend';
-	import { PasswordRequiredError } from '#functions/download';
+	import { PasswordRequiredError } from '$lib/errors/password';
 	import { createDecryptedStream } from '#functions/streams';
 	import { formatFileSize } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';

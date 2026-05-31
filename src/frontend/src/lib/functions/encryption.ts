@@ -4,9 +4,7 @@ import {
 	MAX_ARGON2_MEMORY_KIB
 } from '#consts/encryption';
 
-// ---------------------------------------------------------------------------
-// Base64 / Base64url
-// ---------------------------------------------------------------------------
+// #region Base64 / Base64url
 
 export function bytesToBase64(bytes: Uint8Array): string {
 	return btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(''));
@@ -25,13 +23,12 @@ export function base64url(bytes: Uint8Array): string {
 
 export function base64urlToBytes(str: string): Uint8Array {
 	const padded = str.replaceAll('-', '+').replaceAll('_', '/');
-	padded.padEnd(padded.length + (4 - (padded.length % 4)) % 4, '=');
-	return base64ToBytes(padded);
+	return base64ToBytes(padded.padEnd(padded.length + (4 - (padded.length % 4)) % 4, '='));
 }
 
-// ---------------------------------------------------------------------------
-// Byte utilities
-// ---------------------------------------------------------------------------
+// #endregion
+
+// #region Byte utilities
 
 export function xorBytes(a: Uint8Array, b: Uint8Array): Uint8Array {
 	const len = Math.max(a.length, b.length);
@@ -42,18 +39,14 @@ export function xorBytes(a: Uint8Array, b: Uint8Array): Uint8Array {
 	return out;
 }
 
-// ---------------------------------------------------------------------------
-// Key derivation
-// ---------------------------------------------------------------------------
+// #endregion
+
+// #region Key derivation
 
 /** Derive an AES-256-GCM crypto key from IKM using Argon2id. */
-export async function deriveAESKeyFromIKM(
-	ikm: Uint8Array,
-	salt: Uint8Array,
-	info?: Uint8Array
-) {
+export async function deriveAESKeyFromIKM(ikm: Uint8Array, salt: Uint8Array) {
 	const rawKey = await argon2Derive(ikm, salt);
-	return crypto.subtle.importKey('raw', rawKey as ArrayBuffer, 'AES-GCM', true, [
+	return crypto.subtle.importKey('raw', rawKey as unknown as ArrayBuffer, 'AES-GCM', true, [
 		'encrypt',
 		'decrypt'
 	]);
@@ -80,9 +73,9 @@ export async function argon2Derive(
 	});
 }
 
-// ---------------------------------------------------------------------------
-// Chunked encryption helpers
-// ---------------------------------------------------------------------------
+// #endregion
+
+// #region Chunked encryption helpers
 
 export type InnerEncryptionMeta = {
 	cipher: 'AES-GCM';
@@ -100,3 +93,5 @@ export function getChunkIv(baseIv: Uint8Array, chunkIndex: number): Uint8Array {
 	view.setUint32(8, view.getUint32(8, false) ^ chunkIndex, false);
 	return iv;
 }
+
+// #endregion

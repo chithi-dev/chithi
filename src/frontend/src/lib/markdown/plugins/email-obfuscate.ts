@@ -3,37 +3,25 @@ import type { Element, Root, Text } from 'hast';
 import type { Plugin } from 'unified';
 import { visit } from 'unist-util-visit';
 
-/**
- * Rehype plugin to obfuscate email addresses
- */
-const rehypeEmailMangle: Plugin<[], Root> = () => {
-	return (tree: Root) => {
-		// Visit text nodes only
-		visit(tree, 'text', (node: Text) => {
-			node.value = node.value.replace(/([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/gi, (email) =>
-				email
-					.split('')
-					.map((c) => `&#${c.charCodeAt(0)};`)
-					.join('')
-			);
-		});
+const mangleEmail = (email: string) =>
+	email.split('').map((c) => `&#${c.charCodeAt(0)};`).join('');
 
-		// Visit element nodes only
-		visit(tree, 'element', (node: Element) => {
-			if (node.tagName === 'a' && node.properties?.href) {
-				const href = node.properties.href;
-				if (typeof href === 'string' && href.startsWith('mailto:')) {
-					const email = href.slice(7);
-					node.properties.href = `mailto:${email
-						.split('')
-						.map((c) => `&#${c.charCodeAt(0)};`)
-						.join('')}`;
-				}
-			}
-		});
+const rehypeEmailMangle: Plugin<[], Root> = () => (tree: Root) => {
+	visit(tree, 'text', (node: Text) => {
+		node.value = node.value.replace(
+			/([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,})/gi,
+			(_match: string, email: string) => mangleEmail(email)
+		);
+	});
 
-		return tree;
-	};
+	visit(tree, 'element', (node: Element) => {
+		const href = node.properties?.href;
+		if (typeof href === 'string' && href.startsWith('mailto:')) {
+			node.properties.href = `mailto:${mangleEmail(href.slice(7))}`;
+		}
+	});
+
+	return tree;
 };
 
 export default rehypeEmailMangle;

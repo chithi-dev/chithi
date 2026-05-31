@@ -7,26 +7,19 @@ export const B_VALS = {
 } as const;
 
 export type ByteUnit = keyof typeof B_VALS;
-
-const BYTE_UNITS = Object.keys(B_VALS) as ByteUnit[];
+export const BYTE_UNITS = Object.keys(B_VALS) as ByteUnit[];
 
 export const formatBytes = (bytes: number): { val: number; unit: ByteUnit } => {
 	if (!bytes) return { val: 0, unit: 'MB' };
-
 	const i = Math.floor(Math.log(bytes) / Math.log(1024));
-
-	return {
-		val: +(bytes / 1024 ** i).toFixed(2),
-		unit: BYTE_UNITS[i]
-	};
+	return { val: Number((bytes / 1024 ** i).toFixed(2)), unit: BYTE_UNITS[i] };
 };
 
-export const bytesToNumber = (value: number, unit: ByteUnit) => Math.floor(value * B_VALS[unit]);
+export const bytesToNumber = (value: number, unit: ByteUnit) =>
+	Math.floor(value * B_VALS[unit]);
 
 export const formatFileSize = (bytes: number) => {
 	if (!bytes) return '0 Bytes';
-
 	const i = Math.floor(Math.log(bytes) / Math.log(1024));
-
-	return `${+(bytes / 1024 ** i).toFixed(2)} ${BYTE_UNITS[i]}`;
+	return `${Number((bytes / 1024 ** i).toFixed(2))} ${BYTE_UNITS[i]}`;
 };
