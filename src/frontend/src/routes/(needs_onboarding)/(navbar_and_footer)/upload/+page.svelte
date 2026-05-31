@@ -10,7 +10,8 @@
 	import { fly, fade } from 'svelte/transition';
 	import { onMount } from 'svelte';
 	import { CloudOff } from '@lucide/svelte';
-	import { UploadStage, isWhichUploadStage } from './enums';
+	import { Stage_1, Stage_2, Stage_3, isWhichUploadStage } from './enums';
+	import type UploadStage from './enums';
 	import { processDataTransferItems } from '#functions/files';
 
 	// Stages
@@ -23,7 +24,7 @@
 	const { default: RecentUpload } = await import('./recent_upload.svelte');
 
 	const { config: configData } = useConfigQuery();
-	let stage = $state<UploadStage>(UploadStage.Stage_1);
+	let stage = $state<UploadStage>(Stage_1);
 	let dragActive = $state(false);
 	let dragOverCard = $state(false);
 	let dragOverZone = $state(false);
@@ -41,16 +42,16 @@
 
 	// Handle physical mouse back button (X1) to return to stage 1
 	const handleMouseBack = (e: MouseEvent) => {
-		if (e.button === 3 && stage === UploadStage.Stage_2) {
+		if (e.button === 3 && stage === Stage_2) {
 			files = [];
-			stage = UploadStage.Stage_1;
-			history.replaceState({ stage: UploadStage.Stage_1 }, '');
+			stage = Stage_1;
+			history.replaceState({ stage: Stage_1 }, '');
 			e.preventDefault();
 		}
 	};
 
 	const handleWindowDragEnter = (e: DragEvent) => {
-		if (stage === UploadStage.Stage_3) return;
+		if (stage === Stage_3) return;
 		e.preventDefault();
 		dragCounter++;
 		e.dataTransfer && (e.dataTransfer.dropEffect = 'copy');
@@ -58,7 +59,7 @@
 	};
 
 	const handleWindowDragLeave = (e: DragEvent) => {
-		if (stage === UploadStage.Stage_3) return;
+		if (stage === Stage_3) return;
 		dragCounter--;
 		if (dragCounter <= 0) {
 			dragActive = false;
@@ -67,13 +68,13 @@
 	};
 
 	const handleWindowDragOver = (e: DragEvent) => {
-		if (stage === UploadStage.Stage_3) return;
+		if (stage === Stage_3) return;
 		e.preventDefault();
 		dragActive ||= true;
 	};
 
 	const handleWindowDrop = (e: DragEvent) => {
-		if (stage === UploadStage.Stage_3) return;
+		if (stage === Stage_3) return;
 		e.preventDefault();
 		dragCounter = 0;
 		dragActive = false;
@@ -85,13 +86,13 @@
 	};
 
 	const handleCardDragEnter = (e: DragEvent) => {
-		if (stage === UploadStage.Stage_3) return;
+		if (stage === Stage_3) return;
 		e.preventDefault();
 		dragOverCard = true;
 	};
 
 	const handleCardDragLeave = (e: DragEvent) => {
-		if (stage === UploadStage.Stage_3) return;
+		if (stage === Stage_3) return;
 		const currentTarget = e.currentTarget as Node;
 		const relatedTarget = e.relatedTarget as Node;
 		if (currentTarget?.contains(relatedTarget)) return;
@@ -111,7 +112,7 @@
 	};
 
 	const handleCardDrop = (e: DragEvent) => {
-		if (stage === UploadStage.Stage_3) return;
+		if (stage === Stage_3) return;
 		e.preventDefault();
 		e.stopPropagation();
 		dragCounter = 0;
@@ -122,7 +123,7 @@
 	};
 
 	const handlePaste = async (e: ClipboardEvent) => {
-		if (stage === UploadStage.Stage_3) return;
+		if (stage === Stage_3) return;
 		const items = e.clipboardData?.items;
 		if (!items?.some((i) => i.kind === 'file')) return;
 		e.preventDefault();
@@ -137,30 +138,30 @@
 	const onFilesSelected = (f: File[]) => {
 		files = [...files, ...f];
 		dragCounter = dragActive = dragOverZone = dragOverCard = false as any;
-		pushStage(UploadStage.Stage_2);
+		pushStage(Stage_2);
 	};
 	const onUploadComplete = (result: NonNullable<typeof uploadResult>) => {
 		uploadResult = result;
-		pushStage(UploadStage.Stage_3);
+		pushStage(Stage_3);
 	};
 
 	const reset = (push = true) => {
 		files = [];
 		uploadResult = null;
-		stage = UploadStage.Stage_1;
+		stage = Stage_1;
 		dragCounter = 0;
 		dragActive = false;
 		dragOverZone = false;
 		dragOverCard = false;
-		const h = { stage: UploadStage.Stage_1 };
+		const h = { stage: Stage_1 };
 		push ? history.pushState(h, '', location.href) : history.replaceState(h, '');
 	};
 	const onReset = () => reset();
 	const onBack = () => reset(false);
 
 	const handlePopState = (e: PopStateEvent) => {
-		const restoredStage = isWhichUploadStage(e.state?.stage) ? e.state.stage : UploadStage.Stage_1;
-		if (restoredStage === UploadStage.Stage_1) {
+		const restoredStage = isWhichUploadStage(e.state?.stage) ? e.state.stage : Stage_1;
+		if (restoredStage === Stage_1) {
 			files = [];
 			uploadResult = null;
 		}
@@ -169,9 +170,9 @@
 
 	onMount(() => {
 		// Restore stage from current history entry (e.g., after page reload)
-		stage = isWhichUploadStage(history.state?.stage) ? history.state.stage : UploadStage.Stage_1;
-		if (stage === UploadStage.Stage_1) {
-			history.replaceState({ stage: UploadStage.Stage_1 }, '');
+		stage = isWhichUploadStage(history.state?.stage) ? history.state.stage : Stage_1;
+		if (stage === Stage_1) {
+			history.replaceState({ stage: Stage_1 }, '');
 		}
 	});
 </script>
@@ -292,7 +293,7 @@
 						files can still be downloaded.
 					</p>
 				</div>
-			{:else if stage === UploadStage.Stage_1}
+			{:else if stage === Stage_1}
 				<div in:fly={{ x: -20, duration: 400 }}>
 					<Stage1
 						{onFilesSelected}
@@ -306,19 +307,21 @@
 						<div
 							class="prose w-full max-w-none prose-zinc md:text-sm lg:text-lg lg:leading-relaxed dark:prose-invert"
 						>
-							{#if detailsPromise}{#await detailsPromise then html}
+							{#if detailsPromise}
+								{#await detailsPromise then html}
 									{@html html}
-								{/await}{/if}
+								{/await}
+							{/if}
 						</div>
 					</ScrollArea>
 				</div>
-			{:else if stage === UploadStage.Stage_2}
+			{:else if stage === Stage_2}
 				<div in:fly={{ x: 20, duration: 400 }}>
 					<Stage2
 						bind:files
 						onFilesUpdated={(newFiles) => {
 							files = newFiles;
-							if (files.length === 0 && stage === UploadStage.Stage_2) {
+							if (files.length === 0 && stage === Stage_2) {
 								onBack();
 							}
 						}}
@@ -331,7 +334,7 @@
 				<div in:fade>
 					{@render encryptionInfo()}
 				</div>
-			{:else if stage === UploadStage.Stage_3 && uploadResult}
+			{:else if stage === Stage_3 && uploadResult}
 				<div class="col-span-1 lg:col-span-2" in:fly={{ y: 20, duration: 400 }}>
 					<Stage3
 						finalLink={uploadResult.finalLink}
@@ -345,9 +348,7 @@
 	</CardContent>
 </Card>
 
-<UploadShowcase
-	localUploadSize={stage === UploadStage.Stage_2 ? files.reduce((s, f) => s + f.size, 0) : 0}
-/>
+<UploadShowcase localUploadSize={stage === Stage_2 ? files.reduce((s, f) => s + f.size, 0) : 0} />
 
 {#if dev}
 	<div class="fixed bottom-4 left-4 z-50">
