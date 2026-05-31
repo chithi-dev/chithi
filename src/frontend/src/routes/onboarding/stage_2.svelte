@@ -7,7 +7,7 @@
 	import type { Props } from './types';
 	import { Settings, Check, LoaderCircle } from '@lucide/svelte';
 	import { useConfigQuery } from '#queries/config';
-	import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '#functions/bytes';
+	import { B_VALS, bytesToNumber, calcBytes, type ByteUnit } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';
 
 	let { onNext }: Props = $props();
@@ -27,11 +27,11 @@
 	// Initialize form when data loads
 	$effect(() => {
 		if (configData) {
-			const s = formatBytes(configData.total_storage_limit);
+			const s = calcBytes(configData.total_storage_limit);
 			storageLimitVal = s.val;
 			storageLimitUnit = s.unit;
 
-			const f = formatBytes(configData.max_file_size_limit);
+			const f = calcBytes(configData.max_file_size_limit);
 			maxFileVal = f.val;
 			maxFileUnit = f.unit;
 

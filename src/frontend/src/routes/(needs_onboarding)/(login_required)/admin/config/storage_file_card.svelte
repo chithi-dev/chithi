@@ -6,7 +6,7 @@
 	import * as Select from '$lib/components/ui/select';
 	import { Switch } from '$lib/components/ui/switch';
 	import { slide } from 'svelte/transition';
-	import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '#functions/bytes';
+	import { B_VALS, bytesToNumber, calcBytes, type ByteUnit } from '#functions/bytes';
 
 	let {
 		configData,
@@ -63,7 +63,7 @@
 							>
 						</div>
 					{:else}
-						{@const f = formatBytes(configData.total_storage_limit)}
+						{@const f = calcBytes(configData.total_storage_limit)}
 						<div
 							class="flex w-full items-center justify-between rounded-md border bg-muted/20 px-3 py-2 text-sm"
 						>
@@ -107,7 +107,7 @@
 							>
 						</div>
 					{:else}
-						{@const f = formatBytes(configData.max_file_size_limit)}
+						{@const f = calcBytes(configData.max_file_size_limit)}
 						<div
 							class="flex w-full items-center justify-between rounded-md border bg-muted/20 px-3 py-2 text-sm"
 						>

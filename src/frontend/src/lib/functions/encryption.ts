@@ -4,8 +4,6 @@ import {
 	MAX_ARGON2_MEMORY_KIB
 } from '#consts/encryption';
 
-// #region Base64 / Base64url
-
 export function bytesToBase64(bytes: Uint8Array): string {
 	return btoa(Array.from(bytes, (b) => String.fromCharCode(b)).join(''));
 }
@@ -26,10 +24,6 @@ export function base64urlToBytes(str: string): Uint8Array {
 	return base64ToBytes(padded.padEnd(padded.length + (4 - (padded.length % 4)) % 4, '='));
 }
 
-// #endregion
-
-// #region Byte utilities
-
 export function xorBytes(a: Uint8Array, b: Uint8Array): Uint8Array {
 	const len = Math.max(a.length, b.length);
 	const out = new Uint8Array(len);
@@ -39,11 +33,6 @@ export function xorBytes(a: Uint8Array, b: Uint8Array): Uint8Array {
 	return out;
 }
 
-// #endregion
-
-// #region Key derivation
-
-/** Derive an AES-256-GCM crypto key from IKM using Argon2id. */
 export async function deriveAESKeyFromIKM(ikm: Uint8Array, salt: Uint8Array) {
 	const rawKey = await argon2Derive(ikm, salt);
 	return crypto.subtle.importKey('raw', rawKey as unknown as ArrayBuffer, 'AES-GCM', true, [
@@ -52,7 +41,6 @@ export async function deriveAESKeyFromIKM(ikm: Uint8Array, salt: Uint8Array) {
 	]);
 }
 
-/** Argon2id key derivation with memory-capped parameters. */
 export async function argon2Derive(
 	password: string | Uint8Array,
 	salt: Uint8Array,
@@ -73,10 +61,6 @@ export async function argon2Derive(
 	});
 }
 
-// #endregion
-
-// #region Chunked encryption helpers
-
 export type InnerEncryptionMeta = {
 	cipher: 'AES-GCM';
 	hkdf: { hash: 'SHA-512'; salt: string };
@@ -84,14 +68,11 @@ export type InnerEncryptionMeta = {
 	size?: number;
 };
 
-export const CHUNK_SIZE = 64 * 1024; // 64 KB
+export const CHUNK_SIZE = 64 * 1024;
 
-/** Derive a per-chunk IV by XOR-ing the chunk index into the last 4 bytes. */
 export function getChunkIv(baseIv: Uint8Array, chunkIndex: number): Uint8Array {
 	const iv = baseIv.slice();
 	const view = new DataView(iv.buffer, iv.byteOffset, iv.byteLength);
 	view.setUint32(8, view.getUint32(8, false) ^ chunkIndex, false);
 	return iv;
 }
-
-// #endregion
