@@ -7,7 +7,7 @@
 	import { fly } from 'svelte/transition';
 	import { Api } from '#consts/backend';
 	import { downloadAndDecryptFile } from '#functions/download';
-	import PasswordRequired
+	import { PasswordRequiredError } from '$lib/errors/password';
 	import { formatFileSize } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';
 	import { Progress } from '$lib/components/ui/progress';
