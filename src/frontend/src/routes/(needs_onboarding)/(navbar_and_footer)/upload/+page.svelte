@@ -11,7 +11,7 @@
 	import { onMount } from 'svelte';
 	import { CloudOff } from '@lucide/svelte';
 	import { Stage_1, Stage_2, Stage_3, isWhichUploadStage } from './enums';
-	import type UploadStage from './enums';
+	import type { UploadStage } from './enums';
 	import { processDataTransferItems } from '#functions/files';
 
 	// Stages
