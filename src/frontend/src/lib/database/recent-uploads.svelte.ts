@@ -1,15 +1,19 @@
-import type { UploadEntry } from './index';
+import type { UploadEntry } from './types';
 
 let entries = $state<UploadEntry[]>([]);
 
-export const setEntries = (list: UploadEntry[]) => entries = list;
-
-export const recentUploads = {
-	get entries() {
+export let recentUploads = $state({
+	get entries(): UploadEntry[] {
 		return entries;
 	},
-	setEntries,
+	syncEntries(list: UploadEntry[]) {
+		entries = list;
+	},
 	clear() {
 		entries = [];
 	}
+});
+
+export const syncEntries = (list: UploadEntry[]) => {
+	entries = list;
 };

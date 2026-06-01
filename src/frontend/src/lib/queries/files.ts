@@ -45,7 +45,7 @@ export const useFilesQuery = (page: () => number = () => 1, pageSize: number = 2
 			}
 			return res.json() as Promise<PaginatedFiles>;
 		},
-		refetchInterval: 1000, // 1 second
+		refetchInterval: 1000,
 		retry: true
 	}));
 

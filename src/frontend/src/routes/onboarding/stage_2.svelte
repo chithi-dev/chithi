@@ -12,7 +12,7 @@
 
 	let { onNext }: Props = $props();
 
-	const { config: configQuery, update_config } = useConfigQuery();
+	const { config: configQuery, updateConfig } = useConfigQuery();
 
 	let configData = $derived(configQuery.data);
 	let isLoading = $state(false);
@@ -42,7 +42,7 @@
 	async function handleSave() {
 		isLoading = true;
 		try {
-			await update_config({
+			await updateConfig({
 				total_storage_limit: bytesToNumber(storageLimitVal, storageLimitUnit),
 				max_file_size_limit: bytesToNumber(maxFileVal, maxFileUnit),
 				site_description: description

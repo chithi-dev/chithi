@@ -35,11 +35,28 @@ export async function traverseFileTree(item: FileSystemEntry, path = ''): Promis
 }
 
 export async function processDataTransferItems(items: DataTransferItem[]): Promise<File[]> {
+	const { files } = await processDataTransfer(items);
+	return files;
+}
+
+export async function processDataTransfer(items: DataTransferItem[]): Promise<{ files: File[]; folderName?: string }> {
 	const promises = [...items].map(async (item) => {
 		const entry = (item as any).webkitGetAsEntry?.();
 		if (entry) return traverseFileTree(entry);
 		const file = item.kind === 'file' ? item.getAsFile?.() : null;
 		return file ? [file] : [];
 	});
-	return (await Promise.all(promises)).flat();
+	const fileArrays = await Promise.all(promises);
+	const files = fileArrays.flat();
+
+	let folderName: string | undefined;
+	for (const item of items) {
+		const entry = (item as any).webkitGetAsEntry?.();
+		if (entry?.isDirectory) {
+			folderName = entry.name;
+			break;
+		}
+	}
+
+	return { files, folderName };
 }

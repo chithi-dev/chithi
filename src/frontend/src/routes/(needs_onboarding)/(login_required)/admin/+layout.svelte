@@ -5,7 +5,7 @@
 	import AppSidebar from './app-sidebar.svelte';
 	import { page } from '$app/state';
 
-	let { children } = $props();
+	const { children } = $props();
 
 	const breadcrumbMap: Record<string, string> = {
 		'/admin/user': 'Profile',

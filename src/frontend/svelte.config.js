@@ -33,7 +33,8 @@ export default {
 			'#queries/*': './src/lib/queries/*',
 			'#markdown/*': './src/lib/markdown/*',
 			'#consts/*': './src/lib/consts/*',
-			'#css/*': './src/css/*'
+			'#css/*': './src/css/*',
+				'#errors/*': './src/lib/errors/*'
 		}
 	}
 };

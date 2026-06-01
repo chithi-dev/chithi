@@ -1,13 +1,13 @@
 let authenticated = $state<null | boolean>(null);
 
-export const user_store = {
+export let user_store = $state({
+	get is_authenticated() {
+		return authenticated;
+	},
 	unauthenticate() {
 		authenticated = false;
 	},
 	authenticate() {
 		authenticated = true;
-	},
-	get is_authenticated() {
-		return authenticated;
 	}
-};
+});

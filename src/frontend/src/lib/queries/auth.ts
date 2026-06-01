@@ -2,11 +2,11 @@ import { Api } from '#consts/backend';
 import { browser } from '$app/environment';
 import { login as loginRemote, logout as logoutRemote } from '$lib/remote/auth.remote';
 import { user_store } from '$lib/store/user.svelte';
-import { createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { createQuery, type QueryClient, useQueryClient } from '@tanstack/svelte-query';
 
 export const queryKey = ['auth-user'];
 
-const resolveFetch = (fetch?: typeof globalThis.fetch) => fetch ?? globalThis.fetch;
+import { resolveFetch } from './fetch-utils';
 
 const fetchUser = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
 	if (browser && user_store.is_authenticated === false) return null;
@@ -29,7 +29,13 @@ const fetchUser = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
 	return data;
 };
 
-export const prefetch = async ({ queryClient, fetch }: { queryClient: any; fetch: any }) => {
+export const prefetch = async ({
+	queryClient,
+	fetch
+}: {
+	queryClient: QueryClient;
+	fetch?: typeof globalThis.fetch;
+}) => {
 	await queryClient.prefetchQuery({
 		queryKey: queryKey,
 		queryFn: () => fetchUser({ fetch }),
@@ -54,9 +60,9 @@ export const useAuth = () => {
 			await loginRemote({ username, password });
 			user_store.authenticate();
 			await queryClient.invalidateQueries({ queryKey });
-		} catch (error: any) {
+		} catch (error) {
 			user_store.unauthenticate();
-			throw new Error(error?.message || 'Invalid username or password');
+			throw new Error(error instanceof Error ? error.message : 'Invalid username or password');
 		}
 	};
 

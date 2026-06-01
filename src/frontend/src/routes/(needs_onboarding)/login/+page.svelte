@@ -24,7 +24,7 @@
 		return url;
 	});
 
-	let { data } = $props();
+	const { data } = $props();
 </script>
 
 <div

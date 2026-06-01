@@ -6,6 +6,7 @@
 	import { useConfigQuery } from '#queries/config';
 	import { Plus, ArrowLeft, X, FileIcon, Eye, EyeOff, Trash2, Upload } from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
+	import { processDataTransferItems } from '$lib/functions/files';
 	import { formatSeconds } from '#functions/times';
 	import { createZipStream, createEncryptedStream } from '#functions/streams';
 	import * as Tooltip from '$lib/components/ui/tooltip/index';
@@ -78,55 +79,6 @@
 		}
 	});
 
-	const traverseFileTree = async (item: any, path = ''): Promise<File[]> => {
-		try {
-			if (item.isFile) {
-				return new Promise((resolve) => {
-					item.file(
-						(file: File) => {
-							if (path) {
-								(file as any).relativePath = path + file.name;
-							}
-							resolve([file]);
-						},
-						(err: Error) => {
-							console.error('Error reading file:', err);
-							resolve([]);
-						}
-					);
-				});
-			} else if (item.isDirectory) {
-				const dirReader = item.createReader();
-				const entries: any[] = [];
-
-				const readEntries = async () => {
-					try {
-						const result = await new Promise<any[]>((resolve, reject) => {
-							dirReader.readEntries(resolve, reject);
-						});
-
-						if (result.length > 0) {
-							entries.push(...result);
-							await readEntries();
-						}
-					} catch (err) {
-						console.error('Error reading directory:', err);
-					}
-				};
-
-				await readEntries();
-
-				const fileArrays = await Promise.all(
-					entries.map((entry) => traverseFileTree(entry, path + item.name + '/'))
-				);
-				return fileArrays.flat();
-			}
-		} catch (err) {
-			console.error('Error traversing item:', err);
-		}
-		return [];
-	};
-
 	const addFiles = (newFiles: File[]) => {
 		const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
 		const newFilesSize = newFiles.reduce((sum, file) => sum + file.size, 0);
@@ -150,18 +102,8 @@
 		e.stopPropagation();
 		onZoneDragLeave(e);
 
-		const items = e.dataTransfer?.items;
-		if (items) {
-			const promises = Array.from(items).map((item) => {
-				const entry = (item as any).webkitGetAsEntry?.();
-				return entry
-					? traverseFileTree(entry)
-					: item.kind === 'file'
-						? Promise.resolve([item.getAsFile()].filter(Boolean) as File[])
-						: Promise.resolve([]);
-			});
-			const fileArrays = await Promise.all(promises);
-			const newFiles = fileArrays.flat();
+		if (e.dataTransfer?.items) {
+			const newFiles = await processDataTransferItems(e.dataTransfer.items);
 			newFiles.length > 0 && addFiles(newFiles);
 		} else if (e.dataTransfer?.files) {
 			addFiles(Array.from(e.dataTransfer.files));
@@ -299,13 +241,11 @@
 		} catch (err: any) {
 			console.error('Upload failed', err);
 			toast.error('Upload failed: ' + (err?.message ?? err));
-			inProgress = false;
-			uploadProgress = new Tween(0, { duration: 500, easing: cubicOut });
-			isEncrypting = false;
-			encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
 		} finally {
 			inProgress = false;
 			isEncrypting = false;
+			uploadProgress = new Tween(0, { duration: 500, easing: cubicOut });
+			encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
 		}
 	};
 </script>

@@ -8,9 +8,9 @@
 	import { markdown_to_html } from '$lib/markdown/markdown';
 	import { Button } from '$lib/components/ui/button';
 	import { fly, fade } from 'svelte/transition';
-	import { onMount } from 'svelte';
 	import { CloudOff } from '@lucide/svelte';
 	import { UploadStage, isWhichUploadStage } from './enums';
+	import { processDataTransferItems } from '$lib/functions/files';
 
 	// Stages
 	const { default: Stage1 } = await import('./stage_1.svelte');
@@ -119,79 +119,13 @@
 		dragOverZone = false;
 	};
 
-	const traverseFileTree = async (item: any, path = ''): Promise<File[]> => {
-		try {
-			if (item.isFile) {
-				return new Promise((resolve) => {
-					item.file(
-						(file: File) => {
-							if (path) {
-								(file as any).relativePath = path + file.name;
-							}
-							resolve([file]);
-						},
-						(err: Error) => {
-							console.error('Error reading file:', err);
-							resolve([]);
-						}
-					);
-				});
-			} else if (item.isDirectory) {
-				const dirReader = item.createReader();
-				const entries: any[] = [];
-				const readEntries = async () => {
-					try {
-						const result = await new Promise<any[]>((resolve, reject) => {
-							dirReader.readEntries(resolve, reject);
-						});
-						if (result.length > 0) {
-							entries.push(...result);
-							await readEntries();
-						}
-					} catch (err) {
-						console.error('Error reading directory:', err);
-					}
-				};
-				await readEntries();
-				const fileArrays = await Promise.all(
-					entries.map((entry) => traverseFileTree(entry, path + item.name + '/'))
-				);
-				return fileArrays.flat();
-			}
-		} catch (err) {
-			console.error('Error traversing item:', err);
-		}
-		return [];
-	};
-
 	const handlePaste = async (e: ClipboardEvent) => {
 		if (stage === UploadStage.Stage_3) return;
-		const items = e.clipboardData?.items;
-		if (!items) return;
-		let hasFiles = false;
-		for (let i = 0; i < items.length; i++) {
-			if (items[i].kind === 'file') {
-				hasFiles = true;
-				break;
-			}
-		}
-		if (!hasFiles) return;
-		e.preventDefault();
-		const promises: Array<Promise<Array<File>>> = new Array();
-		for (let i = 0; i < items.length; i++) {
-			const item = items[i];
-			if (item.kind !== 'file') continue;
-			const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
-			if (entry) {
-				promises.push(traverseFileTree(entry));
-			} else {
-				const file = item.getAsFile();
-				if (file) promises.push(Promise.resolve([file]));
-			}
-		}
-		const fileArrays = await Promise.all(promises);
-		const newFiles = fileArrays.flat();
+		const data = e.clipboardData;
+		if (!data) return;
+		const newFiles = await processDataTransferItems(data);
 		if (newFiles.length > 0) {
+			e.preventDefault();
 			onFilesSelected(newFiles);
 		}
 	};
@@ -250,7 +184,7 @@
 		stage = isWhichUploadStage(e.state?.stage) ? e.state.stage : UploadStage.Stage_1;
 	};
 
-	onMount(() => {
+	$effect(() => {
 		// Queue reset & mount guard in the microtask queue
 		// Runs immediately after current call stack, before next macrotask/repaint
 		queueMicrotask(() => {

@@ -22,9 +22,9 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { fly, fade } from 'svelte/transition';
+	import { fetchDecryptedBlob } from '$lib/functions/fetch-decrypt';
 	import { Api } from '#consts/backend';
-	import { PasswordRequiredError } from '#functions/download';
-	import { createDecryptedStream } from '#functions/streams';
+	import { PasswordRequiredError } from '#errors/password';
 	import { formatFileSize } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';
 	import { Progress } from '$lib/components/ui/progress';
@@ -34,10 +34,11 @@
 	import { detectMimeFromBlob } from '#functions/mime';
 	import { createViewableText } from '$lib/functions/viewer';
 	import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
+import { autoDownload } from '$lib/functions/browser-download';
 
-	let key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
-	let slug = $derived(page.params.slug);
-	let fileParam = $derived(page.url.searchParams.get('file'));
+	const key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
+	const slug = $derived(page.params.slug);
+	const fileParam = $derived(page.url.searchParams.get('file'));
 
 	let status = $state<
 		'checking' | 'ready' | 'needs_password' | 'error' | 'downloading' | 'unzipping' | 'listing'
@@ -111,13 +112,10 @@
 		downloadProgress = new Tween(0, { duration: 500, easing: cubicOut });
 
 		try {
-			const blob = await downloadFileBlob(
-				slug,
-				key,
-				password,
-				fileSize,
-				(p) => (downloadProgress.target = p)
-			);
+			const blob = await fetchDecryptedBlob(slug, key, password, {
+				knownSize: fileSize,
+				onProgress: (p) => (downloadProgress.target = p),
+			});
 			decryptedBlob = blob;
 
 			status = 'unzipping';
@@ -147,68 +145,7 @@
 				errorMsg = 'Processing failed: ' + e.message;
 			}
 		}
-	}
-
-	async function downloadFileBlob(
-		slug: string,
-		key: string,
-		password: string,
-		totalSize: number,
-		onProgress: (percent: number) => void
-	): Promise<Blob> {
-		const res = await fetch(Api.DOWNLOAD(slug));
-		if (!res.ok) throw new Error('Download failed');
-		if (!res.body) throw new Error('No response body');
-
-		let loaded = 0;
-		const reader = res.body.getReader();
-		const streamWithProgress = new ReadableStream({
-			async pull(controller) {
-				const { done, value } = await reader.read();
-				if (done) {
-					controller.close();
-					return;
-				}
-				loaded += value.byteLength;
-				if (totalSize > 0) onProgress(Math.round((loaded / totalSize) * 100));
-				controller.enqueue(value);
-			},
-			cancel(reason) {
-				return reader.cancel(reason);
-			}
-		});
-
-		const { stream: decryptedStream } = await createDecryptedStream(
-			streamWithProgress,
-			key,
-			password
-		);
-		const decReader = decryptedStream.getReader();
-		let firstChunk: Uint8Array | undefined;
-
-		try {
-			const { done, value } = await decReader.read();
-			if (!done) firstChunk = value;
-		} catch (e: any) {
-			if (e.name === 'OperationError') {
-				await reader.cancel('Wrong password');
-				throw new PasswordRequiredError();
-			}
-			throw e;
-		}
-
-		const chunks: Uint8Array[] = [];
-		if (firstChunk) chunks.push(firstChunk);
-		while (true) {
-			const { done, value } = await decReader.read();
-			if (done) break;
-			chunks.push(value);
-		}
-
-		return new Blob(chunks as BlobPart[], { type: 'application/zip' });
-	}
-
-	function setFileParam(name: string | null) {
+	}function setFileParam(name: string | null) {
 		const url = new URL(page.url);
 		if (name) {
 			url.searchParams.set('file', name);
@@ -253,28 +190,16 @@
 		if (entry.directory || !entry.getData) return;
 		const blob = await entry.getData(new BlobWriter());
 		const url = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = entry.filename.split('/').pop() || 'file';
-		a.style.display = 'none';
-		document.body.appendChild(a);
-		a.click();
+		autoDownload(url, entry.filename.split('/').pop() || 'file');
 		URL.revokeObjectURL(url);
-		document.body.removeChild(a);
 	}
 
 	function handleDownloadOriginal() {
 		if (!decryptedBlob) return;
 		const downloadName = filename.toLowerCase().endsWith('.zip') ? filename : `${filename}.zip`;
 		const url = URL.createObjectURL(decryptedBlob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = downloadName;
-		a.style.display = 'none';
-		document.body.appendChild(a);
-		a.click();
+		autoDownload(url, downloadName);
 		URL.revokeObjectURL(url);
-		document.body.removeChild(a);
 	}
 </script>
 
@@ -397,13 +322,7 @@
 								const blobUrl =
 									viewingFile.url ||
 									URL.createObjectURL(new Blob([viewingFile.text!], { type: 'text/plain' }));
-								const a = document.createElement('a');
-								a.href = blobUrl;
-								a.download = viewingFile.filename.split('/').pop() || 'file';
-								a.style.display = 'none';
-								document.body.appendChild(a);
-								a.click();
-								document.body.removeChild(a);
+								autoDownload(blobUrl, viewingFile.filename.split('/').pop() || 'file');
 								if (!viewingFile.url) URL.revokeObjectURL(blobUrl);
 							}}
 						/>

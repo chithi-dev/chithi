@@ -2,6 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Plus } from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
+	import { processDataTransfer } from '$lib/functions/files';
 	import { useConfigQuery } from '#queries/config';
 
 	interface Props {
@@ -18,82 +19,13 @@
 	let fileInputInitial = $state<HTMLInputElement>();
 	let folderInputInitial = $state<HTMLInputElement>();
 
-	const traverseFileTree = async (item: any, path = ''): Promise<File[]> => {
-		try {
-			if (item.isFile) {
-				return new Promise((resolve) => {
-					item.file(
-						(file: File) => {
-							if (path) {
-								(file as any).relativePath = path + file.name;
-							}
-							resolve([file]);
-						},
-						(err: Error) => {
-							console.error('Error reading file:', err);
-							resolve([]);
-						}
-					);
-				});
-			} else if (item.isDirectory) {
-				const dirReader = item.createReader();
-				const entries: any[] = [];
-
-				const readEntries = async () => {
-					try {
-						const result = await new Promise<any[]>((resolve, reject) => {
-							dirReader.readEntries(resolve, reject);
-						});
-
-						if (result.length > 0) {
-							entries.push(...result);
-							await readEntries();
-						}
-					} catch (err) {
-						console.error('Error reading directory:', err);
-					}
-				};
-
-				await readEntries();
-
-				const fileArrays = await Promise.all(
-					entries.map((entry) => traverseFileTree(entry, path + item.name + '/'))
-				);
-				return fileArrays.flat();
-			}
-		} catch (err) {
-			console.error('Error traversing item:', err);
-		}
-		return [];
-	};
-
 	const handleZoneDrop = async (e: DragEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
 
-		const items = e.dataTransfer?.items;
-		if (items) {
-			const promises: Promise<File[]>[] = [];
-			let folderName: string | undefined;
-			for (let i = 0; i < items.length; i++) {
-				const item = items[i];
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
-				if (entry) {
-					if (entry.isDirectory && !folderName) {
-						folderName = entry.name;
-					}
-					promises.push(traverseFileTree(entry));
-				} else if (item.kind === 'file') {
-					const file = item.getAsFile();
-					if (file) promises.push(Promise.resolve([file]));
-				}
-			}
-			const fileArrays = await Promise.all(promises);
-			const newFiles = fileArrays.flat();
-			if (newFiles.length > 0) {
-				onFilesSelected(newFiles, folderName);
-			}
+		if (e.dataTransfer?.items) {
+			const { files: newFiles, folderName } = await processDataTransfer(e.dataTransfer.items);
+			if (newFiles.length > 0) onFilesSelected(newFiles, folderName);
 		} else if (e.dataTransfer?.files) {
 			onFilesSelected(Array.from(e.dataTransfer.files));
 		}
@@ -216,8 +148,7 @@
 			type="file"
 			id="file-input-folder"
 			class="hidden"
-			webkitdirectory
-			directory
+			{...{ webkitdirectory: '', directory: '' } as unknown as Record<string, string>}
 			onchange={handleFolderSelect}
 		/>
 	</div>

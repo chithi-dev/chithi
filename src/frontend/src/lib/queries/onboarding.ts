@@ -1,9 +1,9 @@
 import { Api } from '#consts/backend';
-import { createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { createQuery, type QueryClient, useQueryClient } from '@tanstack/svelte-query';
 
 const queryKey = ['onboarding-status'];
 
-const resolveFetch = (fetch?: typeof globalThis.fetch) => fetch ?? globalThis.fetch;
+import { resolveFetch } from './fetch-utils';
 
 const fetchOnboarding = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
 	const runtimeFetch = resolveFetch(fetch);
@@ -14,11 +14,17 @@ const fetchOnboarding = async ({ fetch }: { fetch?: typeof globalThis.fetch }) =
 	return res.json() as Promise<{ onboarded: boolean }>;
 };
 
-export const prefetch = async ({ queryClient, fetch }: { queryClient: any; fetch: any }) => {
+export const prefetch = async ({
+	queryClient,
+	fetch
+}: {
+	queryClient: QueryClient;
+	fetch?: typeof globalThis.fetch;
+}) => {
 	await queryClient.prefetchQuery({
 		queryKey: queryKey,
 		queryFn: () => fetchOnboarding({ fetch }),
-		staleTime: 10,
+		staleTime: Infinity,
 		retry: false
 	});
 };
@@ -42,6 +48,7 @@ export const useOnboarding = () => {
 			headers: {
 				'Content-Type': 'application/json'
 			},
+			credentials: 'include',
 			body: JSON.stringify(user)
 		});
 

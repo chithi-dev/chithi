@@ -2,7 +2,7 @@ import { Api } from '#consts/backend';
 import { toast } from 'svelte-sonner';
 import { cubicOut } from 'svelte/easing';
 import { Tween } from 'svelte/motion';
-import { handle_binary_chunk } from './functions';
+import { handleBinaryChunk } from './functions';
 import type { ReceiveState, RemoteUpload, RoomFileEntry } from './types';
 
 const INITIAL_DELAY = 1000;
@@ -16,7 +16,8 @@ interface MessageHandler {
 	onUploadProgress?(upload_key: string, uploaded_bytes: number): void;
 	onUploadCancelled?(upload_key: string): void;
 	onFileAdded?(file: RoomFileEntry): void;
-	onFileEnd?(key: string): void;
+	onFileStart?(key: string, filename: string, size: number): void;
+	onFileEnd?(key: string, filename: string, size: number): void;
 	onFileRemoved?(key: string): void;
 	onRoomDestroyed?(): void;
 	onFileError?(detail: string, key: string): void;
@@ -89,7 +90,7 @@ export function useWsReconnect(
 
 	function handleWsMessage(ev: MessageEvent) {
 		if (ev.data instanceof ArrayBuffer || ev.data instanceof Blob) {
-			handle_binary_chunk({ receive_state: opts.get_receive_state(), data: ev.data });
+			handleBinaryChunk(opts.get_receive_state(), ev.data);
 			return;
 		}
 
@@ -152,12 +153,18 @@ export function useWsReconnect(
 				}
 				break;
 			}
-			case 'file_start':
-				// Handled by handle_binary_chunk via streaming state
+			case 'file_start': {
+				const key = msg.key as string | undefined;
+				const filename = msg.filename as string | undefined;
+				const size = typeof msg.size === 'number' ? msg.size : 0;
+				if (key) opts.onFileStart?.(key, filename ?? '', size);
 				break;
+			}
 			case 'file_end': {
 				const key = msg.key as string | undefined;
-				if (key) opts.onFileEnd?.(key);
+				const filename = msg.filename as string | undefined;
+				const size = typeof msg.size === 'number' ? msg.size : 0;
+				if (key) opts.onFileEnd?.(key, filename ?? '', size);
 				break;
 			}
 			case 'file_error': {

@@ -1,71 +1,65 @@
 import { Api } from '#consts/backend';
-import { createQuery } from '@tanstack/svelte-query';
+import { createQuery, type QueryClient } from '@tanstack/svelte-query';
 
-const queryKey = ['instance-information'];
-const statisticsQueryKey = ['instance-statistics'];
+import { resolveFetch } from './fetch-utils';
 
-const resolveFetch = (fetch?: typeof globalThis.fetch) => fetch ?? globalThis.fetch;
+const STALE_TIME = 5 * 60 * 1000;
 
-const fetchInstanceInformation = async ({ fetch }: { fetch?: typeof globalThis.fetch } = {}) => {
-	const runtimeFetch = resolveFetch(fetch);
-	const res = await runtimeFetch(Api.INSTANCE);
-	if (!res.ok) {
-		throw new Error('Failed to fetch instance information');
-	}
+const fetchJson = async (
+	endpoint: string,
+	label: string,
+	fetchFn?: typeof globalThis.fetch
+) => {
+	const runtimeFetch = resolveFetch(fetchFn);
+	const res = await runtimeFetch(endpoint);
+	if (!res.ok) throw new Error(`Failed to fetch ${label}`);
 	return res.json();
 };
 
-const fetchInstanceStatistics = async ({ fetch }: { fetch?: typeof globalThis.fetch } = {}) => {
-	const runtimeFetch = resolveFetch(fetch);
-	const res = await runtimeFetch(Api.INSTANCE_STATISTICS);
-	if (!res.ok) {
-		throw new Error('Failed to fetch instance statistics');
-	}
-	return res.json();
-};
+const prefetch = (
+	queryClient: QueryClient,
+	key: string[],
+	fn: () => Promise<unknown>
+) =>
+	queryClient.prefetchQuery({
+		queryKey: key,
+		queryFn: fn,
+		staleTime: STALE_TIME,
+		retry: true
+	});
 
-export const prefetchInstanceInformation = async ({
+// Information
+const infoKey = ['instance-information'];
+
+export const prefetchInstanceInformation = ({
 	queryClient,
 	fetch
 }: {
-	queryClient: any;
-	fetch: any;
-}) => {
-	await queryClient.prefetchQuery({
-		queryKey: queryKey,
-		queryFn: () => fetchInstanceInformation({ fetch }),
-		staleTime: 1000 * 60 * 5, // 5 minutes
-		retry: true
-	});
-};
+	queryClient: QueryClient;
+	fetch?: typeof globalThis.fetch;
+}) => prefetch(queryClient, infoKey, () => fetchJson(Api.INSTANCE, 'instance information', fetch));
 
-export const prefetchInstanceStatistics = async ({
+export const useInstanceInformationQuery = () =>
+	createQuery(() => ({
+		queryKey: infoKey,
+		queryFn: () => fetchJson(Api.INSTANCE, 'instance information'),
+		staleTime: STALE_TIME
+	}));
+
+// Statistics
+const statsKey = ['instance-statistics'];
+
+export const prefetchInstanceStatistics = ({
 	queryClient,
 	fetch
 }: {
-	queryClient: any;
-	fetch: any;
-}) => {
-	await queryClient.prefetchQuery({
-		queryKey: statisticsQueryKey,
-		queryFn: () => fetchInstanceStatistics({ fetch }),
-		staleTime: 1000 * 60 * 5, // 5 minutes
-		retry: true
-	});
-};
+	queryClient: QueryClient;
+	fetch?: typeof globalThis.fetch;
+}) => prefetch(queryClient, statsKey, () => fetchJson(Api.INSTANCE_STATISTICS, 'instance statistics', fetch));
 
-export const useInstanceInformationQuery = () => {
-	return createQuery(() => ({
-		queryKey: queryKey,
-		queryFn: () => fetchInstanceInformation({}),
-		staleTime: 1000 * 60 * 5 // 5 minutes
+export const useInstanceStatisticsQuery = () =>
+	createQuery(() => ({
+		queryKey: statsKey,
+		queryFn: () => fetchJson(Api.INSTANCE_STATISTICS, 'instance statistics'),
+		staleTime: STALE_TIME
 	}));
-};
-
-export const useInstanceStatisticsQuery = () => {
-	return createQuery(() => ({
-		queryKey: statisticsQueryKey,
-		queryFn: () => fetchInstanceStatistics({}),
-		staleTime: 1000 * 60 * 5 // 5 minutes
-	}));
-};

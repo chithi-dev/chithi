@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onDestroy } from 'svelte';
 	import { cubicOut } from 'svelte/easing';
 	import { Tween } from 'svelte/motion';
 	import {
@@ -67,16 +66,13 @@
 				if (e.data.phase === 'download') {
 					downloadSpeed.target = currentSpeed;
 					downloadHistory.push({ progress: e.data.progress, speed: currentSpeed });
-					if (currentSpeed > maxSpeed * 0.9) {
-						maxSpeed = Math.max(maxSpeed * 2, Math.ceil(currentSpeed / 100) * 100 * 1.5);
-					}
 				}
 				if (e.data.phase === 'upload') {
 					uploadSpeed.target = currentSpeed;
 					uploadHistory.push({ progress: e.data.progress, speed: currentSpeed });
-					if (currentSpeed > maxSpeed * 0.9) {
-						maxSpeed = Math.max(maxSpeed * 2, Math.ceil(currentSpeed / 100) * 100 * 1.5);
-					}
+				}
+				if (currentSpeed > maxSpeed * 0.9) {
+					maxSpeed = Math.max(maxSpeed * 2, Math.ceil(currentSpeed / 100) * 100 * 1.5);
 				}
 			} else if (type === 'result') {
 				if (e.data.key === 'latency') latency.target = e.data.value;
@@ -94,9 +90,15 @@
 		worker.postMessage({ type: 'start', duration: testDuration, urls: Api.SPEEDTEST });
 	}
 
-	onDestroy(() => {
-		if (worker) worker.terminate();
+	$effect(() => {
+		return () => { if (worker) worker.terminate(); };
 	});
+
+	const activePhase = $derived(
+		status.includes('download') ? 'download' : status.includes('upload') ? 'upload' : null
+	);
+	const currentSpeed = $derived(activePhase === 'download' ? downloadSpeed.current : activePhase === 'upload' ? uploadSpeed.current : 0);
+		const canStart = $derived(status === 'idle' || status === 'finished' || status === 'error');
 
 	// Chart Config
 	const chartConfig = {
@@ -203,16 +205,8 @@
 					{testDuration}
 					downloadColor={chartConfig.download.color}
 					uploadColor={chartConfig.upload.color}
-					activePhase={status.includes('download')
-						? 'download'
-						: status.includes('upload')
-							? 'upload'
-							: null}
-					currentSpeed={status.includes('download')
-						? downloadSpeed.current
-						: status.includes('upload')
-							? uploadSpeed.current
-							: 0}
+						{activePhase}
+						{currentSpeed}
 					currentProgress={progress.current / 100}
 				/>
 			</div>
@@ -248,14 +242,14 @@
 							bind:value={testDuration}
 							min={5}
 							max={60}
-							disabled={status !== 'idle' && status !== 'finished' && status !== 'error'}
+							disabled={!canStart}
 						/>
 					</div>
 				</div>
 			</div>
 		</CardContent>
 		<CardFooter class="flex justify-center pt-4 pb-8">
-			{#if status === 'idle' || status === 'finished' || status === 'error'}
+			{#if canStart}
 				<Button
 					size="lg"
 					onclick={startTest}

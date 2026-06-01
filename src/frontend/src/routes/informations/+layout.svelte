@@ -5,7 +5,7 @@
 	import FancyGrid from '$lib/components/FancyGrid.svelte';
 	import { page } from '$app/state';
 
-	let { children } = $props();
+	const { children } = $props();
 
 	const header = $derived(page.data.header);
 </script>

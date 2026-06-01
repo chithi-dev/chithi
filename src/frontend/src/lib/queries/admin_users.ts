@@ -21,7 +21,12 @@ export const useUsersQuery = (page: () => number, size: number) => {
 		}
 	}));
 
-	const createUser = async (user_in: any) => {
+	interface CreateUserInput {
+		username: string;
+		email?: string | null;
+		password?: string;
+	}
+	const createUser = async (user_in: CreateUserInput) => {
 		const res = await fetch(Api.ADMIN.USER_CREATE, {
 			method: 'POST',
 			headers: {

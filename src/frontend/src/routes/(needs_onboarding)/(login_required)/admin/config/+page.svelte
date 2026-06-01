@@ -12,7 +12,7 @@
 	const { default: FileSecurityCard } = await import('./file_security_card.svelte');
 	const { default: SiteDescriptionCard } = await import('./site_description_card.svelte');
 
-	const { config: configQuery, update_config } = useConfigQuery();
+	const { config: configQuery, updateConfig } = useConfigQuery();
 
 	let configData = $derived(configQuery.data);
 	let descDraft = $state('');
@@ -66,7 +66,7 @@
 
 	async function save(payload: any) {
 		try {
-			await update_config(payload);
+			await updateConfig(payload);
 		} catch (error) {
 			console.error('Save failed:', error);
 		}

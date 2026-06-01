@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import * as Pagination from '$lib/components/ui/pagination';
 	import { useFilesQuery } from '#queries/files';
+	import { formatDate } from '$lib/functions/dates';
 	import { toast } from 'svelte-sonner';
 	import { page } from '$app/state';
 
@@ -38,15 +39,6 @@
 		} finally {
 			isRevoking = false;
 		}
-	}
-
-	function formatDate(dateStr?: string) {
-		if (!dateStr) return 'N/A';
-		const date = new Date(dateStr).toLocaleString(undefined, {
-			dateStyle: 'medium',
-			timeStyle: 'short'
-		});
-		return date;
 	}
 </script>
 

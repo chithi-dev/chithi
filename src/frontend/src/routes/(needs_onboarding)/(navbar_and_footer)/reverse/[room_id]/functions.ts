@@ -22,6 +22,6 @@ export async function handleBinaryChunk(
 		return;
 	}
 
-	receiveState.chunks.push(buf as any);
+	receiveState.chunks.push(new Uint8Array(buf));
 	receiveState.received += buf.byteLength;
 }

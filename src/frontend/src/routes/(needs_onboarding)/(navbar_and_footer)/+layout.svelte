@@ -27,7 +27,7 @@
 	import type { Component } from 'svelte';
 	const { user: userData } = useAuth();
 
-	let { children } = $props();
+	const { children } = $props();
 
 	let initials = $derived(kebab_to_initials(userData.data?.username ?? ''));
 

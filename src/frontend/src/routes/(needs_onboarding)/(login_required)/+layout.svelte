@@ -8,7 +8,7 @@
 	import { user_store } from '$lib/store/user.svelte';
 
 	const { user: userData } = useAuth();
-	let { children } = $props();
+	const { children } = $props();
 
 	$effect(() => {
 		if (user_store.is_authenticated === false) {

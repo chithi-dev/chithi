@@ -4,7 +4,7 @@ export interface RoomFileEntry {
 	key: string;
 	filename: string;
 	size: number;
-	uploaded_at: string;
+	uploaded_at: number;
 	download_url: string;
 }
 export interface ActiveUpload {
@@ -32,7 +32,7 @@ export type ReceiveState =
 			filename: string;
 			size: number;
 			received: number;
-			chunks: BlobPart[];
+			chunks: Uint8Array<ArrayBuffer>[];
 	  }
 	| {
 			type: 'processing';

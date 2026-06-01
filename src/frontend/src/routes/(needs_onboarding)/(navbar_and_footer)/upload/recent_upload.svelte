@@ -3,15 +3,13 @@
 	import { Button } from '$lib/components/ui/button';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { Trash2, History, Copy, Check, Download } from '@lucide/svelte';
-	import { onMount } from 'svelte';
 	import {
 		deleteHistoryEntry,
 		cleanupExpiredEntries,
-		recentUploads,
 		updateHistoryEntry
 	} from '$lib/database';
+	import { recentUploads } from '$lib/database/recent-uploads.svelte';
 	import { formatFileSize } from '#functions/bytes';
-	import { get } from 'svelte/store';
 	import { Api } from '#consts/backend';
 
 	let open = $state(false);
@@ -26,21 +24,19 @@
 		expires_at: string;
 		expired: boolean;
 	};
+
 	const fetchFileInformation = async (key: string): Promise<FileInformationOut> => {
 		const res = await fetch(Api.FILE_INFO(key));
-		if (!res.ok) {
-			throw new Error('Failed to fetch file information');
-		}
+		if (!res.ok) throw new Error('Failed to fetch file information');
 		return res.json();
 	};
 
-	onMount(() => {
+	$effect(() => {
 		const init = async () => {
 			await cleanupExpiredEntries();
-			const entries = get(recentUploads);
 
 			await Promise.all(
-				entries.map(async (entry) => {
+				recentUploads.entries.map(async (entry) => {
 					try {
 						const info = await fetchFileInformation(entry.id);
 						if (info.expired) {
@@ -63,7 +59,7 @@
 		};
 		init();
 
-		const interval = setInterval(cleanupExpiredEntries, 60000);
+		const interval = setInterval(cleanupExpiredEntries, 60_000);
 		return () => clearInterval(interval);
 	});
 
@@ -76,7 +72,7 @@
 		copiedId = id;
 		setTimeout(() => {
 			if (copiedId === id) copiedId = null;
-		}, 2000);
+		}, 2_000);
 	};
 
 	$effect(() => {
@@ -86,7 +82,7 @@
 	});
 </script>
 
-{#if $recentUploads.length > 0}
+{#if recentUploads.entries.length > 0}
 	<Dialog.Root bind:open>
 		<Dialog.Trigger>
 			{#snippet child({ props })}
@@ -108,7 +104,7 @@
 			</Dialog.Header>
 			<ScrollArea class="h-75 w-full rounded-md border p-4">
 				<div class="space-y-4">
-					{#each $recentUploads as entry (entry.id)}
+					{#each recentUploads.entries as entry (entry.id)}
 						<div
 							class="flex flex-col gap-2 rounded-lg border bg-card p-3 text-sm shadow-sm transition-colors hover:bg-accent/5"
 						>
@@ -117,7 +113,7 @@
 									<div class="truncate font-medium" title={entry.name}>{entry.name}</div>
 									<div class="flex items-center gap-2 text-xs text-muted-foreground">
 										<span>{entry.size}</span>
-										<span>•</span>
+										<span>&#8226;</span>
 										<span
 											>{Math.max(0, parseInt(entry.downloadLimit) - (entry.downloadCount || 0))} left</span
 										>

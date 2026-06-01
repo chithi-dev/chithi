@@ -6,7 +6,8 @@
 	import { page } from '$app/state';
 	import { fly } from 'svelte/transition';
 	import { Api } from '#consts/backend';
-	import { downloadAndDecryptFile, PasswordRequiredError } from '#functions/download';
+	import { downloadAndDecryptFile } from '#functions/download';
+import { PasswordRequiredError } from '#errors/password';
 	import { formatFileSize } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';
 	import { Progress } from '$lib/components/ui/progress';
@@ -60,12 +61,7 @@
 
 	async function handlePasswordSubmit() {
 		if (!key) return;
-		try {
-			await handleDownload();
-		} catch (e) {
-			// Error handled in handleDownload or here?
-			// handleDownload sets status.
-		}
+		await handleDownload();
 	}
 
 	async function handleDownload() {

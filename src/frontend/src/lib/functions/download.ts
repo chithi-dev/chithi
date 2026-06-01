@@ -1,13 +1,8 @@
 import { Api } from '#consts/backend';
+import { autoDownload } from '#functions/browser-download';
+import { PasswordRequiredError } from '#errors/password';
 import { createDecryptedStream } from '#functions/streams';
 import { ZipReader } from '@zip.js/zip.js';
-
-export class PasswordRequiredError extends Error {
-	constructor() {
-		super('Password required for decryption');
-		this.name = 'PasswordRequiredError';
-	}
-}
 
 export async function downloadAndDecryptFile(
 	slug: string,
@@ -123,7 +118,7 @@ export async function downloadAndDecryptFile(
 		if (done) break;
 		chunks.push(value);
 	}
-	const blob = new Blob(chunks);
+	const blob = new Blob(chunks as BlobPart[]);
 
 	if ((window as any).showSaveFilePicker) {
 		const handle = await (window as any).showSaveFilePicker({
@@ -132,14 +127,8 @@ export async function downloadAndDecryptFile(
 		const writable = await handle.createWritable();
 		await blob.stream().pipeTo(writable);
 	} else {
-		const url = window.URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = finalDownloadName;
-		a.style.display = 'none';
-		document.body.appendChild(a);
-		a.click();
-		window.URL.revokeObjectURL(url);
-		document.body.removeChild(a);
+		const url = URL.createObjectURL(blob);
+		autoDownload(url, finalDownloadName);
+		URL.revokeObjectURL(url);
 	}
 }

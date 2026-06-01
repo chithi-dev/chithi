@@ -3,7 +3,7 @@
 	import { goto } from '$app/navigation';
 	import { useOnboarding } from '#queries/onboarding';
 
-	let { children } = $props();
+	const { children } = $props();
 
 	const { status } = useOnboarding();
 

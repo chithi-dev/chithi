@@ -15,7 +15,7 @@
 	import { MetaTags, deepMerge } from 'svelte-meta-tags';
 	import { WORKER_CONCURRENCY } from '#consts/concurrency';
 
-	let { children, data }: { children: Snippet; data: LayoutData } = $props();
+	const { children, data }: { children: Snippet; data: LayoutData } = $props();
 
 	const loadDevtools = async () => {
 		if (!import.meta.env.DEV) return Promise.resolve<Component<any> | null>(null);

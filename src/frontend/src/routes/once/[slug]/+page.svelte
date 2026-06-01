@@ -2,18 +2,17 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Input } from '$lib/components/ui/input';
 	import { CircleAlert, LoaderCircle, KeyRound } from '@lucide/svelte';
-	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { Api } from '#consts/backend';
-	import { PasswordRequiredError } from '#functions/download';
-	import { createDecryptedStream } from '#functions/streams';
+	import { fetchDecryptedBlob } from '$lib/functions/fetch-decrypt';
+	import { PasswordRequiredError } from '#errors/password';
 	import { BlobWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
 	import { detectMimeFromBlob } from '#functions/mime';
 	import { createViewableText } from '$lib/functions/viewer';
 	import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
+	import { autoDownload } from '$lib/functions/browser-download';
 
-	let key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
-	let slug = $derived(page.params.slug);
+	const key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
+	const slug = $derived(page.params.slug);
 
 	let status = $state<'loading' | 'needs_password' | 'error' | 'viewing'>('loading');
 	let errorMsg = $state('');
@@ -31,70 +30,11 @@
 		status = 'loading';
 
 		try {
-			// Fetch encrypted data
-			const res = await fetch(Api.DOWNLOAD(slug));
-			if (!res.ok) {
-				if (res.status === 404) throw new Error('File not found');
-				if (res.status === 410) throw new Error('File expired or already downloaded');
-				throw new Error('Download failed');
-			}
-			if (!res.body) throw new Error('No response body');
+			const blob = await fetchDecryptedBlob(slug, key, password, {});
 
-			const reader = res.body.getReader();
-			const streamForDecrypt = new ReadableStream<Uint8Array>({
-				async pull(controller) {
-					const { done, value } = await reader.read();
-					if (done) {
-						controller.close();
-						return;
-					}
-					controller.enqueue(value);
-				},
-				cancel(reason) {
-					return reader.cancel(reason);
-				}
-			});
-
-			// Decrypt
-			const { stream: decryptedStream } = await createDecryptedStream(
-				streamForDecrypt,
-				key,
-				password
-			);
-
-			// Read first chunk to detect password errors
-			const decReader = decryptedStream.getReader();
-			let firstChunk: Uint8Array | undefined;
-			try {
-				const { done, value } = await decReader.read();
-				if (!done) firstChunk = value;
-			} catch (e: any) {
-				if (e.name === 'OperationError') {
-					await reader.cancel('Wrong password');
-					throw new PasswordRequiredError();
-				}
-				throw e;
-			}
-
-			// Buffer all decrypted data
-			const chunks: Uint8Array[] = [];
-			if (firstChunk) chunks.push(firstChunk);
-			while (true) {
-				const { done, value } = await decReader.read();
-				if (done) break;
-				chunks.push(value);
-			}
-
-			const totalLength = chunks.reduce((acc, c) => acc + c.length, 0);
-			const fullData = new Uint8Array(totalLength);
-			let offset = 0;
-			for (const chunk of chunks) {
-				fullData.set(chunk, offset);
-				offset += chunk.length;
-			}
-
-			// Unzip single file
+			const fullData = new Uint8Array(await blob.arrayBuffer());
 			const zipReader = new ZipReader(new Uint8ArrayReader(fullData));
+
 			try {
 				const entries = await zipReader.getEntries();
 				const fileEntries = entries.filter((e) => !e.directory);
@@ -103,7 +43,7 @@
 
 				if (fileEntries.length > 1) {
 					throw new Error(
-						'View Once only supports a single file. Please use the upload page and select "View Once" with one file.'
+						'View Once only supports a single file. Use the upload page with one file.'
 					);
 				}
 
@@ -113,15 +53,13 @@
 				entryFilename = entry.filename.split('/').pop() || 'file';
 				const rawBlob = await entry.getData(new BlobWriter('application/octet-stream'));
 				const detectedMime = await detectMimeFromBlob(rawBlob);
-				const viewBlob = detectedMime ? rawBlob.slice(0, rawBlob.size, detectedMime) : rawBlob;
+				const viewBlob = detectedMime
+					? rawBlob.slice(0, rawBlob.size, detectedMime)
+					: rawBlob;
 				const text = await createViewableText(viewBlob, entryFilename, detectedMime);
 
-				if (text !== null) {
-					contentText = text;
-				} else {
-					contentUrl = URL.createObjectURL(viewBlob);
-				}
-
+				contentText = text ?? null;
+				contentUrl = text === null ? URL.createObjectURL(viewBlob) : null;
 				status = 'viewing';
 			} finally {
 				await zipReader.close();
@@ -137,27 +75,15 @@
 		}
 	}
 
-	async function handlePasswordSubmit() {
-		if (!key) return;
-		await fetchDecryptAndShow();
-	}
-
 	function handleDownloadFile() {
 		const url = contentUrl;
 		if (!url && contentText === null) return;
 		const blobUrl = url || URL.createObjectURL(new Blob([contentText!], { type: 'text/plain' }));
-		const a = document.createElement('a');
-		a.href = blobUrl;
-		a.download = entryFilename;
-		a.style.display = 'none';
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
+		autoDownload(blobUrl, entryFilename);
 		if (!url) URL.revokeObjectURL(blobUrl);
 	}
 
-	// Auto-start on mount (use onMount to avoid re-running on page store changes during navigation)
-	onMount(() => {
+	$effect(() => {
 		fetchDecryptAndShow();
 	});
 </script>
@@ -180,9 +106,9 @@
 					placeholder="Password"
 					class="rounded-r-none focus-visible:z-10"
 					bind:value={password}
-					onkeydown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
+					onkeydown={(e) => e.key === 'Enter' && fetchDecryptAndShow()}
 				/>
-				<Button class="rounded-l-none" onclick={handlePasswordSubmit}>Unlock</Button>
+				<Button class="rounded-l-none" onclick={fetchDecryptAndShow}>Unlock</Button>
 			</div>
 		</div>
 	</div>
@@ -192,7 +118,6 @@
 		<p class="font-medium">{errorMsg}</p>
 	</div>
 {:else}
-	<!-- Loading: just a centered spinner, no verbose text -->
 	<div class="flex min-h-screen items-center justify-center">
 		<LoaderCircle class="h-8 w-8 animate-spin text-muted-foreground" />
 	</div>

@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { cubicOut } from 'svelte/easing';
@@ -36,14 +35,16 @@
 		MousePointerClick
 	} from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
-	import { Api } from '#consts/backend';
-	import { createDecryptedStream } from '#functions/streams';
+import { autoDownload } from '$lib/functions/browser-download';
+		import { Api } from '#consts/backend';
+		import { createDecryptedStream } from '#functions/streams';
 	import { resolve } from '$app/paths';
 	import { extractEncryptionKey } from './utils';
-	import { getDisplayFilename, handleBinaryChunk } from './functions';
+	import { getDisplayFilename } from './functions';
+	import { useWsReconnect } from './ws-reconnect.svelte';
 	import type { DownloadedFile, ReceiveState, RemoteUpload, RoomFileEntry, RoomOut } from './types';
 
-	let { room_id }: { room_id: string } = $props();
+	const { room_id }: { room_id: string } = $props();
 	let roomKey = $derived(extractEncryptionKey(page.url.hash.slice(1)));
 
 	const downloadPageHref = (fileKey: string) =>
@@ -71,10 +72,119 @@
 		}
 	});
 
-	// WebSocket
-	let ws = $state<WebSocket | null>(null);
-	let wsConnected = $state(false);
+	// WebSocket (via hook for reconnection resilience)
 	let remoteUploads = $state<RemoteUpload[]>([]);
+	const { connected: wsConnected, send: wsSend, close: wsClose } = useWsReconnect({
+		get_room_id: () => room_id,
+		get_host_token: () => undefined,
+		get_receive_state: () => receiveState,
+		get_downloaded_files: () => downloadedFiles,
+		get_room_key: () => roomKey,
+		onSnapshot: (r) => {
+			const roomOut = r as unknown as RoomOut;
+			room = roomOut;
+			roomFiles = structuredClone(roomOut.files);
+			hostCount = roomOut.host_count ?? 1;
+			remoteUploads =
+				roomOut.active_uploads?.map((u) => ({
+					key: u.upload_key,
+					filename: u.filename,
+					size: u.size,
+					uploadedBytes: u.uploaded_bytes,
+					progress: new Tween(
+						u.size > 0 ? Math.min((u.uploaded_bytes / u.size) * 100, 100) : 0,
+						{ duration: 300, easing: cubicOut }
+					)
+				})) ?? [];
+		},
+		onHostCount: (count: number) => (hostCount = count),
+		onUploadStart: (entry) => {
+			if (!remoteUploads.some((u) => u.key === entry.key)) {
+				remoteUploads = [
+					...remoteUploads,
+					{
+						...entry,
+						uploadedBytes: 0,
+						progress: new Tween(0, { duration: 300, easing: cubicOut })
+					}
+				];
+			}
+		},
+		onUploadProgress: (upload_key: string, uploaded_bytes: number) => {
+			const upload = remoteUploads.find((u) => u.key === upload_key);
+			if (upload) {
+				upload.uploadedBytes = uploaded_bytes;
+				upload.progress.target = Math.min((uploaded_bytes / upload.size) * 100, 100);
+			}
+		},
+		onUploadCancelled: (upload_key: string) => {
+			remoteUploads = remoteUploads.filter((u) => u.key !== upload_key);
+		},
+		onFileStart: (key: string, filename: string, size: number) => {
+			if (downloadPreference === 'eager' && receiveState.type === 'idle') {
+				receiveState = { type: 'streaming', key, filename, size, received: 0, chunks: [] };
+			} else if (receiveState.type === 'streaming' && receiveState.key === key) {
+				receiveState.filename = filename;
+			}
+		},
+		onFileEnd: async (key: string, filename: string, size: number) => {
+			if (receiveState.type === 'streaming' && receiveState.key === key) {
+				const { key: rsKey, filename: rsFilename, size: rsSize, chunks } = receiveState;
+				receiveState = { type: 'processing', key: rsKey, filename: rsFilename, size: rsSize };
+				try {
+					let finalBlob = new Blob(chunks);
+					if (roomKey) {
+						isDecrypting = true;
+						decryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
+						const { stream: decryptedStream } = await createDecryptedStream(
+							finalBlob.stream() as any,
+							roomKey,
+							undefined,
+							finalBlob.size,
+							(processed, total) => {
+								if (total && total > 0) {
+									decryptionProgress.target = Math.min(
+										100,
+										Math.round((processed / total) * 100)
+									);
+								}
+							}
+						);
+						finalBlob = await new Response(decryptedStream as any).blob();
+						isDecrypting = false;
+						decryptionProgress.target = 100;
+					}
+					const objectUrl = URL.createObjectURL(finalBlob);
+					downloadedFiles = [...downloadedFiles, { key: rsKey, filename: rsFilename, size: rsSize, objectUrl }];
+					toast.success(`Received: ${rsFilename}`);
+					autoDownload(objectUrl, rsFilename);
+				} catch {
+					toast.error(`Decryption failed for ${rsFilename}`);
+					receiveState = { type: 'idle' };
+				}
+			}
+		},
+		onFileError: (detail: string, key: string) => {
+			if (receiveState.type !== 'idle' && receiveState.key === key) {
+				receiveState = { type: 'idle' };
+				toast.error(detail);
+			}
+		},
+		onRoomDestroyed: () => {
+			cleanup();
+			toast.error('Room has been destroyed');
+			goto('/reverse');
+		},
+		onFileRemoved: (key: string) => {
+			roomFiles = roomFiles.filter((f) => f.key !== key);
+		},
+		onConnectionCounts: (hosts: number, guests: number) => {
+			if (room) {
+				room.connected_hosts = hosts;
+				room.connected_guests = guests;
+			}
+		}
+	});
 
 	// UI states
 	let copiedShareLink = $state(false);
@@ -134,208 +244,9 @@
 			loadStatus = 'loaded';
 
 			if (!roomKey) showKeyPrompt = true;
-			connectWebSocket();
 		} catch {
 			loadStatus = 'error';
 		}
-	}
-
-	function connectWebSocket() {
-		ws?.close();
-		const socket = new WebSocket(`${Api.REVERSE.WS_URL}/${room_id}`);
-		// prefer ArrayBuffer for binary frames to avoid Blob conversion
-		socket.binaryType = 'arraybuffer';
-		ws = socket;
-
-		socket.onopen = () => (wsConnected = true);
-		socket.onclose = () => {
-			wsConnected = false;
-			ws = null;
-		};
-		socket.onerror = () => {
-			wsConnected = false;
-			toast.error('WebSocket connection error');
-		};
-
-		socket.onmessage = async (ev) => {
-			if (ev.data instanceof ArrayBuffer || ev.data instanceof Blob) {
-				console.debug(
-					'[reverse/client] binary frame received, size=',
-					ev.data instanceof ArrayBuffer ? ev.data.byteLength : (ev.data as Blob).size
-				);
-				handleBinaryChunk(receiveState, ev.data);
-				return;
-			}
-
-			try {
-				const msg = JSON.parse(ev.data);
-				const { type } = msg;
-
-				switch (type) {
-					case 'snapshot': {
-						const r = msg.room as RoomOut;
-						room = r;
-						roomFiles = structuredClone(r.files);
-						hostCount = r.host_count ?? 1;
-						remoteUploads =
-							r.active_uploads?.map((u) => ({
-								key: u.upload_key,
-								filename: u.filename,
-								size: u.size,
-								uploadedBytes: u.uploaded_bytes,
-								progress: new Tween(
-									u.size > 0 ? Math.min((u.uploaded_bytes / u.size) * 100, 100) : 0,
-									{
-										duration: 300,
-										easing: cubicOut
-									}
-								)
-							})) ?? [];
-						break;
-					}
-					case 'host_count':
-						hostCount = msg.count;
-						break;
-					case 'connection_counts':
-						if (room) {
-							room.connected_hosts = msg.hosts;
-							room.connected_guests = msg.guests;
-						}
-						break;
-					case 'upload_start': {
-						const key = msg.upload_key;
-						if (!remoteUploads.some((u) => u.key === key)) {
-							remoteUploads = [
-								...remoteUploads,
-								{
-									key,
-									filename: msg.filename,
-									size: msg.size,
-									uploadedBytes: 0,
-									progress: new Tween(0, { duration: 300, easing: cubicOut })
-								}
-							];
-						}
-						break;
-					}
-					case 'upload_progress': {
-						const upload = remoteUploads.find((u) => u.key === msg.upload_key);
-						if (upload) {
-							upload.uploadedBytes = msg.uploaded_bytes;
-							upload.progress.target =
-								upload.size > 0 ? Math.min((msg.uploaded_bytes / upload.size) * 100, 100) : 0;
-						}
-						break;
-					}
-					case 'upload_cancelled':
-						remoteUploads = remoteUploads.filter((u) => u.key !== msg.upload_key);
-						break;
-					case 'file_added': {
-						const file = msg.file as RoomFileEntry;
-						if (!roomFiles.some((f) => f.key === file.key)) {
-							roomFiles = [...roomFiles, file];
-						}
-						remoteUploads = remoteUploads.filter((u) => u.key !== file.key);
-						break;
-					}
-					case 'file_start':
-						if (receiveState.type === 'idle') {
-							if (downloadPreference === 'eager') {
-								// Skip if already in memory
-								if (downloadedFiles.some((d) => d.key === msg.key)) {
-									return;
-								}
-								receiveState = {
-									type: 'streaming',
-									key: msg.key,
-									filename: msg.filename,
-									size: msg.size,
-									received: 0,
-									chunks: []
-								};
-							}
-						} else if (receiveState.type === 'streaming' && receiveState.key === msg.key) {
-							// Already set up by downloadFile, just confirm size/filename
-							receiveState.size = msg.size;
-							receiveState.filename = msg.filename;
-						}
-						break;
-					case 'file_end':
-						if (receiveState.type === 'streaming' && receiveState.key === msg.key) {
-							const { key, filename, size, chunks } = receiveState;
-							// Guard against concurrent file_end processing (e.g. multiple hosts)
-							receiveState = { type: 'processing', key, filename, size };
-
-							console.debug(
-								'[reverse/client] file_end for',
-								key,
-								'filename=',
-								filename,
-								'chunks=',
-								chunks.length,
-								'expected_size=',
-								size
-							);
-							try {
-								let finalBlob = new Blob(chunks);
-								if (roomKey) {
-									isDecrypting = true;
-									decryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
-									const { stream: decryptedStream } = await createDecryptedStream(
-										finalBlob.stream() as any,
-										roomKey,
-										undefined,
-										finalBlob.size,
-										(processed, total) => {
-											if (total && total > 0) {
-												decryptionProgress.target = Math.min(
-													100,
-													Math.round((processed / total) * 100)
-												);
-											}
-										}
-									);
-									finalBlob = await new Response(decryptedStream as any).blob();
-									isDecrypting = false;
-									decryptionProgress.target = 100;
-								}
-								const objectUrl = URL.createObjectURL(finalBlob);
-								downloadedFiles = [...downloadedFiles, { key, filename, size, objectUrl }];
-								toast.success(`Received: ${filename}`);
-
-								// Trigger download automatically
-								const a = document.createElement('a');
-								a.href = objectUrl;
-								a.download = filename;
-								a.click();
-							} catch {
-								toast.error(`Decryption failed for ${filename}`);
-							} finally {
-								receiveState = { type: 'idle' };
-								isDecrypting = false;
-							}
-						}
-						break;
-					case 'file_error':
-						if (receiveState.type === 'streaming' && receiveState.key === msg.key) {
-							receiveState = { type: 'idle' };
-						}
-						toast.error(`File error: ${msg.detail}`);
-						break;
-					case 'file_removed':
-						roomFiles = roomFiles.filter((f) => f.key !== msg.key);
-						downloadedFiles = downloadedFiles.filter((f) => f.key !== msg.key);
-						break;
-					case 'room_destroyed':
-						toast.info('The host has closed the room.');
-						cleanup();
-						goto('/reverse');
-						break;
-				}
-			} catch {
-				/* ignore invalid JSON */
-			}
-		};
 	}
 
 	async function copyShareLink() {
@@ -363,10 +274,7 @@
 	async function downloadFile(f: RoomFileEntry) {
 		const downloaded = downloadedFiles.find((d) => d.key === f.key);
 		if (downloaded?.objectUrl) {
-			const a = document.createElement('a');
-			a.href = downloaded.objectUrl;
-			a.download = f.filename;
-			a.click();
+			autoDownload(downloaded.objectUrl, f.filename);
 			return;
 		}
 
@@ -384,8 +292,8 @@
 			chunks: []
 		};
 
-		if (wsConnected && ws) {
-			ws.send(JSON.stringify({ type: 'request_file', key: f.key }));
+		if (wsConnected) {
+			wsSend({ type: 'request_file', key: f.key });
 		} else {
 			toast.error('WebSocket not connected. Cannot request file.');
 			receiveState = { type: 'idle' };
@@ -393,15 +301,17 @@
 	}
 
 	function cleanup() {
-		ws?.close();
 		downloadedFiles.forEach((f) => f.objectUrl && URL.revokeObjectURL(f.objectUrl));
 	}
 
-	onMount(() => {
+	$effect(() => {
 		if (roomKey) loadRoom();
 		else showKeyPrompt = true;
+		return () => {
+			wsClose();
+			cleanup();
+		};
 	});
-	onDestroy(cleanup);
 </script>
 
 {#if showKeyPrompt}

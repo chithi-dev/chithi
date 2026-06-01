@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { Tween } from 'svelte/motion';
 	import { cubicOut } from 'svelte/easing';
 	import { formatFileSize } from '#functions/bytes';
@@ -9,7 +8,7 @@
 	import * as Tooltip from '$lib/components/ui/tooltip/index';
 	import { cn } from '$lib/utils';
 
-	let { localUploadSize = 0 }: { localUploadSize: number } = $props();
+	const { localUploadSize = 0 }: { localUploadSize: number } = $props();
 
 	// Distinct Tailwind colors for each active upload segment
 	const SEGMENT_COLORS = [
@@ -106,7 +105,7 @@
 		}
 	});
 
-	onMount(() => {
+	$effect(() => {
 		const unsub = subscribeAppState();
 		return unsub;
 	});

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { cn } from '$lib/utils';
 
-	let { class: className = '' } = $props();
+	const { class: className = '' } = $props();
 </script>
 
 <div class={cn(`absolute inset-0 z-0 overflow-hidden`, className)}>

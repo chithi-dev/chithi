@@ -4,25 +4,26 @@
 	import { Download, Link, Check, ArrowLeft, Copy, WandSparkles } from '@lucide/svelte';
 	import { fade } from 'svelte/transition';
 	import CodeViewer from '$lib/components/CodeViewer.svelte';
-	import { detectMimeFromBlob } from '$lib/functions/mime';
+	import { autoDownload } from '$lib/functions/browser-download';
+import { detectMimeFromBlob } from '$lib/functions/mime';
 	import { getImageSupportInfo, type ImageSupportInfo } from '$lib/functions/media-support';
 	import ConverterWorker from '$lib/workers/file-converter.worker?worker';
 
-	let {
+	const {
 		filename,
 		contentText = null,
 		contentUrl = null,
 		onclose,
 		ondownload,
 		oncopylink
-	} = $props<{
+	}: {
 		filename: string;
 		contentText?: string | null;
 		contentUrl?: string | null;
 		onclose?: () => void;
 		ondownload?: () => void;
 		oncopylink?: () => void;
-	}>();
+	} = $props();
 
 	let copied = $state(false);
 	let copyTimeout: ReturnType<typeof setTimeout> | undefined;
@@ -144,24 +145,12 @@
 
 	const downloadBlob = (blob: Blob, name: string) => {
 		const blobUrl = URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = blobUrl;
-		a.download = name;
-		a.style.display = 'none';
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
+		autoDownload(blobUrl, name);
 		URL.revokeObjectURL(blobUrl);
 	};
 
 	const downloadFromUrl = (url: string, name: string) => {
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = name;
-		a.style.display = 'none';
-		document.body.appendChild(a);
-		a.click();
-		document.body.removeChild(a);
+		autoDownload(url, name);
 	};
 
 	const startConversion = async (optimize = false) => {
