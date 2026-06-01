@@ -5,13 +5,13 @@
   import { BookOpen } from '@lucide/svelte';
 
   /** @type {import('svelte').ComponentType<'svg'>} */
-  export let headerIcon: ComponentType<{ class: string }>;
-  export let title: string;
-  export let description: string;
-  /** Watermark icon shown at bottom-right corner */
-  /* optional */ let watermarkIcon: ComponentType<{ class: string }> = undefined;
-  /** When true renders the standard repo + docs footer buttons */
-  export let showFooter: boolean = false;
+  let { headerIcon, title, description, watermarkIcon, showFooter = false }: {
+    headerIcon: ComponentType<{ class: string }>;
+    title: string;
+    description: string;
+    watermarkIcon?: ComponentType<{ class: string }>;
+    showFooter?: boolean;
+  } = $props();
 </script>
 
 <Card.Root

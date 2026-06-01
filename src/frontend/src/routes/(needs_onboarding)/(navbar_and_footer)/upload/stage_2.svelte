@@ -58,10 +58,12 @@
 	// Flattened status
 	let inProgress = $state(false);
 	let isEncrypting = $state(false);
-	let encryptionProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
-	let uploadProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
+	const newTween = () => new Tween(0, { duration: 500, easing: cubicOut });
+	let encryptionProgress = $state(newTween());
+	let uploadProgress = $state(newTween());
 
-	const totalSize = $derived(formatFileSize(files.reduce((sum, file) => sum + file.size, 0)));
+	const rawTotalSize = $derived(files.reduce((sum, f) => sum + f.size, 0));
+	const totalSize = $derived(formatFileSize(rawTotalSize));
 
 	$effect(() => {
 		if (files.length === 1) {
@@ -80,7 +82,7 @@
 	});
 
 	const addFiles = (newFiles: File[]) => {
-		const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
+		const currentTotalSize = rawTotalSize;
 		const newFilesSize = newFiles.reduce((sum, file) => sum + file.size, 0);
 
 		if (
@@ -139,16 +141,16 @@
 
 		try {
 			inProgress = true;
-			uploadProgress = new Tween(0, { duration: 500, easing: cubicOut });
+			uploadProgress = newTween();
 
 			// Create Zip Stream
 			const stream = await createZipStream(files, isPasswordProtected ? password : undefined);
 
-			//  Encrypt
-			const currentTotalSize = files.reduce((sum, file) => sum + file.size, 0);
+			// Encrypt
+			const currentTotalSize = rawTotalSize;
 			// start encryption progress reporting
 			isEncrypting = true;
-			encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
+			encryptionProgress = newTween();
 			const { stream: encryptedStream, keySecret } = await createEncryptedStream(
 				stream,
 				isPasswordProtected ? password : undefined,
@@ -157,7 +159,7 @@
 					if (total && total > 0) {
 						encryptionProgress.target = Math.min(100, Math.round((processed / total) * 100));
 					} else {
-						encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
+						encryptionProgress = newTween();
 					}
 				}
 			);
@@ -244,8 +246,8 @@
 		} finally {
 			inProgress = false;
 			isEncrypting = false;
-			uploadProgress = new Tween(0, { duration: 500, easing: cubicOut });
-			encryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
+			uploadProgress = newTween();
+			encryptionProgress = newTween();
 		}
 	};
 </script>

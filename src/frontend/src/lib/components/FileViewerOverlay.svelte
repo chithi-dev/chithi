@@ -25,30 +25,19 @@ import { detectMimeFromBlob } from '$lib/functions/mime';
 		oncopylink?: () => void;
 	} = $props();
 
-	let copied = $state(false);
-	let copyTimeout: ReturnType<typeof setTimeout> | undefined;
+	function flash(setState: (v: boolean) => void, duration = 2000, timerRef: { current?: ReturnType<typeof setTimeout> } = {}) {
+	setState(true);
+	clearTimeout(timerRef.current);
+	timerRef.current = setTimeout(() => setState(false), duration);
+}
 
-	const handleCopyLink = () => {
-		oncopylink?.();
-		copied = true;
-		clearTimeout(copyTimeout);
-		copyTimeout = setTimeout(() => {
-			copied = false;
-		}, 2000);
-	};
+	let copied = $state(false);
+	const copyTimer = {};
+	const handleCopyLink = () => { oncopylink?.(); flash(v => copied = v, 2000, copyTimer); };
 
 	let textCopied = $state(false);
-	let textCopyTimeout: ReturnType<typeof setTimeout> | undefined;
-
-	const handleCopyText = () => {
-		if (!contentText) return;
-		navigator.clipboard.writeText(contentText);
-		textCopied = true;
-		clearTimeout(textCopyTimeout);
-		textCopyTimeout = setTimeout(() => {
-			textCopied = false;
-		}, 2000);
-	};
+	const textCopyTimer = {};
+	const handleCopyText = () => { if (contentText) navigator.clipboard.writeText(contentText); flash(v => textCopied = v, 2000, textCopyTimer); };
 
 	const baseName = $derived(filename.split(/[/\\]/).at(-1) ?? filename);
 	const unopenableExtensions = [

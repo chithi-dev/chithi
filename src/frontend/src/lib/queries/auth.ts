@@ -4,62 +4,33 @@ import { login as loginRemote, logout as logoutRemote } from '$lib/remote/auth.r
 import { user_store } from '$lib/store/user.svelte';
 import { createQuery, type QueryClient, useQueryClient } from '@tanstack/svelte-query';
 
-export const queryKey = ['auth-user'];
+const queryKey = ['auth-user'];
 
-import { resolveFetch } from './fetch-utils';
-
-const fetchUser = async ({ fetch }: { fetch?: typeof globalThis.fetch }) => {
+const fetchUser = async ({ fetch }: { fetch?: typeof globalThis.fetch } = {}) => {
 	if (browser && user_store.is_authenticated === false) return null;
-
-	let runtimeFetch = resolveFetch(fetch);
-
-	const res = await runtimeFetch(Api.USER, {
-		credentials: 'include'
-	});
-
-	const AUTH_ERRORS = new Set([401, 403]);
-	if (!res.ok || AUTH_ERRORS.has(res.status)) {
+	const res = await (fetch ?? globalThis.fetch)(Api.USER, { credentials: 'include' });
+	if (!res.ok || [401, 403].includes(res.status)) {
 		if (browser) user_store.unauthenticate();
 		await logoutRemote();
 		return null;
 	}
-
-	const data = await res.json();
 	if (browser) user_store.authenticate();
-	return data;
+	return res.json();
 };
 
-export const prefetch = async ({
-	queryClient,
-	fetch
-}: {
-	queryClient: QueryClient;
-	fetch?: typeof globalThis.fetch;
-}) => {
-	await queryClient.prefetchQuery({
-		queryKey: queryKey,
-		queryFn: () => fetchUser({ fetch }),
-		staleTime: Infinity,
-		retry: false
-	});
-};
+export const prefetch = async ({ queryClient, fetch }: { queryClient: QueryClient; fetch?: typeof globalThis.fetch }) =>
+	queryClient.prefetchQuery({ queryKey, queryFn: () => fetchUser({ fetch }), staleTime: Infinity, retry: false });
 
 export const useAuth = () => {
-	const queryClient = useQueryClient();
-
-	const query = createQuery(() => ({
-		queryKey: queryKey,
-		queryFn: () => fetchUser({}),
-		staleTime: Infinity,
-		retry: false
-	}));
+	const qc = useQueryClient();
+	const query = createQuery(() => ({ queryKey, queryFn: () => fetchUser(), staleTime: Infinity, retry: false }));
 
 	const login = async (username: string, password: string) => {
 		if (!browser) return;
 		try {
 			await loginRemote({ username, password });
 			user_store.authenticate();
-			await queryClient.invalidateQueries({ queryKey });
+			await qc.invalidateQueries({ queryKey });
 		} catch (error) {
 			user_store.unauthenticate();
 			throw new Error(error instanceof Error ? error.message : 'Invalid username or password');
@@ -68,29 +39,16 @@ export const useAuth = () => {
 
 	const updateUser = async (data: { username?: string; email?: string | null }) => {
 		if (!browser) return;
-		const runtimeFetch = resolveFetch();
-
-		const res = await runtimeFetch(Api.ADMIN.USER_UPDATE, {
+		const res = await fetch(Api.ADMIN.USER_UPDATE, {
 			method: 'PATCH',
-			headers: {
-				'Content-Type': 'application/json'
-			},
+			headers: { 'Content-Type': 'application/json' },
 			credentials: 'include',
 			body: JSON.stringify(data)
 		});
-
-		if (!res.ok) {
-			const err = await res.json();
-			throw new Error(err.detail || 'Failed to update user');
-		}
-
-		await queryClient.invalidateQueries({ queryKey: queryKey });
+		if (!res.ok) throw new Error((await res.json()).detail || 'Failed to update user');
+		await qc.invalidateQueries({ queryKey });
 		return res.json();
 	};
 
-	return {
-		user: query,
-		login,
-		updateUser
-	};
+	return { user: query, login, updateUser };
 };
