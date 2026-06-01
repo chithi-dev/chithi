@@ -18,11 +18,11 @@ import decodeQoi, { init as initQoi } from '@jsquash/qoi/decode';
 import gifWasmUrl from '@discourse/gif/codec/pkg/squoosh_gif_bg.wasm?url';
 import heicWasmUrl from '@discourse/heic/codec/dec/heic_dec.wasm?url';
 import jxrWasmUrl from '@discourse/jxr/codec/dec/jxr_dec.wasm?url';
+import webpWasmUrl from '@discourse/webp/codec/dec/webp_dec.wasm?url';
 import jxlWasmUrl from '@jsquash/jxl/codec/dec/jxl_dec.wasm?url';
 import oxipngWasmUrl from '@jsquash/oxipng/codec/pkg-parallel/squoosh_oxipng_bg.wasm?url';
 import pngWasmUrl from '@jsquash/png/codec/pkg/squoosh_png_bg.wasm?url';
 import qoiWasmUrl from '@jsquash/qoi/codec/dec/qoi_dec.wasm?url';
-import webpWasmUrl from '@jsquash/webp/codec/dec/webp_dec.wasm?url';
 import resvgWasmUrl from '@resvg/resvg-wasm/index_bg.wasm?url';
 
 let gifInitialized = false;
