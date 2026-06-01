@@ -196,7 +196,7 @@
 		}
 	};
 
-	const onFilesSelected = $derived((newFiles: File[], folderName?: string) => {
+	const onFilesSelected = (newFiles: File[], folderName?: string) => {
 		if (folderName) {
 			initialFolderName = folderName;
 		}
@@ -207,9 +207,9 @@
 		dragOverCard = false;
 		stage = UploadStage.Stage_2;
 		window.history.pushState({ stage: UploadStage.Stage_2 }, '', window.location.href);
-	});
+	};
 
-	const onUploadComplete = $derived((result: {
+	const onUploadComplete = (result: {
 		finalLink: string;
 		viewOnceLink: string;
 		isViewOnce: boolean;
@@ -217,7 +217,7 @@
 		uploadResult = result;
 		stage = UploadStage.Stage_3;
 		window.history.pushState({ stage: UploadStage.Stage_3 }, '', window.location.href);
-	});
+	};
 
 	const resetState = (historyMode: 'push' | 'replace' = 'push') => {
 		files = [];
@@ -240,9 +240,9 @@
 		resetState('push');
 	};
 
-	const onBack = $derived(() => {
+	const onBack = () => {
 		stage = UploadStage.Stage_1;
-	});
+	};
 
 	const handlePopState = (e: PopStateEvent) => {
 		// Ignore popstate until after initial microtask flush completes
