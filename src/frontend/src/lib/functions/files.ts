@@ -35,11 +35,11 @@ export async function traverseFileTree(item: FileSystemEntry, path = ''): Promis
 }
 
 export async function processDataTransferItems(items: DataTransferItem[]): Promise<File[]> {
-	const promises = Array.from(items).map(async (item) => {
+	const promises = [...items].map(async (item) => {
 		const entry = (item as any).webkitGetAsEntry?.();
 		if (entry) return traverseFileTree(entry);
 		const file = item.kind === 'file' ? item.getAsFile?.() : null;
 		return file ? [file] : [];
 	});
-	return (await Promise.all(promises)).flat().filter(Boolean) as File[];
+	return (await Promise.all(promises)).flat();
 }

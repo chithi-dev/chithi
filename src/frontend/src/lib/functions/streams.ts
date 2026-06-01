@@ -39,7 +39,7 @@ async function deriveSecrets(ikm: Uint8Array, password?: string) {
 	);
 	let finalIKM = ikm;
 
-	if (password && password.length > 0) {
+	if (password?.length) {
 		const saltBytes = new Uint8Array(derivedSalt).slice(0, 16);
 		const passwordBytes = new TextEncoder().encode(password);
 		const pb = await argon2Derive(passwordBytes, saltBytes, 32, 16384, 32, 1);
@@ -390,7 +390,7 @@ async function writeZipFiles(
 			filename = makeUnique(filename);
 			try {
 				await zipWriter.add(filename, file.stream(), {
-					password: password?.length ? password : undefined,
+					password,
 					encryptionStrength: password?.length ? 3 : undefined,
 					level: 9,
 					signal
@@ -400,7 +400,7 @@ async function writeZipFiles(
 				if (msg.includes('File already exists') || msg.includes('already exists')) {
 					const altName = makeUnique((file as any).relativePath || file.name);
 					await zipWriter.add(altName, file.stream(), {
-						password: password?.length ? password : undefined,
+						password,
 						encryptionStrength: password?.length ? 3 : undefined,
 						level: 9,
 						signal
@@ -413,11 +413,7 @@ async function writeZipFiles(
 		await zipWriter.close();
 	} catch (error) {
 		console.error('Error creating zip stream:', error);
-		try {
-			await writable.abort(error);
-		} catch (e) {
-			// ignore
-		}
+		writable.abort(error).catch(() => {});
 	}
 }
 

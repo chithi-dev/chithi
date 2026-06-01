@@ -22,7 +22,6 @@ export async function downloadAndDecryptFile(
 	if (!res.ok) throw new Error('Download failed');
 	if (!res.body) throw new Error('No response body');
 
-	const totalSize = fileSize;
 	let loaded = 0;
 
 	const reader = res.body.getReader();
@@ -35,8 +34,8 @@ export async function downloadAndDecryptFile(
 					return;
 				}
 				loaded += value.byteLength;
-				if (totalSize > 0) {
-					onProgress(Math.round((loaded / totalSize) * 100));
+				if (fileSize > 0) {
+					onProgress(Math.round((loaded / fileSize) * 100));
 				}
 				controller.enqueue(value);
 			} catch (e) {
@@ -93,32 +92,29 @@ export async function downloadAndDecryptFile(
 	let finalDownloadName = filename.toLowerCase().endsWith('.zip') ? filename : `${filename}.zip`;
 
 	const zipReader = new ZipReader(verifiedStream);
-	let entries;
 	try {
-		entries = await zipReader.getEntries();
+		const entries = await zipReader.getEntries();
+		const firstEntry = entries.find((e) => !e.directory);
+		if (!firstEntry) {
+			await zipReader.close();
+			throw new Error('No files found in the archive');
+		}
+
+		finalDownloadName = firstEntry.filename.split(/[/\\]/).pop() || firstEntry.filename;
+		const { readable, writable } = new TransformStream();
+		firstEntry
+			.getData(writable, { password })
+			.then(() => zipReader.close())
+			.catch((err) => {
+				console.error('Failed to extract:', err);
+				writable.abort(err);
+				zipReader.close().catch(() => undefined);
+			});
+		finalStream = readable;
 	} catch (err) {
 		await zipReader.close();
 		throw err;
 	}
-
-	const firstEntry = entries.find((e) => !e.directory);
-	if (!firstEntry) {
-		await zipReader.close();
-		throw new Error('No files found in the archive');
-	}
-
-	finalDownloadName = firstEntry.filename.split(/[/\\]/).pop() || firstEntry.filename;
-	const { readable, writable } = new TransformStream();
-	// Start extracting in the background
-	firstEntry
-		.getData(writable, { password: password?.length ? password : undefined })
-		.then(() => zipReader.close())
-		.catch((err) => {
-			console.error('Failed to extract:', err);
-			writable.abort(err);
-			zipReader.close().catch(() => undefined);
-		});
-	finalStream = readable;
 
 	const chunks: Uint8Array[] = [];
 	const finalReader = finalStream.getReader();
@@ -127,7 +123,7 @@ export async function downloadAndDecryptFile(
 		if (done) break;
 		chunks.push(value);
 	}
-	const blob = new Blob(chunks as any);
+	const blob = new Blob(chunks);
 
 	if ((window as any).showSaveFilePicker) {
 		const handle = await (window as any).showSaveFilePicker({

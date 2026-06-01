@@ -18,7 +18,7 @@ export interface UploadEntry {
 export const recentUploads = writable<UploadEntry[]>([]);
 
 const openDB = (): Promise<IDBDatabase> => {
-	if (typeof indexedDB === 'undefined') {
+	if (indexedDB === undefined) {
 		return Promise.reject(new Error('IndexedDB is not supported'));
 	}
 	return new Promise((resolve, reject) => {
@@ -45,19 +45,10 @@ export const getHistory = async (): Promise<UploadEntry[]> => {
 			request.onsuccess = () => {
 				const entries = request.result as UploadEntry[];
 				const now = Date.now();
-				// Return only non-expired entries
-				resolve(
-					entries
-						.filter((e) => e.expiry > now)
-						.map((e) => {
-							// Normalize legacy links that used a query parameter into fragment form
-							if (e.link.includes('?secret=')) {
-								e.link = e.link.replace('?secret=', '#');
-							}
-							return e;
-						})
-						.sort((a, b) => b.createdAt - a.createdAt)
-				);
+				for (const e of entries) {
+					if (e.link.includes('?secret=')) e.link = e.link.replace('?secret=', '#');
+				}
+				resolve(entries.filter((e) => e.expiry > now).sort((a, b) => b.createdAt - a.createdAt));
 			};
 			request.onerror = () => reject(request.error);
 		});
@@ -111,11 +102,9 @@ export const cleanupExpiredEntries = async () => {
 			request.onsuccess = () => {
 				const entries = request.result as UploadEntry[];
 				const now = Date.now();
-				entries.forEach((entry) => {
-					if (entry.expiry <= now) {
-						store.delete(entry.id);
-					}
-				});
+				for (const entry of entries) {
+					if (entry.expiry <= now) store.delete(entry.id);
+				}
 			};
 			tx.oncomplete = () => resolve();
 			tx.onerror = () => reject(tx.error);
@@ -137,8 +126,7 @@ export const updateHistoryEntry = async (id: string, updates: Partial<UploadEntr
 			request.onsuccess = () => {
 				const entry = request.result as UploadEntry;
 				if (entry) {
-					const updatedEntry = { ...entry, ...updates };
-					store.put(updatedEntry);
+					store.put({ ...entry, ...updates });
 				}
 				resolve();
 			};
