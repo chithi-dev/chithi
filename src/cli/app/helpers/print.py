@@ -4,49 +4,73 @@ from rich.console import Console
 from rich.style import Style
 from rich.text import Text
 
-# ── Chithi logo (5x5) ──────────────────────────────────────────────────────────
-# "C" envelope mark with red→purple gradient, mimics the frontend logo SVG.
-# 0 = transparent (let QR show through)
-LOGO = (
-    (1, 0, 0, 0, 2),
-    (0, 3, 3, 3, 0),
-    (0, 3, 3, 3, 0),
-    (0, 3, 3, 3, 0),
-    (4, 0, 0, 0, 5),
-)
-
-# Legend: 1=dark-red, 2=red, 3=white, 4=crimson, 5=purple
-LOGO_COLORS = {
-    1: (180, 10, 10),
-    2: (225, 15, 15),
-    3: (255, 255, 255),
-    4: (247, 6, 6),
-    5: (212, 16, 179),
-}
-
 # ── QR palette ─────────────────────────────────────────────────────────────────
 QR_DARK = (20, 20, 20)
 QR_WHITE = (255, 255, 255)
+
+
+def _load_logo_grid(grid_size: int) -> list[tuple[int, int, int] | None]:
+    """Render the Chithi SVG logo to a flat grid of RGB pixels (or None for transparent).
+
+    Each row is 2 terminal characters tall so we can use half-blocks for crisp edges.
+    Returns a flat list keyed as grid[y*grid_size + x].
+    """
+    import io
+    from PIL import Image
+    from resvg_py import svg_to_bytes
+
+    svg_path = (__import__("pathlib").Path(__file__).parent.parent.parent / "assets" / "logo.svg").resolve()
+    png_bytes = svg_to_bytes(svg_path=str(svg_path))
+    img = Image.open(io.BytesIO(png_bytes))
+
+    # 2px per terminal character so half-blocks render cleanly
+    render_size = grid_size * 2
+    img = img.resize((render_size, render_size), Image.LANCZOS)
+    bg = Image.new("RGBA", (render_size, render_size), (255, 255, 255, 0))
+    bg.paste(img, mask=img.split()[3])
+
+    grid: list[tuple[int, int, int] | None] = [None] * (grid_size * grid_size)
+    for gy in range(grid_size):
+        for gx in range(grid_size):
+            pixels = [
+                bg.getpixel((gx * 2, gy * 2)),
+                bg.getpixel(((gx * 2) + 1, gy * 2)),
+                bg.getpixel((gx * 2, (gy * 2) + 1)),
+                bg.getpixel(((gx * 2) + 1, (gy * 2) + 1)),
+            ]
+            visible = [p for p in pixels if p[3] > 0]
+            if visible:
+                avg_r = sum(p[0] for p in visible) // len(visible)
+                avg_g = sum(p[1] for p in visible) // len(visible)
+                avg_b = sum(p[2] for p in visible) // len(visible)
+                grid[gy * grid_size + gx] = (avg_r, avg_g, avg_b)
+    return grid
+
+
+def _build_qr_matrix(url: str) -> tuple[list[list[int]], int]:
+    """Generate a QR code and return the boolean matrix plus its size."""
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=ERROR_CORRECT_H,
+        box_size=1,
+        border=2,
+    )
+    qr.add_data(url)
+    qr.make(fit=True)
+    matrix = qr.get_matrix()
+    size = len(matrix)
+    return matrix, size
 
 
 def _generate_qr_image(url: str, size: int = 256) -> "Image":
     """Generate a QR code PIL image with the Chithi logo embedded at centre."""
     from PIL import Image, ImageDraw
 
-    qr = qrcode.QRCode(
-        version=None,
-        error_correction=ERROR_CORRECT_H,
-        box_size=1,
-        border=0,
-    )
-    qr.add_data(url)
-    qr.make(fit=True)
+    matrix, matrix_size = _build_qr_matrix(url)
 
     img = Image.new("RGB", (size, size), QR_WHITE)
     draw = ImageDraw.Draw(img)
 
-    matrix = qr.get_matrix()
-    matrix_size = len(matrix)
     module_px = size / matrix_size
 
     # Draw QR modules
@@ -60,25 +84,29 @@ def _generate_qr_image(url: str, size: int = 256) -> "Image":
                 )
 
     # Overlay logo at centre
-    logo_size = len(LOGO)
-    logo_px = module_px * logo_size
+    logo_modules = 5
+    logo_px = module_px * logo_modules
     offset = (size - logo_px) / 2
 
-    # White background behind logo
+    logo_img = _load_logo_image(int(logo_px))
     draw.rectangle([offset, offset, offset + logo_px, offset + logo_px], fill=QR_WHITE)
-
-    for ly in range(logo_size):
-        for lx in range(logo_size):
-            color_id = LOGO[ly][lx]
-            if color_id:
-                px = offset + lx * module_px
-                py = offset + ly * module_px
-                draw.rectangle(
-                    [px, py, px + module_px, py + module_px],
-                    fill=LOGO_COLORS[color_id],
-                )
+    img.paste(logo_img, (int(offset), int(offset)))
 
     return img
+
+
+def _load_logo_image(size: int = 64) -> "Image":
+    """Render the Chithi SVG logo to a PIL Image at the given size."""
+    import io
+    from PIL import Image
+    from resvg_py import svg_to_bytes
+
+    svg_path = (__import__("pathlib").Path(__file__).parent.parent.parent / "assets" / "logo.svg").resolve()
+    png_bytes = svg_to_bytes(svg_path=str(svg_path))
+    img = Image.open(io.BytesIO(png_bytes)).resize((size, size), Image.LANCZOS)
+    bg = Image.new("RGB", (size, size), QR_WHITE)
+    bg.paste(img, mask=img.split()[3])
+    return bg
 
 
 def _nearest_rich_color(rgb: tuple[int, int, int]) -> str:
@@ -104,7 +132,6 @@ def _nearest_rich_color(rgb: tuple[int, int, int]) -> str:
     if r > 128 and g < 128 and b > 128:
         return "dark_magenta"
 
-    # Fallback: pick the dominant channel
     mx = max(r, g, b)
     if mx == r:
         return "red"
@@ -113,42 +140,50 @@ def _nearest_rich_color(rgb: tuple[int, int, int]) -> str:
     return "blue"
 
 
-def print_branded_qr(url: str, console: Console = Console(), qr_size: int = 128) -> None:
-    """Render a QR code with the Chithi logo watermark via coloured half-blocks."""
-    img = _generate_qr_image(url, qr_size)
-    img = _add_padding(img)
-    w, h = img.size
+def print_branded_qr(url: str, console: Console = Console()) -> None:
+    """Render a compact QR code with the Chithi logo overlaid at centre."""
+    import sys
+    from io import StringIO
 
-    for y in range(0, h, 2):
-        lower_row = min(y + 1, h - 1)
+    from rich.console import Console as RichConsole
+
+    matrix, size = _build_qr_matrix(url)
+
+    # Load logo at module resolution (5x5 overlay area)
+    logo_grid_size = 5
+    logo_grid = _load_logo_grid(logo_grid_size)
+    logo_start = (size - logo_grid_size) // 2
+
+    # Render to UTF-8 string buffer to avoid Windows cp1252 encoding errors,
+    # then write raw bytes to stdout so the original console isn't broken.
+    buf = StringIO()
+    render_console = RichConsole(file=buf, force_terminal=True, width=100)
+
+    for y in range(size):
         line = Text()
+        for x in range(size):
+            in_logo = (logo_start <= x < logo_start + logo_grid_size and
+                       logo_start <= y < logo_start + logo_grid_size)
 
-        for x in range(w):
-            upper_rgb = img.getpixel((x, y))
-            lower_rgb = img.getpixel((x, lower_row))
-
-            upper_dark = upper_rgb != QR_WHITE
-            lower_dark = lower_rgb != QR_WHITE
-
-            if upper_dark and lower_dark:
-                char = " "
-                color = _nearest_rich_color(upper_rgb)
-                style = Style(color=color, bgcolor="black")
-            elif upper_dark and not lower_dark:
-                char = "▄"
-                color = _nearest_rich_color(upper_rgb)
-                style = Style(color=color, bgcolor="black")
-            elif not upper_dark and lower_dark:
-                char = "▀"
-                color = _nearest_rich_color(lower_rgb)
-                style = Style(color=color, bgcolor="black")
+            if in_logo:
+                lx = x - logo_start
+                ly = y - logo_start
+                logo_rgb = logo_grid[ly * logo_grid_size + lx]
+                if logo_rgb:
+                    color = _nearest_rich_color(logo_rgb)
+                    line.append("█", style=Style(color=color, bgcolor="black"))
+                else:
+                    line.append(" ", style=Style(color="black", bgcolor="black"))
+            elif matrix[y][x]:
+                line.append("█", style=Style(color="black", bgcolor="black"))
             else:
-                char = "█"
-                style = Style(color="black", bgcolor="black")
+                line.append(" ", style=Style(color="black", bgcolor="black"))
+        render_console.print(line)
 
-            line.append(char, style=style)
-
-        console.print(line)
+    # Write raw ANSI bytes to stdout, bypassing the text encoder
+    text = buf.getvalue()
+    sys.stdout.buffer.write(text.encode("utf-8"))
+    sys.stdout.buffer.flush()
 
 
 def export_qr_svg(url: str, path: str, size: int = 256) -> None:

@@ -20,6 +20,7 @@ dependencies = [
     # Console Lib
     "rich>=14.3.2",
     "qrcode>=8.2",
+    "resvg_py>=0.3.2",
     # Types
     "types-tqdm>=4.67.3.20260408",
     "types-qrcode>=8.2.0.20260408",
