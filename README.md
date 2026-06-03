@@ -26,10 +26,6 @@ Chithi (pronounced: chee-thee | IPA: `/ˈtʃiː θiː/`) is an open source end-t
 Contributions are welcome. Please open issues for bugs or feature requests, and open pull requests for proposed fixes. Follow existing code style where applicable.
 
 
-## Interaction
-
-If you need help running the project or want to contribute, open an issue or a discussion.
-
 ## Videos about Chithi
 * [Best Docker Apps of January 2026](https://youtu.be/smAgwhfrYzk?t=371)
 
