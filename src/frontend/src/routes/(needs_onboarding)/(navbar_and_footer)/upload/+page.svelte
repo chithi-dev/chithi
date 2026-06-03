@@ -5,6 +5,7 @@
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { toast } from 'svelte-sonner';
 	import { dev } from '$app/environment';
+	import { pushState, replaceState } from '$app/navigation';
 	import { markdown_to_html } from '$lib/markdown/markdown';
 	import { Button } from '$lib/components/ui/button';
 	import { fly, fade } from 'svelte/transition';
@@ -140,7 +141,7 @@
 		dragOverZone = false;
 		dragOverCard = false;
 		stage = UploadStage.Stage_2;
-		window.history.pushState({ stage: UploadStage.Stage_2 }, '', window.location.href);
+		pushState({ stage: UploadStage.Stage_2 }, '');
 	};
 
 	const onUploadComplete = (result: {
@@ -150,7 +151,7 @@
 	}) => {
 		uploadResult = result;
 		stage = UploadStage.Stage_3;
-		window.history.pushState({ stage: UploadStage.Stage_3 }, '', window.location.href);
+		pushState({ stage: UploadStage.Stage_3 }, '');
 	};
 
 	const resetState = (historyMode: 'push' | 'replace' = 'push') => {
@@ -164,9 +165,9 @@
 
 		const state = { stage: UploadStage.Stage_1 };
 		if (historyMode === 'replace') {
-			window.history.replaceState(state, '', window.location.href);
+			replaceState(state, '');
 		} else {
-			window.history.pushState(state, '', window.location.href);
+			pushState(state, '');
 		}
 	};
 

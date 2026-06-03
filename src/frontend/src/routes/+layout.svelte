@@ -13,8 +13,7 @@
 	import type { LayoutData } from './$types';
 	import { type Component, type Snippet } from 'svelte';
 	import { MetaTags, deepMerge } from 'svelte-meta-tags';
-	import { WORKER_CONCURRENCY } from '#consts/concurrency';
-
+	
 	const { children, data }: { children: Snippet; data: LayoutData } = $props();
 
 	const loadDevtools = async () => {
@@ -38,8 +37,7 @@
 			const { configure } = await import('@zip.js/zip.js');
 			if (cancelled) return;
 			configure({
-				useWebWorkers: true,
-				maxWorkers: WORKER_CONCURRENCY
+				useWebWorkers: false
 			});
 		})();
 

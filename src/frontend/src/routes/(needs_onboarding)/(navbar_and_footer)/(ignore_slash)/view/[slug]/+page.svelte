@@ -116,7 +116,17 @@ import { autoDownload } from '$lib/functions/browser-download';
 				knownSize: fileSize,
 				onProgress: (p) => (downloadProgress.target = p),
 			});
-			decryptedBlob = blob;
+decryptedBlob = blob;
+
+			if (blob.size < 4) {
+				throw new Error('Decrypted data is too small to be a valid archive');
+			}
+			const magicBytes = new Uint8Array(await blob.slice(0, 2).arrayBuffer());
+			if (magicBytes[0] !== 0x50 || magicBytes[1] !== 0x4B) {
+				throw new Error(
+					'Decrypted data does not start with ZIP magic bytes. The password may be incorrect or the file is corrupted.'
+				);
+			}
 
 			status = 'unzipping';
 			const reader = new ZipReader(new BlobReader(blob));
@@ -134,6 +144,10 @@ import { autoDownload } from '$lib/functions/browser-download';
 			if (e instanceof PasswordRequiredError) {
 				status = 'needs_password';
 				toast.info('Password required for decryption');
+			} else if (e.message?.includes('End of central directory') || e.message?.includes('zip')) {
+				status = 'error';
+				errorMsg = 'The decrypted data is not a valid archive. The file may be corrupted or the password may be incorrect.';
+				toast.error(errorMsg);
 			} else if (previousStatus === 'needs_password' && password) {
 				toast.error('Incorrect password?');
 				status = 'needs_password';
