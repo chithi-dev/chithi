@@ -1,9 +1,7 @@
 <script lang="ts">
   import { ExternalLink, GitCommitHorizontal } from '@lucide/svelte';
 
-  export let href: string;
-  export let sha: string;
-  export let label: string = 'Source Revision';
+  let { href, sha, label = 'Source Revision' }: { href: string; sha: string; label?: string } = $props();
 </script>
 
 <div class="space-y-1">

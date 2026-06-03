@@ -123,7 +123,7 @@
 		if (stage === UploadStage.Stage_3) return;
 		const data = e.clipboardData;
 		if (!data) return;
-		const newFiles = await processDataTransferItems(data);
+		const newFiles = await processDataTransferItems(data.items);
 		if (newFiles.length > 0) {
 			e.preventDefault();
 			onFilesSelected(newFiles);

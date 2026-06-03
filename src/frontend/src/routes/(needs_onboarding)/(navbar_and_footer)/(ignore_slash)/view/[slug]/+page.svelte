@@ -161,7 +161,7 @@ import { autoDownload } from '$lib/functions/browser-download';
 		const detectedMime = await detectMimeFromBlob(rawBlob);
 		const viewBlob = detectedMime ? rawBlob.slice(0, rawBlob.size, detectedMime) : rawBlob;
 
-		const text = await createViewableText(viewBlob, entry.filename, detectedMime);
+		const text = await createViewableText(viewBlob, detectedMime);
 		if (text !== null) {
 			viewingFile = { text, url: null, filename: entry.filename };
 			setFileParam(entry.filename);

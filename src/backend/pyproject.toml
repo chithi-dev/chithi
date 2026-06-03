@@ -26,6 +26,7 @@ dependencies = [
     "alembic>=1.17.2",
     # Cli
     "typer>=0.20.1",
+    "async-typer>=0.2.1",
     # Rustfs Upload
     "aioboto3>=15.5.0",
     # Task queue

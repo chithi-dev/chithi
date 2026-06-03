@@ -25,7 +25,6 @@ import { PasswordRequiredError } from '#errors/password';
 	let errorMsg = $state('');
 	let filename = $state('file');
 	let fileSize = $state(0);
-	let numberOfFiles = $state(0);
 	let password = $state('');
 	let downloadProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
 
@@ -47,7 +46,6 @@ import { PasswordRequiredError } from '#errors/password';
 			const info = await res.json();
 			filename = info.filename;
 			fileSize = info.size;
-			numberOfFiles = info.number_of_files || 0;
 			status = 'ready';
 		} catch (e: any) {
 			status = 'error';
@@ -77,7 +75,6 @@ import { PasswordRequiredError } from '#errors/password';
 				password,
 				filename,
 				fileSize,
-				numberOfFiles,
 				(p) => (downloadProgress.target = p)
 			);
 

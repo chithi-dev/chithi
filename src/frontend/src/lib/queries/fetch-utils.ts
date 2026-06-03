@@ -21,7 +21,7 @@ export function makeFetcher<T>(endpoint: string, label: string) {
 }
 
 /** Create prefetch + query pair from a shared fetcher */
-export function makeQuery<T>(fetcher: () => Promise<T>, key: string | string[], opts: QueryOpts = {}) {
+export function makeQuery<T>(fetcher: (opts?: { fetch?: typeof globalThis.fetch }) => Promise<T>, key: string | string[], opts: QueryOpts = {}) {
 	const { staleTime = Infinity, retry = true } = opts;
 	const k = Array.isArray(key) ? key : [key];
 

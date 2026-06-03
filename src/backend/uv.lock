@@ -228,6 +228,18 @@ wheels = [
 ]
 
 [[package]]
+name = "async-typer"
+version = "0.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "typer" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/43/ea/9e328f928389846ad2296a8acacb87cf0a9d6f05be88f04865c29c15ce26/async_typer-0.2.1.tar.gz", hash = "sha256:d8fecae239cc16186055252f3d64f9aba04788985c5bd4ed9f9b743fd4d78bde", size = 13143, upload-time = "2026-05-31T03:20:48.284Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/90/ba/460be3d859eee666881c2d09a9567d9f9d99e90b4d38415fd7bf03f9926d/async_typer-0.2.1-py3-none-any.whl", hash = "sha256:7d6feaa38da063f276f5d761ffac5774b49f51233c707038e953260bf5abf755", size = 7691, upload-time = "2026-05-31T03:20:47.47Z" },
+]
+
+[[package]]
 name = "asyncpg"
 version = "0.31.0"
 source = { registry = "https://pypi.org/simple" }
@@ -393,6 +405,7 @@ source = { editable = "." }
 dependencies = [
     { name = "aioboto3" },
     { name = "alembic" },
+    { name = "async-typer" },
     { name = "celery" },
     { name = "celery-aio-pool" },
     { name = "celery-types" },
@@ -426,6 +439,7 @@ dev = [
 requires-dist = [
     { name = "aioboto3", specifier = ">=15.5.0" },
     { name = "alembic", specifier = ">=1.17.2" },
+    { name = "async-typer", specifier = ">=0.2.1" },
     { name = "celery", specifier = ">=5.6.1" },
     { name = "celery-aio-pool", specifier = ">=0.1.0rc8" },
     { name = "celery-types", specifier = ">=0.24.0" },

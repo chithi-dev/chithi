@@ -11,7 +11,7 @@ from app.builder.urls import UrlBuilder
 from app.helpers.archive import compress
 from app.helpers.crypto import encrypt, generate_ikm, ikm_to_base64url
 from app.helpers.file import cleanup
-from app.helpers.print import print_compact_qr
+from app.helpers.print import export_qr_svg, print_branded_qr
 
 app: typer.AsyncTyper = typer.AsyncTyper(help="Upload encrypted files via Chithi.")
 console: Console = Console()
@@ -32,6 +32,9 @@ async def upload(
     no_qr: Annotated[
         bool, typer.Option("--no-qr", help="Do not print the QR code.")
     ] = False,
+    save_qr: Annotated[
+        Path | None, typer.Option("--save-qr", help="Export QR code as SVG to this path.")
+    ] = None,
 ) -> None:
     """Compress, encrypt, and upload a file or folder, then print the share link."""
     try:
@@ -77,7 +80,7 @@ async def upload(
                     expire_after=expire_seconds,
                 )
 
-                # Extract identifier from response
+                # Extract identifier from response (matches backend FileOut schema)
                 slug_value = result.get("key") or result.get("path") or result.get("id")
                 slug = str(slug_value) if slug_value is not None else None
                 if not slug:
@@ -99,12 +102,15 @@ async def upload(
             # Pretty output
             console.print("\n[green]✓ Upload complete![/green]")
             if not no_qr:
-                print_compact_qr(download_url, console)
+                print_branded_qr(download_url, console)
             console.print(f"\n  Download URL : {download_url}")
             if password:
                 console.print(
                     "  [yellow]⚠ Password-protected. Recipients will need the password to decrypt.[/yellow]"
                 )
+            if save_qr:
+                export_qr_svg(download_url, str(save_qr))
+                console.print(f"  [dim]QR code saved to {save_qr}[/dim]")
 
     except Exception as exc:
         error_console.print(f"[red]✗ Upload failed: {exc}[/red]")

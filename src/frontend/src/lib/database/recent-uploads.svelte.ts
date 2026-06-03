@@ -6,9 +6,6 @@ export let recentUploads = $state({
 	get entries(): UploadEntry[] {
 		return entries;
 	},
-	syncEntries(list: UploadEntry[]) {
-		entries = list;
-	},
 	clear() {
 		entries = [];
 	}

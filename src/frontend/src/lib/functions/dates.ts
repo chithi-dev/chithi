@@ -1,5 +1,3 @@
-import type { DateTimeFormat } from 'intl';
-
 const defaultFormat: Intl.DateTimeFormatOptions = {
   dateStyle: 'medium',
   timeStyle: 'short'

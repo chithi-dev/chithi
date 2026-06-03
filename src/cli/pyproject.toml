@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     # CLI
-    "async-typer>=0.1.10",
+    "async-typer>=0.2.1",
     # Http Client
     "httpx2[brotli,http2,zstd]>=2.2.0",
     # Encryption (AES-256-GCM + Argon2id KDF)

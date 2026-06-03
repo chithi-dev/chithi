@@ -1,6 +1,5 @@
 <script lang="ts">
-  /** When true shows yellow UNSTABLE badge; when false shows green STABLE badge */
-  export let isUnstable: boolean;
+  let { isUnstable }: { isUnstable: boolean } = $props();
 </script>
 
 {#if isUnstable}

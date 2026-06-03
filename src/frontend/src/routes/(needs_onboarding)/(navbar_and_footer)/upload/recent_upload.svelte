@@ -3,6 +3,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { Trash2, History, Copy, Check, Download } from '@lucide/svelte';
+import { formatDate } from '#functions/dates';
 	import {
 		deleteHistoryEntry,
 		cleanupExpiredEntries,
@@ -119,7 +120,7 @@
 										>
 									</div>
 									<div class="text-xs text-muted-foreground">
-										Exp: {new Date(entry.expiry).toLocaleString()}
+										Exp: {formatDate(entry.expiry)}
 									</div>
 								</div>
 								<Button

@@ -34,14 +34,14 @@ wheels = [
 
 [[package]]
 name = "async-typer"
-version = "0.1.10"
+version = "0.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/25/5f/04c052bf7f8633f7fd3dd67cd8f3542a2aff432fa1e5b14b737465b44e0f/async_typer-0.1.10.tar.gz", hash = "sha256:69a857a2b66a8604e4bac3b5c44a6384b35da9f5314c7847da561e874b2bad39", size = 2093, upload-time = "2025-08-27T14:22:04.073Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/43/ea/9e328f928389846ad2296a8acacb87cf0a9d6f05be88f04865c29c15ce26/async_typer-0.2.1.tar.gz", hash = "sha256:d8fecae239cc16186055252f3d64f9aba04788985c5bd4ed9f9b743fd4d78bde", size = 13143, upload-time = "2026-05-31T03:20:48.284Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b7/97/1d78783a1a568537f5d29c236dfc3e1723fbc651d3c94005ac5724aa26ca/async_typer-0.1.10-py3-none-any.whl", hash = "sha256:25aadaf6e54c1d47a9c2d6a2bbb0832a2a2fe700be4bb52f38843514d724b380", size = 2598, upload-time = "2025-08-27T14:22:02.964Z" },
+    { url = "https://files.pythonhosted.org/packages/90/ba/460be3d859eee666881c2d09a9567d9f9d99e90b4d38415fd7bf03f9926d/async_typer-0.2.1-py3-none-any.whl", hash = "sha256:7d6feaa38da063f276f5d761ffac5774b49f51233c707038e953260bf5abf755", size = 7691, upload-time = "2026-05-31T03:20:47.47Z" },
 ]
 
 [[package]]
@@ -155,7 +155,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "async-typer", specifier = ">=0.1.10" },
+    { name = "async-typer", specifier = ">=0.2.1" },
     { name = "cryptography", specifier = "==46.0.3" },
     { name = "httpx2", extras = ["brotli", "http2", "zstd"], specifier = ">=2.2.0" },
     { name = "pydantic-settings", specifier = ">=2.12.0" },

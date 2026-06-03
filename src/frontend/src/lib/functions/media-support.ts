@@ -152,7 +152,7 @@ const getBrowserInfo = (): BrowserInfo | null => {
 	const isMobile = platform.type === 'mobile' || platform.type === 'tablet';
 	const name = browser.name;
 
-	let agent: AgentKey = os.name === 'iOS' ? 'ios_saf'
+	let agent: AgentKey | null = os.name === 'iOS' ? 'ios_saf'
 		: isMobile && name === 'Chrome' ? 'and_chr'
 		: isMobile && name === 'Firefox' ? 'and_ff'
 		: isMobile && name === 'UC Browser' ? 'and_uc'

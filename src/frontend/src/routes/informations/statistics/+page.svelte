@@ -16,10 +16,20 @@
   import { useInstanceStatisticsQuery } from '$lib/queries/instance';
   import { formatFileSize } from '$lib/functions/bytes';
   import { formatDateLong } from '$lib/functions/dates';
-  import InfoCard from './components/InfoCard.svelte';
+  import InfoCard from '../components/InfoCard.svelte';
 
-  const statsQuery = useInstanceStatisticsQuery();
+  const { query: statsQuery } = useInstanceStatisticsQuery();
   const stats = $derived(statsQuery.data);
+
+  const statRows = $derived([
+    { Icon: HardDrive, label: 'Total Storage', value: formatFileSize(stats?.total_bytes ?? 0), cls: 'text-xl font-bold text-foreground' },
+    { Icon: Files, label: 'Total Files', value: (stats?.total_files ?? 0).toLocaleString(), cls: 'text-xl font-bold text-foreground' },
+    { Icon: CloudDownload, label: 'Total Downloads', value: (stats?.total_downloads ?? 0).toLocaleString(), cls: 'text-xl font-bold text-foreground' },
+    { Icon: LinkIcon, label: 'Active URLs', value: (stats?.active_urls ?? 0).toLocaleString(), cls: 'text-xl font-bold text-foreground' },
+    { Icon: Share2, label: 'Active Rooms', value: (stats?.active_rooms ?? 0).toLocaleString(), cls: 'text-xl font-bold text-foreground' },
+    { Icon: Clock, label: 'Expiring Soon', value: (stats?.expiring_soon ?? 0).toLocaleString(), sub: 'Within next 24 hours', cls: 'text-xl font-bold text-foreground' },
+    { Icon: CalendarClock, label: 'Latest Expiry', value: stats?.latest_expiry ? formatDateLong(stats.latest_expiry) : 'N/A', cls: 'text-sm font-semibold text-foreground' },
+  ]);
 </script>
 
 {#if statsQuery.isLoading}
@@ -39,85 +49,31 @@
     description="Overview of storage and usage metrics."
     watermarkIcon={TrendingUp}
   >
-    <!-- Total Storage -->
-    <div class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40">
-      <div class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
-        <HardDrive size={12} />
-        Total Storage
-      </div>
-      <p class="text-xl font-bold text-foreground">{formatFileSize(stats.total_bytes)}</p>
-    </div>
+    {#snippet body()}
+      {#each statRows as row (row.label)}
+        <div class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40">
+          <div class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
+            <row.Icon size={12} />
+            {row.label}
+          </div>
+          <p class={row.cls}>{row.value}</p>
+          {#if row.sub}<p class="text-[10px] text-muted-foreground">{row.sub}</p>{/if}
+        </div>
+      {/each}
 
-    <!-- Total Files -->
-    <div class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40">
-      <div class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
-        <Files size={12} />
-        Total Files
-      </div>
-      <p class="text-xl font-bold text-foreground">{stats.total_files.toLocaleString()}</p>
-    </div>
-
-    <!-- Total Downloads -->
-    <div class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40">
-      <div class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
-        <CloudDownload size={12} />
-        Total Downloads
-      </div>
-      <p class="text-xl font-bold text-foreground">{stats.total_downloads.toLocaleString()}</p>
-    </div>
-
-    <!-- Active URLs -->
-    <div class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40">
-      <div class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
-        <LinkIcon size={12} />
-        Active URLs
-      </div>
-      <p class="text-xl font-bold text-foreground">{stats.active_urls.toLocaleString()}</p>
-    </div>
-
-    <!-- Active Rooms -->
-    <div class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40">
-      <div class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
-        <Share2 size={12} />
-        Active Rooms
-      </div>
-      <p class="text-xl font-bold text-foreground">{stats.active_rooms.toLocaleString()}</p>
-    </div>
-
-    <!-- Expiring Soon -->
-    <div class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40">
-      <div class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
-        <Clock size={12} />
-        Expiring Soon
-      </div>
-      <p class="text-xl font-bold text-foreground">{stats.expiring_soon.toLocaleString()}</p>
-      <p class="text-[10px] text-muted-foreground">Within next 24 hours</p>
-    </div>
-
-    <!-- Latest Expiry -->
-    <div class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40">
-      <div class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
-        <CalendarClock size={12} />
-        Latest Expiry
-      </div>
-      <p class="text-sm font-semibold text-foreground">
-        {stats.latest_expiry ? formatDate(stats.latest_expiry) : 'N/A'}
-      </p>
-    </div>
-
-    <!-- Summary Card -->
-    <div class="group relative col-span-full flex flex-col gap-1 overflow-hidden rounded-xl border border-border/60 bg-background/60 p-4">
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
-          <ShieldCheck class="h-3 w-3" />
-          Data Integrity
+      <div class="group relative col-span-full flex flex-col gap-1 overflow-hidden rounded-xl border border-border/60 bg-background/60 p-4">
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
+            <ShieldCheck class="h-3 w-3" />
+            Data Integrity
+          </div>
+        </div>
+        <div class="mt-2 text-sm text-muted-foreground">
+          This instance is currently managing <span class="font-semibold text-foreground">{stats?.active_urls ?? 0}</span>
+          active links with a combined size of
+          <span class="font-semibold text-foreground">{formatFileSize(stats?.total_bytes ?? 0)}</span>.
         </div>
       </div>
-      <div class="mt-2 text-sm text-muted-foreground">
-        This instance is currently managing <span class="font-semibold text-foreground">{stats.active_urls}</span>
-        active links with a combined size of
-        <span class="font-semibold text-foreground">{formatFileSize(stats.total_bytes)}</span>.
-      </div>
-    </div>
+    {/snippet}
   </InfoCard>
 {/if}

@@ -1,20 +1,22 @@
 import { Api } from '#consts/backend';
 import { makeFetcher, makeQuery } from './fetch-utils';
 
-type ConfigUpdate = {
-	total_storage_limit?: number;
-	max_file_size_limit?: number;
-	default_expiry?: number;
-	default_number_of_downloads?: number;
-	site_description?: string;
-	download_configs?: number[];
-	time_configs?: number[];
-	allowed_file_types?: string[];
-	banned_file_types?: string[];
-	allow_uploads?: boolean;
-};
+export interface Config {
+	total_storage_limit: number;
+	max_file_size_limit: number;
+	default_expiry: number;
+	default_number_of_downloads: number;
+	site_description: string;
+	download_configs: number[];
+	time_configs: number[];
+	allowed_file_types: string[];
+	banned_file_types: string[];
+	allow_uploads: boolean;
+}
 
-const fetcher = makeFetcher(Api.CONFIG, 'config');
+type ConfigUpdate = Partial<Config>;
+
+const fetcher = makeFetcher<Config>(Api.CONFIG, 'config');
 const q = makeQuery(fetcher, 'config');
 
 export const prefetch = q.prefetch;

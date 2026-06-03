@@ -24,7 +24,7 @@
 		e.stopPropagation();
 
 		if (e.dataTransfer?.items) {
-			const { files: newFiles, folderName } = await processDataTransfer(e.dataTransfer.items);
+			const { files: newFiles, folderName } = await processDataTransfer(Array.from(e.dataTransfer.items));
 			if (newFiles.length > 0) onFilesSelected(newFiles, folderName);
 		} else if (e.dataTransfer?.files) {
 			onFilesSelected(Array.from(e.dataTransfer.files));

@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { formatFileSize } from '$lib/functions/bytes';
+import { formatDate } from '$lib/functions/dates';
 import { autoDownload } from '$lib/functions/browser-download';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '$lib/components/ui/button';
@@ -155,7 +156,7 @@ import { autoDownload } from '$lib/functions/browser-download';
 				<div class="flex flex-col gap-1">
 					<span class="font-medium">{getDisplayFilename(file.filename)}</span>
 					<span class="text-sm text-muted-foreground">
-						{formatFileSize(file.size)} · Added {new Date(file.uploaded_at * 1000).toLocaleString()}
+						{formatFileSize(file.size)} · Added {formatDate(file.uploaded_at)}
 					</span>
 				</div>
 

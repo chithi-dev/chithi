@@ -4,7 +4,7 @@ import { login as loginRemote, logout as logoutRemote } from '$lib/remote/auth.r
 import { user_store } from '$lib/store/user.svelte';
 import { createQuery, type QueryClient, useQueryClient } from '@tanstack/svelte-query';
 
-const queryKey = ['auth-user'];
+export const queryKey = ['auth-user'];
 
 const fetchUser = async ({ fetch }: { fetch?: typeof globalThis.fetch } = {}) => {
 	if (browser && user_store.is_authenticated === false) return null;

@@ -1,9 +1,9 @@
 import typer
 from sqlmodel import select
 
-from app.vendor.async_typer import AsyncTyper
 from app.db import AsyncSessionLocal
 from app.models import User
+from async_typer import AsyncTyper
 
 app = AsyncTyper()
 

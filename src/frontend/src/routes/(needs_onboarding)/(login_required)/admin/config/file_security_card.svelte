@@ -6,6 +6,7 @@
   import { Badge } from '$lib/components/ui/badge';
   import { X } from '@lucide/svelte';
   import { sanitizeExt } from '#functions/sanitize';
+  import type { Config } from '#queries/config';
 
   let {
     configData,
@@ -13,8 +14,8 @@
     tempInput = $bindable(),
     save
   }: {
-    configData: any;
-    editing: 'allowed' | 'banned' | null;
+    configData: Config;
+    editing: 'storage' | 'file' | 'desc' | 'time' | 'allowed' | 'banned' | 'steps' | null;
     tempInput: { allowedStr: string; bannedStr: string };
     save: (payload: any) => Promise<void>;
   } = $props();

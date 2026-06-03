@@ -34,8 +34,8 @@ export async function traverseFileTree(item: FileSystemEntry, path = ''): Promis
 	return [];
 }
 
-export async function processDataTransferItems(items: DataTransferItem[]): Promise<File[]> {
-	const { files } = await processDataTransfer(items);
+export async function processDataTransferItems(items: DataTransferItemList): Promise<File[]> {
+	const { files } = await processDataTransfer(Array.from(items));
 	return files;
 }
 

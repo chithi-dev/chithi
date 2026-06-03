@@ -56,7 +56,7 @@
 				const viewBlob = detectedMime
 					? rawBlob.slice(0, rawBlob.size, detectedMime)
 					: rawBlob;
-				const text = await createViewableText(viewBlob, entryFilename, detectedMime);
+				const text = await createViewableText(viewBlob, detectedMime);
 
 				contentText = text ?? null;
 				contentUrl = text === null ? URL.createObjectURL(viewBlob) : null;

@@ -7,6 +7,7 @@
   import { Switch } from '$lib/components/ui/switch';
   import { slide } from 'svelte/transition';
   import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '#functions/bytes';
+  import type { Config } from '#queries/config';
 
   let {
     configData,
@@ -16,8 +17,8 @@
     startEdit,
     save
   }: {
-    configData: any;
-    editing: 'storage' | 'file' | null;
+    configData: Config;
+    editing: 'storage' | 'file' | 'desc' | 'time' | 'allowed' | 'banned' | 'steps' | null;
     editVal: number;
     editUnit: ByteUnit;
     startEdit: (type: 'storage' | 'file') => void;

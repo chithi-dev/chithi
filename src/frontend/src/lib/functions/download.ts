@@ -1,92 +1,28 @@
-import { Api } from '#consts/backend';
 import { autoDownload } from '#functions/browser-download';
-import { PasswordRequiredError } from '#errors/password';
-import { createDecryptedStream } from '#functions/streams';
+import { fetchDecryptedBlob } from '#functions/fetch-decrypt';
 import { ZipReader } from '@zip.js/zip.js';
 
+/**
+ * Download an encrypted file, decrypt it, extract from ZIP if needed,
+ * and trigger a browser download via File System Access API or fallback.
+ */
 export async function downloadAndDecryptFile(
 	slug: string,
 	key: string,
 	password: string,
 	filename: string,
 	fileSize: number,
-	_numberOfFiles: number,
 	onProgress: (percent: number) => void
 ) {
-	const res = await fetch(Api.DOWNLOAD(slug));
-	if (!res.ok) throw new Error('Download failed');
-	if (!res.body) throw new Error('No response body');
-
-	let loaded = 0;
-
-	const reader = res.body.getReader();
-	const streamWithProgress = new ReadableStream({
-		async pull(controller) {
-			try {
-				const { done, value } = await reader.read();
-				if (done) {
-					controller.close();
-					return;
-				}
-				loaded += value.byteLength;
-				if (fileSize > 0) {
-					onProgress(Math.round((loaded / fileSize) * 100));
-				}
-				controller.enqueue(value);
-			} catch (e) {
-				controller.error(e);
-				throw e;
-			}
-		},
-		cancel(reason) {
-			return reader.cancel(reason);
-		}
+	const blob = await fetchDecryptedBlob(slug, key, password, {
+		knownSize: fileSize,
+		onProgress
 	});
 
-	const { stream: decryptedStream } = await createDecryptedStream(
-		streamWithProgress,
-		key,
-		password
-	);
-
-	const decReader = decryptedStream.getReader();
-	let firstChunk: Uint8Array | undefined;
-	let isDone = false;
-
-	try {
-		const { done, value } = await decReader.read();
-		isDone = done;
-		if (!done) firstChunk = value;
-	} catch (e: any) {
-		if (e.name === 'OperationError') {
-			await reader.cancel('Wrong password');
-			throw new PasswordRequiredError();
-		}
-		throw e;
-	}
-
-	const verifiedStream = new ReadableStream({
-		async start(controller) {
-			if (firstChunk) controller.enqueue(firstChunk);
-			if (isDone) controller.close();
-		},
-		async pull(controller) {
-			const { done, value } = await decReader.read();
-			if (done) {
-				controller.close();
-				return;
-			}
-			controller.enqueue(value);
-		},
-		cancel(reason) {
-			return decReader.cancel(reason);
-		}
-	});
-
-	let finalStream = verifiedStream;
+	let finalStream: ReadableStream = blob.stream();
 	let finalDownloadName = filename.toLowerCase().endsWith('.zip') ? filename : `${filename}.zip`;
 
-	const zipReader = new ZipReader(verifiedStream);
+	const zipReader = new ZipReader(finalStream as ReadableStream<Uint8Array>);
 	try {
 		const entries = await zipReader.getEntries();
 		const firstEntry = entries.find((e) => !e.directory);
@@ -112,22 +48,22 @@ export async function downloadAndDecryptFile(
 	}
 
 	const chunks: Uint8Array[] = [];
-	const finalReader = finalStream.getReader();
-	while (true) {
-		const { done, value } = await finalReader.read();
+	const reader = finalStream.getReader();
+	for (;;) {
+		const { done, value } = await reader.read();
 		if (done) break;
 		chunks.push(value);
 	}
-	const blob = new Blob(chunks as BlobPart[]);
+	const extractedBlob = new Blob(chunks as BlobPart[]);
 
 	if ((window as any).showSaveFilePicker) {
 		const handle = await (window as any).showSaveFilePicker({
 			suggestedName: finalDownloadName
 		});
 		const writable = await handle.createWritable();
-		await blob.stream().pipeTo(writable);
+		await extractedBlob.stream().pipeTo(writable);
 	} else {
-		const url = URL.createObjectURL(blob);
+		const url = URL.createObjectURL(extractedBlob);
 		autoDownload(url, finalDownloadName);
 		URL.revokeObjectURL(url);
 	}

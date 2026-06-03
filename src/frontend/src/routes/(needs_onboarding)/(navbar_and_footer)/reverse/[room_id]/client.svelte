@@ -35,6 +35,7 @@
 		MousePointerClick
 	} from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
+import { formatDate } from '#functions/dates';
 import { autoDownload } from '$lib/functions/browser-download';
 		import { Api } from '#consts/backend';
 		import { createDecryptedStream } from '#functions/streams';
@@ -472,7 +473,7 @@ import { autoDownload } from '$lib/functions/browser-download';
 						</Tooltip.Provider>
 					</div>
 					<p class="text-sm text-muted-foreground">
-						Expires: {new Date(room.expires_at).toLocaleString()}
+						Expires: {formatDate(room.expires_at)}
 					</p>
 				</div>
 
