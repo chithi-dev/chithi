@@ -117,7 +117,7 @@ import { autoDownload } from '$lib/functions/browser-download';
 				knownSize: fileSize,
 				onProgress: (p) => (downloadProgress.target = p),
 			});
-				decryptedBlob = blob;
+			decryptedBlob = blob;
 
 			await validateZipBlob(blob);
 
@@ -166,7 +166,7 @@ import { autoDownload } from '$lib/functions/browser-download';
 
 	async function openEntry(entry: Entry) {
 		if (entry.directory || !entry.getData) return;
-		const rawBlob = await entry.getData(new BlobWriter('application/octet-stream'));
+		const rawBlob = await entry.getData(new BlobWriter('application/octet-stream'), { password });
 		const detectedMime = await detectMimeFromBlob(rawBlob);
 		const viewBlob = detectedMime ? rawBlob.slice(0, rawBlob.size, detectedMime) : rawBlob;
 
@@ -197,7 +197,7 @@ import { autoDownload } from '$lib/functions/browser-download';
 
 	async function saveEntry(entry: Entry) {
 		if (entry.directory || !entry.getData) return;
-		const blob = await entry.getData(new BlobWriter());
+		const blob = await entry.getData(new BlobWriter(), { password });
 		const url = URL.createObjectURL(blob);
 		autoDownload(url, entry.filename.split('/').pop() || 'file');
 		URL.revokeObjectURL(url);

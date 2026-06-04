@@ -54,7 +54,7 @@
 				if (!entry.getData) throw new Error('Cannot read file from archive');
 
 				entryFilename = entry.filename.split('/').pop() || 'file';
-				const rawBlob = await entry.getData(new BlobWriter('application/octet-stream'));
+				const rawBlob = await entry.getData(new BlobWriter('application/octet-stream'), { password });
 				const detectedMime = await detectMimeFromBlob(rawBlob);
 				const viewBlob = detectedMime
 					? rawBlob.slice(0, rawBlob.size, detectedMime)

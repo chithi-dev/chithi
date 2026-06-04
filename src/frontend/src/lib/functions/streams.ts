@@ -266,7 +266,7 @@ export async function createEncryptedStream(
 			}
 		},
 		async flush() {
-			if (bufferedBytes > 0 || chunkIndex === 0) {
+			if (bufferedBytes > 0) {
 				const cd = readChunk(bufferedBytes);
 				ctx.chunkSizes!.set(chunkIndex, cd.byteLength);
 				await processChunk(ctx, chunkIndex++, cd, aesKey, baseIv, 'encrypt');
