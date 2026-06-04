@@ -64,7 +64,14 @@ export async function fetchDecryptedBlob(
     chunks.push(value);
   }
 
-  return new Blob(chunks as BlobPart[], { type: 'application/zip' });
+  const blob = new Blob(chunks as BlobPart[], { type: 'application/zip' });
+
+  // Validate that we got enough data for a ZIP file
+  if (chunks.length === 0 || blob.size < 4) {
+    throw new Error('Decryption produced no output data');
+  }
+
+  return blob;
 }
 
 /** Wrap a ReadableStream to emit download progress as a percentage. */

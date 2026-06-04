@@ -1,6 +1,7 @@
 import { autoDownload } from '#functions/browser-download';
 import { fetchDecryptedBlob } from '#functions/fetch-decrypt';
 import { ZipReader } from '@zip.js/zip.js';
+import { validateZipBlob } from '#functions/zip-validate';
 
 /**
  * Download an encrypted file, decrypt it, extract from ZIP if needed,
@@ -18,6 +19,8 @@ export async function downloadAndDecryptFile(
 		knownSize: fileSize,
 		onProgress
 	});
+
+	await validateZipBlob(blob);
 
 	let finalStream: ReadableStream = blob.stream();
 	let finalDownloadName = filename.toLowerCase().endsWith('.zip') ? filename : `${filename}.zip`;

@@ -35,6 +35,7 @@
 	import { createViewableText } from '$lib/functions/viewer';
 	import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
 import { autoDownload } from '$lib/functions/browser-download';
+	import { validateZipBlob } from '#functions/zip-validate';
 
 	const key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
 	const slug = $derived(page.params.slug);
@@ -87,8 +88,8 @@ import { autoDownload } from '$lib/functions/browser-download';
 				throw new Error('Failed to get file info');
 			}
 			const info = await res.json();
-			filename = info.filename;
-			fileSize = info.size;
+			filename = typeof info.filename === 'string' ? info.filename : 'file';
+			fileSize = typeof info.size === 'number' ? info.size : 0;
 			status = 'ready';
 		} catch (e: any) {
 			status = 'error';
@@ -116,17 +117,9 @@ import { autoDownload } from '$lib/functions/browser-download';
 				knownSize: fileSize,
 				onProgress: (p) => (downloadProgress.target = p),
 			});
-decryptedBlob = blob;
+				decryptedBlob = blob;
 
-			if (blob.size < 4) {
-				throw new Error('Decrypted data is too small to be a valid archive');
-			}
-			const magicBytes = new Uint8Array(await blob.slice(0, 2).arrayBuffer());
-			if (magicBytes[0] !== 0x50 || magicBytes[1] !== 0x4B) {
-				throw new Error(
-					'Decrypted data does not start with ZIP magic bytes. The password may be incorrect or the file is corrupted.'
-				);
-			}
+			await validateZipBlob(blob);
 
 			status = 'unzipping';
 			const reader = new ZipReader(new BlobReader(blob));
@@ -144,9 +137,11 @@ decryptedBlob = blob;
 			if (e instanceof PasswordRequiredError) {
 				status = 'needs_password';
 				toast.info('Password required for decryption');
-			} else if (e.message?.includes('End of central directory') || e.message?.includes('zip')) {
+			} else if (e.message?.includes('End of central directory') || e.message?.includes('missing end marker') || e.message?.includes('too small')) {
 				status = 'error';
-				errorMsg = 'The decrypted data is not a valid archive. The file may be corrupted or the password may be incorrect.';
+				errorMsg = e.message?.includes('missing end marker')
+					? 'The decrypted archive appears truncated or corrupted. The file on the server may have been modified or the storage is full.'
+					: 'The decrypted data is not a valid archive. The file may be corrupted or the password may be incorrect.';
 				toast.error(errorMsg);
 			} else if (previousStatus === 'needs_password' && password) {
 				toast.error('Incorrect password?');

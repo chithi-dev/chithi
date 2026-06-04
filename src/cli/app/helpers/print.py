@@ -1,55 +1,33 @@
 from io import BytesIO
 
-from PIL.Image import open as open_image
+from PIL import Image
+from qrcode import QRCode
+from qrcode.image.svg import SvgPathFillImage
 from rich.console import Console
 from rich.segment import Segment
-
-from app.qr import matrix
-
-
-def _qr_svg(url: str, border: int = 2) -> bytes:
-    """Render a QR code as compact SVG bytes.
-
-    Uses a single <path> with horizontal run-length encoding instead of
-    one <rect> per dark module — typically 10-20x smaller SVG.
-    """
-    m = matrix(url, ec=3)
-    n = len(m)
-    size = n + 2 * border
-
-    # Build path data: horizontal runs of dark modules per row
-    path_parts: list[str] = []
-    for r, row in enumerate(m):
-        y = r + border
-        i = 0
-        while i < n:
-            if row[i]:
-                start = i + border
-                while i < n and row[i]:
-                    i += 1
-                path_parts.append(f"M{start} {y}h{i + border - start}")
-            else:
-                i += 1
-
-    path_d = "".join(path_parts)
-    return (
-        f'<svg xmlns="http://www.w3.org/2000/svg" '
-        f'width="{size}" height="{size}" viewBox="0 0 {size} {size}">'
-        f'<rect width="{size}" height="{size}" fill="white"/>'
-        f'<path d="{path_d}"/>'
-        f"</svg>"
-    ).encode()
+from rich.style import Style
 
 
-def _qr_png(url: str, scale: int = 4) -> bytes:
-    """Convert QR code SVG to PNG via resvg_py."""
+def _qr_svg(url: str) -> bytes:
+    """Generate a QR code SVG using the qrcode library."""
+    qr = QRCode(error_correction=2)  # H
+    qr.add_data(url)
+    img = qr.make_image(image_factory=SvgPathFillImage)
+    return img.to_string()
+
+
+def _qr_png(url: str) -> bytes:
+    """Render QR code SVG to PNG via resvg at module-level resolution."""
     from resvg_py import svg_to_bytes
 
-    svg_data = _qr_svg(url)
-    qr_size = len(matrix(url, ec=3)) + 4
-    return svg_to_bytes(
-        svg_string=svg_data.decode(), width=qr_size * scale, height=qr_size * scale
-    )
+    qr = QRCode(error_correction=2)
+    qr.add_data(url)
+    qr.make()
+    size = qr.modules_count + 8
+
+    svg_data = _qr_svg(url).decode()
+    svg_data = svg_data.replace("mm", "")  # resvg rejects mm with explicit px
+    return svg_to_bytes(svg_string=svg_data, width=size, height=size)
 
 
 class _SegmentRenderable:
@@ -63,17 +41,30 @@ class _SegmentRenderable:
 
 
 def print_branded_qr(url: str, console: Console = Console()) -> None:
-    """Render QR code to terminal using rich-pixels."""
-    from rich_pixels import FullcellRenderer
+    """Render QR code to terminal.
 
+    Uses resvg to rasterize the QR SVG, then prints each pixel as a
+    full-block cell so the QR stays compact and readable.
+    """
     png_data = _qr_png(url)
-    img = open_image(BytesIO(png_data))
-    renderer = FullcellRenderer()
-    segments = renderer.render(img, resize=None)
-    console.print(_SegmentRenderable(segments))
+    img = Image.open(BytesIO(png_data)).convert("RGBA")
+    w, h = img.size
+
+    DARK_BG = Style(bgcolor="#000000")
+    LIGHT_BG = Style(bgcolor="#ffffff")
+
+    for y in range(h):
+        row: list[Segment] = []
+        for x in range(w):
+            r, g, b, _a = img.getpixel((x, y))  # type: ignore[assignment]
+            brightness = (r + g + b) / 3
+            style = LIGHT_BG if brightness > 128 else DARK_BG
+            row.append(Segment(" ", style))
+        row.append(Segment("\n"))
+        console.print(_SegmentRenderable(row))
 
 
-def export_qr_svg(url: str, path: str, size: int = 256) -> None:
+def export_qr_svg(url: str, path: str) -> None:
     """Export QR code as SVG file."""
     svg_data = _qr_svg(url)
     with open(path, "wb") as f:

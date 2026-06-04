@@ -10,6 +10,7 @@
 	import { createViewableText } from '$lib/functions/viewer';
 	import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
 	import { autoDownload } from '$lib/functions/browser-download';
+	import { validateZipBlob } from '#functions/zip-validate';
 
 	const key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
 	const slug = $derived(page.params.slug);
@@ -31,6 +32,8 @@
 
 		try {
 			const blob = await fetchDecryptedBlob(slug, key, password, {});
+
+			await validateZipBlob(blob);
 
 			const fullData = new Uint8Array(await blob.arrayBuffer());
 			const zipReader = new ZipReader(new Uint8ArrayReader(fullData));
@@ -70,7 +73,9 @@
 				status = 'needs_password';
 			} else {
 				status = 'error';
-				errorMsg = e.message || 'Something went wrong';
+				errorMsg = e.message?.includes('missing end marker')
+					? 'The archive appears truncated or corrupted on the server.'
+					: (e.message || 'Something went wrong');
 			}
 		}
 	}

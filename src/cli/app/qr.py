@@ -116,18 +116,18 @@ _CAPACITY: dict[tuple[int, int], tuple[int, list[tuple[int, int]]]] = {
     (10, 3): (216, [(24, 8)]),
 }
 
-# Alignment-pattern row/column positions per version
+# Alignment-pattern row/column positions per version (ISO/IEC 18004 Table 3)
 _ALIGNMENT: dict[int, list[int]] = {
     1: [],
-    2: [6, 18],
-    3: [6, 22, 52],
-    4: [6, 24, 56],
-    5: [6, 26, 60],
-    6: [6, 26, 46, 68],
-    7: [6, 26, 48, 72],
-    8: [6, 26, 50, 76],
-    9: [6, 30, 54, 78],
-    10: [6, 28, 50, 72, 94],
+    2: [6, 22],
+    3: [6, 26],
+    4: [6, 30],
+    5: [6, 34],
+    6: [6, 22, 38],
+    7: [6, 24, 42],
+    8: [6, 26, 46],
+    9: [6, 28, 52],
+    10: [6, 30, 54],
 }
 
 

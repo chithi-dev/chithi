@@ -44,8 +44,8 @@ import { PasswordRequiredError } from '#errors/password';
 			}
 
 			const info = await res.json();
-			filename = info.filename;
-			fileSize = info.size;
+			filename = typeof info.filename === 'string' ? info.filename : 'file';
+			fileSize = typeof info.size === 'number' ? info.size : 0;
 			status = 'ready';
 		} catch (e: any) {
 			status = 'error';

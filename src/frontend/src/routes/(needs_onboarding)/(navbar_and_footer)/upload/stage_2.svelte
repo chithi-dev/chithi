@@ -213,9 +213,9 @@
 
 			uploadProgress.target = 100;
 
-			const serverPath = data?.id ?? data?.path ?? data?.key;
+			const serverPath = String(data?.id ?? data?.path ?? data?.key ?? '');
 
-			if (!serverPath) throw new Error('Invalid server response');
+			if (!serverPath || serverPath === 'null' || serverPath === 'undefined') throw new Error('Invalid server response');
 
 			// Store the key in the URL fragment so it is never sent to the server
 			const downloadPath = `/download/${serverPath}#${keySecret}`;

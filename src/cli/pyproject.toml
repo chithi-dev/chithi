@@ -20,9 +20,12 @@ dependencies = [
     # Console Lib
     "rich>=14.3.2",
     "rich-pixels>=3.0.1",
+    # QR Code
+    "qrcode>=8.2",
     # Image Converter
     "resvg_py>=0.3.2",
     # Types
+    "types-qrcode>=8.2.0.20260518",
     "types-tqdm>=4.67.3.20260408",
 ]
 
