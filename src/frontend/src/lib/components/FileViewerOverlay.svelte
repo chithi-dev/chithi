@@ -118,7 +118,7 @@
 				src={contentUrl}
 				title={filename}
 				class="h-full w-full border-0"
-				sandbox="allow-same-origin allow-scripts"
+				sandbox=""
 			></iframe>
 		{/if}
 	</div>
