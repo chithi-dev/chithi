@@ -5,13 +5,13 @@
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
 	import { toast } from 'svelte-sonner';
 	import { dev } from '$app/environment';
-	import { pushState, replaceState } from '$app/navigation';
 	import { markdown_to_html } from '$lib/markdown/markdown';
 	import { Button } from '$lib/components/ui/button';
 	import { fly, fade } from 'svelte/transition';
+	import { onMount } from 'svelte';
 	import { CloudOff } from '@lucide/svelte';
 	import { UploadStage, isWhichUploadStage } from './enums';
-	import { processDataTransferItems } from '$lib/functions/files';
+import { clipboardFiles, hasFileItems } from '#functions/file-tree';
 
 	// Stages
 	const { default: Stage1 } = await import('./stage_1.svelte');
@@ -37,7 +37,6 @@
 		isViewOnce: boolean;
 	} | null>(null);
 
-	// Prevent popstate from overriding initial mount state
 	let hasMounted = $state(false);
 
 	const detailsMarkdown = $derived(configData.data?.site_description ?? '');
@@ -51,7 +50,6 @@
 		}
 	});
 
-	// Handle physical mouse back button (X1) to return from stage 2 to stage 1
 	const handleMouseBack = (e: MouseEvent) => {
 		if (e.button === 3 && stage === UploadStage.Stage_2) {
 			stage = UploadStage.Stage_1;
@@ -122,16 +120,14 @@
 
 	const handlePaste = async (e: ClipboardEvent) => {
 		if (stage === UploadStage.Stage_3) return;
-		const data = e.clipboardData;
-		if (!data) return;
-		const newFiles = await processDataTransferItems(data.items);
-		if (newFiles.length > 0) {
-			e.preventDefault();
-			onFilesSelected(newFiles);
-		}
+		const items = e.clipboardData?.items;
+		if (!items || !hasFileItems(items)) return;
+		e.preventDefault();
+		const newFiles = await clipboardFiles(items);
+		if (newFiles.length > 0) onFilesSelected(newFiles);
 	};
 
-	const onFilesSelected = (newFiles: File[], folderName?: string) => {
+	const onFilesSelected = $derived((newFiles: File[], folderName?: string) => {
 		if (folderName) {
 			initialFolderName = folderName;
 		}
@@ -141,18 +137,18 @@
 		dragOverZone = false;
 		dragOverCard = false;
 		stage = UploadStage.Stage_2;
-		pushState({ stage: UploadStage.Stage_2 }, '');
-	};
+		window.history.pushState({ stage: UploadStage.Stage_2 }, '', window.location.href);
+	});
 
-	const onUploadComplete = (result: {
+	const onUploadComplete = $derived((result: {
 		finalLink: string;
 		viewOnceLink: string;
 		isViewOnce: boolean;
 	}) => {
 		uploadResult = result;
 		stage = UploadStage.Stage_3;
-		pushState({ stage: UploadStage.Stage_3 }, '');
-	};
+		window.history.pushState({ stage: UploadStage.Stage_3 }, '', window.location.href);
+	});
 
 	const resetState = (historyMode: 'push' | 'replace' = 'push') => {
 		files = [];
@@ -163,16 +159,11 @@
 		dragOverZone = false;
 		dragOverCard = false;
 
-		const state = { stage: UploadStage.Stage_1 };
 		if (historyMode === 'replace') {
-			replaceState(state, '');
+			window.history.replaceState({ stage: UploadStage.Stage_1 }, '', window.location.href);
 		} else {
-			pushState(state, '');
+			window.history.pushState({ stage: UploadStage.Stage_1 }, '', window.location.href);
 		}
-	};
-
-	const onReset = () => {
-		resetState('push');
 	};
 
 	const onBack = () => {
@@ -180,14 +171,11 @@
 	};
 
 	const handlePopState = (e: PopStateEvent) => {
-		// Ignore popstate until after initial microtask flush completes
 		if (!hasMounted) return;
 		stage = isWhichUploadStage(e.state?.stage) ? e.state.stage : UploadStage.Stage_1;
 	};
 
-	$effect(() => {
-		// Queue reset & mount guard in the microtask queue
-		// Runs immediately after current call stack, before next macrotask/repaint
+	onMount(() => {
 		queueMicrotask(() => {
 			resetState('replace');
 			hasMounted = true;
@@ -359,7 +347,7 @@
 						finalLink={uploadResult.finalLink}
 						viewOnceLink={uploadResult.viewOnceLink}
 						isViewOnce={uploadResult.isViewOnce}
-						{onReset}
+						onReset={() => resetState('push')}
 					/>
 				</div>
 			{/if}

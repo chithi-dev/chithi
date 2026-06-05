@@ -6,8 +6,8 @@
 	import { useConfigQuery } from '#queries/config';
 	import { Plus, ArrowLeft, X, FileIcon, Eye, EyeOff, Trash2, Upload } from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
-	import { processDataTransferItems } from '$lib/functions/files';
 	import { formatSeconds } from '#functions/times';
+	import { clipboardFiles, hasFileItems } from '#functions/file-tree';
 	import { createZipStream, createEncryptedStream } from '#functions/streams';
 	import * as Tooltip from '$lib/components/ui/tooltip/index';
 	import { v7 as uuidv7 } from 'uuid';
@@ -21,11 +21,7 @@
 	interface Props {
 		files: File[];
 		onFilesUpdated: (files: File[]) => void;
-		onUploadComplete: (result: {
-			finalLink: string;
-			viewOnceLink: string;
-			isViewOnce: boolean;
-		}) => void;
+		onUploadComplete: (result: { finalLink: string; viewOnceLink: string; isViewOnce: boolean }) => void;
 		onBack: () => void;
 		isDraggingOverZone: boolean;
 		onZoneDragEnter: (e: DragEvent) => void;
@@ -43,10 +39,8 @@
 	}: Props = $props();
 
 	const { config: configData } = useConfigQuery();
-
 	let fileInput = $state<HTMLInputElement>();
 
-	// Flattened settings
 	let downloadLimit = $state('1');
 	let timeLimit = $state('86400');
 	let isPasswordProtected = $state(false);
@@ -55,7 +49,6 @@
 	let folderName = $state(uuidv7());
 	let defaultsLoaded = $state(false);
 
-	// Flattened status
 	let inProgress = $state(false);
 	let isEncrypting = $state(false);
 	const newTween = () => new Tween(0, { duration: 500, easing: cubicOut });
@@ -66,11 +59,8 @@
 	const totalSize = $derived(formatFileSize(rawTotalSize));
 
 	$effect(() => {
-		if (files.length === 1) {
-			folderName = files[0].name;
-		} else if (files.length === 0) {
-			folderName = uuidv7();
-		}
+		if (files.length === 1) folderName = files[0].name;
+		else if (files.length === 0) folderName = uuidv7();
 	});
 
 	$effect(() => {
@@ -82,19 +72,10 @@
 	});
 
 	const addFiles = (newFiles: File[]) => {
-		const currentTotalSize = rawTotalSize;
-		const newFilesSize = newFiles.reduce((sum, file) => sum + file.size, 0);
-
-		if (
-			configData.data?.max_file_size_limit &&
-			currentTotalSize + newFilesSize > configData.data.max_file_size_limit
-		) {
-			toast.error(
-				`Total file size cannot exceed ${formatFileSize(configData.data.max_file_size_limit)}`
-			);
+		if (configData.data?.max_file_size_limit && rawTotalSize + newFiles.reduce((s, f) => s + f.size, 0) > configData.data.max_file_size_limit) {
+			toast.error(`Total file size cannot exceed ${formatFileSize(configData.data.max_file_size_limit)}`);
 			return;
 		}
-
 		files = [...files, ...newFiles];
 		onFilesUpdated(files);
 	};
@@ -103,10 +84,9 @@
 		e.preventDefault();
 		e.stopPropagation();
 		onZoneDragLeave(e);
-
 		if (e.dataTransfer?.items) {
-			const newFiles = await processDataTransferItems(e.dataTransfer.items);
-			newFiles.length > 0 && addFiles(newFiles);
+			const newFiles = await clipboardFiles(e.dataTransfer.items);
+			if (newFiles.length > 0) addFiles(newFiles);
 		} else if (e.dataTransfer?.files) {
 			addFiles(Array.from(e.dataTransfer.files));
 		}
@@ -114,9 +94,7 @@
 
 	const handleFileSelect = (e: Event) => {
 		const target = e.target as HTMLInputElement;
-		if (target.files) {
-			addFiles(Array.from(target.files));
-		}
+		if (target.files) addFiles(Array.from(target.files));
 		target.value = '';
 	};
 
@@ -134,21 +112,14 @@
 
 	const handleUpload = async (viewOnce = false) => {
 		if (files.length === 0 || inProgress) return;
-		if (viewOnce && files.length !== 1) {
-			toast.error('View Once only supports a single file');
-			return;
-		}
+		if (viewOnce && files.length !== 1) return toast.error('View Once only supports a single file');
 
 		try {
 			inProgress = true;
 			uploadProgress = newTween();
 
-			// Create Zip Stream
 			const stream = await createZipStream(files, isPasswordProtected ? password : undefined);
-
-			// Encrypt
 			const currentTotalSize = rawTotalSize;
-			// start encryption progress reporting
 			isEncrypting = true;
 			encryptionProgress = newTween();
 			const { stream: encryptedStream, keySecret } = await createEncryptedStream(
@@ -156,19 +127,13 @@
 				isPasswordProtected ? password : undefined,
 				currentTotalSize,
 				(processed, total) => {
-					if (total && total > 0) {
-						encryptionProgress.target = Math.min(100, Math.round((processed / total) * 100));
-					} else {
-						encryptionProgress = newTween();
-					}
+					if (total > 0) encryptionProgress.target = Math.min(100, Math.round((processed / total) * 100));
+					else encryptionProgress = newTween();
 				}
 			);
 
-			// Upload
 			const readableFilename = files.length === 1 ? files[0].name : folderName;
-			const blobFilename = uuidv7();
 			const encryptedBlob = await new Response(encryptedStream).blob();
-			// ensure encryption progress completes
 			isEncrypting = false;
 			encryptionProgress.target = 100;
 
@@ -176,63 +141,43 @@
 			formData.append('filename', readableFilename);
 			formData.append('expire_after_n_download', viewOnce ? '1' : downloadLimit);
 			formData.append('expire_after', timeLimit);
-			formData.append('file', encryptedBlob, blobFilename);
+			formData.append('file', encryptedBlob, uuidv7());
 			formData.append('number_of_files', files.length.toString());
-			files.length > 1 && formData.append('folder_name', folderName);
+			if (files.length > 1) formData.append('folder_name', folderName);
 
 			const data = await new Promise<any>((resolve, reject) => {
 				const xhr = new XMLHttpRequest();
 				xhr.open('POST', Api.UPLOAD);
-
 				xhr.upload.onprogress = (e) => {
-					if (e.lengthComputable) {
-						uploadProgress.target = Math.round((e.loaded / e.total) * 100);
-					} else {
-						// fallback to visible progress when total is unknown
-						uploadProgress.target = Math.min(99, uploadProgress.target + 1);
-					}
+					uploadProgress.target = e.lengthComputable
+						? Math.round((e.loaded / e.total) * 100)
+						: Math.min(99, uploadProgress.target + 1);
 				};
-
 				xhr.onload = () => {
 					if (xhr.status >= 200 && xhr.status < 300) {
-						try {
-							resolve(JSON.parse(xhr.responseText));
-						} catch (e) {
-							reject(new Error('Invalid JSON response'));
-						}
+						try { resolve(JSON.parse(xhr.responseText)); }
+						catch { reject(new Error('Invalid JSON response')); }
 					} else {
-						reject(
-							new Error(`Upload failed: ${xhr.status} ${xhr.statusText} ${xhr.responseText || ''}`)
-						);
+						reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText} ${xhr.responseText || ''}`));
 					}
 				};
-
 				xhr.onerror = () => reject(new Error('Network error during upload'));
 				xhr.send(formData);
 			});
 
 			uploadProgress.target = 100;
-
 			const serverPath = String(data?.id ?? data?.path ?? data?.key ?? '');
-
 			if (!serverPath || serverPath === 'null' || serverPath === 'undefined') throw new Error('Invalid server response');
 
-			// Store the key in the URL fragment so it is never sent to the server
 			const downloadPath = `/download/${serverPath}#${keySecret}`;
 			const finalLink = `${window.location.origin}${downloadPath}`;
-			const viewOnceLink = viewOnce
-				? `${window.location.origin}/once/${serverPath}#${keySecret}`
-				: '';
-
-			// Add to history
-			const expiryTime = Date.now() + parseInt(timeLimit) * 1000;
-			const entryName = files.length === 1 ? files[0].name : folderName;
+			const viewOnceLink = viewOnce ? `${window.location.origin}/once/${serverPath}#${keySecret}` : '';
 
 			addHistoryEntry({
 				id: serverPath,
-				name: entryName,
+				name: files.length === 1 ? files[0].name : folderName,
 				link: viewOnce ? viewOnceLink : finalLink,
-				expiry: expiryTime,
+				expiry: Date.now() + parseInt(timeLimit) * 1000,
 				downloadLimit: viewOnce ? '1' : downloadLimit,
 				createdAt: Date.now(),
 				size: totalSize
@@ -250,12 +195,20 @@
 			encryptionProgress = newTween();
 		}
 	};
+
+	const handlePaste = async (e: ClipboardEvent) => {
+		const items = e.clipboardData?.items;
+		if (!items || !hasFileItems(items)) return;
+		e.preventDefault();
+		const newFiles = await clipboardFiles(items);
+		if (newFiles.length > 0) addFiles(newFiles);
+	};
 </script>
 
+<svelte:window onpaste={handlePaste} />
+
 {#snippet fileItem(file: File)}
-	<div
-		class="flex items-center justify-between border-b border-border py-2 first:pt-0 last:border-0"
-	>
+	<div class="flex items-center justify-between border-b border-border py-2 first:pt-0 last:border-0">
 		<div class="flex items-center gap-3">
 			<div class="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10">
 				<FileIcon class="h-4 w-4 text-primary" />
@@ -264,9 +217,7 @@
 				<div class="text-sm leading-none font-medium">{file.name}</div>
 				<div class="text-xs text-foreground">
 					{#if (file as any).relativePath}
-						<span class="block max-w-50 truncate text-xs opacity-70"
-							>{(file as any).relativePath}</span
-						>
+						<span class="block max-w-50 truncate text-xs opacity-70">{(file as any).relativePath}</span>
 					{/if}
 					{formatFileSize(file.size)}
 				</div>
@@ -283,27 +234,18 @@
 {/snippet}
 
 {#if inProgress}
-	<!-- Modern Upload Animation -->
 	<div class="flex h-full w-full flex-col items-center justify-center p-8">
 		<div class="relative mb-8 flex h-40 w-40 items-center justify-center">
-			<!-- Background Layers -->
 			<div class="absolute inset-0 animate-pulse rounded-full bg-primary/5"></div>
-
-			<!-- Static Track -->
 			<div class="absolute inset-0 rounded-full border-4 border-muted/20"></div>
-
-			<!-- Dynamic Rings -->
 			<div
 				class="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary shadow-[0_0_15px_-3px_var(--primary)]"
 				style="animation-duration: 1.5s; animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);"
 			></div>
-
 			<div
 				class="absolute inset-3 animate-spin rounded-full border-4 border-transparent border-t-primary/70 border-r-primary/30"
 				style="animation-duration: 2s; animation-direction: reverse; animation-timing-function: linear;"
 			></div>
-
-			<!-- Center Icon -->
 			<div class="relative z-10">
 				<Upload class="h-12 w-12 text-primary drop-shadow-md" />
 			</div>
@@ -329,24 +271,19 @@
 		</div>
 	</div>
 {:else}
-	<!-- Upload Interface -->
-	<!-- Left Column: File List and Controls -->
 	<div class="flex h-full w-full flex-col pb-2">
-		<!-- File List with Back button on the left -->
 		<div class="mb-2 flex items-center justify-between gap-2">
-			<div>
-				<Tooltip.Provider>
-					<Tooltip.Root>
-						<Tooltip.Trigger>
-							<Button variant="ghost" size="sm" class="mb-2" onclick={onBack}>
-								<ArrowLeft class="mr-2 h-4 w-4" />
-								Back
-							</Button>
-						</Tooltip.Trigger>
-						<Tooltip.Content>Return to file selection (stage 1)</Tooltip.Content>
-					</Tooltip.Root>
-				</Tooltip.Provider>
-			</div>
+			<Tooltip.Provider>
+				<Tooltip.Root>
+					<Tooltip.Trigger>
+						<Button variant="ghost" size="sm" class="mb-2" onclick={onBack}>
+							<ArrowLeft class="mr-2 h-4 w-4" />
+							Back
+						</Button>
+					</Tooltip.Trigger>
+					<Tooltip.Content>Return to file selection (stage 1)</Tooltip.Content>
+				</Tooltip.Root>
+			</Tooltip.Provider>
 
 			<div class="flex items-center gap-2">
 				{#if files.length > 1}
@@ -354,19 +291,15 @@
 				{/if}
 				<Tooltip.Provider>
 					<Tooltip.Root>
-						<Tooltip.Trigger
-							class={`${buttonVariants({ variant: 'ghost' })} cursor-pointer`}
-							onclick={clearAllFiles}
-						>
+						<Tooltip.Trigger class={`${buttonVariants({ variant: 'ghost' })} cursor-pointer`} onclick={clearAllFiles}>
 							<Trash2 class="h-4 w-4" />
 						</Tooltip.Trigger>
-						<Tooltip.Content>
-							<p>Clear all files</p>
-						</Tooltip.Content>
+						<Tooltip.Content><p>Clear all files</p></Tooltip.Content>
 					</Tooltip.Root>
 				</Tooltip.Provider>
 			</div>
 		</div>
+
 		<ScrollArea
 			class={[
 				'mb-4 h-60 max-h-[45vh] w-full rounded-lg border border-border bg-card transition-colors lg:max-h-[50vh] lg:flex-1',
@@ -384,41 +317,26 @@
 			</div>
 		</ScrollArea>
 
-		<!-- Controls -->
 		<div class="mb-4 flex items-center">
-			<button
-				class="flex cursor-pointer items-center text-sm text-primary hover:underline"
-				onclick={() => fileInput?.click()}
-			>
+			<button class="flex cursor-pointer items-center text-sm text-primary hover:underline" onclick={() => fileInput?.click()}>
 				<Plus class="mr-1 h-4 w-4" />
 				Select files to upload
 			</button>
-			<input
-				bind:this={fileInput}
-				type="file"
-				id="file-input"
-				class="hidden"
-				multiple
-				onchange={handleFileSelect}
-			/>
+			<input bind:this={fileInput} type="file" class="hidden" multiple onchange={handleFileSelect} />
 			<div class="ml-auto text-sm text-muted-foreground">Total size: {totalSize}</div>
 		</div>
 
-		<!-- Expiry and Password Options -->
 		<div class="mb-4 space-y-2">
 			<div class="flex items-center">
 				<span class="text-sm">Expires after</span>
 				<Select.Root type="single" bind:value={downloadLimit}>
 					<Select.Trigger class="ml-2 w-35">
-						{downloadLimit}
-						{downloadLimit === '1' ? 'download' : 'downloads'}
+						{downloadLimit} {downloadLimit === '1' ? 'download' : 'downloads'}
 					</Select.Trigger>
 					<Select.Content>
 						{#if configData.data?.download_configs}
 							{#each configData.data.download_configs as limit}
-								<Select.Item value={limit.toString()}
-									>{limit} {limit === 1 ? 'download' : 'downloads'}</Select.Item
-								>
+								<Select.Item value={limit.toString()}>{limit} {limit === 1 ? 'download' : 'downloads'}</Select.Item>
 							{/each}
 						{:else}
 							<Select.Item value="1">1 download</Select.Item>
@@ -429,17 +347,13 @@
 				<Select.Root type="single" bind:value={timeLimit}>
 					<Select.Trigger class="w-35">
 						{@const { val, unit } = formatSeconds(parseInt(timeLimit))}
-						{val}
-						{val === 1 ? unit.slice(0, -1) : unit}
+						{val} {val === 1 ? unit.slice(0, -1) : unit}
 					</Select.Trigger>
 					<Select.Content>
 						{#if configData.data?.time_configs}
 							{#each configData.data.time_configs as time}
 								{@const { val, unit } = formatSeconds(time)}
-								<Select.Item value={time.toString()}>
-									{val}
-									{val === 1 ? unit.slice(0, -1) : unit}
-								</Select.Item>
+								<Select.Item value={time.toString()}>{val} {val === 1 ? unit.slice(0, -1) : unit}</Select.Item>
 							{/each}
 						{:else}
 							<Select.Item value="86400">1 Day</Select.Item>
@@ -449,47 +363,21 @@
 			</div>
 			<div class="flex h-9 items-center gap-2">
 				<div class="flex items-center">
-					<input
-						type="checkbox"
-						id="password"
-						bind:checked={isPasswordProtected}
-						class="mr-2 h-4 w-4 rounded border-primary text-primary focus:ring-primary"
-					/>
-					<label
-						for="password"
-						class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-						>Protect with password</label
-					>
+					<input type="checkbox" id="password" bind:checked={isPasswordProtected} class="mr-2 h-4 w-4 rounded border-primary text-primary focus:ring-primary" />
+					<label for="password" class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Protect with password</label>
 				</div>
 				{#if isPasswordProtected}
 					<div class="relative max-w-xs flex-1">
-						<Input
-							type={showPassword ? 'text' : 'password'}
-							placeholder="Password"
-							bind:value={password}
-							class="h-9 pr-10"
-						/>
-						<button
-							type="button"
-							onclick={() => (showPassword = !showPassword)}
-							class="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground"
-						>
-							{#if showPassword}
-								<EyeOff class="h-4 w-4" />
-							{:else}
-								<Eye class="h-4 w-4" />
-							{/if}
+						<Input type={showPassword ? 'text' : 'password'} placeholder="Password" bind:value={password} class="h-9 pr-10" />
+						<button type="button" onclick={() => showPassword = !showPassword} class="absolute top-1/2 right-3 -translate-y-1/2 cursor-pointer text-muted-foreground hover:text-foreground">
+							{#if showPassword}<EyeOff class="h-4 w-4" />{:else}<Eye class="h-4 w-4" />{/if}
 						</button>
 					</div>
 				{/if}
 			</div>
 		</div>
 
-		<Button
-			class="w-full cursor-pointer"
-			onclick={() => handleUpload(false)}
-			disabled={files.length === 0 || inProgress}>Upload</Button
-		>
+		<Button class="w-full cursor-pointer" onclick={() => handleUpload(false)} disabled={files.length === 0 || inProgress}>Upload</Button>
 		{#if files.length === 1}
 			<Button variant="outline" class="w-full cursor-pointer" onclick={() => handleUpload(true)} disabled={inProgress}>
 				<Eye class="mr-2 size-4" /> View Once

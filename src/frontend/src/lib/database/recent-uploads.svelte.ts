@@ -2,7 +2,7 @@ import type { UploadEntry } from './types';
 
 let entries = $state<UploadEntry[]>([]);
 
-export let recentUploads = $state({
+export const recentUploads = $state({
 	get entries(): UploadEntry[] {
 		return entries;
 	},

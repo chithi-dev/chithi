@@ -2,7 +2,7 @@
 	import { Button } from '$lib/components/ui/button';
 	import { Plus } from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
-	import { processDataTransfer } from '$lib/functions/files';
+	import { dropFiles } from '#functions/file-tree';
 	import { useConfigQuery } from '#queries/config';
 
 	interface Props {
@@ -22,20 +22,19 @@
 	const handleZoneDrop = async (e: DragEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
-
-		if (e.dataTransfer?.items) {
-			const { files: newFiles, folderName } = await processDataTransfer(Array.from(e.dataTransfer.items));
-			if (newFiles.length > 0) onFilesSelected(newFiles, folderName);
-		} else if (e.dataTransfer?.files) {
+		if (e.dataTransfer?.files?.length) {
 			onFilesSelected(Array.from(e.dataTransfer.files));
+			return;
+		}
+		if (e.dataTransfer?.items) {
+			const { files, folderName } = await dropFiles(e.dataTransfer.items);
+			if (files.length > 0) onFilesSelected(files, folderName);
 		}
 	};
 
 	const handleFileSelect = (e: Event) => {
 		const target = e.target as HTMLInputElement;
-		if (target.files) {
-			onFilesSelected(Array.from(target.files));
-		}
+		if (target.files) onFilesSelected(Array.from(target.files));
 		target.value = '';
 	};
 
@@ -43,12 +42,9 @@
 		const target = e.target as HTMLInputElement;
 		if (target.files) {
 			const filesArray = Array.from(target.files);
-			if (filesArray.length > 0) {
-				// The first file's webkitRelativePath starts with the folder name
-				const relativePath = (filesArray[0] as any).webkitRelativePath;
-				const folderName = relativePath ? relativePath.split('/')[0] : undefined;
-				onFilesSelected(filesArray, folderName);
-			}
+			const relativePath = (filesArray[0] as any).webkitRelativePath;
+			const folderName = relativePath ? relativePath.split('/')[0] : undefined;
+			onFilesSelected(filesArray, folderName);
 		}
 		target.value = '';
 	};
@@ -73,9 +69,7 @@
 	role="button"
 	aria-label="File drop area - click or drop files to upload"
 >
-	<!-- Main content container -->
 	<div class="relative z-10 flex flex-col items-center justify-center p-12">
-		<!-- Plus icon in circle -->
 		<div
 			class={[
 				'mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary transition-all duration-200',
@@ -85,7 +79,6 @@
 			<Plus class="h-8 w-8 text-primary transition-transform duration-200" />
 		</div>
 
-		<!-- Text content -->
 		<h2
 			class={[
 				'mb-2 text-xl font-medium transition-colors duration-200',
@@ -104,7 +97,6 @@
 			end-to-end encryption
 		</p>
 
-		<!-- Buttons container -->
 		<div class="flex flex-col gap-3">
 			<Button
 				variant="default"
@@ -134,7 +126,6 @@
 			</Button>
 		</div>
 
-		<!-- Hidden file inputs -->
 		<input
 			bind:this={fileInputInitial}
 			type="file"
@@ -153,7 +144,6 @@
 		/>
 	</div>
 
-	<!-- Border elements -->
 	<svg class="pointer-events-none absolute inset-0 h-full w-full rounded-lg">
 		<rect
 			width="100%"

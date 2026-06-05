@@ -41,7 +41,7 @@ export function createCryptoWorkerHandler(op: 'encrypt' | 'decrypt') {
 			const buf = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength);
 
 			const result = await crypto.subtle[op](
-				{ name: 'AES-GCM', iv: iv.buffer as ArrayBuffer },
+				{ name: 'AES-GCM', iv: iv as any },
 				aesKey,
 				buf
 			);
