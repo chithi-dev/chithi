@@ -9,7 +9,7 @@
 	import favicon from '$lib/assets/logo.svg';
 	import { ModeWatcher } from 'mode-watcher';
 	import { QueryClientProvider } from '@tanstack/svelte-query';
-	import { Toaster } from '$lib/components/ui/sonner/index';
+	import { Toaster } from '$lib/components/ui/sonner';
 	import type { LayoutData } from './$types';
 	import { type Component, type Snippet } from 'svelte';
 	import { MetaTags, deepMerge } from 'svelte-meta-tags';

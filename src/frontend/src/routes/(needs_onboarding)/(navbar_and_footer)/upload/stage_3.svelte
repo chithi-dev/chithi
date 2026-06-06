@@ -3,7 +3,7 @@
 	import { Input } from '$lib/components/ui/input';
 	import { Lock, Check, Copy, Download, ScanEye, Eye } from '@lucide/svelte';
 	import QRCode from '$lib/components/QRCode.svelte';
-	import * as Tooltip from '$lib/components/ui/tooltip/index';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import * as ButtonGroup from '$lib/components/ui/button-group';
 	import { toast } from 'svelte-sonner';
 

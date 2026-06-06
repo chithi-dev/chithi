@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Card, CardContent } from '$lib/components/ui/card';
+	import * as Card from '$lib/components/ui/card';
 	import { useConfigQuery } from '#queries/config';
 	import { Skeleton } from '$lib/components/ui/skeleton';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
@@ -11,7 +11,7 @@
 	import { onMount } from 'svelte';
 	import { CloudOff } from '@lucide/svelte';
 	import { UploadStage, isWhichUploadStage } from './enums';
-import { clipboardFiles, hasFileItems } from '#functions/file-tree';
+	import { clipboardFiles, hasFileItems } from '#functions/file-tree';
 
 	// Stages
 	const { default: Stage1 } = await import('./stage_1.svelte');
@@ -261,7 +261,7 @@ import { clipboardFiles, hasFileItems } from '#functions/file-tree';
 	</div>
 {/snippet}
 
-<Card
+<Card.Root
 	class={[
 		'relative z-10 mx-auto w-full max-w-5xl border-border bg-card transition-all duration-200',
 		dragActive && 'shadow-[0_0_20px_-10px_var(--primary)]',
@@ -284,7 +284,7 @@ import { clipboardFiles, hasFileItems } from '#functions/file-tree';
 	<div class="absolute top-4 right-4 z-20">
 		<RecentUpload />
 	</div>
-	<CardContent class="p-6">
+	<Card.Content class="p-6">
 		<div class="grid min-h-150 grid-cols-1 gap-8 lg:grid-cols-2">
 			{#if configData.isLoading || (dev && debugLoading)}
 				<div class="col-span-1">
@@ -352,8 +352,8 @@ import { clipboardFiles, hasFileItems } from '#functions/file-tree';
 				</div>
 			{/if}
 		</div>
-	</CardContent>
-</Card>
+	</Card.Content>
+</Card.Root>
 
 <UploadShowcase
 	localUploadSize={stage === UploadStage.Stage_2 ? files.reduce((s, f) => s + f.size, 0) : 0}

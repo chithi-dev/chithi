@@ -154,7 +154,9 @@ import { autoDownload } from '$lib/functions/browser-download';
 				errorMsg = 'Processing failed: ' + e.message;
 			}
 		}
-	}function setFileParam(name: string | null) {
+	}
+
+function setFileParam(name: string | null) {
 		const url = new URL(page.url);
 		if (name) {
 			url.searchParams.set('file', name);

@@ -5,7 +5,7 @@
 	import { subscribeAppState, appState } from './state.svelte';
 	import { HardDrive, Wifi, WifiOff } from '@lucide/svelte';
 	import { Progress } from '$lib/components/ui/progress';
-	import * as Tooltip from '$lib/components/ui/tooltip/index';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 
 	const { localUploadSize = 0 }: { localUploadSize: number } = $props();
 

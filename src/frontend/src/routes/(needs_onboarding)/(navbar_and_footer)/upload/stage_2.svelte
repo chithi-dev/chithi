@@ -9,7 +9,7 @@
 	import { formatSeconds } from '#functions/times';
 	import { clipboardFiles, hasFileItems } from '#functions/file-tree';
 	import { createZipStream, createEncryptedStream } from '#functions/streams';
-	import * as Tooltip from '$lib/components/ui/tooltip/index';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import { v7 as uuidv7 } from 'uuid';
 	import { Api } from '#consts/backend';
 	import { Progress } from '$lib/components/ui/progress';

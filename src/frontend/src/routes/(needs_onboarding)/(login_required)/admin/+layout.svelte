@@ -1,7 +1,7 @@
 <script lang="ts">
-	import * as Sidebar from '$lib/components/ui/sidebar/index';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index';
-	import { Separator } from '$lib/components/ui/separator/index';
+	import * as Sidebar from '$lib/components/ui/sidebar';
+	import * as Breadcrumb from '$lib/components/ui/breadcrumb';
+	import { Separator } from '$lib/components/ui/separator';
 	import AppSidebar from './app-sidebar.svelte';
 	import { page } from '$app/state';
 

@@ -1,12 +1,12 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { page } from '$app/state';
-	import { formatFileSize } from '$lib/functions/bytes';
-import { formatDate } from '$lib/functions/dates';
-import { autoDownload } from '$lib/functions/browser-download';
+	import { formatFileSize } from '#functions/bytes';
+	import { formatDate } from '#functions/dates';
+	import { autoDownload } from '$lib/functions/browser-download';
+	import { Api } from '#consts/backend';
 	import { toast } from 'svelte-sonner';
 	import { Button } from '$lib/components/ui/button';
-	import { LoaderCircle, Copy, Check, Wifi, WifiOff } from '@lucide/svelte';
+	import { LoaderCircle, Copy, Check } from '@lucide/svelte';
 	import { useWsReconnect } from './ws-reconnect.svelte';
 	import { getDisplayFilename } from './functions';
 	import type { RoomFileEntry } from './types';
@@ -22,15 +22,13 @@ import { autoDownload } from '$lib/functions/browser-download';
 	let downloadedFiles = $state<Array<{ key: string; objectUrl: string }>>([]);
 	let copiedFileKeys = $state(new Set<string>());
 
-	let extractedKey = $derived(encryptionKey);
-
 	// Load room data
 	const loadRoom = async () => {
-		if (!extractedKey) return;
+		if (!encryptionKey) return;
 		loadStatus = 'loading';
 		try {
-			const res = await fetch(`/api/reverse/${room_id}`, {
-				headers: { 'X-Encryption-Key': extractedKey }
+			const res = await fetch(`${Api.REVERSE.ROOM_DETAIL(room_id)}`, {
+				headers: { 'X-Encryption-Key': encryptionKey }
 			});
 			if (!res.ok) throw new Error('Failed to load room');
 			const data = await res.json();
@@ -50,7 +48,7 @@ import { autoDownload } from '$lib/functions/browser-download';
 		get_host_token: () => undefined,
 		get_receive_state: () => ({ type: 'idle' }),
 		get_downloaded_files: () => downloadedFiles,
-		get_room_key: () => extractedKey,
+		get_room_key: () => encryptionKey,
 		onSnapshot: (room: Record<string, unknown>) => {
 			roomFiles = (room.files as RoomFileEntry[]) ?? [];
 			hostCount = typeof room.host_count === 'number' ? room.host_count : 0;

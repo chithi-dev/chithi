@@ -58,11 +58,9 @@
 </script>
 
 <Card.Root
-	class="relative overflow-hidden border-slate-200/60 bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl dark:border-zinc-800/50 dark:bg-zinc-900/50"
+	class="glass-card"
 >
-	<div
-		class="absolute top-0 left-0 h-px w-full bg-linear-to-r from-transparent via-primary/40 to-transparent"
-	></div>
+	<div class="card-top-accent" />
 
 	<Card.Header class="space-y-3 pt-10 pb-6 text-center">
 		<div
@@ -178,3 +176,14 @@
 		{/if}
 	</Card.Content>
 </Card.Root>
+
+
+<style>
+    .glass-card {
+        @apply relative overflow-hidden border-slate-200/60 bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl dark:border-zinc-800/50 dark:bg-zinc-900/50;
+    }
+
+    .card-top-accent {
+        @apply absolute top-0 left-0 h-px w-full bg-linear-to-r from-transparent via-primary/40 to-transparent;
+    }
+</style>

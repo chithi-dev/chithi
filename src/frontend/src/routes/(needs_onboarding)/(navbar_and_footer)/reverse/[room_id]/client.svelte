@@ -19,7 +19,7 @@
 	import { Badge } from '$lib/components/ui/badge';
 	import { Separator } from '$lib/components/ui/separator';
 	import { ScrollArea } from '$lib/components/ui/scroll-area';
-	import * as Tooltip from '$lib/components/ui/tooltip/index';
+	import * as Tooltip from '$lib/components/ui/tooltip';
 	import {
 		Download,
 		Copy,
@@ -35,10 +35,10 @@
 		MousePointerClick
 	} from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
-import { formatDate } from '#functions/dates';
-import { autoDownload } from '$lib/functions/browser-download';
-		import { Api } from '#consts/backend';
-		import { createDecryptedStream } from '#functions/streams';
+	import { formatDate } from '#functions/dates';
+	import { autoDownload } from '$lib/functions/browser-download';
+	import { Api } from '#consts/backend';
+	import { createDecryptedStream } from '#functions/streams';
 	import { resolve } from '$app/paths';
 	import { extractEncryptionKey } from './utils';
 	import { getDisplayFilename } from './functions';
@@ -82,7 +82,7 @@ import { autoDownload } from '$lib/functions/browser-download';
 		get_downloaded_files: () => downloadedFiles,
 		get_room_key: () => roomKey,
 		onSnapshot: (r) => {
-			const roomOut = r as unknown as RoomOut;
+			const roomOut = r as RoomOut;
 			room = roomOut;
 			roomFiles = structuredClone(roomOut.files);
 			hostCount = roomOut.host_count ?? 1;
@@ -166,14 +166,14 @@ import { autoDownload } from '$lib/functions/browser-download';
 			}
 		},
 		onFileError: (detail: string, key: string) => {
-			if (receiveState.type !== 'idle' && receiveState.key === key) {
+			if (receiveState.type === 'streaming' && receiveState.key === key) {
 				receiveState = { type: 'idle' };
-				toast.error(detail);
 			}
+			toast.error(`File error: ${detail}`);
 		},
 		onRoomDestroyed: () => {
 			cleanup();
-			toast.error('Room has been destroyed');
+			toast.info('The host has closed the room.');
 			goto('/reverse');
 		},
 		onFileRemoved: (key: string) => {
@@ -219,9 +219,6 @@ import { autoDownload } from '$lib/functions/browser-download';
 			toast.error('Please enter an encryption key');
 			return;
 		}
-		// Since roomKey is derived from hash, we need to update hash to set it permanently
-		// but for the prompt, we can just trigger a reload if we were at a wrong hash.
-		// Actually, the prompt is for when there is NO hash.
 		window.location.hash = k;
 		showKeyPrompt = false;
 		toast.success('Encryption key set');

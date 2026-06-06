@@ -1,14 +1,12 @@
 <script lang="ts">
-	import { Input } from '$lib/components/ui/input/index.js';
+	import { Input } from '$lib/components/ui/input';
 	import { schema, type FormSchema } from './schema';
 	import { type SuperValidated, type Infer, superForm } from 'sveltekit-superforms';
 	import { zod4Client } from 'sveltekit-superforms/adapters';
-	import { cn } from '$lib/utils';
-	import * as Form from '$lib/components/ui/form/index';
+	import * as Form from '$lib/components/ui/form';
 	import { ArrowRight, Mail, Lock, LoaderCircle, Eye, EyeOff } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button';
 	import { untrack } from 'svelte';
-	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
 	import { QueryClient } from '@tanstack/svelte-query';
 	import { queryKey as authQueryKey } from '#queries/auth';

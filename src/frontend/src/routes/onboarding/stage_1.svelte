@@ -45,11 +45,9 @@
 </script>
 
 <Card.Root
-	class="relative overflow-hidden border-slate-200/60 bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl dark:border-zinc-800/50 dark:bg-zinc-900/50"
+	class="glass-card"
 >
-	<div
-		class="absolute top-0 left-0 h-px w-full bg-linear-to-r from-transparent via-primary/40 to-transparent"
-	></div>
+	<div class="card-top-accent" />
 
 	<Card.Header class="space-y-3 pt-10 pb-8 text-center">
 		<div
@@ -76,7 +74,7 @@
 					>
 					<div class="group relative">
 						<div
-							class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"
+							class="form-icon"
 						>
 							<User class="size-4" />
 						</div>
@@ -84,7 +82,7 @@
 							id="username"
 							bind:value={username}
 							placeholder="Admin"
-							class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50"
+							class="form-input"
 							required
 						/>
 					</div>
@@ -96,7 +94,7 @@
 					>
 					<div class="group relative">
 						<div
-							class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"
+							class="form-icon"
 						>
 							<Mail class="size-4" />
 						</div>
@@ -105,7 +103,7 @@
 							type="email"
 							bind:value={email}
 							placeholder="name@example.com"
-							class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50"
+							class="form-input"
 							required
 						/>
 					</div>
@@ -119,7 +117,7 @@
 					</div>
 					<div class="group relative">
 						<div
-							class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"
+							class="form-icon"
 						>
 							<Lock class="size-4" />
 						</div>
@@ -127,7 +125,7 @@
 							id="password"
 							type="password"
 							bind:value={password}
-							class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50"
+							class="form-input"
 							required
 						/>
 					</div>
@@ -150,3 +148,22 @@
 		</form>
 	</Card.Content>
 </Card.Root>
+
+
+<style>
+    .glass-card {
+        @apply relative overflow-hidden border-slate-200/60 bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl dark:border-zinc-800/50 dark:bg-zinc-900/50;
+    }
+
+    .card-top-accent {
+        @apply absolute top-0 left-0 h-px w-full bg-linear-to-r from-transparent via-primary/40 to-transparent;
+    }
+
+    .form-icon {
+        @apply absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500;
+    }
+
+    .form-input {
+        @apply h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50;
+    }
+</style>

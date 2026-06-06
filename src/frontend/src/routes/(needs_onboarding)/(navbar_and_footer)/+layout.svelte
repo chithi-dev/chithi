@@ -29,11 +29,11 @@
 
 	const { children } = $props();
 
-const initials = $derived(kebab_to_initials(userData.data?.username ?? ''));
-let flagForRestart = $state(false);
-const hashedAvatar = $derived(await make_libravatar_url(userData.data?.email ?? ''));
-
-const samePageNav = (e: Event) => { if ((e.currentTarget as HTMLAnchorElement).href === page.url.href) flagForRestart = !flagForRestart; };
+	const initials = $derived(kebab_to_initials(userData.data?.username ?? ''));
+	let flagForRestart = $state(false);
+	const hashedAvatar = $derived(await make_libravatar_url(userData.data?.email ?? ''));
+	
+	const samePageNav = (e: Event) => { if ((e.currentTarget as HTMLAnchorElement).href === page.url.href) flagForRestart = !flagForRestart; };
 	const themeIcon = 'h-[1.2rem] w-[1.2rem] transition-all';
 	const sunClass = `${themeIcon} scale-100 rotate-0 dark:scale-0 dark:-rotate-90`;
 	const moonClass = `${themeIcon} absolute scale-0 rotate-90 dark:scale-100 dark:rotate-0`;
@@ -161,12 +161,8 @@ const samePageNav = (e: Event) => { if ((e.currentTarget as HTMLAnchorElement).h
 								<Label class="cursor-pointer" onclick={toggleMode}>Theme</Label>
 
 								<Button onclick={toggleMode} variant="outline" size="icon" class="relative">
-									<SunIcon
-										class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
-									/>
-									<MoonIcon
-										class="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0"
-									/>
+									<SunIcon class={sunClass} />
+									<MoonIcon class={moonClass} />
 									<span class="sr-only">Toggle theme</span>
 								</Button>
 							</div>
@@ -209,12 +205,8 @@ const samePageNav = (e: Event) => { if ((e.currentTarget as HTMLAnchorElement).h
 						toggleMode();
 					}}
 				>
-					<SunIcon
-						class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
-					/>
-					<MoonIcon
-						class="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0"
-					/>
+					<SunIcon class={sunClass} />
+					<MoonIcon class={moonClass} />
 					<span class="sr-only">Toggle theme</span>
 				</Button>
 			{/if}

@@ -13,7 +13,7 @@
 
 <script lang="ts">
 	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Form from '$lib/components/ui/form/index';
+	import * as Form from '$lib/components/ui/form';
 	import { Input } from '$lib/components/ui/input';
 	import { Button } from '$lib/components/ui/button';
 	import { useUsersQuery } from '#queries/admin_users';
