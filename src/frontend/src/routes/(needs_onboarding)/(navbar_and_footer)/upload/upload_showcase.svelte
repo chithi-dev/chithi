@@ -6,7 +6,6 @@
 	import { HardDrive, Wifi, WifiOff } from '@lucide/svelte';
 	import { Progress } from '$lib/components/ui/progress';
 	import * as Tooltip from '$lib/components/ui/tooltip/index';
-	import { cn } from '$lib/utils';
 
 	const { localUploadSize = 0 }: { localUploadSize: number } = $props();
 

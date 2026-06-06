@@ -98,7 +98,7 @@
 		status.includes('download') ? 'download' : status.includes('upload') ? 'upload' : null
 	);
 	const currentSpeed = $derived(activePhase === 'download' ? downloadSpeed.current : activePhase === 'upload' ? uploadSpeed.current : 0);
-		const canStart = $derived(status === 'idle' || status === 'finished' || status === 'error');
+const canStart = $derived(status === 'idle' || status === 'finished' || status === 'error');
 
 	// Chart Config
 	const chartConfig = {

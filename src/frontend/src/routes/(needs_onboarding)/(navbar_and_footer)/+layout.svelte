@@ -29,20 +29,14 @@
 
 	const { children } = $props();
 
-	let initials = $derived(kebab_to_initials(userData.data?.username ?? ''));
+const initials = $derived(kebab_to_initials(userData.data?.username ?? ''));
+let flagForRestart = $state(false);
+const hashedAvatar = $derived(await make_libravatar_url(userData.data?.email ?? ''));
 
-	let flagForRestart = $state(false);
-
-	let hashedAvatar = $derived(await make_libravatar_url(userData.data?.email ?? ''));
-
-	function programmedNavigation(event: Event) {
-		const anchorElement = event.currentTarget as HTMLAnchorElement;
-		const href = anchorElement.getAttribute('href');
-		if (href === page.url.pathname) {
-			// Switch between true and false
-			flagForRestart = !flagForRestart;
-		}
-	}
+const samePageNav = (e: Event) => { if ((e.currentTarget as HTMLAnchorElement).href === page.url.href) flagForRestart = !flagForRestart; };
+	const themeIcon = 'h-[1.2rem] w-[1.2rem] transition-all';
+	const sunClass = `${themeIcon} scale-100 rotate-0 dark:scale-0 dark:-rotate-90`;
+	const moonClass = `${themeIcon} absolute scale-0 rotate-90 dark:scale-100 dark:rotate-0`;
 	type LinkItem = {
 		name: string;
 		href: string;
@@ -52,82 +46,25 @@
 	};
 
 	const adminLinks = [
-		{
-			href: '/admin/config',
-			name: 'Config',
-			icon: SlidersVertical,
-			order: 2
-		},
-		{
-			href: '/admin/user',
-			name: 'Customize User',
-			icon: UserCog,
-			order: 1
-		},
-
-		{
-			href: '/admin/urls',
-			name: 'Outstanding URLs',
-			icon: Link,
-			order: 3
-		}
+		{ href: '/admin/user', name: 'Customize User', icon: UserCog, order: 1 },
+		{ href: '/admin/config', name: 'Config', icon: SlidersVertical, order: 2 },
+		{ href: '/admin/urls', name: 'Outstanding URLs', icon: Link, order: 3 },
 	];
 	const baseRightFooterLinks: LinkItem[] = [
-		{
-			href: 'https://docs.chithi.dev',
-			name: 'Documentation',
-			icon: BookOpenText,
-			order: 3
-		},
-		{
-			href: PUBLIC_INSTANCE_URL,
-			name: 'Public Instances',
-			icon: SiUpptime,
-			order: 2
-		},
-		{
-			href: 'https://github.com/chithi-dev/chithi',
-			name: 'Source',
-			icon: SiGithub,
-			order: 1
-		}
+		{ href: 'https://github.com/chithi-dev/chithi', name: 'Source', icon: SiGithub, order: 1 },
+		{ href: PUBLIC_INSTANCE_URL, name: 'Public Instances', icon: SiUpptime, order: 2 },
+		{ href: 'https://docs.chithi.dev', name: 'Documentation', icon: BookOpenText, order: 3 },
 	];
 	const leftFooterLinks: LinkItem[] = [
-		{
-			href: '/speedtest',
-			name: 'Speedtest',
-			icon: Gauge,
-			order: 1
-		},
-		{
-			href: '/informations',
-			name: 'Information about the instance',
-			icon: Info,
-			order: 2
-		}
+		{ href: '/speedtest', name: 'Speedtest', icon: Gauge, order: 1 },
+		{ href: '/informations', name: 'Information about the instance', icon: Info, order: 2 },
 	];
 
 	const donationPlatforms = [
-		{
-			key: 'PUBLIC_BUY_ME_A_COFFEE',
-			name: 'Buy Me A Coffee',
-			iconLoader: () => import('@icons-pack/svelte-simple-icons/icons/SiBuymeacoffee')
-		},
-		{
-			key: 'PUBLIC_LIBERAPAY',
-			name: 'Liberapay',
-			iconLoader: () => import('@icons-pack/svelte-simple-icons/icons/SiLiberapay')
-		},
-		{
-			key: 'PUBLIC_KO_FI',
-			name: 'Ko-Fi',
-			iconLoader: () => import('@icons-pack/svelte-simple-icons/icons/SiKofi')
-		},
-		{
-			key: 'PUBLIC_PATREON',
-			name: 'Patreon',
-			iconLoader: () => import('@icons-pack/svelte-simple-icons/icons/SiPatreon')
-		}
+		{ key: 'PUBLIC_BUY_ME_A_COFFEE', name: 'Buy Me A Coffee', iconLoader: () => import('@icons-pack/svelte-simple-icons/icons/SiBuymeacoffee') },
+		{ key: 'PUBLIC_LIBERAPAY', name: 'Liberapay', iconLoader: () => import('@icons-pack/svelte-simple-icons/icons/SiLiberapay') },
+		{ key: 'PUBLIC_KO_FI', name: 'Ko-Fi', iconLoader: () => import('@icons-pack/svelte-simple-icons/icons/SiKofi') },
+		{ key: 'PUBLIC_PATREON', name: 'Patreon', iconLoader: () => import('@icons-pack/svelte-simple-icons/icons/SiPatreon') },
 	];
 
 	const seenRightFooterLinks = new Set(baseRightFooterLinks.map((link) => link.href));
@@ -199,7 +136,7 @@
 	<header
 		class="sticky top-0 z-50 flex items-center justify-between bg-transparent p-4 backdrop-blur-md transition-colors duration-500"
 	>
-		<a href="/" class="flex items-center gap-2" onclick={programmedNavigation}>
+		<a href="/" class="flex items-center gap-2" onclick={samePageNav}>
 			<img src={favicon} alt="logo" class="h-6 w-6" />
 			<h1 class="text-2xl font-bold md:text-xl">Chithi</h1>
 		</a>
