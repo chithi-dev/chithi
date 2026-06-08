@@ -1,118 +1,55 @@
 import type { UploadEntry } from './types';
 import { syncEntries } from './recent-uploads.svelte';
 
-const DB_NAME = 'chithi_db';
-const STORE_NAME = 'uploads';
-const DB_VERSION = 1;
+const DB = 'chithi_db', STORE = 'uploads', VER = 1;
 
-const openDB = (): Promise<IDBDatabase> => {
-	if (indexedDB === undefined) {
-		return Promise.reject(new Error('IndexedDB is not supported'));
-	}
-	return new Promise((resolve, reject) => {
-		const request = indexedDB.open(DB_NAME, DB_VERSION);
-		request.onerror = () => reject(request.error);
-		request.onsuccess = () => resolve(request.result);
-		request.onupgradeneeded = (event) => {
-			const db = (event.target as IDBOpenDBRequest).result;
-			if (!db.objectStoreNames.contains(STORE_NAME)) {
-				db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-			}
-		};
-	});
+const openDB = () => new Promise<IDBDatabase>((resolve, reject) => {
+  const req = indexedDB.open(DB, VER);
+  req.onerror = () => reject(req.error);
+  req.onsuccess = () => resolve(req.result);
+  req.onupgradeneeded = (e) => { const db = (e.target as IDBOpenDBRequest).result; if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' }); };
+});
+
+const waitTx = (tx: IDBTransaction) => new Promise<void>((r, j) => { tx.oncomplete = r; tx.onerror = () => j(tx.error); });
+
+const refresh = async () => { const entries = await getHistory(); syncEntries(entries); };
+
+const write = async <T>(fn: (store: IDBObjectStore) => Promise<T>) => {
+  const db = await openDB();
+  const tx = db.transaction(STORE, 'readwrite');
+  await fn(tx.objectStore(STORE));
+  await waitTx(tx);
+  await refresh();
 };
-
-const refreshStore = async () => {
-	const entries = await getHistory();
-	syncEntries(entries);
-};
-
-const waitForTransaction = (tx: IDBTransaction) =>
-	new Promise<void>((resolve, reject) => {
-		tx.oncomplete = () => resolve();
-		tx.onerror = () => reject(tx.error);
-	});
 
 export const getHistory = async (): Promise<UploadEntry[]> => {
-	try {
-		const db = await openDB();
-		const tx = db.transaction(STORE_NAME, 'readonly');
-		const store = tx.objectStore(STORE_NAME);
-
-		return new Promise((resolve, reject) => {
-			const request = store.getAll();
-			request.onsuccess = () => {
-				const results = request.result as UploadEntry[];
-				const now = Date.now();
-				for (const e of results) {
-					if (e.link.includes('?secret=')) e.link = e.link.replace('?secret=', '#');
-				}
-				resolve(results.filter((e) => e.expiry > now).sort((a, b) => b.createdAt - a.createdAt));
-			};
-			request.onerror = () => reject(request.error);
-		});
-	} catch (err) {
-		console.error('Failed to load history', err);
-		return [];
-	}
+  try {
+    const db = await openDB();
+    const tx = db.transaction(STORE, 'readonly');
+    return new Promise((resolve, reject) => {
+      const req = tx.objectStore(STORE).getAll();
+      req.onsuccess = () => {
+        const now = Date.now();
+        for (const e of req.result as UploadEntry[]) if (e.link.includes('?secret=')) e.link = e.link.replace('?secret=', '#');
+        resolve(req.result.filter((e: UploadEntry) => e.expiry > now).sort((a: UploadEntry, b: UploadEntry) => b.createdAt - a.createdAt));
+      };
+      req.onerror = () => reject(req.error);
+    });
+  } catch { return []; }
 };
 
-const dbWrite = async <T>(fn: (store: IDBObjectStore) => Promise<T>) => {
-	const db = await openDB();
-	const tx = db.transaction(STORE_NAME, 'readwrite');
-	await fn(tx.objectStore(STORE_NAME));
-	await waitForTransaction(tx);
-	await refreshStore();
+const withError = async <T>(name: string, fn: () => Promise<T>): Promise<T | void> => {
+  try { return await fn(); } catch (err) { console.error(`Failed to ${name}`, err); if (name !== 'cleanup history') throw err; }
 };
 
-export const addHistoryEntry = async (entry: UploadEntry) => {
-	try {
-		await dbWrite(async (store) => store.add(entry));
-	} catch (err) {
-		console.error('Failed to add history entry', err);
-		throw err;
-	}
-};
-
-export const deleteHistoryEntry = async (id: string) => {
-	try {
-		await dbWrite(async (store) => store.delete(id));
-	} catch (err) {
-		console.error('Failed to delete history entry', err);
-		throw err;
-	}
-};
-
-export const cleanupExpiredEntries = async () => {
-	try {
-		await dbWrite(async (store) => {
-			const results = (await new Promise<UploadEntry[]>((resolve, reject) => {
-				const req = store.getAll();
-				req.onsuccess = () => resolve(req.result);
-				req.onerror = () => reject(req.error);
-			})) as UploadEntry[];
-			const now = Date.now();
-			for (const entry of results) {
-				if (entry.expiry <= now) store.delete(entry.id);
-			}
-		});
-	} catch (err) {
-		console.error('Failed to cleanup history', err);
-	}
-};
-
-export const updateHistoryEntry = async (id: string, updates: Partial<UploadEntry>) => {
-	try {
-		await dbWrite(async (store) => {
-			const entry = (await new Promise<UploadEntry>((resolve, reject) => {
-				const req = store.get(id);
-				req.onsuccess = () => resolve(req.result);
-				req.onerror = () => reject(req.error);
-			})) as UploadEntry;
-			if (entry) store.put({ ...entry, ...updates });
-		});
-	} catch (err) {
-		console.error('Failed to update history entry', err);
-		throw err;
-	}
-};
+export const addHistoryEntry = (entry: UploadEntry) => withError('add history entry', () => write((s) => s.add(entry)));
+export const deleteHistoryEntry = (id: string) => withError('delete history entry', () => write((s) => s.delete(id)));
+export const updateHistoryEntry = (id: string, updates: Partial<UploadEntry>) => withError('update history entry', () => write(async (s) => {
+  const entry = await new Promise<UploadEntry>((r, j) => { const req = s.get(id); req.onsuccess = () => r(req.result); req.onerror = () => j(req.error); });
+  if (entry) s.put({ ...entry, ...updates });
+}));
+export const cleanupExpiredEntries = () => withError('cleanup history', () => write(async (s) => {
+  const entries = await new Promise<UploadEntry[]>((r, j) => { const req = s.getAll(); req.onsuccess = () => r(req.result); req.onerror = () => j(req.error); });
+  const now = Date.now();
+  for (const e of entries) if (e.expiry <= now) s.delete(e.id);
+}));

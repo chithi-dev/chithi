@@ -37,7 +37,7 @@
 		<Card.Root
 			class="relative overflow-hidden border-border/60 bg-card/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl"
 		>
-			<div class="card-top-accent" />
+			<div class="absolute left-0 top-0 h-px w-full bg-linear-to-r from-transparent via-primary/40 to-transparent"></div>
 
 			<Card.Header class="space-y-3 pt-10 pb-8 text-center">
 				<div
@@ -77,8 +77,3 @@
 </div>
 
 
-<style>
-    .card-top-accent {
-        @apply absolute top-0 left-0 h-px w-full bg-linear-to-r from-transparent via-primary/40 to-transparent;
-    }
-</style>

@@ -1,16 +1,10 @@
 import type { UploadEntry } from './types';
 
-let entries = $state<UploadEntry[]>([]);
+let list = $state<UploadEntry[]>([]);
 
-export const recentUploads = $state({
-	get entries(): UploadEntry[] {
-		return entries;
-	},
-	clear() {
-		entries = [];
-	}
-});
-
-export const syncEntries = (list: UploadEntry[]) => {
-	entries = list;
+export const recentUploads = {
+  get entries(): UploadEntry[] { return list; },
+  clear() { list = []; },
 };
+
+export const syncEntries = (entries: UploadEntry[]) => { list = entries; };

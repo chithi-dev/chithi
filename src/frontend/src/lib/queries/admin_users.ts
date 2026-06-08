@@ -4,63 +4,32 @@ import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 export const usersQueryKey = ['admin-users'];
 
 export const useUsersQuery = (page: () => number, size: number) => {
-	const queryClient = useQueryClient();
+  const qc = useQueryClient();
 
-	const users = createQuery(() => ({
-		queryKey: [...usersQueryKey, page()],
-		queryFn: async () => {
-			const res = await fetch(`${Api.ADMIN.USERS}?page=${page()}&size=${size}`, {
-				credentials: 'include'
-			});
+  const users = createQuery(() => ({
+    queryKey: [...usersQueryKey, page()],
+    queryFn: async () => {
+      const res = await fetch(`${Api.ADMIN.USERS}?page=${page()}&size=${size}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch users');
+      return res.json();
+    }
+  }));
 
-			if (!res.ok) {
-				throw new Error('Failed to fetch users');
-			}
+  const invalidate = () => qc.invalidateQueries({ queryKey: usersQueryKey });
 
-			return res.json();
-		}
-	}));
+  const createUser = async (user_in: { username: string; email?: string | null; password?: string }) => {
+    const res = await fetch(Api.ADMIN.USER_CREATE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(user_in), credentials: 'include' });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || 'Failed to create user');
+    invalidate();
+    return res.json();
+  };
 
-	interface CreateUserInput {
-		username: string;
-		email?: string | null;
-		password?: string;
-	}
-	const createUser = async (user_in: CreateUserInput) => {
-		const res = await fetch(Api.ADMIN.USER_CREATE, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify(user_in),
-			credentials: 'include'
-		});
+  const deleteUser = async (user_id: string) => {
+    const res = await fetch(Api.ADMIN.USER_DELETE(user_id), { method: 'DELETE', credentials: 'include' });
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || 'Failed to delete user');
+    invalidate();
+    return res.json();
+  };
 
-		if (!res.ok) {
-			const error = await res.json().catch(() => ({}));
-			throw new Error(error.detail || 'Failed to create user');
-		}
-
-		const data = await res.json();
-		queryClient.invalidateQueries({ queryKey: usersQueryKey });
-		return data;
-	};
-
-	const deleteUser = async (user_id: string) => {
-		const res = await fetch(Api.ADMIN.USER_DELETE(user_id), {
-			method: 'DELETE',
-			credentials: 'include'
-		});
-
-		if (!res.ok) {
-			const error = await res.json().catch(() => ({}));
-			throw new Error(error.detail || 'Failed to delete user');
-		}
-
-		const data = await res.json();
-		queryClient.invalidateQueries({ queryKey: usersQueryKey });
-		return data;
-	};
-
-	return { users, createUser, deleteUser };
+  return { users, createUser, deleteUser };
 };

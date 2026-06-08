@@ -2,99 +2,46 @@ import { Api } from '#consts/backend';
 import { PasswordRequiredError } from '#errors/password';
 import { createDecryptedStream } from '#functions/streams';
 
-/** Options for fetchDecryptedBlob */
-export interface FetchDecryptOptions {
-  /** Override the total size for progress calculation (from Content-Length by default) */
-  knownSize?: number;
-  /** Called with progress percentage (0-100) as chunks arrive */
-  onProgress?: (percent: number) => void;
-}
+export interface FetchDecryptOptions { knownSize?: number; onProgress?: (percent: number) => void }
 
-/**
- * Fetch an encrypted file, decrypt it, and return as a Blob.
- * Progress tracked against Content-Length header or knownSize override.
- */
-export async function fetchDecryptedBlob(
-  slug: string,
-  key: string,
-  password: string,
-  options: FetchDecryptOptions = {}
-): Promise<Blob> {
+export async function fetchDecryptedBlob(slug: string, key: string, password: string, opts: FetchDecryptOptions = {}): Promise<Blob> {
   const res = await fetch(Api.DOWNLOAD(slug));
-  if (!res.ok) {
-    if (res.status === 404) throw new Error('File not found');
-    if (res.status === 410) throw new Error('File expired or limit reached');
-    throw new Error('Download failed');
-  }
+  if (!res.ok) throw new Error(res.status === 404 ? 'File not found' : res.status === 410 ? 'File expired or limit reached' : 'Download failed');
   if (!res.body) throw new Error('No response body');
 
-  const totalSize = options.knownSize
-    ?? parseInt(res.headers.get('content-length') ?? '0', 10);
+  const total = opts.knownSize ?? parseInt(res.headers.get('content-length') ?? '0', 10);
+  const src = opts.onProgress && total > 0 ? wrapProgress(res.body, total, opts.onProgress) : res.body;
+  const { stream } = await createDecryptedStream(src, key, password);
 
-  const sourceStream = options.onProgress && totalSize > 0
-    ? wrapProgress(res.body, totalSize, options.onProgress)
-    : res.body;
-
-  const { stream: decrypted } = await createDecryptedStream(
-    sourceStream,
-    key,
-    password
-  );
-
-  // Read first chunk to catch password errors early
-  const reader = decrypted.getReader();
-  let firstChunk: Uint8Array | undefined;
+  const reader = stream.getReader();
+  let first: Uint8Array | undefined;
   try {
     const { done, value } = await reader.read();
-    if (!done) firstChunk = value;
+    if (!done) first = value;
   } catch (e: any) {
-    if (e.name === 'OperationError') {
-      await reader.cancel('Wrong password');
-      throw new PasswordRequiredError();
-    }
+    if (e.name === 'OperationError') { await reader.cancel('Wrong password'); throw new PasswordRequiredError(); }
     throw e;
   }
 
-  // Collect remaining chunks
   const chunks: Uint8Array[] = [];
-  if (firstChunk) chunks.push(firstChunk);
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-  }
-
+  if (first) chunks.push(first);
+  for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); }
   const blob = new Blob(chunks as BlobPart[], { type: 'application/zip' });
-
-  // Validate that we got enough data for a ZIP file
-  if (chunks.length === 0 || blob.size < 4) {
-    throw new Error('Decryption produced no output data');
-  }
-
+  if (chunks.length === 0 || blob.size < 4) throw new Error('Decryption produced no output data');
   return blob;
 }
 
-/** Wrap a ReadableStream to emit download progress as a percentage. */
-function wrapProgress(
-  source: ReadableStream<Uint8Array>,
-  total: number,
-  onProgress: (percent: number) => void
-): ReadableStream<Uint8Array> {
+function wrapProgress(src: ReadableStream<Uint8Array>, total: number, onProgress: (p: number) => void): ReadableStream<Uint8Array> {
   let loaded = 0;
-  const srcReader = source.getReader();
+  const r = src.getReader();
   return new ReadableStream({
-    async pull(controller) {
-      const { done, value } = await srcReader.read();
-      if (done) {
-        controller.close();
-        return;
-      }
+    async pull(c) {
+      const { done, value } = await r.read();
+      if (done) { c.close(); return; }
       loaded += value.byteLength;
       onProgress(Math.round((loaded / total) * 100));
-      controller.enqueue(value);
+      c.enqueue(value);
     },
-    cancel(reason) {
-      return srcReader.cancel(reason);
-    }
+    cancel(reason) { return r.cancel(reason); },
   });
 }
