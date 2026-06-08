@@ -1,10 +1,20 @@
-const fmt = (ts: number, dateStyle: Intl.DateTimeFormat['dateStyle'], timeStyle: Intl.DateTimeFormat['timeStyle'] = 'short') =>
-  new Intl.DateTimeFormat('en-US', { dateStyle, timeStyle }).format(new Date(typeof ts === 'number' ? ts * 1000 : ts));
+const tz = 'UTC';
+
+function toZdt(instant: Temporal.Instant) {
+  return instant.toZonedDateTimeISO(Temporal.Now.timeZoneId());
+}
 
 export function formatDate(value: string | number | undefined, options?: Intl.DateTimeFormatOptions): string {
   if (!value) return 'N/A';
-  const date = typeof value === 'number' ? new Date(value * 1000) : new Date(value);
-  return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short', ...options });
+  try {
+    const instant = typeof value === 'number' ? Temporal.Instant.from({ epochSeconds: value }) : Temporal.Instant.from(value);
+    return toZdt(instant).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short', ...options });
+  } catch { return 'N/A'; }
 }
 
-export function formatDateLong(ts: number): string { return fmt(ts, 'long'); }
+export function formatDateLong(ts: number): string {
+  try {
+    const instant = Temporal.Instant.from({ epochSeconds: ts });
+    return toZdt(instant).toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
+  } catch { return 'N/A'; }
+}

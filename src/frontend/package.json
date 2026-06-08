@@ -17,6 +17,7 @@
 		"update-ui": "node --experimental-strip-types scripts/update-ui.ts"
 	},
 	"dependencies": {
+		"temporal-polyfill": "^0.4.0",
 		"takumi-js": "^1.0.15"
 	},
 	"devDependencies": {

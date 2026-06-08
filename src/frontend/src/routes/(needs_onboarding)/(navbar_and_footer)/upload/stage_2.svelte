@@ -103,7 +103,7 @@
       const finalLink = `${origin}${downloadPath}`;
       const viewOnceLink = viewOnce ? `${origin}/once/${serverPath}#${keySecret}` : '';
 
-      addHistoryEntry({ id: serverPath, name: files.length === 1 ? files[0].name : folderName, link: viewOnce ? viewOnceLink : finalLink, expiry: Date.now() + parseInt(timeLimit) * 1000, downloadLimit: viewOnce ? '1' : downloadLimit, createdAt: Date.now(), size: totalSize });
+      addHistoryEntry({ id: serverPath, name: files.length === 1 ? files[0].name : folderName, link: viewOnce ? viewOnceLink : finalLink, expiry: Temporal.Now.instant().epochMilliseconds + parseInt(timeLimit) * 1000, downloadLimit: viewOnce ? '1' : downloadLimit, createdAt: Temporal.Now.instant().epochMilliseconds, size: totalSize });
       onUploadComplete({ finalLink, viewOnceLink, isViewOnce: viewOnce });
       toast.success(viewOnce ? 'View Once link created' : 'Upload complete');
     } catch (err: any) { console.error('Upload failed', err); toast.error('Upload failed: ' + (err?.message ?? err)); }

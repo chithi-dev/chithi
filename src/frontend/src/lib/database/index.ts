@@ -22,6 +22,8 @@ const write = async <T>(fn: (store: IDBObjectStore) => Promise<T>) => {
   await refresh();
 };
 
+const now = () => Temporal.Now.instant().epochMilliseconds;
+
 export const getHistory = async (): Promise<UploadEntry[]> => {
   try {
     const db = await openDB();
@@ -29,9 +31,9 @@ export const getHistory = async (): Promise<UploadEntry[]> => {
     return new Promise((resolve, reject) => {
       const req = tx.objectStore(STORE).getAll();
       req.onsuccess = () => {
-        const now = Date.now();
+        const t = now();
         for (const e of req.result as UploadEntry[]) if (e.link.includes('?secret=')) e.link = e.link.replace('?secret=', '#');
-        resolve(req.result.filter((e: UploadEntry) => e.expiry > now).sort((a: UploadEntry, b: UploadEntry) => b.createdAt - a.createdAt));
+        resolve(req.result.filter((e: UploadEntry) => e.expiry > t).sort((a: UploadEntry, b: UploadEntry) => b.createdAt - a.createdAt));
       };
       req.onerror = () => reject(req.error);
     });
@@ -50,6 +52,6 @@ export const updateHistoryEntry = (id: string, updates: Partial<UploadEntry>) =>
 }));
 export const cleanupExpiredEntries = () => withError('cleanup history', () => write(async (s) => {
   const entries = await new Promise<UploadEntry[]>((r, j) => { const req = s.getAll(); req.onsuccess = () => r(req.result); req.onerror = () => j(req.error); });
-  const now = Date.now();
-  for (const e of entries) if (e.expiry <= now) s.delete(e.id);
+  const t = now();
+  for (const e of entries) if (e.expiry <= t) s.delete(e.id);
 }));

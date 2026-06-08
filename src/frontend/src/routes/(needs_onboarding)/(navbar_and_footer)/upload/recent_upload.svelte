@@ -31,6 +31,8 @@
 		return res.json();
 	};
 
+	const formatExpiry = (ms: number) => Temporal.Instant.from({ epochMilliseconds: ms }).toZonedDateTimeISO(Temporal.Now.timeZoneId()).toLocaleString('en-US');
+
 	$effect(() => {
 		const init = async () => {
 			await cleanupExpiredEntries();
@@ -46,8 +48,8 @@
 						await updateHistoryEntry(entry.id, {
 							name: info.filename,
 							size: formatFileSize(info.size),
-							expiry: new Date(info.expires_at).getTime(),
-							createdAt: new Date(info.created_at).getTime(),
+							expiry: Temporal.Instant.from(info.expires_at).epochMilliseconds,
+							createdAt: Temporal.Instant.from(info.created_at).epochMilliseconds,
 							downloadCount: info.download_count
 						});
 					} catch (error) {
@@ -119,7 +121,7 @@
 										>
 									</div>
 									<div class="text-xs text-muted-foreground">
-										Exp: {new Date(entry.expiry).toLocaleString()}
+										Exp: {formatExpiry(entry.expiry)}
 									</div>
 								</div>
 								<Button

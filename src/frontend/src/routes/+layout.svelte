@@ -1,4 +1,5 @@
 <script lang="ts">
+  import 'temporal-polyfill';
   import '#css/fonts.scss';
   import '#css/nprogress.scss';
   import '#css/tailwind.css';
