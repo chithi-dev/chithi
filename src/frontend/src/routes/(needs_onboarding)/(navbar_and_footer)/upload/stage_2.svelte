@@ -356,6 +356,7 @@
 						</Select.Content>
 					</Select.Root>
 				</div>
+			</div>
 			<div class="flex h-9 items-center gap-2">
 				<div class="flex items-center">
 					<input

@@ -211,7 +211,13 @@
                       </div>
                       {#if streaming || processing}
                         <div class="flex items-center gap-2 text-xs text-muted-foreground">
-                          {#if isDecrypting || processing}<span class="animate-pulse">Decrypting…</span><span class="font-mono">{decryptionProgress.current.toFixed(0)}%}{:else}<span class="animate-pulse">Receiving…</span><span class="font-mono">{streamProgress.toFixed(0)}%}{/if}
+                          {#if isDecrypting || processing}
+                            <span class="animate-pulse">Decrypting…</span>
+                            <span class="font-mono">{decryptionProgress.current.toFixed(0)}%</span>
+                          {:else}
+                            <span class="animate-pulse">Receiving…</span>
+                            <span class="font-mono">{streamProgress.toFixed(0)}%</span>
+                          {/if}
                         </div>
                       {/if}
                       <div class="flex items-center gap-1">
