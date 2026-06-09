@@ -1,0 +1,14 @@
+[package]
+name = "wasm_binding"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+chithi-core = { workspace = true }
+sevenz-rust2 = { workspace = true, features = ["aes256_wasm"] }
+wasm-bindgen = { workspace = true }
+js-sys = { workspace = true }
+getrandom = { workspace = true }

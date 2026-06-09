@@ -1,0 +1,12 @@
+[package]
+name = "chithi-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sevenz-rust2 = { workspace = true }
+rayon = { workspace = true, optional = true }
+
+[features]
+default = ["rayon"]
+rayon = ["dep:rayon"]

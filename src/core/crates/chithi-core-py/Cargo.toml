@@ -1,0 +1,12 @@
+[package]
+name = "chithi-core-py"
+version.workspace = true
+edition.workspace = true
+
+[lib]
+name = "python_binding"
+crate-type = ["cdylib"]
+
+[dependencies]
+chithi-core = { workspace = true }
+pyo3 = { workspace = true }

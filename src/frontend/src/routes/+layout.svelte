@@ -13,7 +13,7 @@
   import type { LayoutData } from './$types';
   import { type Component, type Snippet } from 'svelte';
   import { MetaTags, deepMerge } from 'svelte-meta-tags';
-  import { WORKER_CONCURRENCY } from '#consts/concurrency';
+  import { ensureInitialized } from '$lib/wasm/chithi_wasm';
 
   let { children, data }: { children: Snippet; data: LayoutData } = $props();
   const loadDevtools = async () => { if (!import.meta.env.DEV) return null; const mod = await import('@tanstack/svelte-query-devtools'); return mod.SvelteQueryDevtools; };
@@ -22,7 +22,7 @@
 
   $effect.pre(() => {
     let cancelled = false;
-    (async () => { const { configure } = await import('@zip.js/zip.js'); if (cancelled) return; configure({ useWebWorkers: true, maxWorkers: WORKER_CONCURRENCY }); })();
+    (async () => { if (cancelled) return; await ensureInitialized(); })();
     return () => { cancelled = true; };
   });
 
