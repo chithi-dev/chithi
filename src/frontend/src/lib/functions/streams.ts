@@ -1,9 +1,9 @@
 import { WORKER_CONCURRENCY } from '#consts/concurrency';
 import { HKDF_IV_STR, HKDF_SALT_STR } from '#consts/encryption';
-import DecryptWorker from '#workers/crypto/decrypt.worker?worker';
-import EncryptWorker from '#workers/crypto/encrypt.worker?worker';
+import CryptoWorker from '#workers/crypto/crypto.worker?worker';
 import { ZipWriter } from '@zip.js/zip.js';
-import { CHUNK_SIZE, argon2Derive, base64url, base64urlToBytes, deriveAESKeyFromIKM, getChunkIv, xorBytes } from './encryption';
+import { CHUNK_SIZE, argon2Derive, base64url, base64urlToBytes, deriveAESKeyFromIKM, deriveAESKeyRaw, xorBytes } from './encryption';
+import { wasmEncryptChunk, wasmDecryptChunk, wasmGetChunkNonce, ensureInitialized } from '#wasm/chithi_wasm';
 
 const usedNames = new Map<string, number>();
 const makeUnique = (name: string) => {
@@ -19,12 +19,13 @@ async function deriveSecrets(ikm: Uint8Array, password?: string) {
   let finalIKM = ikm;
   if (password?.length) {
     const salt = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array([...ikm, ...enc.encode(HKDF_SALT_STR)]))).slice(0, 16);
-    finalIKM = xorBytes(ikm, await argon2Derive(enc.encode(password), salt, 32, 16384, 32, 1));
+    finalIKM = xorBytes(ikm, await argon2Derive(enc.encode(password), salt, 32, 16384, 32));
   }
   const hkdfSalt = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode('aes-key')]))).slice(0, 16);
   const baseIv = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode(HKDF_IV_STR)]))).slice(0, 12);
   const aesKey = await deriveAESKeyFromIKM(finalIKM, hkdfSalt);
-  return { aesKey, baseIv, finalIKM };
+  const keyRaw = await deriveAESKeyRaw(finalIKM, hkdfSalt);
+  return { aesKey, keyRaw, baseIv, finalIKM };
 }
 
 interface WCtx {
@@ -37,8 +38,7 @@ interface WCtx {
 
 type WCtor = new () => Worker;
 
-async function initPool(ctx: WCtx, Ctor: WCtor, aesKey: CryptoKey, baseIv: Uint8Array, n: number, onMsg: (d: any) => Promise<void>, label: string) {
-  const keyRaw = await crypto.subtle.exportKey('raw', aesKey);
+async function initPool(ctx: WCtx, Ctor: WCtor, keyRaw: Uint8Array, baseIv: Uint8Array, n: number, onMsg: (d: any) => Promise<void>, label: string) {
   const inits = Array.from({ length: n }, (_, i) => new Promise<Worker | null>((res) => {
     try {
       const w = new Ctor();
@@ -77,15 +77,15 @@ function flush(ctx: WCtx, fallback = 0) {
 
 function fail(ctx: WCtx, e: Error) { ctx.doneRej?.(e); ctx.ctrl?.error(e); }
 
-async function proc(ctx: WCtx, idx: number, chunk: Uint8Array, aesKey: CryptoKey, baseIv: Uint8Array, op: 'encrypt' | 'decrypt') {
+async function proc(ctx: WCtx, idx: number, chunk: Uint8Array, keyRaw: Uint8Array, baseIv: Uint8Array, op: 'encrypt' | 'decrypt') {
   if (ctx.workers.length) { dispatch(ctx, op, idx, chunk); return; }
   ctx.pending++;
   try {
-    const iv = getChunkIv(baseIv, idx);
-    const buf = chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.byteLength);
-    const result = await crypto.subtle[op]({ name: 'AES-GCM', iv: iv as any }, aesKey, buf as ArrayBuffer);
+    const nonce = wasmGetChunkNonce(baseIv, idx);
+    const encryptFn = op === 'encrypt' ? wasmEncryptChunk : wasmDecryptChunk;
+    const result = encryptFn(chunk, keyRaw, nonce);
     ctx.pending--;
-    ctx.results.set(idx, new Uint8Array(result));
+    ctx.results.set(idx, result);
     flush(ctx, chunk.byteLength);
   } catch (err) { fail(ctx, err as Error); }
 }
@@ -120,7 +120,7 @@ export async function createEncryptedStream(
   onProgress?: (p: number, t?: number) => void, ikmOverride?: Uint8Array
 ) {
   const ikm = ikmOverride ?? crypto.getRandomValues(new Uint8Array(32));
-  const { aesKey, baseIv } = await deriveSecrets(ikm, password);
+  const { keyRaw, baseIv } = await deriveSecrets(ikm, password);
   const chunks: Uint8Array[] = [], ctx: WCtx = {
     workers: [], next: 0, results: new Map(), qi: 0, pending: 0, doneRes: null, doneRej: null,
     ended: false, ctrl: null, processed: 0, chunkSizes: new Map(), origSize, onProgress,
@@ -144,16 +144,17 @@ export async function createEncryptedStream(
   const transformer = new TransformStream<Uint8Array, Uint8Array>({
     async start(controller) {
       ctx.ctrl = controller;
-      await initPool(ctx, EncryptWorker, aesKey, baseIv, WORKER_CONCURRENCY,
+      await ensureInitialized();
+      await initPool(ctx, CryptoWorker, keyRaw, baseIv, WORKER_CONCURRENCY,
         async (d) => { if (d?.type === 'encrypted') { ctx.pending--; ctx.results.set(d.index, new Uint8Array(d.encrypted)); flush(ctx); } else fail(ctx, new Error(d?.message || 'Worker error')); },
-        'EncryptWorker');
+        'CryptoWorker');
     },
     async transform(chunk) {
       chunks.push(chunk); buf += chunk.length;
-      while (buf >= CHUNK_SIZE) { ctx.chunkSizes!.set(ctx.qi, CHUNK_SIZE); await proc(ctx, ctx.qi++, read(CHUNK_SIZE), aesKey, baseIv, 'encrypt'); }
+      while (buf >= CHUNK_SIZE) { ctx.chunkSizes!.set(ctx.qi, CHUNK_SIZE); await proc(ctx, ctx.qi++, read(CHUNK_SIZE), keyRaw, baseIv, 'encrypt'); }
     },
     async flush() {
-      if (buf > 0) { ctx.chunkSizes!.set(ctx.qi, buf); await proc(ctx, ctx.qi++, read(buf), aesKey, baseIv, 'encrypt'); }
+      if (buf > 0) { ctx.chunkSizes!.set(ctx.qi, buf); await proc(ctx, ctx.qi++, read(buf), keyRaw, baseIv, 'encrypt'); }
       ctx.ended = true;
       if (ctx.pending > 0) await allDone;
       ctx.workers.forEach(w => { try { w.terminate(); } catch { /* noop */ } });
@@ -167,7 +168,7 @@ export async function createDecryptedStream(
   inputStream: ReadableStream<Uint8Array>, keySecret: string, password?: string,
   origSize?: number, onProgress?: (p: number, t?: number) => void
 ) {
-  const { aesKey, baseIv } = await deriveSecrets(base64urlToBytes(keySecret), password);
+  const { keyRaw, baseIv } = await deriveSecrets(base64urlToBytes(keySecret), password);
   const reader = inputStream.getReader();
   let buffer = new Uint8Array(0);
   const TAG = 16, ECS = CHUNK_SIZE + TAG, ci = { v: 0 };
@@ -183,12 +184,13 @@ export async function createDecryptedStream(
   return new ReadableStream<Uint8Array>({
     async start(controller) {
       ctx.ctrl = controller;
-      await initPool(ctx, DecryptWorker, aesKey, baseIv, WORKER_CONCURRENCY,
+      await ensureInitialized();
+      await initPool(ctx, CryptoWorker, keyRaw, baseIv, WORKER_CONCURRENCY,
         async (d) => {
           if (d?.type === 'decrypted') { ctx.pending--; ctx.results.set(d.index, new Uint8Array(d.decrypted)); flush(ctx); }
           else { const err = new Error(d?.message || 'Worker error'); if (d?.name) err.name = d.name; fail(ctx, err); }
         },
-        'DecryptWorker');
+        'CryptoWorker');
     },
     async pull(controller) {
       while (buffer.length < ECS) {
@@ -206,7 +208,7 @@ export async function createDecryptedStream(
       const last = buffer.length < ECS;
       const data = buffer.slice(0, last ? buffer.length : ECS);
       buffer = buffer.slice(last ? buffer.length : ECS);
-      await proc(ctx, ci.v++, data, aesKey, baseIv, 'decrypt');
+      await proc(ctx, ci.v++, data, keyRaw, baseIv, 'decrypt');
       if (last && !ctx.pending) { flush(ctx); controller.close(); }
     },
     cancel() { term(); },

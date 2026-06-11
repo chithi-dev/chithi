@@ -1,28 +1,4 @@
 /**
- * Derive a key using Argon2id.
- * Returns a typed Uint8Array of the derived key bytes.
- * @param {Uint8Array} password
- * @param {Uint8Array} salt
- * @param {number} iterations
- * @param {number} memory_cost_kib
- * @param {number} hash_length
- * @returns {Uint8Array}
- */
-export function argon2_derive(password, salt, iterations, memory_cost_kib, hash_length) {
-    const ptr0 = passArray8ToWasm0(password, wasm.__wbindgen_malloc);
-    const len0 = WASM_VECTOR_LEN;
-    const ptr1 = passArray8ToWasm0(salt, wasm.__wbindgen_malloc);
-    const len1 = WASM_VECTOR_LEN;
-    const ret = wasm.argon2_derive(ptr0, len0, ptr1, len1, iterations, memory_cost_kib, hash_length);
-    if (ret[3]) {
-        throw takeFromExternrefTable0(ret[2]);
-    }
-    var v3 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
-    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
-    return v3;
-}
-
-/**
  * Compresses multiple entries into a 7z archive in WebAssembly environment.
  *
  * This function creates a compressed archive from multiple file entries,
@@ -41,6 +17,27 @@ export function compress(entries, datas) {
     const ptr1 = passArrayJsValueToWasm0(datas, wasm.__wbindgen_malloc);
     const len1 = WASM_VECTOR_LEN;
     const ret = wasm.compress(ptr0, len0, ptr1, len1);
+    if (ret[2]) {
+        throw takeFromExternrefTable0(ret[1]);
+    }
+    return takeFromExternrefTable0(ret[0]);
+}
+
+/**
+ * Compress files into a 7z archive with optional AES-256 encryption.
+ * @param {any[]} names
+ * @param {Uint8Array[]} datas
+ * @param {string} password
+ * @returns {Uint8Array}
+ */
+export function compress_7z(names, datas, password) {
+    const ptr0 = passArrayJsValueToWasm0(names, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passArrayJsValueToWasm0(datas, wasm.__wbindgen_malloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ptr2 = passStringToWasm0(password, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len2 = WASM_VECTOR_LEN;
+    const ret = wasm.compress_7z(ptr0, len0, ptr1, len1, ptr2, len2);
     if (ret[2]) {
         throw takeFromExternrefTable0(ret[1]);
     }
@@ -71,20 +68,25 @@ export function decompress(src, pwd, f) {
 }
 
 /**
- * Generate a random 32-byte IKM.
- * Returns a typed Uint8Array.
- * @returns {Uint8Array}
+ * Decompress a 7z archive with optional password for encrypted archives.
+ * Calls the callback for each entry with (name, data, type).
+ * @param {Uint8Array} data
+ * @param {string} password
+ * @param {Function} callback
  */
-export function generate_ikm() {
-    const ret = wasm.generate_ikm();
-    var v1 = getArrayU8FromWasm0(ret[0], ret[1]).slice();
-    wasm.__wbindgen_free(ret[0], ret[1] * 1, 1);
-    return v1;
+export function decompress_7z(data, password, callback) {
+    const ptr0 = passArray8ToWasm0(data, wasm.__wbindgen_malloc);
+    const len0 = WASM_VECTOR_LEN;
+    const ptr1 = passStringToWasm0(password, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+    const len1 = WASM_VECTOR_LEN;
+    const ret = wasm.decompress_7z(ptr0, len0, ptr1, len1, callback);
+    if (ret[1]) {
+        throw takeFromExternrefTable0(ret[0]);
+    }
 }
 
 /**
  * Validate that the given bytes are a 7z archive.
- * Returns true if valid, false if not.
  * @param {Uint8Array} data
  * @returns {boolean}
  */
@@ -93,23 +95,6 @@ export function validate_7z(data) {
     const len0 = WASM_VECTOR_LEN;
     const ret = wasm.validate_7z(ptr0, len0);
     return ret !== 0;
-}
-export function __wbg___wbindgen_is_function_147961669f068cd4(arg0) {
-    const ret = typeof(arg0) === 'function';
-    return ret;
-}
-export function __wbg___wbindgen_is_object_3a2c414391dbf751(arg0) {
-    const val = arg0;
-    const ret = typeof(val) === 'object' && val !== null;
-    return ret;
-}
-export function __wbg___wbindgen_is_string_6541b0f6ecd4e8e5(arg0) {
-    const ret = typeof(arg0) === 'string';
-    return ret;
-}
-export function __wbg___wbindgen_is_undefined_4410e3c20a99fa97(arg0) {
-    const ret = arg0 === undefined;
-    return ret;
 }
 export function __wbg___wbindgen_string_get_fa2687d531ed17a5(arg0, arg1) {
     const obj = arg1;
@@ -122,27 +107,19 @@ export function __wbg___wbindgen_string_get_fa2687d531ed17a5(arg0, arg1) {
 export function __wbg___wbindgen_throw_bbadd78c1bac3a77(arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1));
 }
+export function __wbg_call_2ad4e88518737145() { return handleError(function (arg0, arg1, arg2, arg3, arg4) {
+    const ret = arg0.call(arg1, arg2, arg3, arg4);
+    return ret;
+}, arguments); }
 export function __wbg_call_c00e41735f66c175() { return handleError(function (arg0, arg1, arg2, arg3) {
     const ret = arg0.call(arg1, arg2, arg3);
     return ret;
 }, arguments); }
-export function __wbg_call_ec09a4cf93377d3a() { return handleError(function (arg0, arg1, arg2) {
-    const ret = arg0.call(arg1, arg2);
-    return ret;
-}, arguments); }
-export function __wbg_crypto_38df2bab126b63dc(arg0) {
-    const ret = arg0.crypto;
-    return ret;
-}
-export function __wbg_getRandomValues_c44a50d8cfdaebeb() { return handleError(function (arg0, arg1) {
-    arg0.getRandomValues(arg1);
+export function __wbg_getRandomValues_76dfc69825c9c552() { return handleError(function (arg0, arg1) {
+    globalThis.crypto.getRandomValues(getArrayU8FromWasm0(arg0, arg1));
 }, arguments); }
 export function __wbg_length_68a9d5278d084f4f(arg0) {
     const ret = arg0.length;
-    return ret;
-}
-export function __wbg_msCrypto_bd5a034af96bcba6(arg0) {
-    const ret = arg0.msCrypto;
     return ret;
 }
 export function __wbg_new_from_slice_bb2d1778c0b87eb1(arg0, arg1) {
@@ -153,24 +130,9 @@ export function __wbg_new_with_length_4b57a7a5dc67221c(arg0) {
     const ret = new Uint8Array(arg0 >>> 0);
     return ret;
 }
-export function __wbg_node_84ea875411254db1(arg0) {
-    const ret = arg0.node;
-    return ret;
-}
-export function __wbg_process_44c7a14e11e9f69e(arg0) {
-    const ret = arg0.process;
-    return ret;
-}
 export function __wbg_prototypesetcall_956c7493c68e29b4(arg0, arg1, arg2) {
     Uint8Array.prototype.set.call(getArrayU8FromWasm0(arg0, arg1), arg2);
 }
-export function __wbg_randomFillSync_6c25eac9869eb53c() { return handleError(function (arg0, arg1) {
-    arg0.randomFillSync(arg1);
-}, arguments); }
-export function __wbg_require_b4edbdcf3e2a1ef0() { return handleError(function () {
-    const ret = module.require;
-    return ret;
-}, arguments); }
 export function __wbg_set_86698c227e5b9dad(arg0, arg1, arg2) {
     arg0.set(getArrayU8FromWasm0(arg1, arg2));
 }
@@ -178,36 +140,7 @@ export function __wbg_slice_15944ce53b061b7b(arg0, arg1, arg2) {
     const ret = arg0.slice(arg1 >>> 0, arg2 >>> 0);
     return ret;
 }
-export function __wbg_static_accessor_GLOBAL_60a4124bab7dcc9a() {
-    const ret = typeof global === 'undefined' ? null : global;
-    return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
-}
-export function __wbg_static_accessor_GLOBAL_THIS_95ca6460658b5d13() {
-    const ret = typeof globalThis === 'undefined' ? null : globalThis;
-    return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
-}
-export function __wbg_static_accessor_SELF_4c95f759a91e9aae() {
-    const ret = typeof self === 'undefined' ? null : self;
-    return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
-}
-export function __wbg_static_accessor_WINDOW_44b435597f9e9ee7() {
-    const ret = typeof window === 'undefined' ? null : window;
-    return isLikeNone(ret) ? 0 : addToExternrefTable0(ret);
-}
-export function __wbg_subarray_42216645a367cd7a(arg0, arg1, arg2) {
-    const ret = arg0.subarray(arg1 >>> 0, arg2 >>> 0);
-    return ret;
-}
-export function __wbg_versions_276b2795b1c6a219(arg0) {
-    const ret = arg0.versions;
-    return ret;
-}
 export function __wbindgen_cast_0000000000000001(arg0, arg1) {
-    // Cast intrinsic for `Ref(Slice(U8)) -> NamedExternref("Uint8Array")`.
-    const ret = getArrayU8FromWasm0(arg0, arg1);
-    return ret;
-}
-export function __wbindgen_cast_0000000000000002(arg0, arg1) {
     // Cast intrinsic for `Ref(String) -> Externref`.
     const ret = getStringFromWasm0(arg0, arg1);
     return ret;

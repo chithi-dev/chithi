@@ -72,6 +72,19 @@ export async function argon2Derive(
     return await argon2DeriveWasm(pwdBytes, salt, iterations, memKb, hashLength);
 }
 
+export async function deriveAESKeyRaw(
+    ikm: Uint8Array,
+    hkdfSalt: Uint8Array,
+): Promise<Uint8Array> {
+    return await argon2DeriveWasm(
+        ikm,
+        hkdfSalt,
+        DEFAULT_ARGON2_ITERATIONS,
+        Math.min(DEFAULT_ARGON2_MEMORY_KIB, MAX_ARGON2_MEMORY_KIB),
+        32,
+    );
+}
+
 export type InnerEncryptionMeta = {
     cipher: 'AES-GCM';
     hkdf: { hash: 'SHA-512'; salt: string };

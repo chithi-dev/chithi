@@ -1,18 +1,20 @@
 import init, {
     type InitInput,
-    compress,
-    decompress,
+    compress_7z,
+    decompress_7z,
     validate_7z,
-    argon2_derive,
-    generate_ikm
+    wasm_encrypt_chunk,
+    wasm_decrypt_chunk,
+    wasm_get_chunk_nonce,
+    wasm_derive_key,
+    WasmKeychain
 } from './wasm_binding.js';
+
+import { argon2_derive, generate_ikm } from './chithi_core.js';
 
 let initialized = false;
 let initPromise: Promise<void> | null = null;
 
-/**
- * Initialize the WASM module. Safe to call multiple times.
- */
 export async function ensureInitialized(): Promise<void> {
     if (initialized) return;
     if (initPromise) return initPromise;
@@ -25,25 +27,19 @@ export interface SevenEntry {
     data: Uint8Array;
 }
 
-/**
- * Compress files into a 7z archive.
- * Fully typed — accepts file names and data as separate typed arrays.
- */
-export function compress7z(entries: { name: string; data: Uint8Array }[]): Uint8Array {
-    const names = entries.map(e => e.name);
-    const datas = entries.map(e => e.data);
-    return compress(names, datas);
+export function compress7z(entries: { name: string; data: Uint8Array }[], password?: string): Uint8Array {
+    return compress_7z(
+        entries.map(e => e.name),
+        entries.map(e => e.data),
+        password ?? ''
+    );
 }
 
-/**
- * Decompress a 7z archive.
- * Fully typed — callback receives (name: string, data: Uint8Array) for each entry.
- */
-export function decompress7z(data: Uint8Array): Promise<SevenEntry[]> {
+export function decompress7z(data: Uint8Array, password?: string): Promise<SevenEntry[]> {
     return new Promise((resolve, reject) => {
         try {
             const entries: SevenEntry[] = [];
-            decompress(data, '', (name: string, entryData: Uint8Array) => {
+            decompress_7z(data, password ?? '', (name: string, entryData: Uint8Array) => {
                 entries.push({ name, data: entryData });
             });
             resolve(entries);
@@ -53,30 +49,15 @@ export function decompress7z(data: Uint8Array): Promise<SevenEntry[]> {
     });
 }
 
-/**
- * Validate that the given bytes are a 7z archive.
- */
 export function validate7z(data: Uint8Array): boolean {
     return validate_7z(data);
 }
 
-/**
- * Derive a key using Argon2id.
- * Fully typed — accepts Uint8Array inputs, returns Uint8Array output.
- */
-export function argon2Derive(
-    password: Uint8Array,
-    salt: Uint8Array,
-    iterations: number,
-    memoryCostKib: number,
-    hashLength = 32
-): Uint8Array {
-    return argon2_derive(password, salt, iterations, memoryCostKib, hashLength);
-}
-
-/**
- * Generate a random 32-byte IKM.
- */
-export function generateIkm(): Uint8Array {
-    return generate_ikm();
-}
+// Crypto exports
+export const argon2DeriveWasm = argon2_derive;
+export const generateIkmWasm = generate_ikm;
+export const wasmEncryptChunk = wasm_encrypt_chunk;
+export const wasmDecryptChunk = wasm_decrypt_chunk;
+export const wasmGetChunkNonce = wasm_get_chunk_nonce;
+export const wasmDeriveKey = wasm_derive_key;
+export { WasmKeychain };

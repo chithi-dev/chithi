@@ -34,7 +34,8 @@ export default {
 			'#markdown/*': './src/lib/markdown/*',
 			'#consts/*': './src/lib/consts/*',
 			'#css/*': './src/css/*',
-				'#errors/*': './src/lib/errors/*'
+				'#errors/*': './src/lib/errors/*',
+				'#wasm/*': './src/lib/wasm/*'
 		}
 	}
 };
