@@ -3,7 +3,7 @@ use aes::Aes256;
 use base64::{Engine, engine::general_purpose::STANDARD as B64};
 use ed25519_dalek::{Signer, SigningKey, Verifier};
 use rand::rngs::OsRng;
-use rand_core::RngCore;
+use rand::RngCore;
 
 type Aes256Cbc = cbc::Encryptor<Aes256>;
 type Aes256CbcDec = cbc::Decryptor<Aes256>;
