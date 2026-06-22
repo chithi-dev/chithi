@@ -1,88 +1,121 @@
-import os
-import tempfile
 from pathlib import Path
 
-import pyzipper
-from tqdm import tqdm
+from app.chithi_core_bridge import chithi_core
+from app.chithi_exceptions import ChithiError, CryptoError, ValidationError
+from app.chithi_types import EncryptedBundle
+
+__all__ = [
+    "compress_and_encrypt",
+    "decrypt_and_decompress",
+    "read_file_entry",
+    "read_directory_entries",
+    "EncryptedBundle",
+]
 
 
-def _get_source_size(source: Path) -> int:
-    """Return the size of a file or total size of a directory tree."""
+def read_file_entry(filepath: Path) -> tuple[str, bytes]:
+    """Read a single file and return (name, data)."""
+    path = Path(filepath)
+    if not path.exists():
+        raise ValidationError(f"File not found: {path}")
+    if not path.is_file():
+        raise ValidationError(f"Not a file: {path}")
+    return (path.name, path.read_bytes())
+
+
+def read_directory_entries(dirpath: Path) -> list[tuple[str, bytes]]:
+    """Read all files in a directory and return list of (relative_path, data)."""
+    path = Path(dirpath)
+    if not path.exists():
+        raise ValidationError(f"Directory not found: {path}")
+    if not path.is_dir():
+        raise ValidationError(f"Not a directory: {path}")
+
+    entries: list[tuple[str, bytes]] = []
+    for f in sorted(path.rglob("*")):
+        if f.is_file():
+            rel = str(f.relative_to(path))
+            entries.append((rel, f.read_bytes()))
+    return entries
+
+
+def compress_and_encrypt(
+    source: Path, *, password: str
+) -> EncryptedBundle:
+    """Compress and encrypt a file or directory.
+
+    Pipeline:
+    1. Read file(s) into memory
+    2. Compress into 7z archive (LZMA2)
+    3. Split into 32KB chunks
+    4. Encrypt each chunk with AES-256-GCM (parallel across all cores)
+    5. Sign bundle with Ed25519
+
+    Args:
+        source: Path to a file or directory.
+        password: Encryption password.
+
+    Returns:
+        EncryptedBundle containing the encrypted data and crypto metadata.
+    """
     if source.is_file():
-        return source.stat().st_size
-    return sum(f.stat().st_size for f in source.rglob("*") if f.is_file())
+        files = [(source.name, source.read_bytes())]
+    else:
+        files = read_directory_entries(source)
+
+    if not files:
+        raise ValidationError("No files to encrypt")
+    if not password:
+        raise ValidationError("Password must not be empty")
+
+    try:
+        bundle_bytes = chithi_core.upload(files, password)
+    except ValueError as e:
+        raise ChithiError(str(e)) from e
+
+    return EncryptedBundle(bytes(bundle_bytes))
 
 
-def compress(source: Path, dest: Path, password: str | None = None) -> Path:
+def decrypt_and_decompress(
+    bundle: EncryptedBundle | bytes,
+    output_dir: Path,
+    *,
+    password: str,
+) -> list[Path]:
+    """Decrypt and decompress a bundle to disk.
+
+    Pipeline:
+    1. Verify Ed25519 signature
+    2. Derive encryption key (Argon2id + HKDF)
+    3. Decrypt chunks with AES-256-GCM (parallel across all cores)
+    4. Decompress 7z archive (LZMA2)
+    5. Write files to output directory
+
+    Args:
+        bundle: Encrypted bundle or raw bytes.
+        output_dir: Directory to write files to.
+        password: Decryption password.
+
+    Returns:
+        List of Path objects for the written files.
     """
-    Compress a file or directory to a ZIP archive using pyzipper.
-    Enables AES-256 encryption if password is set.
-    """
-    total_size = _get_source_size(source)
+    if not password:
+        raise ValidationError("Password must not be empty")
 
-    encryption_kwargs = {}
-    if password:
-        encryption_kwargs["encryption"] = pyzipper.WZ_AES
+    raw_bytes: bytes = bundle.raw if isinstance(bundle, EncryptedBundle) else bytes(bundle)
 
-    with tqdm(
-        total=total_size,
-        unit="B",
-        unit_scale=True,
-        desc="Compressing",
-        leave=False,
-    ) as pbar:
-        with pyzipper.AESZipFile(
-            str(dest),
-            mode="w",
-            compression=pyzipper.ZIP_DEFLATED,
-            compresslevel=9,
-            **encryption_kwargs,
-        ) as zf:
-            if password:
-                zf.setpassword(password.encode("utf-8"))
-                zf.setencryption(pyzipper.WZ_AES, nbits=256)
+    try:
+        raw_files = chithi_core.download(raw_bytes, password)
+    except ValueError as e:
+        raise CryptoError(f"Decryption failed: {e}") from e
 
-            if source.is_dir():
-                files = [f for f in source.rglob("*") if f.is_file()]
-                for f in files:
-                    arcname = str(f.relative_to(source.parent))
-                    zf.write(f, arcname=arcname)
-                    pbar.update(f.stat().st_size)
-            else:
-                zf.write(source, arcname=source.name)
-                pbar.update(total_size)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
 
-    return dest
+    for name, data in raw_files:
+        dest = output_dir / name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(bytes(data))
+        written.append(dest)
 
-
-def decompress(archive: Path, dest: Path, password: str | None = None) -> Path:
-    """Extract a ZIP archive to *dest*."""
-    dest.mkdir(parents=True, exist_ok=True)
-
-    with pyzipper.AESZipFile(str(archive), "r") as zf:
-        if password:
-            zf.setpassword(password.encode("utf-8"))
-
-        infos = zf.infolist()
-        total_size = sum(i.file_size for i in infos if not i.is_dir())
-
-        with tqdm(
-            total=total_size,
-            unit="B",
-            unit_scale=True,
-            desc="Extracting",
-            leave=False,
-        ) as pbar:
-            for info in infos:
-                zf.extract(info, path=str(dest))
-                if not info.is_dir():
-                    pbar.update(info.file_size)
-
-    return dest
-
-
-def create_temp_archive() -> Path:
-    """Create a temporary path for a ZIP archive."""
-    fd, path = tempfile.mkstemp(suffix=".zip", prefix="chithi_")
-    os.close(fd)
-    return Path(path)
+    return written

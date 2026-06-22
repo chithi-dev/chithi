@@ -1,4 +1,3 @@
-import os
 import tempfile
 from pathlib import Path
 from typing import Annotated, Any
@@ -8,10 +7,7 @@ from rich.console import Console
 
 from app import client
 from app.builder.urls import UrlBuilder
-from app.helpers.archive import compress
-from app.helpers.crypto import encrypt, generate_ikm, ikm_to_base64url
-from app.helpers.file import cleanup
-from app.helpers.print import export_qr_svg, print_branded_qr
+from app.helpers.archive import compress_and_encrypt
 
 app: typer.AsyncTyper = typer.AsyncTyper(help="Upload encrypted files via Chithi.")
 console: Console = Console()
@@ -38,6 +34,13 @@ async def upload(
 ) -> None:
     """Compress, encrypt, and upload a file or folder, then print the share link."""
     try:
+        # Require a password (SDK enforces non-empty)
+        if not password:
+            password = typer.prompt("Enter encryption password", hide_input=True)
+            if not password:
+                error_console.print("[red]Password must not be empty.[/red]")
+                raise typer.Exit(code=1)
+
         # Resolve URLs based on input/prompts
         urls = UrlBuilder.resolve(instance_url)
 
@@ -58,29 +61,25 @@ async def upload(
             assert expire_seconds is not None
             assert expire_downloads is not None
 
-            # Setup temporary paths
-            fd_zip, tmp_zip_str = tempfile.mkstemp(suffix=".zip", prefix="chithi_")
-            os.close(fd_zip)
-            fd_enc, tmp_enc_str = tempfile.mkstemp(suffix=".enc", prefix="chithi_")
-            os.close(fd_enc)
+            # Compress and encrypt using SDK (parallel across all cores)
+            bundle = compress_and_encrypt(path, password=password)
 
-            tmp_zip, tmp_enc = Path(tmp_zip_str), Path(tmp_enc_str)
+            # Write bundle to temp file for upload
+            fd, tmp_path_str = tempfile.mkstemp(suffix=".enc", prefix="chithi_")
+            tmp_path = Path(tmp_path_str)
 
             try:
-                # Processing: Compress -> Encrypt -> Upload
-                compress(path, tmp_zip, password=password)
-                ikm = generate_ikm()
-                encrypt(tmp_zip, tmp_enc, ikm=ikm, password=password)
-                key_secret = ikm_to_base64url(ikm)
+                tmp_path.write_bytes(bundle.raw)
 
+                # Upload encrypted bundle
                 result: dict[str, Any] = await c.upload_file(
-                    tmp_enc,
-                    filename=filename or path.name,
+                    tmp_path,
+                    filename=filename or f"{path.name}.enc",
                     expire_after_n_download=expire_downloads,
                     expire_after=expire_seconds,
                 )
 
-                # Extract identifier from response (matches backend FileOut schema)
+                # Extract identifier from response
                 slug_value = result.get("key") or result.get("path") or result.get("id")
                 slug = str(slug_value) if slug_value is not None else None
                 if not slug:
@@ -88,30 +87,31 @@ async def upload(
                         "Server response did not include a file identifier."
                     )
 
-                # Construct the link
-                download_url = urls.share_url(slug, key_secret)
+                # Construct the link (key not needed in URL - bundle contains all metadata)
+                download_url = urls.share_url(slug, "")
 
             finally:
-                cleanup(tmp_zip, tmp_enc)
+                tmp_path.unlink(missing_ok=True)
 
         # UI Output Logic
         if minimal:
-            # Clean output for scripts or pipes
             console.print(download_url, highlight=False, markup=False)
         else:
-            # Pretty output
             console.print("\n[green]✓ Upload complete![/green]")
             if not no_qr:
+                from app.helpers.print import print_branded_qr
+
                 print_branded_qr(download_url, console)
             console.print(f"\n  Download URL : {download_url}")
-            if password:
-                console.print(
-                    "  [yellow]⚠ Password-protected. Recipients will need the password to decrypt.[/yellow]"
-                )
+            console.print(
+                "  [yellow]Password-protected. Recipients will need the password to decrypt.[/yellow]"
+            )
             if save_qr:
+                from app.helpers.print import export_qr_svg
+
                 export_qr_svg(download_url, str(save_qr))
                 console.print(f"  [dim]QR code saved to {save_qr}[/dim]")
 
     except Exception as exc:
-        error_console.print(f"[red]✗ Upload failed: {exc}[/red]")
+        error_console.print(f"[red]Upload failed: {exc}[/red]")
         raise typer.Exit(code=1)

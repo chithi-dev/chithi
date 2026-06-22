@@ -8,8 +8,7 @@ from rich.console import Console
 
 from app import client
 from app.builder.urls import UrlBuilder
-from app.helpers.archive import decompress
-from app.helpers.crypto import base64url_to_ikm, decrypt
+from app.helpers.archive import decrypt_and_decompress
 
 app = typer.AsyncTyper(help="Download encrypted files via Chithi.")
 console: Console = Console()
@@ -25,25 +24,30 @@ async def download(
 ) -> None:
     """Download a file from the public instance."""
     try:
+        if not password:
+            password = typer.prompt("Enter decryption password", hide_input=True)
+            if not password:
+                error_console.print("[red]Password must not be empty.[/red]")
+                raise typer.Exit(code=1)
+
         slug = ""
-        key_secret = ""
         inferred_url: str | None = None
 
         # Parse the input link
         if "://" in link:
             parsed = urlparse(link)
-            key_secret = parsed.fragment
             path_parts = [p for p in parsed.path.split("/") if p]
-            if not key_secret or not path_parts:
+            if not path_parts:
                 raise ValueError(
                     "Link must be in format: https://domain/download/SLUG#KEY"
                 )
             slug = path_parts[-1]
             inferred_url = f"{parsed.scheme}://{parsed.netloc}"
         elif "#" in link:
-            slug, key_secret = link.split("#", 1)
+            slug, _ = link.split("#", 1)
         else:
-            raise ValueError("Invalid format. Use URL or SLUG#KEY")
+            # Plain slug
+            slug = link
 
         urls = UrlBuilder.resolve(initial_url=(instance_url or inferred_url))
 
@@ -51,22 +55,20 @@ async def download(
         with tempfile.TemporaryDirectory(prefix="chithi_") as tmp_dir:
             tmp_path = Path(tmp_dir)
             tmp_dl = tmp_path / "encrypted.bin"
-            tmp_zip = tmp_path / "decrypted.zip"
 
-            # Download
+            # Download encrypted bundle
             async with client.Client(urls) as c:
                 await c.download_to_file(slug, tmp_dl)
 
-            # Decrypt
-            ikm = base64url_to_ikm(key_secret)
-            decrypt(tmp_dl, tmp_zip, ikm=ikm, password=password)
+            # Read bundle data
+            bundle_data = tmp_dl.read_bytes()
 
-            #  Decompress
+            # Decrypt and decompress using SDK (parallel across all cores)
             out_path = output.resolve()
-            decompress(tmp_zip, out_path, password=password)
+            decrypt_and_decompress(bundle_data, out_path, password=password)
 
-            console.print(f"\n[green]✓ Success! Extracted to {out_path}[/green]")
+            console.print(f"\n[green]Success! Extracted to {out_path}[/green]")
 
     except Exception as exc:
-        error_console.print(f"[red]✗ Download failed: {exc}[/red]")
+        error_console.print(f"[red]Download failed: {exc}[/red]")
         raise typer.Exit(1)
