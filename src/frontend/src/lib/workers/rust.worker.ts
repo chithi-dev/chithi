@@ -1,4 +1,10 @@
-import init, { compress, decompress, validate_7z, argon2_derive, generate_ikm } from '$lib/wasm/chithi_core.js';
+import init, {
+    compress_7z,
+    decompress_7z,
+    validate_7z,
+    wasm_argon2_derive,
+    wasm_generate_ikm
+} from '#wasm/chithi_wasm';
 
 let ready = false;
 
@@ -10,7 +16,7 @@ async function initWasm() {
 
 initWasm().catch(() => {
     ready = false;
-    postMessage({ type: 'error', message: '7z worker init failed' });
+    postMessage({ type: 'error', message: 'Rust worker init failed' });
 });
 
 export interface MsgIn {
@@ -32,16 +38,14 @@ self.onmessage = async function (e: MessageEvent) {
                 const entries = msg.entries as { name: string; data: Uint8Array }[];
                 const names = entries.map((e: any) => e.name);
                 const datas = entries.map((e: any) => e.data);
-                const result = compress(names, datas);
+                const result = compress_7z(names, datas, '');
                 postMessage({ type: 'compressed', id: msg.id, data: result });
                 break;
             }
             case 'decompress': {
                 const data = msg.data as Uint8Array;
-                const entries: Array<{ name: string; data: Uint8Array }> = [];
-                decompress(data, '', (name: string, entryData: Uint8Array) => {
-                    entries.push({ name, data: entryData });
-                });
+                const result = decompress_7z(data, '');
+                const entries = result.map((e: any) => ({ name: e.name, data: e.data }));
                 postMessage({ type: 'decompressed', id: msg.id, entries });
                 break;
             }
@@ -52,7 +56,7 @@ self.onmessage = async function (e: MessageEvent) {
                 break;
             }
             case 'argon2_derive': {
-                const result = argon2_derive(
+                const result = wasm_argon2_derive(
                     msg.password as Uint8Array,
                     msg.salt as Uint8Array,
                     msg.iterations as number,
@@ -63,7 +67,7 @@ self.onmessage = async function (e: MessageEvent) {
                 break;
             }
             case 'generate_ikm': {
-                const ikm = generate_ikm();
+                const ikm = wasm_generate_ikm();
                 postMessage({ type: 'ikm_generated', id: msg.id, ikm });
                 break;
             }

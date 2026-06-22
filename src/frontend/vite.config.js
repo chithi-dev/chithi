@@ -6,6 +6,6 @@ export default defineConfig({
         sveltekit(),
     ],
     optimizeDeps: {
-        exclude: ['./src/lib/wasm/wasm_binding.js'],
+        exclude: ['./src/lib/wasm/wasm_bindings.js'],
     },
 });

@@ -1,5 +1,3 @@
-import { validate7z, validate7z as validate7zAsync } from '#wasm/chithi_wasm';
-
 const SEVENZ_MAGIC = new Uint8Array([0x37, 0x7A, 0xBC, 0xAF, 0x27, 0x1C]);
 
 function validate(data: Uint8Array): void {

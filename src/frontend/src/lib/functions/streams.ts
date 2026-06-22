@@ -2,7 +2,7 @@ import { WORKER_CONCURRENCY } from '#consts/concurrency';
 import { HKDF_IV_STR, HKDF_SALT_STR } from '#consts/encryption';
 import CryptoWorker from '#workers/crypto/crypto.worker?worker';
 import { ZipWriter } from '@zip.js/zip.js';
-import { CHUNK_SIZE, argon2Derive, base64url, base64urlToBytes, deriveAESKeyFromIKM, deriveAESKeyRaw, xorBytes } from './encryption';
+import { CHUNK_SIZE, argon2Derive, base64url, base64urlToBytes, deriveAESKeyRaw, xorBytes } from './encryption';
 import { wasmEncryptChunk, wasmDecryptChunk, wasmGetChunkNonce, ensureInitialized } from '#wasm/chithi_wasm';
 
 const usedNames = new Map<string, number>();
@@ -23,9 +23,8 @@ async function deriveSecrets(ikm: Uint8Array, password?: string) {
   }
   const hkdfSalt = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode('aes-key')]))).slice(0, 16);
   const baseIv = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode(HKDF_IV_STR)]))).slice(0, 12);
-  const aesKey = await deriveAESKeyFromIKM(finalIKM, hkdfSalt);
   const keyRaw = await deriveAESKeyRaw(finalIKM, hkdfSalt);
-  return { aesKey, keyRaw, baseIv, finalIKM };
+  return { keyRaw, baseIv, finalIKM };
 }
 
 interface WCtx {
