@@ -1,0 +1,24 @@
+# Build outputs
+**/target/
+**/dist/
+**/build/
+**/__pycache__/
+**/*.pyc
+**/*.egg-info/
+
+# Dependencies
+**/node_modules/
+
+# Virtual environments
+**/.venv/
+**/venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db

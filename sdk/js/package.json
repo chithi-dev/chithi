@@ -1,0 +1,33 @@
+{
+  "name": "@chithi/sdk",
+  "version": "0.1.0",
+  "description": "Chithi SDK — encrypted file upload/download with parallel compression and encryption",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build:wasm": "wasm-pack build ../rust/crates/wasm_bindings --target web --out-dir wasm --release",
+    "build:ts": "tsc",
+    "copy:wasm": "node -e \"const fs=require('fs');fs.cpSync('wasm','dist/wasm',{recursive:true,force:true})\"",
+    "build": "npm run build:wasm && npm run build:ts && npm run copy:wasm",
+    "build:quick": "npm run build:ts && npm run copy:wasm",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
