@@ -44,12 +44,12 @@
   const resetDrag = (clearCounter = true) => { if (clearCounter) dragCounter = 0; dragActive = false; dragOverZone = false; dragOverCard = false; };
 
   const handleWindowDragEnter = (e: DragEvent) => { if (!g3(e)) return; dragCounter++; e.dataTransfer && (e.dataTransfer.dropEffect = 'copy'); dragActive = true; };
-  const handleWindowDragLeave = () => { if (stage === UploadStage.Stage_3) return; dragCounter--; if (dragCounter <= 0) resetDrag(); };
-  const handleWindowDragOver = () => { if (!g3()) return; dragActive ||= true; };
+  const handleWindowDragLeave = (e: DragEvent) => { if (stage === UploadStage.Stage_3) return; e.preventDefault(); dragCounter--; if (dragCounter <= 0) resetDrag(); };
+  const handleWindowDragOver = (e: DragEvent) => { if (!g3(e)) return; e.preventDefault(); dragActive ||= true; };
   const handleWindowDrop = (e: DragEvent) => { if (!g3(e)) return; resetDrag(); if (e.dataTransfer?.types.includes('Files')) toast.error('File/folder must be dropped into the bordered area in the dashed circle'); };
-  const handleCardDragEnter = (e: DragEvent) => { if (!g3(e)) return; dragOverCard = true; };
+  const handleCardDragEnter = (e: DragEvent) => { if (!g3(e)) return; e.preventDefault(); dragOverCard = true; };
   const handleCardDragLeave = (e: DragEvent) => { if (stage === UploadStage.Stage_3) return; const ct = e.currentTarget as Node; if (!ct?.contains(e.relatedTarget as Node)) dragOverCard = false; };
-  const handleZoneDragEnter = () => { dragOverZone = true; };
+  const handleZoneDragEnter = (e: DragEvent) => { e.preventDefault(); dragOverZone = true; };
   const handleZoneDragLeave = (e: DragEvent) => { const ct = e.currentTarget as Node; if (!ct?.contains(e.relatedTarget as Node)) dragOverZone = false; };
 
   const handlePaste = async (e: ClipboardEvent) => {
@@ -61,19 +61,19 @@
     if (newFiles.length > 0) onFilesSelected(newFiles);
   };
 
-  const onFilesSelected = $derived((newFiles: File[], folderName?: string) => {
+  const onFilesSelected = (newFiles: File[], folderName?: string) => {
     if (folderName) initialFolderName = folderName;
     files = [...files, ...newFiles];
     resetDrag();
     stage = UploadStage.Stage_2;
     window.history.pushState({ stage: UploadStage.Stage_2 }, '', window.location.href);
-  });
+  };
 
-  const onUploadComplete = $derived((result: { finalLink: string; viewOnceLink: string; isViewOnce: boolean }) => {
+  const onUploadComplete = (result: { finalLink: string; viewOnceLink: string; isViewOnce: boolean }) => {
     uploadResult = result;
     stage = UploadStage.Stage_3;
     window.history.pushState({ stage: UploadStage.Stage_3 }, '', window.location.href);
-  });
+  };
 
   const resetState = (mode: 'push' | 'replace' = 'push') => {
     files = []; uploadResult = null; stage = UploadStage.Stage_1; resetDrag();
