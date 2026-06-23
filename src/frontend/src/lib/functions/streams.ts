@@ -1,6 +1,6 @@
 import { WORKER_CONCURRENCY } from '#consts/concurrency';
 import { HKDF_IV_STR, HKDF_SALT_STR } from '#consts/encryption';
-import CryptoWorker from '#workers/crypto/crypto.worker?worker';
+import ChithiWorker from '#workers/chithi.worker?worker';
 import { ZipWriter } from '@zip.js/zip.js';
 import { CHUNK_SIZE, argon2Derive, base64url, base64urlToBytes, deriveAESKeyRaw, xorBytes } from './encryption';
 import { wasmEncryptChunk, wasmDecryptChunk, wasmGetChunkNonce, ensureInitialized } from '#wasm/chithi_wasm';
@@ -144,9 +144,9 @@ export async function createEncryptedStream(
     async start(controller) {
       ctx.ctrl = controller;
       await ensureInitialized();
-      await initPool(ctx, CryptoWorker, keyRaw, baseIv, WORKER_CONCURRENCY,
+      await initPool(ctx, ChithiWorker, keyRaw, baseIv, WORKER_CONCURRENCY,
         async (d) => { if (d?.type === 'encrypted') { ctx.pending--; ctx.results.set(d.index, new Uint8Array(d.encrypted)); flush(ctx); } else fail(ctx, new Error(d?.message || 'Worker error')); },
-        'CryptoWorker');
+        'ChithiWorker');
     },
     async transform(chunk) {
       chunks.push(chunk); buf += chunk.length;
@@ -184,12 +184,12 @@ export async function createDecryptedStream(
     async start(controller) {
       ctx.ctrl = controller;
       await ensureInitialized();
-      await initPool(ctx, CryptoWorker, keyRaw, baseIv, WORKER_CONCURRENCY,
+      await initPool(ctx, ChithiWorker, keyRaw, baseIv, WORKER_CONCURRENCY,
         async (d) => {
           if (d?.type === 'decrypted') { ctx.pending--; ctx.results.set(d.index, new Uint8Array(d.decrypted)); flush(ctx); }
           else { const err = new Error(d?.message || 'Worker error'); if (d?.name) err.name = d.name; fail(ctx, err); }
         },
-        'CryptoWorker');
+        'ChithiWorker');
     },
     async pull(controller) {
       while (buffer.length < ECS) {
