@@ -1,18 +1,21 @@
 <script lang="ts">
-	import { Button, buttonVariants } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Select from '$lib/components/ui/select';
-	import { ScrollArea } from '$lib/components/ui/scroll-area';
+	import { Button, buttonVariants } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
+	import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
+	import * as Switch from '$lib/components/ui/switch/index.js';
+	import * as Empty from '$lib/components/ui/empty/index.js';
 	import { useConfigQuery } from '#queries/config';
 	import { Plus, ArrowLeft, X, FileIcon, Eye, EyeOff, Trash2, Upload } from '@lucide/svelte';
+  import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { formatFileSize } from '#functions/bytes';
 	import { formatSeconds } from '#functions/times';
 	import { clipboardFiles, hasFileItems } from '#functions/file-tree';
 	import { createZipStream, createEncryptedStream } from '#functions/streams';
-	import * as Tooltip from '$lib/components/ui/tooltip';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { v7 as uuidv7 } from 'uuid';
 	import { Api } from '#consts/backend';
-	import { Progress } from '$lib/components/ui/progress';
+	import { Progress } from '$lib/components/ui/progress/index.js';
 	import { addHistoryEntry } from '$lib/database';
 	import { toast } from 'svelte-sonner';
 	import { cubicOut } from 'svelte/easing';
@@ -213,7 +216,7 @@
 			</div>
 			<div class="flex flex-col gap-0.5">
 				<div class="text-sm leading-none font-medium">{file.name}</div>
-				<div class="text-xs text-foreground">
+				<div class="text-xs text-muted-foreground">
 					{#if (file as any).relativePath}<span class="block max-w-50 truncate text-xs opacity-70"
 							>{(file as any).relativePath}</span
 						>{/if}
@@ -235,14 +238,12 @@
 		<div class="relative mb-8 flex h-40 w-40 items-center justify-center">
 			<div class="absolute inset-0 animate-pulse rounded-full bg-primary/5"></div>
 			<div class="absolute inset-0 rounded-full border-4 border-muted/20"></div>
-			<div
-				class="absolute inset-0 animate-spin rounded-full border-4 border-transparent border-t-primary shadow-[0_0_15px_-3px_var(--primary)]"
-				style="animation-duration: 1.5s; animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);"
-			></div>
-			<div
-				class="absolute inset-3 animate-spin rounded-full border-4 border-transparent border-t-primary/70 border-r-primary/30"
-				style="animation-duration: 2s; animation-direction: reverse; animation-timing-function: linear;"
-			></div>
+			<div class="absolute inset-0 flex items-center justify-center">
+				<Spinner class="size-20 text-primary" aria-label="Encrypting and uploading" />
+			</div>
+			<div class="absolute inset-0 flex items-center justify-center">
+				<Spinner class="size-16 text-primary/70" aria-label="Progress" />
+			</div>
 			<div class="relative z-10"><Upload class="h-12 w-12 text-primary drop-shadow-md" /></div>
 		</div>
 		<h3 class="mb-2 text-2xl font-semibold tracking-tight">Encrypting & Uploading...</h3>
@@ -358,18 +359,9 @@
 				</div>
 			</div>
 			<div class="flex h-9 items-center gap-2">
-				<div class="flex items-center">
-					<input
-						type="checkbox"
-						id="password"
-						bind:checked={isPasswordProtected}
-						class="mr-2 h-4 w-4 rounded border-primary text-primary focus:ring-primary"
-					/>
-					<label
-						for="password"
-						class="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-						>Protect with password</label
-					>
+				<div class="flex items-center gap-2">
+					<Switch.Root bind:checked={isPasswordProtected} aria-label="Protect with password" />
+					<span class="text-sm leading-none font-medium">Protect with password</span>
 				</div>
 				{#if isPasswordProtected}
 					<div class="relative max-w-xs flex-1">
@@ -382,7 +374,7 @@
 						<button
 							type="button"
 							onclick={() => (showPassword = !showPassword)}
-							class="absolute -translate-y/2 right-3 text-muted-foreground hover:text-foreground"
+							class="absolute top-1 right-3 text-muted-foreground hover:text-foreground"
 						>
 							{#if showPassword}<EyeOff class="h-4 w-4" />{:else}<Eye class="h-4 w-4" />{/if}
 						</button>
@@ -418,10 +410,10 @@
 		{/if}
 	</div>
 {:else}
-	<div class="flex h-full w-full items-center justify-center">
-		<div class="flex flex-col items-center gap-4">
-			<Upload class="h-8 w-8 text-muted-foreground" />
-			<p class="text-sm text-muted-foreground">No files selected</p>
-		</div>
-	</div>
+	<Empty.Root class="flex h-full w-full items-center justify-center">
+		<Empty.Media><Upload class="h-8 w-8" /></Empty.Media>
+		<Empty.Header>
+			<Empty.Title class="text-sm">No files selected</Empty.Title>
+		</Empty.Header>
+	</Empty.Root>
 {/if}

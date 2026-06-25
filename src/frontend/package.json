@@ -40,7 +40,7 @@
 		"@jsquash/oxipng": "^2.3.0",
 		"@jsquash/png": "^3.1.1",
 		"@jsquash/qoi": "^1.1.0",
-		"@lucide/svelte": "^1.16.0",
+		"@lucide/svelte": "^1.21.0",
 		"@resvg/resvg-wasm": "^2.6.2",
 		"@sveltejs/adapter-node": "^5.5.4",
 		"@sveltejs/kit": "^2.58.0",
@@ -50,6 +50,7 @@
 		"@tailwindcss/vite": "=4.3.0",
 		"@tanstack/svelte-query": "^6.1.25",
 		"@tanstack/svelte-query-devtools": "^6.1.25",
+		"@tanstack/table-core": "^8.21.3",
 		"@testing-library/svelte": "^5.3.1",
 		"@types/caniuse-lite": "^1.0.5",
 		"@types/d3": "^7.4.3",
@@ -75,6 +76,7 @@
 		"mode-watcher": "^1.1.0",
 		"nprogress": "^0.2.0",
 		"playwright": "^1.59.1",
+		"postcss-import": "^16.1.1",
 		"prettier": "^3.8.3",
 		"prettier-plugin-organize-imports": "^4.3.0",
 		"prettier-plugin-packagejson": "^3.0.2",
@@ -104,10 +106,14 @@
 		"typescript-eslint": "^8.59.1",
 		"unified": "^11.0.5",
 		"uuid": "^14.0.0",
+		"vaul-svelte": "^1.0.0-next.7",
 		"vite": "^8.0.9",
 		"vite-plugin-top-level-await": "^1.6.0",
 		"vite-plugin-wasm": "^3.6.0",
 		"vitest": "^4.1.4",
 		"zod": "^4.3.6"
+	},
+	"allowScripts": {
+		"@swc/core@1.15.41": true
 	}
 }
