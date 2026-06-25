@@ -1,9 +1,8 @@
 <script lang="ts">
+  import { Badge } from '$lib/components/ui/badge/index.js';
   import { ExternalLink, GitCommitHorizontal } from '@lucide/svelte';
 
-  export let href: string;
-  export let sha: string;
-  export let label: string = 'Source Revision';
+  let { href, sha, label = 'Source Revision' }: { href: string; sha: string; label?: string } = $props();
 </script>
 
 <div class="space-y-1">
@@ -16,9 +15,9 @@
     target="_blank"
     rel="noopener noreferrer"
     title={sha}
-    class="group flex items-center gap-2 font-mono text-sm font-semibold text-primary transition-colors hover:text-primary/80"
+    class="group inline-flex items-center gap-2 transition-colors hover:opacity-80"
   >
-    <span class="truncate">{sha.slice(0, 12)}</span>
+    <Badge variant="outline" class="font-mono text-xs">{sha.slice(0, 12)}</Badge>
     <ExternalLink class="h-3 w-3 shrink-0 opacity-40 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:opacity-100" />
   </a>
 </div>
