@@ -5,6 +5,8 @@
 	import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
 	import * as Switch from '$lib/components/ui/switch/index.js';
 	import * as Empty from '$lib/components/ui/empty/index.js';
+	import * as Alert from '$lib/components/ui/alert/index.js';
+	import * as Kbd from '$lib/components/ui/kbd/index.js';
 	import { useConfigQuery } from '#queries/config';
 	import { Plus, ArrowLeft, X, FileIcon, Eye, EyeOff, Trash2, Upload } from '@lucide/svelte';
   import { Spinner } from '$lib/components/ui/spinner/index.js';
@@ -51,6 +53,7 @@
 	const fmtUnit = (val: number, unit: string) => (val === 1 ? unit.slice(0, -1) : unit);
 	let inProgress = $state(false);
 	let isEncrypting = $state(false);
+	let uploadError = $state('');
 	const newTween = () => new Tween(0, { duration: 500, easing: cubicOut });
 	let encryptionProgress = $state(newTween());
 	let uploadProgress = $state(newTween());
@@ -117,6 +120,7 @@
 			return;
 		}
 		try {
+			uploadError = '';
 			inProgress = true;
 			uploadProgress = newTween();
 			const stream = await createZipStream(files, isPasswordProtected ? password : undefined);
@@ -186,6 +190,7 @@
 			toast.success(viewOnce ? 'View Once link created' : 'Upload complete');
 		} catch (err: any) {
 			console.error('Upload failed', err);
+			uploadError = err?.message ?? String(err);
 			toast.error('Upload failed: ' + (err?.message ?? err));
 		} finally {
 			inProgress = false;
@@ -306,6 +311,11 @@
 				onclick={() => fileInput?.click()}
 				><Plus class="mr-1 h-4 w-4" />Select files to upload</button
 			>
+			<Kbd.Root class="ml-2">
+				<Kbd>Ctrl</Kbd>
+				<Kbd class="mx-0.5">+</Kbd>
+				<Kbd>V</Kbd>
+			</Kbd.Root>
 			<input
 				bind:this={fileInput}
 				type="file"
@@ -407,6 +417,12 @@
 					<Tooltip.Content>View Once requires exactly one file</Tooltip.Content>
 				</Tooltip.Root>
 			</Tooltip.Provider>
+		{/if}
+		{#if uploadError}
+			<Alert.Root variant="destructive" class="mt-4">
+				<Alert.Title>Upload failed</Alert.Title>
+				<Alert.Description>{uploadError}</Alert.Description>
+			</Alert.Root>
 		{/if}
 	</div>
 {:else}
