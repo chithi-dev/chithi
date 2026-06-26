@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import 'tailwindcss/index.css';
 @import 'tw-animate-css';
 @plugin '@tailwindcss/typography';
 
@@ -42,23 +42,32 @@
 	--sidebar-accent-foreground: oklch(0.205 0 0);
 	--sidebar-border: oklch(0.922 0 0);
 	--sidebar-ring: oklch(0.708 0 0);
+
+	/* Grid pattern gradients */
+	--grid-gradient: linear-gradient(to_right, #00000008 1px, transparent 1px),
+	                 linear-gradient(to_bottom, #00000008 1px, transparent 1px);
+	--grid-gradient-dark: linear-gradient(to_right, #ffffff08 1px, transparent 1px),
+	                      linear-gradient(to_bottom, #ffffff08 1px, transparent 1px);
 }
 
 .dark {
+	--dark-surface: oklch(0.14479 0.00002 271.152);
+	--dark-text: oklch(0.985 0 0);
+
 	--background: oklch(10.668% 0.00001 271.152);
-	--foreground: oklch(0.985 0 0);
-	--card: oklch(14.479% 0.00002 271.152);
-	--card-foreground: oklch(0.985 0 0);
-	--popover: oklch(14.479% 0.00002 271.152);
-	--popover-foreground: oklch(0.985 0 0);
+	--foreground: var(--dark-text);
+	--card: var(--dark-surface);
+	--card-foreground: var(--dark-text);
+	--popover: var(--dark-surface);
+	--popover-foreground: var(--dark-text);
 	--primary: oklch(0.922 0 0);
-	--primary-foreground: oklch(14.479% 0.00002 271.152);
-	--secondary: oklch(14.479% 0.00002 271.152);
-	--secondary-foreground: oklch(0.985 0 0);
-	--muted: oklch(14.479% 0.00002 271.152);
+	--primary-foreground: var(--dark-surface);
+	--secondary: var(--dark-surface);
+	--secondary-foreground: var(--dark-text);
+	--muted: var(--dark-surface);
 	--muted-foreground: oklch(0.708 0 0);
 	--accent: oklch(0.371 0 0);
-	--accent-foreground: oklch(0.985 0 0);
+	--accent-foreground: var(--dark-text);
 	--destructive: oklch(0.704 0.191 22.216);
 	--border: oklch(1 0 0 / 10%);
 	--input: oklch(1 0 0 / 15%);
@@ -68,12 +77,12 @@
 	--chart-3: oklch(0.769 0.188 70.08);
 	--chart-4: oklch(0.627 0.265 303.9);
 	--chart-5: oklch(0.645 0.246 16.439);
-	--sidebar: oklch(14.479% 0.00002 271.152);
-	--sidebar-foreground: oklch(0.985 0 0);
+	--sidebar: var(--dark-surface);
+	--sidebar-foreground: var(--dark-text);
 	--sidebar-primary: oklch(0.922 0 0);
-	--sidebar-primary-foreground: oklch(14.479% 0.00002 271.152);
+	--sidebar-primary-foreground: var(--dark-surface);
 	--sidebar-accent: oklch(10.668% 0.00001 271.152);
-	--sidebar-accent-foreground: oklch(0.985 0 0);
+	--sidebar-accent-foreground: var(--dark-text);
 	--sidebar-border: oklch(1 0 0 / 10%);
 	--sidebar-ring: oklch(0.439 0 0);
 }

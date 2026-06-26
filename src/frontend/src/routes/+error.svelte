@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Button } from '$lib/components/ui/button';
-	import * as Card from '$lib/components/ui/card';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Card from '$lib/components/ui/card/index.js';
 	import { RefreshCw, ShieldAlert } from '@lucide/svelte';
 	import { fly } from 'svelte/transition';
 
@@ -24,7 +24,7 @@
 			class="absolute -right-24 -bottom-24 h-125 w-125 rounded-full bg-orange-500/10 blur-[120px] dark:bg-orange-500/10"
 		></div>
 		<div
-			class="absolute inset-0 bg-[linear-gradient(to_right,#00000008_1px,transparent_1px),linear-gradient(to_bottom,#00000008_1px,transparent_1px)] mask-[radial-gradient(ellipse_at_center,black,transparent_90%)] bg-size-[40px_40px] dark:bg-[linear-gradient(to_right,#ffffff08_1px,transparent_1px),linear-gradient(to_bottom,#ffffff08_1px,transparent_1px)]"
+			class="absolute inset-0 bg-[var(--grid-gradient)] mask-[radial-gradient(ellipse_at_center,black,transparent_90%)] bg-size-[40px_40px] dark:bg-[var(--grid-gradient-dark)]"
 		></div>
 	</div>
 
