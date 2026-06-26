@@ -18,6 +18,6 @@
 
 	<!-- Grid Pattern -->
 	<div
-		class="absolute inset-0 bg-[var(--grid-gradient)] mask-[radial-gradient(ellipse_at_center,black,transparent_80%)] bg-size-[40px_40px] dark:bg-[var(--grid-gradient-dark)]"
+		class="absolute inset-0 bg-[var(--grid-gradient)] mask-[radial-gradient(ellipse_at_center,black,transparent_80%)] bg-size-[40px_40px]"
 	></div>
 </div>
