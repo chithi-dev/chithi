@@ -8,29 +8,46 @@ export const queryKey = ['auth-user'];
 
 const fetchUser = async ({ fetch }: { fetch?: typeof globalThis.fetch } = {}) => {
 	if (browser && user_store.is_authenticated === false) return null;
-	const res = await (fetch ?? globalThis.fetch)(Api.USER, { credentials: 'include' });
+
+	const res = await (fetch ?? globalThis.fetch)(Api.USER, {
+		credentials: 'include'
+	});
+
 	if (!res.ok || [401, 403].includes(res.status)) {
 		if (browser) user_store.unauthenticate();
 		await logoutRemote();
 		return null;
 	}
+
 	if (browser) user_store.authenticate();
 	return res.json();
 };
 
-export const prefetch = async ({ queryClient, fetch }: { queryClient: QueryClient; fetch?: typeof globalThis.fetch }) =>
-	queryClient.prefetchQuery({ queryKey, queryFn: () => fetchUser({ fetch }), staleTime: Infinity, retry: false });
+export const prefetch = async ({ queryClient, fetch }: { queryClient: QueryClient; fetch?: typeof globalThis.fetch }) => {
+	await queryClient.prefetchQuery({
+		queryKey: queryKey,
+		queryFn: () => fetchUser({ fetch }),
+		staleTime: Infinity,
+		retry: false
+	});
+};
 
 export const useAuth = () => {
-	const qc = useQueryClient();
-	const query = createQuery(() => ({ queryKey, queryFn: () => fetchUser(), staleTime: Infinity, retry: false }));
+	const queryClient = useQueryClient();
+
+	const query = createQuery(() => ({
+		queryKey: queryKey,
+		queryFn: () => fetchUser({}),
+		staleTime: Infinity,
+		retry: false
+	}));
 
 	const login = async (username: string, password: string) => {
 		if (!browser) return;
 		try {
 			await loginRemote({ username, password });
 			user_store.authenticate();
-			await qc.invalidateQueries({ queryKey });
+			await queryClient.invalidateQueries({ queryKey });
 		} catch (error) {
 			user_store.unauthenticate();
 			throw new Error(error instanceof Error ? error.message : 'Invalid username or password');
@@ -39,16 +56,28 @@ export const useAuth = () => {
 
 	const updateUser = async (data: { username?: string; email?: string | null }) => {
 		if (!browser) return;
+
 		const res = await fetch(Api.ADMIN.USER_UPDATE, {
 			method: 'PATCH',
-			headers: { 'Content-Type': 'application/json' },
+			headers: {
+				'Content-Type': 'application/json'
+			},
 			credentials: 'include',
 			body: JSON.stringify(data)
 		});
-		if (!res.ok) throw new Error((await res.json()).detail || 'Failed to update user');
-		await qc.invalidateQueries({ queryKey });
+
+		if (!res.ok) {
+			const err = await res.json();
+			throw new Error(err.detail || 'Failed to update user');
+		}
+
+		await queryClient.invalidateQueries({ queryKey: queryKey });
 		return res.json();
 	};
 
-	return { user: query, login, updateUser };
+	return {
+		user: query,
+		login,
+		updateUser
+	};
 };
