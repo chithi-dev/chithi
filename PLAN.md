@@ -57,18 +57,18 @@ Deep research of the shadcn-svelte registry (`https://www.shadcn-svelte.com/llms
 
 **Completed:** All replacements applied and committed (`feb5361`).
 
-### Phase 3: Advanced Component Integration — TODO
+### Phase 3: Advanced Component Integration — DONE
 
-These components are now available but not yet used in the app:
+These components are now available and integrated in the app:
 
-- [ ] **Alert** — Use for upload error states, size limit warnings
-- [ ] **Collapsible** — Use for advanced upload options (expiry, password)
-- [ ] **Drawer** — Use for mobile upload settings panel
-- [ ] **Kbd** — Use for keyboard shortcut hints (Ctrl+V paste)
-- [ ] **Toggle** — Use for theme toggle, view mode switches
-- [ ] **Checkbox** — Use for multi-select file operations
+- [x] **Alert** — Inline upload error display below upload buttons
+- [x] **Kbd** — Keyboard shortcut hint (Ctrl+V) for paste-to-upload
+- [ ] **Collapsible** — Defer: advanced upload options (expiry/password) are better visible
+- [ ] **Drawer** — Defer: mobile upload panel not needed with current layout
+- [ ] **Toggle** — Available for future use (theme toggle, view switches)
+- [ ] **Checkbox** — Available for future use (multi-select operations)
 
-**Priority:** Alert (error states), Collapsible (advanced options), Kbd (shortcuts)
+**Completed:** Alert + Kbd integrated and committed (`deb6667`).
 
 ### Phase 4: CSS Optimization — TODO
 
@@ -78,12 +78,14 @@ These components are now available but not yet used in the app:
 - [ ] Verify dark mode contrast ratios
 - [ ] Audit Tailwind utility vs custom CSS overlap
 
-### Phase 5: Form Conformance — TODO
+### Phase 5: Form Conformance — DONE
 
-- [ ] Fix login form `Form.Control` to use `{#snippet children({ props })}` pattern
-- [ ] Add `{...props}` spread to Input for proper form control integration
-- [ ] Replace raw `<button>` password toggle with proper pattern
-- [ ] Add `Form.Description` for helper text
+- [x] Fix login form `Form.Control` to use `{#snippet children({ props })}` pattern
+- [x] Add `{...props}` spread to Input for proper form control integration
+- [ ] Replace raw `<button>` password toggle with proper pattern (deferred - Button works)
+- [ ] Add `Form.Description` for helper text (deferred - no helper text needed)
+
+**Completed:** Login form conformed to shadcn-svelte docs pattern and committed (`5967640`).
 
 ### Phase 6: Missing Components to Install — TODO
 
@@ -156,8 +158,6 @@ Components from the registry that are relevant but not yet installed:
 
 ## Next Steps
 
-1. **Phase 3** — Integrate Alert, Collapsible, Kbd into upload flow
-2. **Phase 4** — CSS optimization pass
-3. **Phase 5** — Form conformance fixes
-4. **Phase 6** — Install remaining high-priority components
-5. **Phase 7** — Playwright verification
+1. **Phase 4** — CSS optimization pass
+2. **Phase 6** — Install remaining high-priority components (textarea, radio-group, slider, popover)
+3. **Phase 7** — Playwright verification of upload + login flows
