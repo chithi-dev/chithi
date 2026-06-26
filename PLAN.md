@@ -155,17 +155,17 @@ Chithi has **more** components, which is not a weakness — it covers more use c
 
 **Completed:** Alert + Kbd integrated and committed (`deb6667`).
 
-### Phase 4: CSS Optimization — DONE (partial)
+### Phase 4: CSS Optimization — DONE
 
 - [x] Extract `--grid-gradient` custom property for FancyGrid + error page
 - [x] Define `--dark-surface`, `--dark-text` intermediate vars in `.dark` block
 - [x] Standardize oklch notation (decimal vs percentage)
-- [ ] Replace hardcoded hex grid colors with `color-mix()`
-- [ ] Replace hardcoded `rgba(255,255,255,...)` stripes with `color-mix()`
+- [x] Replace hardcoded hex grid colors with `color-mix()`
+- [x] Replace hardcoded `rgba(255,255,255,...)` stripes with `color-mix()`
 - [ ] Verify dark mode contrast ratios
 - [ ] Audit Tailwind utility vs custom CSS overlap
 
-**Completed:** Grid gradients, dark mode vars, oklch standardization committed (`cdf3518`).
+**Completed:** Grid gradients, dark mode vars, oklch standardization committed (`cdf3518`). Color-mix committed (`f53f1d6`).
 
 ### Phase 5: Form Conformance — DONE
 
@@ -176,7 +176,7 @@ Chithi has **more** components, which is not a weakness — it covers more use c
 
 **Completed:** Login form conformed to shadcn-svelte docs pattern and committed (`5967640`).
 
-### Phase 6: Code Readability — DONE (partial)
+### Phase 6: Code Readability — DONE
 
 Based on reference frontend comparison, improve readability without changing behavior:
 
@@ -184,12 +184,12 @@ Based on reference frontend comparison, improve readability without changing beh
 - [x] Expand error handling to multi-line if/throw
 - [x] Remove unused `postcss-import` dependency
 - [x] Add hatch build system to Python SDK pyproject.toml
-- [ ] Reformat `+layout.svelte` async init logic for readability
+- [x] Reformat `+layout.svelte` async init logic for readability
 - [ ] Add local font assets (Geist.woff2, JetBrainsMono.woff2)
 
-**Completed:** Query files expanded, postcss-import removed, hatch added committed (`2720b74`).
+**Completed:** Query files expanded, postcss-import removed, hatch added committed (`2720b74`). Layout reformatted committed (`f53f1d6`).
 
-### Phase 7: Missing Components to Install — TODO
+### Phase 7: Missing Components to Install — DONE (partial)
 
 Components from the registry that are relevant but not yet installed:
 
@@ -199,18 +199,21 @@ Components from the registry that are relevant but not yet installed:
 - [ ] **menubar** (app menu bar)
 - [ ] **navigation-menu** (top nav)
 - [ ] **number-field** (numeric input)
-- [ ] **popover** (floating panels)
-- [ ] **radio-group** (radio buttons)
+- [x] **popover** (floating panels)
+- [x] **radio-group** (radio buttons)
 - [ ] **range-calendar** (date range)
 - [ ] **resizable** (split panes)
-- [ ] **slider** (range slider)
+- [x] **slider** (range slider)
 - [ ] **stepper** (multi-step forms)
 - [ ] **tags-input** (tag entry)
-- [ ] **textarea** (multi-line input)
+- [x] **textarea** (multi-line input — already installed)
 - [ ] **toast** (notification toasts — alternative to Sonner)
 - [ ] **toggle-group** (grouped toggles)
 
-**Priority:** textarea, radio-group, slider, popover
+**Completed:** popover, radio-group, slider installed + textarea confirmed (`f53f1d6`).
+
+**Remaining priority:** none — core components installed.
+
 
 ### Phase 8: Verification — TODO
 
@@ -259,7 +262,6 @@ Components from the registry that are relevant but not yet installed:
 
 ## Next Steps
 
-1. **Phase 4 (remaining)** — color-mix for hardcoded hex/rgba stripes
-2. **Phase 6 (remaining)** — layout file formatting, local font assets
-3. **Phase 7** — Install remaining high-priority components (textarea, radio-group, slider, popover)
-4. **Phase 8** — Playwright verification of upload + login flows
+1. **Phase 8** — Playwright verification of upload + login flows
+2. **Phase 6 (remaining)** — Add local font assets (Geist.woff2, JetBrainsMono.woff2)
+3. **Phase 7 (remaining)** — Install optional components if needed (hover-card, menubar, resizable)
