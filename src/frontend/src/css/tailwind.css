@@ -43,11 +43,9 @@
 	--sidebar-border: oklch(0.922 0 0);
 	--sidebar-ring: oklch(0.708 0 0);
 
-	/* Grid pattern gradients */
-	--grid-gradient: linear-gradient(to_right, #00000008 1px, transparent 1px),
-	                 linear-gradient(to_bottom, #00000008 1px, transparent 1px);
-	--grid-gradient-dark: linear-gradient(to_right, #ffffff08 1px, transparent 1px),
-	                      linear-gradient(to_bottom, #ffffff08 1px, transparent 1px);
+	/* Grid pattern gradients - theme-adaptive via color-mix */
+	--grid-gradient: linear-gradient(to_right, color-mix(in srgb, var(--foreground) 5%, transparent) 1px, transparent 1px),
+	                 linear-gradient(to_bottom, color-mix(in srgb, var(--foreground) 5%, transparent) 1px, transparent 1px);
 }
 
 .dark {
