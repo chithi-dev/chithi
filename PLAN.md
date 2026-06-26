@@ -1,8 +1,8 @@
-# Chithi Frontend Conformance Plan — shadcn-svelte Deep Research
+# Chithi Frontend Conformance Plan — shadcn-svelte Deep Research + Reference Comparison
 
-## Research Summary
+## shadcn-svelte Research Summary
 
-Deep research of the shadcn-svelte registry (`https://www.shadcn-svelte.com/llms.txt`) revealed the full component ecosystem, exact usage patterns, and conformance gaps in the current codebase.
+Deep research of the shadcn-svelte registry (`https://www.shadcn-svelte.com/llms.txt`) and forms documentation revealed the full component ecosystem, exact usage patterns, and conformance gaps.
 
 ### Key Findings
 
@@ -15,7 +15,66 @@ Deep research of the shadcn-svelte registry (`https://www.shadcn-svelte.com/llms
 7. **Form.Control** wraps inputs with `{#snippet children({ props })}` and spreads `{...props}` to the input for form integration.
 8. **Dark mode** via `mode-watcher` package with `.dark` class — not media queries.
 9. **OKLCH color space** used throughout for better perceptual uniformity.
-10. **100+ components available** in the registry; only ~30 currently installed.
+10. **100+ components available** in the registry; 42 currently installed.
+
+---
+
+## Reference Frontend Comparison (D:\Programming\frontend vs D:\Programming\chithi\src\frontend)
+
+### Architecture — Identical Stack
+
+| Aspect | Reference | Chithi | Verdict |
+|---|---|---|---|
+| Framework | SvelteKit 2.58 + Svelte 5 runes | Same | Identical |
+| UI Library | shadcn-svelte via bits-ui | Same | Identical |
+| Styling | Tailwind CSS v4.3 + OKLCH | Same | Identical |
+| State | TanStack Svelte Query | Same | Identical |
+| Forms | formsnap + sveltekit-superforms + Zod | Same | Identical |
+| Database | IndexedDB (raw) | IndexedDB (raw, split modules) | Chithi more modular |
+| Routing | File-based layout groups | Same | Identical |
+| Adapter | adapter-node | Same | Identical |
+| WASM | None | chithi_wasm (Rust crypto) | Chithi-specific feature |
+
+### UI Component Inventory
+
+| Category | Reference | Chithi |
+|---|---|---|
+| Total shadcn components | 29 | 42 |
+| Extra in chithi | — | alert, alert-dialog, aspect-ratio, checkbox, collapsible, command, data-table, drawer, input-group, kbd, toggle |
+| Custom components | CodeViewer, FancyGrid, FileViewerOverlay, QRCode | Same + CommandPalette, InfoCard, StatusBadge, CommitLink |
+
+Chithi has **more** components, which is not a weakness — it covers more use cases. The reference is leaner but lacks features like the command palette and WASM crypto.
+
+### Code Style Differences
+
+| Area | Reference Approach | Chithi Approach | Recommendation |
+|---|---|---|---|
+| **Import extensions** | No `.js` (`from '$lib/components/ui/button'`) | `.js` everywhere (`from '$lib/components/ui/button/index.js'`) | **Keep chithi** — explicit extensions are Svelte 5 / modernAst recommended |
+| **Query file formatting** | Expanded, readable, one operation per line | Compressed one-liners, dense | **Adopt reference** — expand for readability |
+| **Error handling** | Multi-line if/throw with messages | Ternary one-liners | **Adopt reference** — better stack traces |
+| **Database layer** | Single file, `Date.now()` | Split modules, `Temporal.Now` | **Keep chithi** — better modularity |
+| **Fetch utilities** | Repeated per file | Centralized `fetch-utils.ts` | **Keep chithi** — better DRY |
+| **Type safety** | Partial typing, some `any` | Full interfaces (`InstanceInformation`, etc.) | **Keep chithi** — better types |
+| **Layout files** | Well-spaced, clear | Compressed, inline async | **Adopt reference** — reformatted for readability |
+| **Info pages** | Inline in `+page.svelte` | Extracted `InfoCard`, `StatusBadge`, `CommitLink` | **Keep chithi** — better DRY |
+
+### What Chithi Should Adopt from Reference
+
+1. **Readability in query files** — expand one-liners, use `queryClient` instead of `qc`, add inline comments
+2. **Multi-line error handling** — explicit if/throw for better debugging
+3. **Layout file formatting** — expand compressed async init logic
+4. **Remove unused deps** — `postcss-import` not needed with Tailwind v4
+5. **Add local font assets** — copy `Geist.woff2` and `JetBrainsMono.woff2` for faster TTFB
+
+### What Chithi Does Better (Keep)
+
+1. **Centralized fetch utilities** — `fetch-utils.ts` eliminates boilerplate
+2. **Dedicated Spinner** — proper shadcn component vs icon hack
+3. **Field component** — better accessibility than bare Label
+4. **CommandPalette** — quality-of-life feature the reference lacks
+5. **Typed interfaces** — full type safety on query results
+6. **WASM crypto** — more performant than Web Crypto for large files
+7. **Explicit import extensions** — Svelte 5 recommended pattern
 
 ---
 
@@ -31,6 +90,34 @@ Deep research of the shadcn-svelte registry (`https://www.shadcn-svelte.com/llms
 | Missing shadcn components | 7 components | Installed via CLI | DONE |
 | Spinner for loading states | Custom spinners | `<Spinner>` component | DONE |
 | badgeVariants for links | Raw `<a>` tags | `badgeVariants()` | DONE |
+| Form.Control missing snippet pattern | Login form | `{#snippet children}` + `{...props}` | DONE |
+| Alert for upload errors | None | `<Alert.Root>` inline | DONE |
+| Kbd for paste shortcut | None | `<Kbd.Root>` hint | DONE |
+
+---
+
+## CSS Optimization Findings
+
+### High Priority
+
+| # | File | Issue | Fix |
+|---|---|---|---|
+| 1 | `FancyGrid.svelte:21`, `+error.svelte:27` | Duplicate grid gradient (~180 char class string) | Extract to `--grid-gradient` CSS custom property |
+| 2 | `tailwind.css:47-79` | `oklch(14.479% 0.00002 271.152)` repeated 7x in `.dark` | Define `--dark-surface`, `--dark-text` intermediate vars |
+| 3 | `tailwind.css:8-79` | Mixed oklch decimal vs percentage notation | Standardize to one notation |
+
+### Medium Priority
+
+| # | File | Issue | Fix |
+|---|---|---|---|
+| 4 | FancyGrid, +error | Hardcoded `#00000008`/`#ffffff08` hex | `color-mix(in srgb, var(--color-foreground) 5%, transparent)` |
+| 5 | `upload_showcase.svelte:235-261` | Hardcoded `rgba(255,255,255,...)` stripes | `color-mix(in srgb, var(--foreground) 20%, transparent)` |
+
+### Low Priority
+
+| # | File | Issue | Fix |
+|---|---|---|---|
+| 6 | 6+ files | Repeated icon-badge class `flex h-8 w-8 items-center justify-center rounded-full bg-primary/10` | Shared `<IconBadge>` component |
 
 ---
 
@@ -59,8 +146,6 @@ Deep research of the shadcn-svelte registry (`https://www.shadcn-svelte.com/llms
 
 ### Phase 3: Advanced Component Integration — DONE
 
-These components are now available and integrated in the app:
-
 - [x] **Alert** — Inline upload error display below upload buttons
 - [x] **Kbd** — Keyboard shortcut hint (Ctrl+V) for paste-to-upload
 - [ ] **Collapsible** — Defer: advanced upload options (expiry/password) are better visible
@@ -72,9 +157,11 @@ These components are now available and integrated in the app:
 
 ### Phase 4: CSS Optimization — TODO
 
-- [ ] Consolidate duplicate gradient rules in FancyGrid
-- [ ] Replace hardcoded hex colors with CSS custom properties where possible
-- [ ] Use `color-mix()` for opacity variants instead of hardcoded alpha
+- [ ] Extract `--grid-gradient` custom property for FancyGrid + error page
+- [ ] Define `--dark-surface`, `--dark-text` intermediate vars in `.dark` block
+- [ ] Standardize oklch notation (decimal vs percentage)
+- [ ] Replace hardcoded hex grid colors with `color-mix()`
+- [ ] Replace hardcoded `rgba(255,255,255,...)` stripes with `color-mix()`
 - [ ] Verify dark mode contrast ratios
 - [ ] Audit Tailwind utility vs custom CSS overlap
 
@@ -87,11 +174,20 @@ These components are now available and integrated in the app:
 
 **Completed:** Login form conformed to shadcn-svelte docs pattern and committed (`5967640`).
 
-### Phase 6: Missing Components to Install — TODO
+### Phase 6: Code Readability — TODO
+
+Based on reference frontend comparison, improve readability without changing behavior:
+
+- [ ] Expand query file one-liners to multi-line (auth.ts, instance.ts, files.ts)
+- [ ] Expand error handling to multi-line if/throw
+- [ ] Reformat `+layout.svelte` async init logic for readability
+- [ ] Remove unused `postcss-import` dependency
+- [ ] Add local font assets (Geist.woff2, JetBrainsMono.woff2)
+
+### Phase 7: Missing Components to Install — TODO
 
 Components from the registry that are relevant but not yet installed:
 
-- [ ] **command** (search/command palette)
 - [ ] **context-menu** (right-click menus)
 - [ ] **date-picker** (date selection)
 - [ ] **hover-card** (rich hover previews)
@@ -109,9 +205,9 @@ Components from the registry that are relevant but not yet installed:
 - [ ] **toast** (notification toasts — alternative to Sonner)
 - [ ] **toggle-group** (grouped toggles)
 
-**Priority:** textarea, radio-group, slider, popover, command
+**Priority:** textarea, radio-group, slider, popover
 
-### Phase 7: Verification — TODO
+### Phase 8: Verification — TODO
 
 - [ ] Playwright visual verification of upload flow
 - [ ] Playwright dark mode verification
@@ -158,6 +254,7 @@ Components from the registry that are relevant but not yet installed:
 
 ## Next Steps
 
-1. **Phase 4** — CSS optimization pass
-2. **Phase 6** — Install remaining high-priority components (textarea, radio-group, slider, popover)
-3. **Phase 7** — Playwright verification of upload + login flows
+1. **Phase 4** — CSS optimization (grid gradients, dark mode vars, color-mix)
+2. **Phase 6** — Code readability pass (expand query files, layout formatting)
+3. **Phase 7** — Install remaining high-priority components (textarea, radio-group, slider, popover)
+4. **Phase 8** — Playwright verification of upload + login flows
