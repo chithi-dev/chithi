@@ -8,13 +8,28 @@ export const prefetch = ({ queryClient, fetch }: { queryClient: QueryClient; fet
   prefetchFn(queryClient, key, () => fetchJson<{ onboarded: boolean }>(Api.ONBOARDING, 'onboarding status', fetch), { retry: false });
 
 export const useOnboarding = () => {
-  const qc = useQueryClient();
-  const query = createQuery(() => ({ queryKey: key, queryFn: () => fetchJson<{ onboarded: boolean }>(Api.ONBOARDING, 'onboarding status'), retry: false }));
+  const queryClient = useQueryClient();
+
+  const query = createQuery(() => ({
+    queryKey: key,
+    queryFn: () => fetchJson<{ onboarded: boolean }>(Api.ONBOARDING, 'onboarding status'),
+    retry: false
+  }));
 
   const completeOnboarding = async (user: { username: string; email: string; password: string }) => {
-    const res = await fetch(Api.ONBOARDING, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(user) });
-    if (!res.ok) throw new Error((await res.json()).detail || 'Failed to complete onboarding');
-    await qc.invalidateQueries({ queryKey: key });
+    const res = await fetch(Api.ONBOARDING, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(user)
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Failed to complete onboarding');
+    }
+
+    await queryClient.invalidateQueries({ queryKey: key });
     return res.json();
   };
 

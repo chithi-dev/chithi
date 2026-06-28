@@ -15,18 +15,31 @@ export interface Config {
   allow_uploads: boolean;
 }
 
-const key = ['config'];
+const queryKey = ['config'];
 
 export const prefetch = ({ queryClient, fetch }: { queryClient: import('@tanstack/svelte-query').QueryClient; fetch?: typeof globalThis.fetch }) =>
-  prefetchFn(queryClient, key, () => fetchJson<Config>(Api.CONFIG, 'config', fetch));
+  prefetchFn(queryClient, queryKey, () => fetchJson<Config>(Api.CONFIG, 'config', fetch));
 
 export const useConfigQuery = () => {
-  const qc = useQueryClient();
-  const query = createQuery(() => ({ queryKey: key, queryFn: () => fetchJson<Config>(Api.CONFIG, 'config'), staleTime: Infinity }));
+  const queryClient = useQueryClient();
+
+  const query = createQuery(() => ({
+    queryKey: queryKey,
+    queryFn: () => fetchJson<Config>(Api.CONFIG, 'config'),
+    staleTime: Infinity
+  }));
 
   const updateConfig = async (data: Partial<Config>) => {
-    const res = await fetch(Api.ADMIN.CONFIG, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(data) });
-    if (res.ok) await qc.invalidateQueries({ queryKey: key });
+    const res = await fetch(Api.ADMIN.CONFIG, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(data)
+    });
+
+    if (res.ok) {
+      await queryClient.invalidateQueries({ queryKey });
+    }
   };
 
   return { config: query, updateConfig };
