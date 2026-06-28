@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button } from '$lib/components/ui/button';
+  import { Button } from '$lib/components/ui/button/index.js';
   import { Plus } from '@lucide/svelte';
   import { formatFileSize } from '#functions/bytes';
   import { dropFiles } from '#functions/file-tree';
@@ -17,23 +17,51 @@
   let folderInput = $state<HTMLInputElement>();
 
   const handleZoneDrop = async (e: DragEvent) => {
-    e.preventDefault(); e.stopPropagation();
-    if (e.dataTransfer?.files?.length) { onFilesSelected(Array.from(e.dataTransfer.files)); return; }
-    if (e.dataTransfer?.items) { const { files, folderName } = await dropFiles(e.dataTransfer.items); if (files.length > 0) onFilesSelected(files, folderName); }
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.dataTransfer?.files?.length) {
+      onFilesSelected(Array.from(e.dataTransfer.files));
+      return;
+    }
+    if (e.dataTransfer?.items) {
+      const { files, folderName } = await dropFiles(e.dataTransfer.items);
+      if (files.length > 0) onFilesSelected(files, folderName);
+    }
   };
 
-  const selectFiles = (e: Event) => { const t = e.target as HTMLInputElement; if (t.files) onFilesSelected(Array.from(t.files)); t.value = ''; };
+  const selectFiles = (e: Event) => {
+    const target = e.target as HTMLInputElement;
+    if (target.files) onFilesSelected(Array.from(target.files));
+    target.value = '';
+  };
+
   const selectFolder = (e: Event) => {
-    const t = e.target as HTMLInputElement;
-    if (t.files) { const f = Array.from(t.files); const rp = (f[0] as File & { webkitRelativePath?: string }).webkitRelativePath; onFilesSelected(f, rp ? rp.split('/')[0] : undefined); }
-    t.value = '';
+    const target = e.target as HTMLInputElement;
+    if (target.files) {
+      const fileArray = Array.from(target.files);
+      const firstFile = fileArray[0] as File & { webkitRelativePath?: string };
+      const relativePath = firstFile.webkitRelativePath;
+      const folderName = relativePath ? relativePath.split('/')[0] : undefined;
+      onFilesSelected(fileArray, folderName);
+    }
+    target.value = '';
   };
 </script>
 
 <div class={['relative flex h-full cursor-pointer flex-col items-center justify-center rounded-lg bg-card transition-all duration-200 focus:outline-none', isDraggingOverZone && 'scale-[1.02] shadow-xl']}
-  ondrop={handleZoneDrop} onclick={() => fileInput?.click()}
-  onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput?.click(); } }}
-  ondragenter={onZoneDragEnter} ondragleave={onZoneDragLeave} tabindex="0" role="button" aria-label="File drop area - click or drop files to upload"
+  ondrop={handleZoneDrop}
+  onclick={() => fileInput?.click()}
+  onkeydown={(e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      fileInput?.click();
+    }
+  }}
+  ondragenter={onZoneDragEnter}
+  ondragleave={onZoneDragLeave}
+  tabindex="0"
+  role="button"
+  aria-label="File drop area - click or drop files to upload"
 >
   <div class="relative z-10 flex flex-col items-center justify-center p-12">
     <div class={['mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary transition-all duration-200', isDraggingOverZone && 'scale-110 bg-primary/10']}>
@@ -53,6 +81,6 @@
     <input bind:this={folderInput} type="file" id="file-input-folder" class="hidden" {...{ webkitdirectory: '', directory: '' } as Partial<Record<string, string>>} onchange={selectFolder} />
   </div>
   <svg class="pointer-events-none absolute inset-0 h-full w-full rounded-lg">
-    <rect width="100%" height="100%" rx="8" fill="none" stroke="currentColor" stroke-width="2" class={['text-border transition-all duration-200', isDraggingOverZone && 'animate-dash']} stroke-dasharray="10" />
+    <rect width="100%" height="100%" rx="8" ry="8" fill="none" stroke="currentColor" stroke-width="2" class={['text-border transition-all duration-200', isDraggingOverZone && 'animate-dash']} stroke-dasharray="10" />
   </svg>
 </div>
