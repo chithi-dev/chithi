@@ -10,5 +10,10 @@ export async function fetchJson<T>(endpoint: string, label: string, fetchFn?: ty
 }
 
 export function prefetch<T>(queryClient: QueryClient, key: string | string[], fn: () => Promise<T>, opts: { staleTime?: number; retry?: boolean } = {}) {
-  return queryClient.prefetchQuery({ queryKey: Array.isArray(key) ? key : [key], queryFn: fn, staleTime: opts.staleTime ?? Infinity, retry: opts.retry ?? true });
+  return queryClient.prefetchQuery({
+    queryKey: Array.isArray(key) ? key : [key],
+    queryFn: fn,
+    staleTime: opts.staleTime ?? Infinity,
+    retry: opts.retry ?? true
+  });
 }
