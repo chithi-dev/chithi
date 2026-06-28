@@ -185,7 +185,7 @@ Based on reference frontend comparison, improve readability without changing beh
 - [x] Remove unused `postcss-import` dependency
 - [x] Add hatch build system to Python SDK pyproject.toml
 - [x] Reformat `+layout.svelte` async init logic for readability
-- [ ] Add local font assets (Geist.woff2, JetBrainsMono.woff2)
+- [ ] Add local font assets — Deferred: reference uses `@fontsource-variable` npm packages too
 
 **Completed:** Query files expanded, postcss-import removed, hatch added committed (`2720b74`). Layout reformatted committed (`f53f1d6`).
 
@@ -215,13 +215,13 @@ Components from the registry that are relevant but not yet installed:
 **Remaining priority:** none — core components installed.
 
 
-### Phase 8: Verification — TODO
+### Phase 8: Verification — DONE (partial)
 
-- [ ] Playwright visual verification of upload flow
-- [ ] Playwright dark mode verification
-- [ ] Responsive viewport testing (mobile, tablet, desktop)
-- [ ] TypeScript type check (address pre-existing errors)
-- [ ] Build verification
+- [ ] Playwright visual verification of upload flow — Deferred: Playwright MCP not connected
+- [ ] Playwright dark mode verification — Deferred: Playwright MCP not connected
+- [ ] Responsive viewport testing (mobile, tablet, desktop) — Deferred: Playwright MCP not connected
+- [x] TypeScript type check — Pre-existing errors only, no new errors introduced
+- [x] Build verification — `npm run build` succeeds, dev server starts, all pages render (200 OK)
 
 ---
 
@@ -262,6 +262,6 @@ Components from the registry that are relevant but not yet installed:
 
 ## Next Steps
 
-1. **Phase 8** — Playwright verification of upload + login flows
-2. **Phase 6 (remaining)** — Add local font assets (Geist.woff2, JetBrainsMono.woff2)
-3. **Phase 7 (remaining)** — Install optional components if needed (hover-card, menubar, resizable)
+1. **Phase 8 (remaining)** — Playwright verification (requires Playwright MCP connection)
+2. **Phase 7 (remaining)** — Install optional components if needed (hover-card, menubar, resizable)
+3. **TypeScript** — Fix pre-existing ArrayBuffer/ReadableStream type errors in workers and database modules
