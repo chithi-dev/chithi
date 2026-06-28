@@ -1,18 +1,19 @@
 <script lang="ts">
-  import * as Card from '$lib/components/ui/card';
+  import * as Card from '$lib/components/ui/card/index.js';
   import { useConfigQuery } from '#queries/config';
-  import { Skeleton } from '$lib/components/ui/skeleton';
-  import { ScrollArea } from '$lib/components/ui/scroll-area';
+  import { Skeleton } from '$lib/components/ui/skeleton/index.js';
+  import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
   import { toast } from 'svelte-sonner';
   import { dev } from '$app/environment';
   import { markdown_to_html } from '$lib/markdown/markdown';
-  import { Button } from '$lib/components/ui/button';
+  import { Button } from '$lib/components/ui/button/index.js';
   import { fly, fade } from 'svelte/transition';
   import { onMount } from 'svelte';
   import { CloudOff } from '@lucide/svelte';
   import { UploadStage, isWhichUploadStage } from './enums';
   import { clipboardFiles, hasFileItems } from '#functions/file-tree';
 
+  // Stages
   const { default: Stage1 } = await import('./stage_1.svelte');
   const { default: Stage2 } = await import('./stage_2.svelte');
   const { default: Stage3 } = await import('./stage_3.svelte');
@@ -28,29 +29,94 @@
   let files = $state<File[]>([]);
   let initialFolderName = $state<string | undefined>(undefined);
   let debugLoading = $state(false);
-  let uploadResult = $state<{ finalLink: string; viewOnceLink: string; isViewOnce: boolean } | null>(null);
+  let uploadResult = $state<{
+    finalLink: string;
+    viewOnceLink: string;
+    isViewOnce: boolean;
+  } | null>(null);
+
+  // Prevent popstate from overriding initial mount state
   let hasMounted = $state(false);
 
   const detailsMarkdown = $derived(configData.data?.site_description ?? '');
   let detailsHtml = $state('');
 
-  $effect(() => { if (detailsMarkdown) markdown_to_html(detailsMarkdown).then((h) => { detailsHtml = h; }); });
+  $effect(() => {
+    if (detailsMarkdown) {
+      markdown_to_html(detailsMarkdown).then((html) => {
+        detailsHtml = html;
+      });
+    }
+  });
 
-  // Guard: skip if Stage 3
-  const g3 = (e?: Event) => { if (stage !== UploadStage.Stage_3) { e?.preventDefault?.(); return true; } return false; };
+  // Handle physical mouse back button (X1) to return from stage 2 to stage 1
+  const handleMouseBack = (e: MouseEvent) => {
+    if (e.button === 3 && stage === UploadStage.Stage_2) {
+      stage = UploadStage.Stage_1;
+      e.preventDefault();
+    }
+  };
 
-  const handleMouseBack = (e: MouseEvent) => { if (e.button === 3 && stage === UploadStage.Stage_2) { stage = UploadStage.Stage_1; e.preventDefault(); } };
+  const handleWindowDragEnter = (e: DragEvent) => {
+    if (stage === UploadStage.Stage_3) return;
+    e.preventDefault();
+    dragCounter++;
+    e.dataTransfer && (e.dataTransfer.dropEffect = 'copy');
+    dragActive = true;
+  };
 
-  const resetDrag = (clearCounter = true) => { if (clearCounter) dragCounter = 0; dragActive = false; dragOverZone = false; dragOverCard = false; };
+  const handleWindowDragLeave = (e: DragEvent) => {
+    if (stage === UploadStage.Stage_3) return;
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragActive = false;
+      dragCounter = 0;
+    }
+  };
 
-  const handleWindowDragEnter = (e: DragEvent) => { if (!g3(e)) return; dragCounter++; e.dataTransfer && (e.dataTransfer.dropEffect = 'copy'); dragActive = true; };
-  const handleWindowDragLeave = (e: DragEvent) => { if (stage === UploadStage.Stage_3) return; e.preventDefault(); dragCounter--; if (dragCounter <= 0) resetDrag(); };
-  const handleWindowDragOver = (e: DragEvent) => { if (!g3(e)) return; e.preventDefault(); dragActive ||= true; };
-  const handleWindowDrop = (e: DragEvent) => { if (!g3(e)) return; resetDrag(); if (e.dataTransfer?.types.includes('Files')) toast.error('File/folder must be dropped into the bordered area in the dashed circle'); };
-  const handleCardDragEnter = (e: DragEvent) => { if (!g3(e)) return; e.preventDefault(); dragOverCard = true; };
-  const handleCardDragLeave = (e: DragEvent) => { if (stage === UploadStage.Stage_3) return; const ct = e.currentTarget as Node; if (!ct?.contains(e.relatedTarget as Node)) dragOverCard = false; };
-  const handleZoneDragEnter = (e: DragEvent) => { e.preventDefault(); dragOverZone = true; };
-  const handleZoneDragLeave = (e: DragEvent) => { const ct = e.currentTarget as Node; if (!ct?.contains(e.relatedTarget as Node)) dragOverZone = false; };
+  const handleWindowDragOver = (e: DragEvent) => {
+    if (stage === UploadStage.Stage_3) return;
+    e.preventDefault();
+    dragActive ||= true;
+  };
+
+  const handleWindowDrop = (e: DragEvent) => {
+    if (stage === UploadStage.Stage_3) return;
+    e.preventDefault();
+    dragCounter = 0;
+    dragActive = false;
+    dragOverZone = false;
+    dragOverCard = false;
+    if (e.dataTransfer?.types.includes('Files')) {
+      toast.error('File/folder must be dropped into the bordered area in the dashed circle');
+    }
+  };
+
+  const handleCardDragEnter = (e: DragEvent) => {
+    if (stage === UploadStage.Stage_3) return;
+    e.preventDefault();
+    dragOverCard = true;
+  };
+
+  const handleCardDragLeave = (e: DragEvent) => {
+    if (stage === UploadStage.Stage_3) return;
+    const currentTarget = e.currentTarget as Node;
+    const relatedTarget = e.relatedTarget as Node;
+    if (currentTarget?.contains(relatedTarget)) return;
+    dragOverCard = false;
+  };
+
+  const handleZoneDragEnter = (e: DragEvent) => {
+    e.preventDefault();
+    dragOverZone = true;
+  };
+
+  const handleZoneDragLeave = (e: DragEvent) => {
+    const currentTarget = e.currentTarget as Node;
+    const relatedTarget = e.relatedTarget as Node;
+    if (currentTarget?.contains(relatedTarget)) return;
+    dragOverZone = false;
+  };
 
   const handlePaste = async (e: ClipboardEvent) => {
     if (stage === UploadStage.Stage_3) return;
@@ -64,29 +130,68 @@
   const onFilesSelected = (newFiles: File[], folderName?: string) => {
     if (folderName) initialFolderName = folderName;
     files = [...files, ...newFiles];
-    resetDrag();
+    dragCounter = 0;
+    dragActive = false;
+    dragOverZone = false;
+    dragOverCard = false;
     stage = UploadStage.Stage_2;
     window.history.pushState({ stage: UploadStage.Stage_2 }, '', window.location.href);
   };
 
-  const onUploadComplete = (result: { finalLink: string; viewOnceLink: string; isViewOnce: boolean }) => {
+  const onUploadComplete = (result: {
+    finalLink: string;
+    viewOnceLink: string;
+    isViewOnce: boolean;
+  }) => {
     uploadResult = result;
     stage = UploadStage.Stage_3;
     window.history.pushState({ stage: UploadStage.Stage_3 }, '', window.location.href);
   };
 
-  const resetState = (mode: 'push' | 'replace' = 'push') => {
-    files = []; uploadResult = null; stage = UploadStage.Stage_1; resetDrag();
-    if (mode === 'replace') window.history.replaceState({ stage: UploadStage.Stage_1 }, '', window.location.href);
-    else window.history.pushState({ stage: UploadStage.Stage_1 }, '', window.location.href);
+  const resetState = (historyMode: 'push' | 'replace' = 'push') => {
+    files = [];
+    uploadResult = null;
+    stage = UploadStage.Stage_1;
+    dragCounter = 0;
+    dragActive = false;
+    dragOverZone = false;
+    dragOverCard = false;
+
+    const state = { stage: UploadStage.Stage_1 };
+    if (historyMode === 'replace') {
+      window.history.replaceState(state, '', window.location.href);
+    } else {
+      window.history.pushState(state, '', window.location.href);
+    }
   };
 
-  const onBack = () => { stage = UploadStage.Stage_1; };
+  const onBack = () => {
+    stage = UploadStage.Stage_1;
+  };
 
-  onMount(() => { queueMicrotask(() => { resetState('replace'); hasMounted = true; }); });
+  const handlePopState = (e: PopStateEvent) => {
+    if (!hasMounted) return;
+    stage = isWhichUploadStage(e.state?.stage) ? e.state.stage : UploadStage.Stage_1;
+  };
+
+  onMount(() => {
+    queueMicrotask(() => {
+      resetState('replace');
+      hasMounted = true;
+    });
+  });
 </script>
 
-<svelte:window ondragenter={handleWindowDragEnter} ondragover={handleWindowDragOver} ondragleave={handleWindowDragLeave} ondrop={handleWindowDrop} onpaste={handlePaste} onauxclick={handleMouseBack} onpointerdown={handleMouseBack} onpopstate={(e) => { if (hasMounted) stage = isWhichUploadStage(e.state?.stage) ? e.state.stage : UploadStage.Stage_1; }} />
+<svelte:window
+  ondragenter={handleWindowDragEnter}
+  ondragover={handleWindowDragOver}
+  ondragleave={handleWindowDragLeave}
+  ondrop={handleWindowDrop}
+  onpaste={handlePaste}
+  onauxclick={handleMouseBack}
+  onpointerdown={handleMouseBack}
+  onpopstate={handlePopState}
+/>
 
 {#snippet encryptionInfo()}
   <div class="flex h-full w-full flex-col justify-center p-4 lg:p-8">
@@ -127,7 +232,16 @@
 {/snippet}
 
 <Card.Root class={['relative z-10 mx-auto w-full max-w-5xl border-border bg-card transition-all duration-200', dragActive && 'shadow-[0_0_20px_-10px_var(--primary)]', dragOverCard && 'shadow-[0_0_40px_-10px_var(--primary)]', dragOverZone && 'shadow-[0_0_60px_-10px_var(--primary)]']}
-  ondrop={(e) => { if (!g3(e)) return; resetDrag(); toast.error('File/Folder must be dropped in the bordered area'); }}
+  ondrop={(e) => {
+    if (stage === UploadStage.Stage_3) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragCounter = 0;
+    dragActive = false;
+    dragOverZone = false;
+    dragOverCard = false;
+    toast.error('File/Folder must be dropped in the bordered area');
+  }}
   ondragenter={handleCardDragEnter}
   ondragleave={handleCardDragLeave}
 >
@@ -154,7 +268,7 @@
         </div>
       {:else if stage === UploadStage.Stage_2}
         <div in:fly={{ x: 20, duration: 400 }}>
-          <Stage2 bind:files onFilesUpdated={(f) => (files = f)} {onUploadComplete} {onBack} isDraggingOverZone={dragOverZone} onZoneDragEnter={handleZoneDragEnter} onZoneDragLeave={handleZoneDragLeave} />
+          <Stage2 bind:files onFilesUpdated={(newFiles) => (files = newFiles)} {onUploadComplete} {onBack} isDraggingOverZone={dragOverZone} onZoneDragEnter={handleZoneDragEnter} onZoneDragLeave={handleZoneDragLeave} />
         </div>
         <div in:fade>{@render encryptionInfo()}</div>
       {:else if stage === UploadStage.Stage_3 && uploadResult}
