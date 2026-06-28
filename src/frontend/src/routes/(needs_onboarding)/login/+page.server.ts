@@ -1,11 +1,12 @@
 import { login as loginRemote } from '$lib/remote/auth.remote';
+import type { Actions } from '@sveltejs/kit';
 import { fail } from '@sveltejs/kit';
 import { message, setError, superValidate } from 'sveltekit-superforms';
 import { zod4 } from 'sveltekit-superforms/adapters';
 import { schema } from './schema';
 
 export const actions = {
-	default: async ({ request }) => {
+	default: async ({ request }: { request: Request }) => {
 		const form = await superValidate(request, zod4(schema));
 
 		if (!form.valid) {
