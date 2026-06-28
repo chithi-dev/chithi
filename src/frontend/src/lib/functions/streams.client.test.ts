@@ -5,7 +5,7 @@ describe('createZipStream', () => {
     it('should create a valid zip stream from files', async () => {
         const files = [
             new File(['Hello, World!'], 'hello.txt', { type: 'text/plain' }),
-            new File([1, 2, 3, 4, 5], 'binary.bin', { type: 'application/octet-stream' }),
+            new File([new Uint8Array([1, 2, 3, 4, 5])], 'binary.bin', { type: 'application/octet-stream' }),
         ];
 
         const stream = await createZipStream(files);

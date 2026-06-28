@@ -98,7 +98,7 @@ export function createRoomStore(opts: {
 			const rk = opts.room_key();
 			const blob = rk
 				? await new Response(
-					(await createDecryptedStream(
+					await createDecryptedStream(
 						new ReadableStream({
 							start(controller) {
 								for (const chunk of chunks) controller.enqueue(chunk);
@@ -108,9 +108,9 @@ export function createRoomStore(opts: {
 						rk,
 						undefined,
 						size
-					)).stream
+					)
 				).blob()
-				: new Blob(chunks);
+				: new Blob(chunks as BlobPart[]);
 
 			const objectUrl = URL.createObjectURL(blob);
 			downloadedFiles = [...downloadedFiles, { key, filename, size: blob.size, objectUrl }];

@@ -11,7 +11,7 @@ export async function fetchDecryptedBlob(slug: string, key: string, password: st
 
   const total = opts.knownSize ?? parseInt(res.headers.get('content-length') ?? '0', 10);
   const src = opts.onProgress && total > 0 ? wrapProgress(res.body, total, opts.onProgress) : res.body;
-  const { stream } = await createDecryptedStream(src, key, password);
+  const stream = await createDecryptedStream(src, key, password);
 
   const reader = stream.getReader();
   let first: Uint8Array | undefined;
@@ -23,10 +23,10 @@ export async function fetchDecryptedBlob(slug: string, key: string, password: st
     throw e;
   }
 
-  const chunks: Uint8Array[] = [];
-  if (first) chunks.push(first);
-  for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value); }
-  const blob = new Blob(chunks as BlobPart[], { type: 'application/zip' });
+  const chunks: BlobPart[] = [];
+  if (first) chunks.push(first as BlobPart);
+  for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value as BlobPart); }
+  const blob = new Blob(chunks, { type: 'application/zip' });
   if (chunks.length === 0 || blob.size < 4) throw new Error('Decryption produced no output data');
   return blob;
 }

@@ -3,7 +3,7 @@ import { logout } from '$lib/remote/auth.remote';
 import { redirect } from '@sveltejs/kit';
 
 export const actions = {
-	default: async ({ url }) => {
+	default: async ({ url }: { url: URL }) => {
 		await logout();
 
 		let next = url.searchParams.get('next') ?? '/';

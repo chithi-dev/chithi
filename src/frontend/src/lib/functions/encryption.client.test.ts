@@ -5,7 +5,6 @@ import {
     base64url,
     base64urlToBytes,
     xorBytes,
-    getChunkIv,
 } from './encryption';
 
 describe('base64 utilities', () => {
@@ -86,47 +85,6 @@ describe('xorBytes', () => {
         const b = new Uint8Array([]);
         const result = xorBytes(a, b);
         expect(result).toEqual(a);
-    });
-});
-
-describe('getChunkIv', () => {
-    it('should produce unique IVs per chunk index', () => {
-        const baseIv = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42]);
-        const iv0 = getChunkIv(baseIv, 0);
-        const iv1 = getChunkIv(baseIv, 1);
-        expect(iv0).not.toEqual(iv1);
-    });
-
-    it('should not mutate the base IV', () => {
-        const baseIv = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
-        const original = baseIv.slice();
-        getChunkIv(baseIv, 99);
-        expect(baseIv).toEqual(original);
-    });
-
-    it('should XOR the last 4 bytes with chunk index', () => {
-        const baseIv = new Uint8Array(12);
-        // Set last 4 bytes to 0x00000001
-        baseIv[8] = 0;
-        baseIv[9] = 0;
-        baseIv[10] = 0;
-        baseIv[11] = 1;
-
-        const iv0 = getChunkIv(baseIv, 0);
-        const view0 = new DataView(iv0.buffer, iv0.byteOffset, iv0.byteLength);
-        expect(view0.getUint32(8, false)).toBe(1); // 1 ^ 0 = 1
-
-        const iv5 = getChunkIv(baseIv, 5);
-        const view5 = new DataView(iv5.buffer, iv5.byteOffset, iv5.byteLength);
-        expect(view5.getUint32(8, false)).toBe(4); // 1 ^ 5 = 4
-    });
-
-    it('should preserve first 8 bytes', () => {
-        const baseIv = new Uint8Array([10, 20, 30, 40, 50, 60, 70, 80, 0, 0, 0, 0]);
-        const iv = getChunkIv(baseIv, 42);
-        for (let i = 0; i < 8; i++) {
-            expect(iv[i]).toBe(baseIv[i]);
-        }
     });
 });
 
