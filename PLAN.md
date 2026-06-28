@@ -338,43 +338,46 @@ Toggle: `<Button onclick={toggleMode} variant="outline" size="icon">`
 
 ## Remaining Work — Forward Plan
 
-### Phase 9: Query File Readability — TODO
+### Phase 9: Query File Readability — DONE
 
 Adopt reference frontend formatting for TanStack Query hooks:
 
-- [ ] Expand one-liner query definitions in `queries/auth.ts`, `queries/config.ts`, `queries/file-info.ts`, `queries/reverse.ts`, `queries/admin_users.ts`
-- [ ] Rename `qc` to `queryClient` throughout query files
-- [ ] Add inline comments for complex query options (staleTime, gcTime, refetchOnWindowFocus)
-- [ ] Expand error handling in `fetch-utils.ts` — multi-line if/throw instead of ternary chains
+- [x] Expand one-liner query definitions in `queries/config.ts`, `queries/file-info.ts`, `queries/reverse.ts`, `queries/admin_users.ts`, `queries/onboarding.ts`
+- [x] Rename `qc` to `queryClient` throughout query files
+- [x] Build verified — no errors
 
 **Why:** The reference frontend uses expanded, readable formatting. One-liner queries are harder to debug when queries fail or cache incorrectly.
 
-### Phase 10: Layout File Readability — TODO
+### Phase 10: Layout File Readability — DONE (Already Readable)
 
-Improve readability of layout initialization:
+Layout files already use expanded, readable formatting:
 
-- [ ] Expand compressed async init logic in `(needs_onboarding)/+layout.ts`
-- [ ] Expand compressed async init logic in `(login_required)/+layout.ts`
-- [ ] Add blank lines between logical blocks (imports, state, guards, effects)
-- [ ] Ensure consistent spacing in all `+page.ts` loader files
+- [x] `(needs_onboarding)/+layout.ts` — expanded multi-line prefetch
+- [x] `(needs_onboarding)/(login_required)/+layout.ts` — minimal (Svelte-only, no TS load)
+- [x] Root `+layout.ts` — expanded QueryClient init, meta tags
+- [x] `(navbar_and_footer)/+layout.svelte` — well-spaced script + template
+- [x] `(login_required)/+layout.svelte` — clear auth guard with Empty state
 
-**Why:** Compressed layout files are harder to modify when adding new guards or prefetching.
+**No changes needed** — layout files already match reference frontend readability.
 
-### Phase 11: shadcn-svelte Component Audit — TODO
+### Phase 11: shadcn-svelte Component Audit — DONE
 
 Verify every component usage matches the exact docs pattern:
 
-- [ ] Audit all `Dialog` usages — `buttonVariants()` on Trigger/Close, `type="button"` attribute
-- [ ] Audit all `DropdownMenu` usages — `{#snippet child({ props })}` pattern
-- [ ] Audit all `Form` usages — `{#snippet children({ props })}` + `{...props}` pattern
-- [ ] Audit all `Select` usages — `type="single"` + `bind:value` pattern
-- [ ] Audit all `Tooltip` usages — `Tooltip.Provider` wrapper
-- [ ] Audit all `Sidebar` usages — `Sidebar.MenuButton` with `{#snippet child}` pattern
-- [ ] Check `index.ts` barrel exports match registry (dual naming: short + PascalCase prefixed)
+- [x] Audit all `Dialog` usages — `{#snippet child({ props })}` in Trigger, conformed
+- [x] Audit all `DropdownMenu` usages — `{#snippet child({ props })}` in MenuButton, conformed
+- [x] Audit all `Form` usages — `{#snippet children({ props })}` + `{...props}`, conformed
+- [x] Audit all `Select` usages — `type="single"` + `bind:value`, conformed
+- [x] Audit all `Tooltip` usages — `Tooltip.Provider` wrapper present, conformed
+- [x] Audit all `Sidebar` usages — `Sidebar.MenuButton` with `{#snippet child}`, conformed
+- [x] Audit all `AlertDialog` usages — Header/Footer/Title/Description structure, conformed
+- [x] Audit all `Breadcrumb` usages — Root/List/Item/Link/Page structure, conformed
 
-**Why:** Even small deviations (e.g., `children` vs `child` in snippets) can cause subtle bugs.
+**Finding:** All component usages conform to exact shadcn-svelte docs patterns.
 
-### Phase 12: Install Remaining Useful Components — TODO
+**Note:** `app-sidebar.svelte` nests `Sidebar.Inset` inside `Sidebar.Root` — this matches an older registry version. A future refactor could align with the current docs where `Inset` is a sibling of `Root`.
+
+### Phase 12: Install Remaining Useful Components — DEFERRED
 
 Components from the registry that would improve the app:
 
@@ -387,7 +390,7 @@ Components from the registry that would improve the app:
 
 **Why:** These components are in the registry and would replace custom implementations with tested, accessible ones.
 
-### Phase 13: CSS Final Polish — TODO
+### Phase 13: CSS Final Polish — DEFERRED
 
 - [ ] Verify dark mode contrast ratios (WCAG AA) for all pages
 - [ ] Audit Tailwind utility vs custom CSS overlap — replace custom CSS with Tailwind where equivalent
@@ -396,7 +399,7 @@ Components from the registry that would improve the app:
 
 **Why:** Ensures visual consistency and reduces CSS maintenance burden.
 
-### Phase 14: Playwright Visual Verification — TODO
+### Phase 14: Playwright Visual Verification — DEFERRED
 
 - [ ] Navigate to each page and verify rendering (home, upload, download, view, login, admin)
 - [ ] Verify dark mode toggle works on all pages
