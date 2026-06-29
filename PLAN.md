@@ -748,6 +748,7 @@ The shadcn-svelte registry has evolved significantly. Components available NOW t
 19. **Tabs for admin config** — organized settings in 4 tab panels instead of stacked cards
 20. **Context Menu for file list** — right-click View/Save actions on view page
 21. **Sheet for reconnect flow** — slide-in panel on home page (fixes missing trigger bug)
+22. **CommandPalette** — Ctrl+K quick navigation for pages, admin, and theme toggle
 
 ### What Reference Does Better Than Chithi (Summary)
 
@@ -792,6 +793,7 @@ The shadcn-svelte registry has evolved significantly. Components available NOW t
 | Admin config stacked cards | Vertical scroll | Tabs with 4 panels | DONE |
 | Context Menu not wired | No right-click actions | ContextMenu on view page file list | DONE |
 | Sheet not wired | Hidden reconnect card | Sheet slide-in panel on home page | DONE |
+| CommandPalette not wired | No quick navigation | Ctrl+K command palette | DONE |
 
 ---
 
@@ -831,6 +833,7 @@ Install the components that Phase 15 added but didn't wire:
 - [ ] **Carousel** into upload showcase — replace static showcase cards with `<Carousel.Root>` + `<Carousel.Slide>`
 - [ ] **Hover Card** into file list views — wrap file info links with `<HoverCard.Root>` for rich previews
 - [x] **Context Menu** into view page file list — right-click actions (View, Save) via `<ContextMenu.Root>`
+- [x] **Command** into navbar layout — Ctrl+K command palette for quick navigation
 
 **Why**: Components are installed but unused. Wires them into actual pages to realize the accessibility + UX benefits.
 
