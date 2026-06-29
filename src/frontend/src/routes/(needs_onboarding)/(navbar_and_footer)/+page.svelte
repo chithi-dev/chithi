@@ -44,37 +44,37 @@
 
 		<div class="grid gap-4 sm:grid-cols-2">
 			<a href="/upload/" class="no-underline">
-				<Card.Rootclass="h-full cursor-pointer transition-shadow hover:shadow-md">
+				<Card.Root class="h-full cursor-pointer transition-shadow hover:shadow-md">
 					<Card.Header class="flex flex-col items-center text-center">
 						<Upload class="mb-2 h-8 w-8 text-primary" />
 						<Card.Title>Upload</Card.Title>
 						<Card.Description>
 							Send a file securely with an expiring, password-protected link.
-						</CardDescription>
+						</Card.Description>
 					</Card.Header>
 				</Card.Root>
 			</a>
 
 			<a href="/reverse/" class="no-underline">
-				<Card.Rootclass="h-full cursor-pointer transition-shadow hover:shadow-md">
+				<Card.Root class="h-full cursor-pointer transition-shadow hover:shadow-md">
 					<Card.Header class="flex flex-col items-center text-center">
 						<ArrowLeftRight class="mb-2 h-8 w-8 text-primary" />
 						<Card.Title>Reverse Share</Card.Title>
 						<Card.Description>
 							Create or join a room for real-time peer file transfer.
-						</CardDescription>
+						</Card.Description>
 					</Card.Header>
 				</Card.Root>
 			</a>
 
 			<a href="/speedtest/" class="no-underline sm:col-span-2">
-				<Card.Rootclass="h-full cursor-pointer transition-shadow hover:shadow-md">
+				<Card.Root class="h-full cursor-pointer transition-shadow hover:shadow-md">
 					<Card.Header class="flex flex-col items-center text-center">
 						<Gauge class="mb-2 h-8 w-8 text-primary" />
 						<Card.Title>Speed Test</Card.Title>
 						<Card.Description>
 							Measure your upload and download speeds to this server.
-						</CardDescription>
+						</Card.Description>
 					</Card.Header>
 				</Card.Root>
 			</a>
@@ -89,7 +89,7 @@
 					</Card.Title>
 					<Card.Description>
 						Paste the host link you received when creating the room (the URL with the # token).
-					</CardDescription>
+					</Card.Description>
 				</Card.Header>
 				<Card.Content>
 					<Field.Field class="space-y-2">
