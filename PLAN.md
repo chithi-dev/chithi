@@ -416,15 +416,15 @@ Align all Card usages to the exact shadcn-svelte docs pattern:
 
 **Why**: The shadcn-svelte docs show `import * as Card` and `import * as Field` as the canonical pattern. Named imports work but are not the documented standard and may break if the component registry changes export structure.
 
-### Phase 15: Install Remaining Useful Components
+### Phase 15: Install Remaining Useful Components — DONE
 
 Components from the registry that would replace custom implementations:
 
-- [ ] **accordion** — for FAQ/help sections on upload page
-- [ ] **hover-card** — for rich previews on file lists
-- [ ] **context-menu** — for right-click actions on file lists
-- [ ] **carousel** — for showcase on home page
-- [ ] **stepper** — for the 3-stage upload flow (replaces manual stage management)
+- [x] **accordion** (5 files) — for FAQ/help sections on upload page
+- [x] **hover-card** (5 files) — for rich previews on file lists
+- [x] **context-menu** (17 files) — for right-click actions on file lists
+- [x] **carousel** (7 files) — for showcase on home page
+- Note: **stepper** does not exist in shadcn-svelte registry; the existing `collapsible` component can serve as an alternative for stage indicators
 
 **Why**: These are in the registry and would replace custom implementations with tested, accessible ones.
 
