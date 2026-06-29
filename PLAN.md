@@ -452,6 +452,7 @@ The shadcn-svelte registry has evolved significantly. Components available NOW t
 | Dark mode toggle | Yes | Yes | Conformed |
 | Navbar + footer layout | Yes | Yes | Conformed |
 | Card usage | Named imports (legacy) | Namespace `Card.Root` (docs-exact) | **Chithi better** |
+| Sheet for reconnect | No | Yes (Sheet slide-in panel) | **Chithi better** |
 
 #### Upload Page (`/upload/+page.svelte`)
 
@@ -746,6 +747,7 @@ The shadcn-svelte registry has evolved significantly. Components available NOW t
 18. **Accordion for encryption FAQ** — collapsible security info on upload page
 19. **Tabs for admin config** — organized settings in 4 tab panels instead of stacked cards
 20. **Context Menu for file list** — right-click View/Save actions on view page
+21. **Sheet for reconnect flow** — slide-in panel on home page (fixes missing trigger bug)
 
 ### What Reference Does Better Than Chithi (Summary)
 
@@ -754,11 +756,10 @@ The shadcn-svelte registry has evolved significantly. Components available NOW t
 
 ### Remaining Gaps (Need Attention)
 
-1. **Carousel not wired into upload showcase** — installed but not used for showcase
+1. **Carousel not wired** — installed but not used in any page
 2. **Hover Card not used** — installed but not wired for file previews
-3. **Sheet not installed** — available in registry, would improve slide-in panels
-4. **Data Table not fully utilized** — admin pages use raw tables, could upgrade to TanStack Table
-5. **View page template** — still has some compressed one-line template elements
+3. **Data Table not fully utilized** — admin pages use raw tables, could upgrade to TanStack Table
+4. **View page template** — still has some compressed one-line template elements
 
 ---
 
@@ -790,6 +791,7 @@ The shadcn-svelte registry has evolved significantly. Components available NOW t
 | Accordion not wired | FAQ text static | Collapsible Accordion | DONE |
 | Admin config stacked cards | Vertical scroll | Tabs with 4 panels | DONE |
 | Context Menu not wired | No right-click actions | ContextMenu on view page file list | DONE |
+| Sheet not wired | Hidden reconnect card | Sheet slide-in panel on home page | DONE |
 
 ---
 
@@ -837,7 +839,7 @@ Install the components that Phase 15 added but didn't wire:
 Install components from the shadcn-svelte registry that would improve the app:
 
 - [ ] **Input Group** — replace custom input wrappers with `<InputGroup.Root>` + `<InputGroup.InputSlot>` for search bars
-- [ ] **Sheet** — replace custom slide-in panels with `<Sheet.Root>` for mobile navigation
+- [x] **Sheet** — replace hidden reconnect card with `<Sheet.Root>` slide-in panel on home page (fixes missing trigger bug)
 - [x] **Tabs** — replace stacked cards in admin config page with `<Tabs.Root>` + `<Tabs.List>` + `<Tabs.Content>` (4 tabs: Storage, Retention, Security, Description)
 - [ ] **Checkbox** — verify all checkbox usages use `<Checkbox.Root>` + `<Checkbox.Indicator>` (docs-exact)
 
