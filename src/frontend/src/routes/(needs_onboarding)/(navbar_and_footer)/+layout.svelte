@@ -10,20 +10,21 @@
 		Gauge,
 		Info
 	} from '@lucide/svelte';
-	import Button from '$lib/components/ui/button/button.svelte';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import { toggleMode } from 'mode-watcher';
-	import * as Avatar from '$lib/components/ui/avatar';
-	import * as Dropdown from '$lib/components/ui/dropdown-menu';
+	import * as Avatar from '$lib/components/ui/avatar/index.js';
+	import * as Dropdown from '$lib/components/ui/dropdown-menu/index.js';
 	import { useAuth } from '#queries/auth';
-	import { Label } from '$lib/components/ui/label';
+	import { Label } from '$lib/components/ui/label/index.js';
 	import { kebab_to_initials } from '#functions/string-conversion';
 	import { make_libravatar_url } from '#functions/libravatar';
 	import { page } from '$app/state';
-	import * as Tooltip from '$lib/components/ui/tooltip';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import favicon from '$lib/assets/logo.svg';
 	import { PUBLIC_INSTANCE_URL } from '#consts/urls';
 	import { env } from '$env/dynamic/public';
 	import { SiGithub, SiUpptime } from '@icons-pack/svelte-simple-icons';
+	import CommandPalette from '$lib/components/CommandPalette.svelte';
 	import type { Component } from 'svelte';
 
 	const { user: userData } = useAuth();
@@ -137,7 +138,8 @@
 <div
 	class="relative flex min-h-svh min-w-screen flex-col overflow-hidden bg-background text-foreground"
 >
-	<header
+		<CommandPalette />
+		<header
 		class="sticky top-0 z-50 flex items-center justify-between bg-transparent p-4 backdrop-blur-md transition-colors duration-500"
 	>
 		<a href="/" class="flex items-center gap-2" onclick={samePageNav}
