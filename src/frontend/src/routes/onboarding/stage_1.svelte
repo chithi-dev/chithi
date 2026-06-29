@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
-  import * as Card from '$lib/components/ui/card';
-  import { User, ArrowRight, Mail, Lock, LoaderCircle } from '@lucide/svelte';
+  import { Button } from '$lib/components/ui/button/index.js';
+  import { Input } from '$lib/components/ui/input/index.js';
+  import * as Card from '$lib/components/ui/card/index.js';
+  import * as Field from '$lib/components/ui/field/index.js';
+  import { User, ArrowRight, Mail, Lock } from '@lucide/svelte';
+  import { Spinner } from '$lib/components/ui/spinner/index.js';
   import { useOnboarding } from '#queries/onboarding';
   import { useAuth } from '#queries/auth';
   import { toast } from 'svelte-sonner';
@@ -42,21 +43,27 @@
   <Card.Content>
     <form onsubmit={handleSubmit} class="grid gap-6">
       <div class="grid gap-4">
-        <div class="grid gap-2">
-          <Label for="username" class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400">Username</Label>
-          <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"><User class="size-4" /></div><Input id="username" bind:value={username} placeholder="Admin" class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50" required /></div>
-        </div>
-        <div class="grid gap-2">
-          <Label for="email" class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400">Email</Label>
-          <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"><Mail class="size-4" /></div><Input id="email" type="email" bind:value={email} placeholder="name@example.com" class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50" required /></div>
-        </div>
-        <div class="grid gap-2">
-          <div class="flex items-center px-1"><Label for="password" class="text-sm font-medium text-slate-700 dark:text-zinc-400">Password</Label></div>
-          <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"><Lock class="size-4" /></div><Input id="password" type="password" bind:value={password} class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50" required /></div>
-        </div>
+        <Field.Field>
+          <Field.Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400">Username</Field.Label>
+          <Field.Content>
+            <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"><User class="size-4" /></div><Input bind:value={username} placeholder="Admin" class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50" required /></div>
+          </Field.Content>
+        </Field.Field>
+        <Field.Field>
+          <Field.Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400">Email</Field.Label>
+          <Field.Content>
+            <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"><Mail class="size-4" /></div><Input type="email" bind:value={email} placeholder="name@example.com" class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50" required /></div>
+          </Field.Content>
+        </Field.Field>
+        <Field.Field>
+          <Field.Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400">Password</Field.Label>
+          <Field.Content>
+            <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"><Lock class="size-4" /></div><Input type="password" bind:value={password} class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50" required /></div>
+          </Field.Content>
+        </Field.Field>
       </div>
       <Button type="submit" disabled={isLoading || !valid} class="h-12 w-full font-semibold shadow-lg shadow-primary/20 transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-70">
-        {#if isLoading}<LoaderCircle class="mr-2 size-5 animate-spin" />Setting up...{:else}Create Account<ArrowRight class="ml-2 size-5 transition-transform group-hover:translate-x-1" />{/if}
+        {#if isLoading}<Spinner class="mr-2" />Setting up...{:else}Create Account<ArrowRight class="ml-2 size-5 transition-transform group-hover:translate-x-1" />{/if}
       </Button>
     </form>
   </Card.Content>

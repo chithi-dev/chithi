@@ -1,13 +1,14 @@
 <script lang="ts">
   import { cubicOut } from 'svelte/easing';
   import { Tween } from 'svelte/motion';
-  import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '$lib/components/ui/card';
-  import * as Chart from '$lib/components/ui/chart';
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
-  import { Separator } from '$lib/components/ui/separator';
-  import { Play, RotateCw, Activity, ArrowDown, ArrowUp, Timer } from '@lucide/svelte';
+  import * as Card from '$lib/components/ui/card/index.js';
+  import * as Chart from '$lib/components/ui/chart/index.js';
+  import { Button } from '$lib/components/ui/button/index.js';
+  import { Input } from '$lib/components/ui/input/index.js';
+  import * as Field from '$lib/components/ui/field/index.js';
+  import { Separator } from '$lib/components/ui/separator/index.js';
+  import { Play, Activity, ArrowDown, ArrowUp, Timer } from '@lucide/svelte';
+  import { Spinner } from '$lib/components/ui/spinner/index.js';
   import { Api } from '#consts/backend';
   import SpeedtestWorker from './speedtest.worker?worker';
   const { default: SpeedGauge } = await import('./SpeedGauge.svelte');
@@ -69,12 +70,12 @@
 </script>
 
 <div class="flex h-full w-full flex-col justify-center">
-  <Card class="mx-auto w-full border-border bg-card transition-all duration-200">
-    <CardHeader>
+  <Card.Root class="mx-auto w-full border-border bg-card transition-all duration-200">
+    <Card.Header>
       <div class="flex items-center justify-between">
         <div>
-          <CardTitle class="flex items-center gap-2 text-2xl"><Activity class="h-6 w-6 text-primary" /> Speedtest</CardTitle>
-          <CardDescription>Check your internet connection speed to the server.</CardDescription>
+          <Card.Title class="flex items-center gap-2 text-2xl"><Activity class="h-6 w-6 text-primary" /> Speedtest</Card.Title>
+          <Card.Description>Check your internet connection speed to the server.</Card.Description>
         </div>
         <div class="flex h-6 flex-col justify-center">
           <div class={['flex items-center gap-2 transition-opacity duration-200', status === 'idle' || status === 'error' ? 'opacity-0' : 'opacity-100']}>
@@ -83,8 +84,8 @@
           </div>
         </div>
       </div>
-    </CardHeader>
-    <CardContent class="space-y-8 py-4">
+    </Card.Header>
+    <Card.Content class="space-y-8 py-4">
       <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div class="flex flex-col items-center justify-center gap-4 rounded-xl border bg-muted/30 p-6 transition-colors">
           <div class="flex items-center gap-2 font-semibold text-foreground"><Activity class="h-4 w-4 text-chart-1" />Latency</div>
@@ -110,19 +111,21 @@
       <Separator />
       <div class="flex flex-col items-center justify-center gap-6 pt-2">
         <div class="flex w-full max-w-sm items-end gap-4">
-          <div class="grid w-full gap-1.5">
-            <Label for="duration" class="flex items-center gap-2 text-muted-foreground"><Timer class="h-4 w-4" />Test Duration (seconds)</Label>
-            <Input type="number" id="duration" bind:value={testDuration} min={5} max={60} disabled={!canStart} />
-          </div>
+          <Field.Field class="grid w-full gap-1.5">
+            <Field.Label class="flex items-center gap-2 text-muted-foreground"><Timer class="h-4 w-4" />Test Duration (seconds)</Field.Label>
+            <Field.Content>
+              <Input type="number" bind:value={testDuration} min={5} max={60} disabled={!canStart} />
+            </Field.Content>
+          </Field.Field>
         </div>
       </div>
-    </CardContent>
-    <CardFooter class="flex justify-center pt-4 pb-8">
+    </Card.Content>
+    <Card.Footer class="flex justify-center pt-4 pb-8">
       {#if canStart}
         <Button size="lg" onclick={startTest} class="w-48 gap-2 text-lg font-semibold shadow-lg transition-all hover:scale-105 active:scale-95"><Play class="h-5 w-5" /> Start Test</Button>
       {:else}
-        <Button size="lg" variant="outline" disabled class="w-48 gap-2"><RotateCw class="h-5 w-5 animate-spin" /> Testing...</Button>
+        <Button size="lg" variant="outline" disabled class="w-48 gap-2"><Spinner /> Testing...</Button>
       {/if}
-    </CardFooter>
-  </Card>
+    </Card.Footer>
+  </Card.Root>
 </div>

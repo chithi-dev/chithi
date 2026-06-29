@@ -1,17 +1,10 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
-	import {
-		Card,
-		CardContent,
-		CardDescription,
-		CardFooter,
-		CardHeader,
-		CardTitle
-	} from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
+	import * as Card from '$lib/components/ui/card/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import * as Field from '$lib/components/ui/field/index.js';
 	import { Upload, Gauge, ArrowLeftRight, PlugZap } from '@lucide/svelte';
 
 	let showReconnect = $state(false);
@@ -51,69 +44,70 @@
 
 		<div class="grid gap-4 sm:grid-cols-2">
 			<a href="/upload/" class="no-underline">
-				<Card class="h-full cursor-pointer transition-shadow hover:shadow-md">
-					<CardHeader class="flex flex-col items-center text-center">
+				<Card.Rootclass="h-full cursor-pointer transition-shadow hover:shadow-md">
+					<Card.Header class="flex flex-col items-center text-center">
 						<Upload class="mb-2 h-8 w-8 text-primary" />
-						<CardTitle>Upload</CardTitle>
-						<CardDescription>
+						<Card.Title>Upload</Card.Title>
+						<Card.Description>
 							Send a file securely with an expiring, password-protected link.
 						</CardDescription>
-					</CardHeader>
-				</Card>
+					</Card.Header>
+				</Card.Root>
 			</a>
 
 			<a href="/reverse/" class="no-underline">
-				<Card class="h-full cursor-pointer transition-shadow hover:shadow-md">
-					<CardHeader class="flex flex-col items-center text-center">
+				<Card.Rootclass="h-full cursor-pointer transition-shadow hover:shadow-md">
+					<Card.Header class="flex flex-col items-center text-center">
 						<ArrowLeftRight class="mb-2 h-8 w-8 text-primary" />
-						<CardTitle>Reverse Share</CardTitle>
-						<CardDescription>
+						<Card.Title>Reverse Share</Card.Title>
+						<Card.Description>
 							Create or join a room for real-time peer file transfer.
 						</CardDescription>
-					</CardHeader>
-				</Card>
+					</Card.Header>
+				</Card.Root>
 			</a>
 
 			<a href="/speedtest/" class="no-underline sm:col-span-2">
-				<Card class="h-full cursor-pointer transition-shadow hover:shadow-md">
-					<CardHeader class="flex flex-col items-center text-center">
+				<Card.Rootclass="h-full cursor-pointer transition-shadow hover:shadow-md">
+					<Card.Header class="flex flex-col items-center text-center">
 						<Gauge class="mb-2 h-8 w-8 text-primary" />
-						<CardTitle>Speed Test</CardTitle>
-						<CardDescription>
+						<Card.Title>Speed Test</Card.Title>
+						<Card.Description>
 							Measure your upload and download speeds to this server.
 						</CardDescription>
-					</CardHeader>
-				</Card>
+					</Card.Header>
+				</Card.Root>
 			</a>
 		</div>
 
 		{#if showReconnect}
-			<Card>
-				<CardHeader>
-					<CardTitle class="flex items-center gap-2">
+			<Card.Root>
+				<Card.Header>
+					<Card.Title class="flex items-center gap-2">
 						<PlugZap class="h-5 w-5" />
 						Reconnect to Room
-					</CardTitle>
-					<CardDescription>
+					</Card.Title>
+					<Card.Description>
 						Paste the host link you received when creating the room (the URL with the # token).
 					</CardDescription>
-				</CardHeader>
-				<CardContent>
-					<div class="space-y-2">
-						<Label for="reconnect-url">Host Link</Label>
-						<Input
-							id="reconnect-url"
-							placeholder="https://…/reverse/room-id#host-token"
-							bind:value={reconnectUrl}
-							onkeydown={(e) => e.key === 'Enter' && handleReconnect()}
-						/>
-					</div>
-				</CardContent>
-				<CardFooter class="flex gap-2">
+				</Card.Header>
+				<Card.Content>
+					<Field.Field class="space-y-2">
+						<Field.Label>Host Link</Field.Label>
+						<Field.Content>
+							<Input
+								placeholder="https://…/reverse/room-id#host-token"
+								bind:value={reconnectUrl}
+								onkeydown={(e) => e.key === 'Enter' && handleReconnect()}
+							/>
+						</Field.Content>
+					</Field.Field>
+				</Card.Content>
+				<Card.Footer class="flex gap-2">
 					<Button variant="outline" onclick={() => (showReconnect = false)}>Cancel</Button>
 					<Button onclick={handleReconnect} class="flex-1">Reconnect</Button>
-				</CardFooter>
-			</Card>
+				</Card.Footer>
+			</Card.Root>
 		{/if}
 	</div>
 </div>

@@ -2,19 +2,13 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { toast } from 'svelte-sonner';
-	import {
-		Card,
-		CardContent,
-		CardDescription,
-		CardFooter,
-		CardHeader,
-		CardTitle
-	} from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import * as Select from '$lib/components/ui/select';
-	import { Label } from '$lib/components/ui/label';
-	import { Upload, Download, ArrowLeft, LoaderCircle } from '@lucide/svelte';
+	import * as Card from '$lib/components/ui/card/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
+	import * as Field from '$lib/components/ui/field/index.js';
+	import { Upload, Download, ArrowLeft } from '@lucide/svelte';
+	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { Api } from '#consts/backend';
 	import { useConfigQuery } from '#queries/config';
 	import { base64url } from '#functions/encryption';
@@ -101,133 +95,139 @@
 
 		{#if landingView === 'main'}
 			<div class="grid gap-4 sm:grid-cols-2">
-				<Card
+				<Card.Root
 					class="cursor-pointer transition-shadow hover:shadow-md"
 					onclick={() => (landingView = 'create')}
 				>
-					<CardHeader>
-						<CardTitle class="flex items-center gap-2">
+					<Card.Header>
+						<Card.Title class="flex items-center gap-2">
 							<Upload class="h-5 w-5" />
 							Create a Room
-						</CardTitle>
-						<CardDescription>
+						</Card.Title>
+						<Card.Description>
 							Host a room and share files. Guests receive them in real time via WebSocket.
-						</CardDescription>
-					</CardHeader>
-				</Card>
+						</Card.Description>
+					</Card.Header>
+				</Card.Root>
 
-				<Card
+				<Card.Root
 					class="cursor-pointer transition-shadow hover:shadow-md"
 					onclick={() => (landingView = 'join')}
 				>
-					<CardHeader>
-						<CardTitle class="flex items-center gap-2">
+					<Card.Header>
+						<Card.Title class="flex items-center gap-2">
 							<Download class="h-5 w-5" />
 							Join a Room
-						</CardTitle>
-						<CardDescription>
+						</Card.Title>
+						<Card.Description>
 							Enter a room ID or follow a shared link to receive files from the host.
-						</CardDescription>
-					</CardHeader>
-				</Card>
+						</Card.Description>
+					</Card.Header>
+				</Card.Root>
 			</div>
 		{:else if landingView === 'create'}
-			<Card>
-				<CardHeader>
-					<CardTitle class="flex items-center gap-2">
+			<Card.Root>
+				<Card.Header>
+					<Card.Title class="flex items-center gap-2">
 						<Upload class="h-5 w-5" />
 						Create a Room
-					</CardTitle>
-				</CardHeader>
-				<CardContent class="space-y-4">
-					<div class="space-y-2">
-						<Label for="room-name">Room Name</Label>
-						<Input
-							id="room-name"
-							placeholder="My share session"
-							bind:value={roomName}
-							onkeydown={(e) => e.key === 'Enter' && createRoom()}
-						/>
-					</div>
-					<div class="space-y-2">
-						<Label for="downloads">Number of downloads</Label>
-						<Select.Root type="single" bind:value={numberOfDownloads}>
-							<Select.Trigger class="w-full">
-								{numberOfDownloads === ''
-									? 'Use default'
-									: `${numberOfDownloads} ${numberOfDownloads === '1' ? 'download' : 'downloads'}`}
-							</Select.Trigger>
-							<Select.Content>
-								<Select.Item value="">Use default</Select.Item>
-								{#if configData.data?.download_configs}
-									{#each configData.data.download_configs as limit}
-										<Select.Item value={limit.toString()}
-											>{limit} {limit === 1 ? 'download' : 'downloads'}</Select.Item
-										>
-									{/each}
-								{:else}
-									<Select.Item value="1">1 download</Select.Item>
-								{/if}
-							</Select.Content>
-						</Select.Root>
-						<p class="text-xs text-muted-foreground">
+					</Card.Title>
+				</Card.Header>
+				<Card.Content class="space-y-4">
+					<Field.Field class="space-y-2">
+						<Field.Label>Room Name</Field.Label>
+						<Field.Content>
+							<Input
+								placeholder="My share session"
+								bind:value={roomName}
+								onkeydown={(e) => e.key === 'Enter' && createRoom()}
+							/>
+						</Field.Content>
+					</Field.Field>
+					<Field.Field class="space-y-2">
+						<Field.Label>Number of downloads</Field.Label>
+						<Field.Content>
+							<Select.Root type="single" bind:value={numberOfDownloads}>
+								<Select.Trigger class="w-full">
+									{numberOfDownloads === ''
+										? 'Use default'
+										: `${numberOfDownloads} ${numberOfDownloads === '1' ? 'download' : 'downloads'}`}
+								</Select.Trigger>
+								<Select.Content>
+									<Select.Item value="">Use default</Select.Item>
+									{#if configData.data?.download_configs}
+										{#each configData.data.download_configs as limit}
+											<Select.Item value={limit.toString()}
+												>{limit} {limit === 1 ? 'download' : 'downloads'}</Select.Item
+											>
+										{/each}
+									{:else}
+										<Select.Item value="1">1 download</Select.Item>
+									{/if}
+								</Select.Content>
+							</Select.Root>
+						</Field.Content>
+						<Field.Description class="text-xs text-muted-foreground">
 							Leave as "Use default" to apply server default.
-						</p>
-					</div>
-					<div class="space-y-2">
-						<Label for="expire">Expires after (seconds)</Label>
-						<Input id="expire" type="number" min="60" max="86400" bind:value={expireAfter} />
-						<p class="text-xs text-muted-foreground">
+						</Field.Description>
+					</Field.Field>
+					<Field.Field class="space-y-2">
+						<Field.Label>Expires after (seconds)</Field.Label>
+						<Field.Content>
+							<Input type="number" min="60" max="86400" bind:value={expireAfter} />
+						</Field.Content>
+						<Field.Description class="text-xs text-muted-foreground">
 							{#if expireAfter >= 3600}
 								{(expireAfter / 3600).toFixed(1)} hour(s)
 							{:else}
 								{Math.round(expireAfter / 60)} minute(s)
 							{/if}
-						</p>
-					</div>
-				</CardContent>
-				<CardFooter class="flex gap-2">
+						</Field.Description>
+					</Field.Field>
+				</Card.Content>
+				<Card.Footer class="flex gap-2">
 					<Button variant="outline" onclick={() => (landingView = 'main')}>
 						<ArrowLeft class="mr-1 h-4 w-4" />
 						Back
 					</Button>
 					<Button onclick={createRoom} disabled={isCreating} class="flex-1">
 						{#if isCreating}
-							<LoaderCircle class="mr-2 h-4 w-4 animate-spin" />
+							<Spinner />
 							Creating…
 						{:else}
 							Create Room
 						{/if}
 					</Button>
-				</CardFooter>
-			</Card>
+				</Card.Footer>
+			</Card.Root>
 		{:else if landingView === 'join'}
-			<Card>
-				<CardHeader>
-					<CardTitle class="flex items-center gap-2">
+			<Card.Root>
+				<Card.Header>
+					<Card.Title class="flex items-center gap-2">
 						<Download class="h-5 w-5" />
 						Join a Room
-					</CardTitle>
-				</CardHeader>
-				<CardContent class="space-y-4">
-					<div class="space-y-2">
-						<Label for="room-id">Room ID</Label>
-						<Input
-							id="room-id"
-							placeholder="Paste room ID here"
-							bind:value={joinId}
-							onkeydown={(e) => e.key === 'Enter' && goJoin()}
-						/>
-					</div>
-				</CardContent>
-				<CardFooter class="flex gap-2">
+					</Card.Title>
+				</Card.Header>
+				<Card.Content class="space-y-4">
+					<Field.Field class="space-y-2">
+						<Field.Label>Room ID</Field.Label>
+						<Field.Content>
+							<Input
+								placeholder="Paste room ID here"
+								bind:value={joinId}
+								onkeydown={(e) => e.key === 'Enter' && goJoin()}
+							/>
+						</Field.Content>
+					</Field.Field>
+				</Card.Content>
+				<Card.Footer class="flex gap-2">
 					<Button variant="outline" onclick={() => (landingView = 'main')}>
 						<ArrowLeft class="mr-1 h-4 w-4" />
 						Back
 					</Button>
 					<Button onclick={goJoin} class="flex-1">Join Room</Button>
-				</CardFooter>
-			</Card>
+				</Card.Footer>
+			</Card.Root>
 		{/if}
 	</div>
 </div>
