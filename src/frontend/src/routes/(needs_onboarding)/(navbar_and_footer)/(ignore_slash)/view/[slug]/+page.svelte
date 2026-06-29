@@ -22,6 +22,7 @@
   import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
   import { autoDownload } from '$lib/functions/browser-download';
   import { validateZipBlob } from '#functions/zip-validate';
+  import * as ContextMenu from '$lib/components/ui/context-menu/index.js';
   import { useFileInfoQuery } from '#queries/file-info';
 
   const key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
@@ -268,28 +269,38 @@
               <ScrollArea class="h-125">
                 <div class="p-2">
                   {#each zipEntries as entry}
-                    <div class="group flex w-full items-center gap-3 rounded-md p-2 transition-colors hover:bg-muted/50">
-                      <button class="flex flex-1 cursor-pointer items-center gap-3 overflow-hidden border-0 bg-transparent p-0 text-left" onclick={() => openEntry(entry)}>
-                        {#if entry.directory}
-                          <Folder class="h-5 w-5 shrink-0 text-primary" />
-                        {:else}
-                          {@const Icon = fileIcon(entry.filename)}
-                          <Icon class="h-5 w-5 shrink-0 text-primary" />
-                        {/if}
-                        <div class="flex-1 overflow-hidden">
-                          <p class="truncate text-sm font-medium">{entry.filename}</p>
+                    <ContextMenu.Root>
+                      <ContextMenu.Trigger>
+                        <div class="group flex w-full items-center gap-3 rounded-md p-2 transition-colors hover:bg-muted/50">
+                          <button class="flex flex-1 cursor-pointer items-center gap-3 overflow-hidden border-0 bg-transparent p-0 text-left" onclick={() => openEntry(entry)}>
+                            {#if entry.directory}
+                              <Folder class="h-5 w-5 shrink-0 text-primary" />
+                            {:else}
+                              {@const Icon = fileIcon(entry.filename)}
+                              <Icon class="h-5 w-5 shrink-0 text-primary" />
+                            {/if}
+                            <div class="flex-1 overflow-hidden">
+                              <p class="truncate text-sm font-medium">{entry.filename}</p>
+                              {#if !entry.directory}
+                                <p class="text-xs text-muted-foreground">{formatFileSize(entry.uncompressedSize)}</p>
+                              {/if}
+                            </div>
+                          </button>
                           {#if !entry.directory}
-                            <p class="text-xs text-muted-foreground">{formatFileSize(entry.uncompressedSize)}</p>
+                            <div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                              <Button variant="ghost" size="icon" class="h-8 w-8" title="View File" onclick={() => openEntry(entry)}><ExternalLink class="h-4 w-4" /></Button>
+                              <Button variant="ghost" size="icon" class="h-8 w-8" title="Save File" onclick={() => saveEntry(entry)}><Download class="h-4 w-4" /></Button>
+                            </div>
                           {/if}
                         </div>
-                      </button>
-                      {#if !entry.directory}
-                        <div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                          <Button variant="ghost" size="icon" class="h-8 w-8" title="View File" onclick={() => openEntry(entry)}><ExternalLink class="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" class="h-8 w-8" title="Save File" onclick={() => saveEntry(entry)}><Download class="h-4 w-4" /></Button>
-                        </div>
-                      {/if}
-                    </div>
+                      </ContextMenu.Trigger>
+                      <ContextMenu.Content class="w-48">
+                        {#if !entry.directory}
+                          <ContextMenu.Item onclick={() => openEntry(entry)}>View</ContextMenu.Item>
+                          <ContextMenu.Item onclick={() => saveEntry(entry)}>Save</ContextMenu.Item>
+                        {/if}
+                      </ContextMenu.Content>
+                    </ContextMenu.Root>
                   {/each}
                   {#if zipEntries.length === 0}<div class="p-8 text-center text-muted-foreground">No files found in this archive.</div>{/if}
                 </div>
