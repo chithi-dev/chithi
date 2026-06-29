@@ -266,10 +266,10 @@ Custom colors via `@theme inline { --color-warning: var(--warning); }`.
 
 | Pattern | Reference | Chithi | Docs Exact |
 |---|---|---|---|
-| Import | `import { Card, CardContent, ... }` (named) | Mixed: named in home, namespace in upload/view | `import * as Card` (namespace) |
-| Structure | `<Card>`, `<CardContent>` | Mixed: `<Card>` vs `<Card.Root>` | `<Card.Root>`, `<Card.Content>` |
+| Import | `import { Card, CardContent, ... }` (named) | `import * as Card` (namespace) | `import * as Card` (namespace) |
+| Structure | `<Card>`, `<CardContent>` | `<Card.Root>`, `<Card.Content>` | `<Card.Root>`, `<Card.Content>` |
 
-**Verdict**: Chithi is **inconsistent** — some files use named imports, others use namespace. Docs require namespace. Home page and host page need to align to `import * as Card` with `<Card.Root>`.
+**Verdict**: Fully conformed — all 7 pages now use `import * as Card` with `<Card.Root>`, `<Card.Header>`, `<Card.Title>`, `<Card.Description>`, `<Card.Content>`, `<Card.Footer>`.
 
 #### Dialog
 
@@ -306,9 +306,10 @@ Custom colors via `@theme inline { --color-warning: var(--warning); }`.
 
 | Pattern | Reference | Chithi | Docs Exact |
 |---|---|---|---|
-| Usage | Not used (uses bare `<Label>`) | Used in home page reconnect form, speedtest, host | `import * as Field` |
+| Import | Not used | `import * as Field` (namespace) | `import * as Field` |
+| Structure | Not used | `<Field.Field>`, `<Field.Label>`, `<Field.Content>`, `<Field.Description>` | Matches docs |
 
-**Verdict**: Chithi uses the **newer Field pattern** which is an improvement over bare Label.
+**Verdict**: Fully conformed — all pages now use `import * as Field` with `<Field.Field>`, `<Field.Label>`, `<Field.Content>`, `<Field.Description>`. Chithi uses the **newer Field pattern** which is an improvement over bare Label.
 
 #### Spinner
 
@@ -367,8 +368,7 @@ Custom colors via `@theme inline { --color-warning: var(--warning); }`.
 
 ### Remaining Gaps (Need Attention)
 
-1. **Card import inconsistency** — home page uses named imports (`Card`, `CardContent`), upload/view use namespace (`* as Card`). Docs require namespace everywhere.
-2. **View page template** — still has some compressed one-line template elements (done for functions, template in progress).
+1. **View page template** — still has some compressed one-line template elements (done for functions, template in progress).
 
 ---
 
@@ -396,21 +396,25 @@ Custom colors via `@theme inline { --color-warning: var(--warning); }`.
 | Query file readability | Compressed one-liners | Expanded, `queryClient` | DONE |
 | View page compressed functions | One-liners | Expanded functions | DONE |
 | Reverse client compressed code | One-liners | Expanded functions | DONE |
+| Card/Field import inconsistency | Named imports | Namespace imports | DONE |
 
 ---
 
 ## Part 4: Forward Work Plan
 
-### Phase 14: Fix Card Import Consistency
+### Phase 14: Fix Card Import Consistency — DONE
 
 Align all Card usages to the exact shadcn-svelte docs pattern:
 
-- [ ] Change home page (`+page.svelte`) from named imports (`Card`, `CardContent`, `CardHeader`, etc.) to namespace import (`import * as Card`) with `<Card.Root>`, `<Card.Content>`, etc.
-- [ ] Change host page (`host.svelte`) from named imports to namespace import
-- [ ] Verify upload page, view page, reverse pages already use namespace (they do)
-- [ ] Verify login page uses namespace for Card
+- [x] Change home page (`+page.svelte`) from named imports to namespace import with `<Card.Root>`, `<Card.Content>`, etc.
+- [x] Change host page (`host.svelte`) from named imports to namespace import
+- [x] Change client page (`client.svelte`) from named imports to namespace import
+- [x] Change speedtest page from named imports to namespace import
+- [x] Change reverse landing page from named imports to namespace import
+- [x] Change onboarding stage_1 and stage_2 from named imports to namespace import
+- [x] Apply same treatment to Field component across all 7 files (`Field.Field`, `Field.Label`, `Field.Content`, `Field.Description`)
 
-**Why**: The shadcn-svelte docs show `import * as Card` as the canonical pattern. Named imports work but are not the documented standard and may break if the component registry changes export structure.
+**Why**: The shadcn-svelte docs show `import * as Card` and `import * as Field` as the canonical pattern. Named imports work but are not the documented standard and may break if the component registry changes export structure.
 
 ### Phase 15: Install Remaining Useful Components
 
