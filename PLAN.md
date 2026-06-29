@@ -469,7 +469,7 @@ The shadcn-svelte registry has evolved significantly. Components available NOW t
 | Empty state | Yes | `<Empty.Root>` component | **Chithi better** |
 | ButtonGroup for file actions | Yes | `ButtonGroup.Trigger` + snippets | **Chithi better** |
 | Alert for errors | No | `<Alert.Root>` inline | **Chithi better** |
-| Accordion for FAQ | No | Installed (not yet wired) | TODO |
+| Accordion for FAQ | No | Wired into encryption info section | **Chithi better** |
 | Carousel for showcase | No | Installed (not yet wired) | TODO |
 
 #### Download Page (`/download/[slug]/+page.svelte`)
@@ -560,12 +560,13 @@ The shadcn-svelte registry has evolved significantly. Components available NOW t
 
 | Feature | Reference | Chithi | Status |
 |---|---|---|---|
-| Site description card | Yes | Yes | Conformed |
-| File security card | Yes | Yes | Conformed |
-| Retention policy card | Yes | Yes | Conformed |
-| Storage/file card | Yes | Yes | Conformed |
+| Site description card | Yes | Yes (in Description tab) | Conformed |
+| File security card | Yes | Yes (in Security tab) | Conformed |
+| Retention policy card | Yes | Yes (in Retention tab) | Conformed |
+| Storage/file card | Yes | Yes (in Storage tab) | Conformed |
 | Loading skeleton | Yes | Yes | Conformed |
 | Sidebar navigation | Yes | Yes | Conformed |
+| Tabs for organization | No | Yes (4 tabs: Storage, Retention, Security, Description) | **Chithi better** |
 
 #### Admin — Users (`/admin/users/+page.svelte`)
 
@@ -742,6 +743,8 @@ The shadcn-svelte registry has evolved significantly. Components available NOW t
 15. **Unit tests** — `bytes.test.ts`, `encryption.client.test.ts`, `streams.client.test.ts`
 16. **Info page components** — `InfoCard`, `StatusBadge`, `CommitLink`
 17. **View page enhancements** — zoom controls, file info sidebar
+18. **Accordion for encryption FAQ** — collapsible security info on upload page
+19. **Tabs for admin config** — organized settings in 4 tab panels instead of stacked cards
 
 ### What Reference Does Better Than Chithi (Summary)
 
@@ -750,15 +753,12 @@ The shadcn-svelte registry has evolved significantly. Components available NOW t
 
 ### Remaining Gaps (Need Attention)
 
-1. **Accordion not wired into upload page** — installed but not used for FAQ section
-2. **Carousel not wired into home page** — installed but not used for showcase
-3. **Hover Card not used** — installed but not wired for file previews
-4. **Context Menu not used** — installed but not wired for file list right-click actions
-5. **Input Group not installed** — available in registry, would improve search inputs
-6. **Sheet not installed** — available in registry, would improve slide-in panels
-7. **Tabs not installed** — available in registry, would improve admin config pages
-8. **Data Table not fully utilized** — admin pages use raw tables, could upgrade to TanStack Table
-9. **View page template** — still has some compressed one-line template elements
+1. **Carousel not wired into upload showcase** — installed but not used for showcase
+2. **Hover Card not used** — installed but not wired for file previews
+3. **Context Menu not used** — installed but not wired for file list right-click actions
+4. **Sheet not installed** — available in registry, would improve slide-in panels
+5. **Data Table not fully utilized** — admin pages use raw tables, could upgrade to TanStack Table
+6. **View page template** — still has some compressed one-line template elements
 
 ---
 
@@ -787,6 +787,8 @@ The shadcn-svelte registry has evolved significantly. Components available NOW t
 | View page compressed functions | One-liners | Expanded functions | DONE |
 | Reverse client compressed code | One-liners | Expanded functions | DONE |
 | Card/Field import inconsistency | Named imports | Namespace imports | DONE |
+| Accordion not wired | FAQ text static | Collapsible Accordion | DONE |
+| Admin config stacked cards | Vertical scroll | Tabs with 4 panels | DONE |
 
 ---
 
@@ -822,7 +824,7 @@ Components from the registry that would replace custom implementations:
 
 Install the components that Phase 15 added but didn't wire:
 
-- [ ] **Accordion** into upload page FAQ section — wrap help text in `<Accordion.Root>` with `<Accordion.Item>`, `<Accordion.Trigger>`, `<Accordion.Content>`
+- [x] **Accordion** into upload page FAQ section — wrap help text in `<Accordion.Root>` with 3 collapsible items (End-to-End Encryption, How it works, Key storage)
 - [ ] **Carousel** into home page showcase — replace static showcase cards with `<Carousel.Root>` + `<Carousel.Slide>`
 - [ ] **Hover Card** into file list views — wrap file info links with `<HoverCard.Root>` for rich previews
 - [ ] **Context Menu** into file lists — add right-click actions (download, delete, copy link) via `<ContextMenu.Root>`
@@ -835,7 +837,7 @@ Install components from the shadcn-svelte registry that would improve the app:
 
 - [ ] **Input Group** — replace custom input wrappers with `<InputGroup.Root>` + `<InputGroup.InputSlot>` for search bars
 - [ ] **Sheet** — replace custom slide-in panels with `<Sheet.Root>` for mobile navigation
-- [ ] **Tabs** — replace custom tab state in admin config page with `<Tabs.Root>` + `<Tabs.List>` + `<Tabs.Content>`
+- [x] **Tabs** — replace stacked cards in admin config page with `<Tabs.Root>` + `<Tabs.List>` + `<Tabs.Content>` (4 tabs: Storage, Retention, Security, Description)
 - [ ] **Checkbox** — verify all checkbox usages use `<Checkbox.Root>` + `<Checkbox.Indicator>` (docs-exact)
 
 **Why**: These components are in the registry, tested, accessible, and directly replace existing custom patterns.
