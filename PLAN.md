@@ -1,8 +1,9 @@
 # Chithi Frontend Conformance Plan
 
-> shadcn-svelte Deep Research + Reference Frontend Comparison + Forward Work Plan
-> Research date: 2026-06-28
+> shadcn-svelte Deep Research + Reference Frontend Functional Comparison + Forward Work Plan
+> Research date: 2026-06-29
 > shadcn-svelte docs source: `https://www.shadcn-svelte.com/llms.txt` + individual component docs
+> Reference frontend: `D:\Programming\frontend`
 
 ---
 
@@ -196,12 +197,181 @@ shadcn-svelte is a **code distribution system**, not a component library. Compon
 </Select.Root>
 ```
 
+#### Input Group — EXACT from docs (newer, replaces custom input wrappers)
+
+```svelte
+<script lang="ts">
+  import { Input } from "$lib/components/ui/input/index.js";
+  import * as InputGroup from "$lib/components/ui/input-group/index.js";
+  import { Search } from "lucide-svelte";
+</script>
+
+<InputGroup.Root>
+  <InputGroup.InputSlot let:{toggle}>
+    <Search class="h-4 w-4" />
+  </InputGroup.InputSlot>
+  <Input type="text" placeholder="Search..." />
+</InputGroup.Root>
+```
+
+#### Alert Dialog — EXACT from docs (replaces custom confirm dialogs)
+
+```svelte
+<script lang="ts">
+  import { Button, buttonVariants } from "$lib/components/ui/button/index.js";
+  import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
+</script>
+
+<AlertDialog.Root>
+  <AlertDialog.Trigger class={buttonVariants({ variant: "outline" })}>
+    Show Dialog
+  </AlertDialog.Trigger>
+  <AlertDialog.Content>
+    <AlertDialog.Header>
+      <AlertDialog.Title>Are you absolutely sure?</AlertDialog.Title>
+      <AlertDialog.Description>
+        This action cannot be undone.
+      </AlertDialog.Description>
+    </AlertDialog.Header>
+    <AlertDialog.Footer>
+      <AlertDialog.Cancel class={buttonVariants({ variant: "outline" })}>Cancel</AlertDialog.Cancel>
+      <AlertDialog.Action>Continue</AlertDialog.Action>
+    </AlertDialog.Footer>
+  </AlertDialog.Content>
+</AlertDialog.Root>
+```
+
+#### Data Table — EXACT from docs (replaces custom tables with sorting/filtering)
+
+Built on TanStack Table v8. Provides column definitions, sorting, filtering, row selection, and pagination out of the box.
+
+```svelte
+<script lang="ts">
+  import { createColumnHelper } from "@tanstack/table-core";
+  import { createEnhancedTable, renderSvelteComponent } from "$lib/components/ui/data-table/index.js";
+  import * as Table from "$lib/components/ui/table/index.js";
+  import { Badge } from "$lib/components/ui/badge/index.js";
+  import { Button } from "$lib/components/ui/button/index.js";
+
+  const columnHelper = createColumnHelper<typeof rows[0]>();
+  const columns = [
+    columnHelper.accessor("name", {
+      cell: (info) => info.getValue(),
+    }),
+    columnHelper.accessor("email", {
+      cell: (info) => info.getValue(),
+    }),
+  ];
+
+  const table = createEnhancedTable({
+    columns,
+    data: rows,
+    renderComponent: renderSvelteComponent,
+  });
+</script>
+
+<Table.Root class="caption-bottom">
+  <Table.Header>
+    {table.headerGroups.map((headerGroup) => (
+      <Table.HeaderGroup class="..." {...headerGroup.meta}>
+        {headerGroup.headers.map((header) => (
+          <Table.HeaderCell class="..." {...header.meta}>
+            {header.isPlaceholder
+              ? null
+              : renderSvelteComponent(header.column.columnDef.cell, header.getContext())}
+          </Table.HeaderCell>
+        ))}
+      </Table.HeaderGroup>
+    ))}
+  </Table.Header>
+  <Table.Body>
+    {table.getRowModel().rows.map((row) => (
+      <Table.Row class="..." {...row.meta}>
+        {row.getVisibleCells().map((cell) => (
+          <Table.Cell class="..." {...cell.meta}>
+            {renderSvelteComponent(cell.column.columnDef.cell, cell.getContext())}
+          </Table.Cell>
+        ))}
+      </Table.Row>
+    ))}
+  </Table.Body>
+</Table.Root>
+```
+
+#### Tabs — EXACT from docs (replaces custom tab switching)
+
+```svelte
+<script lang="ts">
+  import * as Tabs from "$lib/components/ui/tabs/index.js";
+</script>
+
+<Tabs.Root value="account" class="w-full">
+  <Tabs.List>
+    <Tabs.Trigger value="account">Account</Tabs.Trigger>
+    <Tabs.Trigger value="password">Password</Tabs.Trigger>
+  </Tabs.List>
+  <Tabs.Content value="account">
+    <!-- account content -->
+  </Tabs.Content>
+  <Tabs.Content value="password">
+    <!-- password content -->
+  </Tabs.Content>
+</Tabs.Root>
+```
+
+#### Sheet — EXACT from docs (replaces custom slide-in panels)
+
+```svelte
+<script lang="ts">
+  import { Button, buttonVariants } from "$lib/components/ui/button/index.js";
+  import * as Sheet from "$lib/components/ui/sheet/index.js";
+</script>
+
+<Sheet.Root>
+  <Sheet.Trigger class={buttonVariants({ variant: "outline" })}>Open</Sheet.Trigger>
+  <Sheet.Content>
+    <Sheet.Header>
+      <Sheet.Title>Are you sure...</Sheet.Title>
+      <Sheet.Description>
+        You can manage your notifications...
+      </Sheet.Description>
+    </Sheet.Header>
+  </Sheet.Content>
+</Sheet.Root>
+```
+
+#### Checkbox — EXACT from docs
+
+```svelte
+<script lang="ts">
+  import * as Checkbox from "$lib/components/ui/checkbox/index.js";
+</script>
+
+<Checkbox.Root name="newsletter" id="terms">
+  <Checkbox.Indicator>
+    <Check class="h-4 w-4" />
+  </Checkbox.Indicator>
+</Checkbox.Root>
+```
+
+#### Switch — EXACT from docs
+
+```svelte
+<script lang="ts">
+  import * as Switch from "$lib/components/ui/switch/index.js";
+</script>
+
+<Switch.Root name="airplane-mode" id="airplane-mode">
+  <Switch.Thumb />
+</Switch.Root>
+```
+
 ### Import Rules (From Docs)
 
 | Type | Components | Pattern |
 |---|---|---|
-| **Compositional** (namespace) | Card, Dialog, DropdownMenu, Tooltip, Select, Sidebar, Sheet, Form, Field, Breadcrumb, Accordion, Alert Dialog, Command, Context Menu, Hover Card, Menubar, Navigation Menu, Popover, Resizable, Scroll Area, Tabs | `import * as X from "$lib/components/ui/x/index.js"` |
-| **Single** (named) | Button, Input, Badge, Progress, Spinner, Separator, Skeleton, Label, Textarea, Checkbox, Switch, Slider, Radio Group | `import { X } from "$lib/components/ui/x/index.js"` |
+| **Compositional** (namespace) | Card, Dialog, DropdownMenu, Tooltip, Select, Sidebar, Sheet, Form, Field, Breadcrumb, Accordion, Alert Dialog, Command, Context Menu, Hover Card, Input Group, Menubar, Navigation Menu, Popover, Resizable, Scroll Area, Tabs, Checkbox, Switch | `import * as X from "$lib/components/ui/x/index.js"` |
+| **Single** (named) | Button, Input, Badge, Progress, Spinner, Separator, Skeleton, Label, Textarea, Radio Group, Slider | `import { X } from "$lib/components/ui/x/index.js"` |
 
 ### Dark Mode — EXACT from docs
 
@@ -229,9 +399,30 @@ Toggle: `<Button onclick={toggleMode} variant="outline" size="icon">`
 
 Custom colors via `@theme inline { --color-warning: var(--warning); }`.
 
+### Key shadcn-svelte Improvements Over Reference Frontend
+
+The shadcn-svelte registry has evolved significantly. Components available NOW that the reference frontend does NOT use:
+
+| Component | Replaces | Benefit |
+|---|---|---|
+| **Field** | Bare `<Label>` + `<Input>` | Full form field accessibility (labels, descriptions, errors grouped) |
+| **Input Group** | Custom input wrappers | Addons (icons, prefixes, suffixes) with proper ARIA |
+| **Spinner** | `LoaderCircle` icon + `animate-spin` | Dedicated loading indicator component |
+| **Alert** | Custom error/info banners | Accessible callout with icon + title + description |
+| **Data Table** | Raw `<table>` elements | TanStack Table with sorting, filtering, selection, pagination |
+| **Chart** | Custom SVG charts | LayerChart-based beautiful charts out of the box |
+| **Item** | Custom list items | Versatile component for any list/content display |
+| **Kbd** | `<kbd>` HTML elements | Styled keyboard input indicators |
+| **Empty** | Custom empty state divs | Accessible empty state with icon + title + description |
+| **Alert Dialog** | `confirm()` or custom modals | Accessible confirmation dialogs with proper focus trapping |
+| **Sheet** | Custom slide-in panels | Accessible side panel with proper overlay + focus management |
+| **Tabs** | Custom tab state management | ARIA-compliant tab panels with keyboard navigation |
+| **Command** | Custom search/command palettes | Fast, composable command menu (Ctrl+K) |
+| **Button Group** | Manually grouped buttons | Consistent button grouping with shared borders |
+
 ---
 
-## Part 2: Reference Frontend Deep Comparison
+## Part 2: Reference Frontend Deep Functional Comparison
 
 ### Architecture Comparison
 
@@ -242,23 +433,180 @@ Custom colors via `@theme inline { --color-warning: var(--warning); }`.
 | Styling | Tailwind CSS v4 + OKLCH | Same | Identical |
 | State | TanStack Svelte Query | Same | Identical |
 | Forms | formsnap + sveltekit-superforms + Zod v4 | Same | Identical |
-| Database | IndexedDB (raw, single file) | IndexedDB (split modules) | Chithi more modular |
+| Database | IndexedDB (raw, single file) | IndexedDB (split modules) | **Chithi better** — more modular |
 | Adapter | adapter-node | Same | Identical |
 | WASM | None | chithi_wasm (Rust crypto) | Chithi-specific feature |
-| Remote Functions | Not enabled | `experimental.remoteFunctions: true` | Chithi more advanced |
+| Remote Functions | Not enabled | `experimental.remoteFunctions: true` | **Chithi better** — server-side auth |
 | COEP/COOP | Not set | Set in `hooks.ts` | Chithi requires for WASM |
+| Path Aliases | `$lib` only | `#queries/*`, `#functions/*`, `#consts/*`, `#css/*`, `#workers/*`, `#errors/*`, `#wasm/*` | **Chithi better** — explicit, IDE-friendly |
+| Build-time Globals | Not used | `__APP_VERSION__`, `__COMMIT_SHA__` via Vite | **Chithi better** — useful for info pages |
 
-### UI Component Inventory
+### Page-by-Page Functional Comparison
 
-| Category | Reference Count | Chithi Count | Extra in Chithi |
+#### Home Page (`/+page.svelte`)
+
+| Feature | Reference | Chithi | Status |
 |---|---|---|---|
-| **Total** | 29 | 42 | +13 components |
-| Form & Input | Button, Input, Label, Select, Switch | Same + Checkbox, Radio Group, Slider, Textarea, Input Group, Field | +5 |
-| Layout & Nav | Breadcrumb, Separator, Sidebar | Same | 0 |
-| Overlays | Dialog, DropdownMenu, Tooltip | Same + Command, Popover | +2 |
-| Feedback | Badge, Empty, Progress, Skeleton, Sonner | Same + Alert, Spinner | +2 |
-| Display | Aspect Ratio, Avatar, Card, Table | Same + Chart, Data Table, Item, Kbd | +4 |
-| Misc | Collapsible | Same + Toggle | +1 |
+| Hero section with title + description | Yes | Yes | Conformed |
+| Upload showcase cards | Yes | Yes | Conformed |
+| Dark mode toggle | Yes | Yes | Conformed |
+| Navbar + footer layout | Yes | Yes | Conformed |
+| Card usage | Named imports (legacy) | Namespace `Card.Root` (docs-exact) | **Chithi better** |
+
+#### Upload Page (`/upload/+page.svelte`)
+
+| Feature | Reference | Chithi | Status |
+|---|---|---|---|
+| Stage 1: file selection | Yes (inline `traverseFileTree`) | Yes (external `dropFiles` from `file-tree.ts`) | **Chithi better** — reusable |
+| Stage 2: config (password, expiry, downloads) | Yes | Yes | Conformed |
+| Stage 3: encrypt + upload progress | Yes | Yes + WASM crypto | **Chithi better** — WASM |
+| File drag-and-drop | Yes | Yes | Conformed |
+| Folder drag-and-drop | Basic | Advanced (`dropFiles` utility) | **Chithi better** |
+| Config query for limits | Yes | Yes | Conformed |
+| Upload showcase | Yes | Yes | Conformed |
+| Recent uploads display | Yes | Yes | Conformed |
+| Switch for password toggle | Yes | Yes | Conformed |
+| Empty state | Yes | `<Empty.Root>` component | **Chithi better** |
+| ButtonGroup for file actions | Yes | `ButtonGroup.Trigger` + snippets | **Chithi better** |
+| Alert for errors | No | `<Alert.Root>` inline | **Chithi better** |
+| Accordion for FAQ | No | Installed (not yet wired) | TODO |
+| Carousel for showcase | No | Installed (not yet wired) | TODO |
+
+#### Download Page (`/download/[slug]/+page.svelte`)
+
+| Feature | Reference | Chithi | Status |
+|---|---|---|---|
+| File info fetch | Yes | Yes via `useFileInfoQuery` | Conformed |
+| Password prompt | Yes | Yes | Conformed |
+| Decrypt + download | Yes | Yes + WASM decrypt | **Chithi better** |
+| Progress indicator | Yes | Yes + `<Spinner>` | **Chithi better** |
+| File metadata display | Yes | Yes | Conformed |
+
+#### View Page (`/view/[slug]/+page.svelte`)
+
+| Feature | Reference | Chithi | Status |
+|---|---|---|---|
+| Code file viewer | Yes | Yes + `CodeViewer.svelte` | Conformed |
+| File tree navigation | Yes | Yes + `file-tree.ts` | **Chithi better** — reusable |
+| Decrypt on view | Yes | Yes + WASM | **Chithi better** |
+| Expanded readable code | Partial | Yes (Phase 13 expanded) | **Chithi better** |
+| File type detection | Yes | Yes | Conformed |
+| Media preview | Yes | Yes | Conformed |
+| Zoom controls | No | Yes | **Chithi better** |
+| File info sidebar | No | Yes | **Chithi better** |
+
+#### Login Page (`/login/+page.svelte`)
+
+| Feature | Reference | Chithi | Status |
+|---|---|---|---|
+| Form with formsnap | Yes | Yes | Conformed |
+| Form.Control snippet pattern | Yes | Yes | Conformed |
+| Server-side validation | Yes | Yes | Conformed |
+| Remote function auth | No | Yes | **Chithi better** |
+| Dialog for login trigger | Yes | Yes | Conformed |
+
+#### Reverse File Share — Landing (`/reverse/+page.svelte`)
+
+| Feature | Reference | Chithi | Status |
+|---|---|---|---|
+| Create room form | Yes | Yes | Conformed |
+| Join room form | Yes | Yes | Conformed |
+| Landing view state machine | Yes | Yes | Conformed |
+| Config query for defaults | Yes | Yes | Conformed |
+| Card-based UI | Named imports | Namespace `Card.Root` | **Chithi better** |
+| Field component | Not used | `Field.Field` / `Field.Label` | **Chithi better** |
+| Spinner for loading | `LoaderCircle` + `animate-spin` | `<Spinner>` | **Chithi better** |
+| URL prefilled join ID | Yes | Yes | Conformed |
+
+#### Reverse File Share — Room (`/reverse/[room_id]/+page.svelte`)
+
+| Feature | Reference | Chithi | Status |
+|---|---|---|---|
+| Host/guest routing | Yes | Yes | Conformed |
+| WebSocket connection | Yes | Yes + `useWsReconnect` hook | **Chithi better** — auto-reconnect |
+| File receive | Yes | Yes | Conformed |
+| File send (host) | Yes | Yes | Conformed |
+| Connection status | Yes | Yes | Conformed |
+
+#### Reverse — Host Page (`host.svelte`)
+
+| Feature | Reference | Chithi | Status |
+|---|---|---|---|
+| File upload to room | Yes | Yes | Conformed |
+| Upload progress | Yes | Yes + Tween animation | **Chithi better** |
+| Guest count display | Yes | Yes | Conformed |
+| Room management | Yes | Yes | Conformed |
+| Auto-reconnect | Basic | `useWsReconnect` with exponential backoff | **Chithi better** |
+
+#### Reverse — Client Page (`client.svelte`)
+
+| Feature | Reference | Chithi | Status |
+|---|---|---|---|
+| File receive | Yes | Yes | Conformed |
+| Download progress | Yes | Yes + Tween animation | **Chithi better** |
+| File list | Yes | Yes | Conformed |
+| Auto-reconnect | Basic | `useWsReconnect` with exponential backoff | **Chithi better** |
+
+#### Speedtest Page (`/speedtest/+page.svelte`)
+
+| Feature | Reference | Chithi | Status |
+|---|---|---|---|
+| Speed gauge | Yes (`SpeedGauge.svelte`) | Yes | Conformed |
+| Speed graph | Yes (`SpeedGraph.svelte`) | Yes | Conformed |
+| Worker-based measurement | Yes | Yes | Conformed |
+| Card-based display | Named imports | Namespace `Card.Root` | **Chithi better** |
+
+#### Admin — Config (`/admin/config/+page.svelte`)
+
+| Feature | Reference | Chithi | Status |
+|---|---|---|---|
+| Site description card | Yes | Yes | Conformed |
+| File security card | Yes | Yes | Conformed |
+| Retention policy card | Yes | Yes | Conformed |
+| Storage/file card | Yes | Yes | Conformed |
+| Loading skeleton | Yes | Yes | Conformed |
+| Sidebar navigation | Yes | Yes | Conformed |
+
+#### Admin — Users (`/admin/users/+page.svelte`)
+
+| Feature | Reference | Chithi | Status |
+|---|---|---|---|
+| User list | Yes | Yes | Conformed |
+| Create user dialog | Yes | Yes | Conformed |
+| Delete user dialog | Yes | Yes | Conformed |
+
+#### Admin — User Profile (`/admin/user/+page.svelte`)
+
+| Feature | Reference | Chithi | Status |
+|---|---|---|---|
+| Profile fields | Yes | Yes | Conformed |
+| Profile submit section | Yes | Yes | Conformed |
+
+#### Admin — URLs (`/admin/urls/+page.svelte`)
+
+| Feature | Reference | Chithi | Status |
+|---|---|---|---|
+| Outstanding URLs list | Yes | Yes | Conformed |
+
+#### Informations Pages (`/informations/`)
+
+| Feature | Reference | Chithi | Status |
+|---|---|---|---|
+| Main info page | Yes | Yes | Conformed |
+| Backend info | Yes | Yes | Conformed |
+| Frontend info | Yes | Yes | Conformed |
+| Statistics info | Yes | Yes | Conformed |
+| InfoCard component | No | Yes | **Chithi better** |
+| StatusBadge component | No | Yes | **Chithi better** |
+| CommitLink component | No | Yes | **Chithi better** |
+
+#### Onboarding Pages
+
+| Feature | Reference | Chithi | Status |
+|---|---|---|---|
+| Stage 1 (initial setup) | Yes | Yes | Conformed |
+| Stage 2 (configuration) | Yes | Yes | Conformed |
+| Card-based UI | Named imports | Namespace `Card.Root` | **Chithi better** |
 
 ### Component Usage Pattern Comparison
 
@@ -269,7 +617,7 @@ Custom colors via `@theme inline { --color-warning: var(--warning); }`.
 | Import | `import { Card, CardContent, ... }` (named) | `import * as Card` (namespace) | `import * as Card` (namespace) |
 | Structure | `<Card>`, `<CardContent>` | `<Card.Root>`, `<Card.Content>` | `<Card.Root>`, `<Card.Content>` |
 
-**Verdict**: Fully conformed — all 7 pages now use `import * as Card` with `<Card.Root>`, `<Card.Header>`, `<Card.Title>`, `<Card.Description>`, `<Card.Content>`, `<Card.Footer>`.
+**Verdict**: Chithi fully conformed to docs. Reference uses legacy named imports.
 
 #### Dialog
 
@@ -309,7 +657,7 @@ Custom colors via `@theme inline { --color-warning: var(--warning); }`.
 | Import | Not used | `import * as Field` (namespace) | `import * as Field` |
 | Structure | Not used | `<Field.Field>`, `<Field.Label>`, `<Field.Content>`, `<Field.Description>` | Matches docs |
 
-**Verdict**: Fully conformed — all pages now use `import * as Field` with `<Field.Field>`, `<Field.Label>`, `<Field.Content>`, `<Field.Description>`. Chithi uses the **newer Field pattern** which is an improvement over bare Label.
+**Verdict**: Chithi uses the **newer Field pattern** which is an improvement over bare Label.
 
 #### Spinner
 
@@ -317,7 +665,7 @@ Custom colors via `@theme inline { --color-warning: var(--warning); }`.
 |---|---|---|---|
 | Loading | `LoaderCircle` Lucide icon + `animate-spin` | `<Spinner>` component | Dedicated Spinner component |
 
-**Verdict**: Chithi uses the **correct dedicated Spinner** component.
+**Verdict**: Chithi uses the **correct dedicated Spinner** component. Reference uses a workaround.
 
 #### Select
 
@@ -335,40 +683,82 @@ Custom colors via `@theme inline { --color-warning: var(--warning); }`.
 
 **Verdict**: Fully conformed.
 
-### Code Style Comparison
+### Shared Library Functions Comparison
 
-| Area | Reference | Chithi | Recommendation |
+| Function Module | Reference | Chithi | Difference |
 |---|---|---|---|
-| **Import extensions** | No `.js` | `.js` everywhere | **Keep chithi** — explicit extensions are Svelte 5 / modernAst recommended |
-| **Query formatting** | Expanded, `queryClient` | Was compressed, now expanded | **DONE** — already expanded |
-| **Error handling** | Multi-line if/throw | Multi-line | Conformed |
-| **Database** | Single file, `Date.now()` | Split modules, `Temporal.Now` | **Keep chithi** — better modularity |
-| **Fetch utilities** | Repeated boilerplate | Centralized `fetchJson<T>()` | **Keep chithi** — better DRY |
-| **Type safety** | Partial typing | Full interfaces | **Keep chithi** — stricter |
-| **Page formatting** | Well-spaced, readable | Was compressed, being expanded | **In progress** — view page expanded |
-| **Worker management** | Separate encrypt/decrypt workers | Unified `chithi.worker.ts` + WASM | **Keep chithi** — single worker pool |
-| **Path aliases** | `$lib` only | `#queries/*`, `#functions/*`, `#consts/*`, `#css/*`, `#workers/*`, `#errors/*`, `#wasm/*` | **Keep chithi** — explicit, IDE-friendly |
-| **Build-time globals** | Not used | `__APP_VERSION__`, `__COMMIT_SHA__` via Vite | **Keep chithi** — useful for info pages |
-| **Variable naming** | Descriptive (`isPasswordEmpty`, `downloadProgress`) | Was abbreviated (`pwEmpty`, `prog`) | **Keep chithi** — already descriptive |
+| `bytes.ts` | Yes | Yes | Shared |
+| `download.ts` | Yes | Yes | Shared |
+| `encryption.ts` | Yes | Yes | Shared + chithi has WASM bindings |
+| `libravatar.ts` | Yes | Yes | Shared |
+| `media-support.ts` | Yes | Yes | Shared |
+| `mime.ts` | Yes | Yes | Shared |
+| `sanitize.ts` | Yes | Yes | Shared |
+| `security.ts` | Yes | Yes | Shared |
+| `streams.ts` | Yes | Yes | Shared |
+| `string-conversion.ts` | Yes | Yes | Shared |
+| `times.ts` | Yes | Yes | Shared |
+| `urls.ts` | Yes | Yes | Shared |
+| `viewer.ts` | Yes | Yes | Shared |
+| `browser-download.ts` | No | Yes | **Chithi extra** — browser download utilities |
+| `bytes.test.ts` | No | Yes | **Chithi extra** — unit tests |
+| `dates.ts` | No | Yes | **Chithi extra** — date formatting utilities |
+| `encryption.client.test.ts` | No | Yes | **Chithi extra** — client-side encryption tests |
+| `fetch-decrypt.ts` | No | Yes | **Chithi extra** — fetch + decrypt pipeline |
+| `file-tree.ts` | No | Yes | **Chithi extra** — file tree traversal + `dropFiles` |
+| `streams.client.test.ts` | No | Yes | **Chithi extra** — stream tests |
+| `zip-validate.ts` | No | Yes | **Chithi extra** — ZIP validation |
 
-### What Chithi Does Better Than Reference
+### Query Hooks Comparison
 
-1. **Centralized fetch utilities** — `fetch-utils.ts` eliminates boilerplate
-2. **Dedicated Spinner** — proper shadcn Spinner vs icon workaround
-3. **Field component** — newer shadcn Field for accessibility
-4. **CommandPalette** — Ctrl+K quick navigation
+| Hook | Reference | Chithi | Difference |
+|---|---|---|---|
+| `config.ts` | Yes | Yes | Shared |
+| `files.ts` | Yes | Yes | Shared |
+| `file-info.ts` | Yes | Yes | Shared |
+| `reverse.ts` | Yes | Yes | Shared |
+| `auth.ts` | Yes | Yes | Shared |
+| `instance.ts` | Yes | Yes | Shared |
+| `onboarding.ts` | Yes | Yes | Shared |
+| `admin_users.ts` | Yes | Yes | Shared |
+| `fetch-utils.ts` | No | Yes | **Chithi extra** — centralized `fetchJson<T>()` |
+
+### What Chithi Does Better Than Reference (Summary)
+
+1. **Centralized fetch utilities** — `fetch-utils.ts` eliminates repeated fetch boilerplate
+2. **Dedicated Spinner** — proper shadcn Spinner vs `LoaderCircle` icon workaround
+3. **Field component** — newer shadcn Field for full form accessibility
+4. **CommandPalette** — Ctrl+K quick navigation (not in reference)
 5. **Typed interfaces** — full type safety on all query results
 6. **WASM crypto** — more performant than Web Crypto API
-7. **Explicit import extensions** — Svelte 5 recommended
+7. **Explicit import extensions** — Svelte 5 recommended `.js` extensions
 8. **Remote functions** — server-side login/logout
-9. **COEP/COOP headers** — required for WASM
+9. **COEP/COOP headers** — required for WASM security
 10. **Split database modules** — init, CRUD, types in separate files
 11. **Temporal API** — more correct than `Date.now()`
 12. **Query hooks** — extracted `useFileInfoQuery`, `useReverseQuery`
+13. **`useWsReconnect` hook** — auto-reconnect with exponential backoff (not in reference)
+14. **Extra utility modules** — `file-tree.ts`, `dates.ts`, `browser-download.ts`, `fetch-decrypt.ts`, `zip-validate.ts`
+15. **Unit tests** — `bytes.test.ts`, `encryption.client.test.ts`, `streams.client.test.ts`
+16. **Info page components** — `InfoCard`, `StatusBadge`, `CommitLink`
+17. **View page enhancements** — zoom controls, file info sidebar
+
+### What Reference Does Better Than Chithi (Summary)
+
+1. **Upload stage_1** — inline `traverseFileTree` is simpler than the external `dropFiles` utility (less indirection for a single-page feature)
+2. **Fewer dependencies** — no WASM, no remote functions (simpler to deploy)
 
 ### Remaining Gaps (Need Attention)
 
-1. **View page template** — still has some compressed one-line template elements (done for functions, template in progress).
+1. **Accordion not wired into upload page** — installed but not used for FAQ section
+2. **Carousel not wired into home page** — installed but not used for showcase
+3. **Hover Card not used** — installed but not wired for file previews
+4. **Context Menu not used** — installed but not wired for file list right-click actions
+5. **Input Group not installed** — available in registry, would improve search inputs
+6. **Sheet not installed** — available in registry, would improve slide-in panels
+7. **Tabs not installed** — available in registry, would improve admin config pages
+8. **Data Table not fully utilized** — admin pages use raw tables, could upgrade to TanStack Table
+9. **View page template** — still has some compressed one-line template elements
 
 ---
 
@@ -428,7 +818,39 @@ Components from the registry that would replace custom implementations:
 
 **Why**: These are in the registry and would replace custom implementations with tested, accessible ones.
 
-### Phase 16: CSS Final Polish
+### Phase 18: Wire Installed Components into Pages
+
+Install the components that Phase 15 added but didn't wire:
+
+- [ ] **Accordion** into upload page FAQ section — wrap help text in `<Accordion.Root>` with `<Accordion.Item>`, `<Accordion.Trigger>`, `<Accordion.Content>`
+- [ ] **Carousel** into home page showcase — replace static showcase cards with `<Carousel.Root>` + `<Carousel.Slide>`
+- [ ] **Hover Card** into file list views — wrap file info links with `<HoverCard.Root>` for rich previews
+- [ ] **Context Menu** into file lists — add right-click actions (download, delete, copy link) via `<ContextMenu.Root>`
+
+**Why**: Components are installed but unused. Wires them into actual pages to realize the accessibility + UX benefits.
+
+### Phase 19: Install and Apply Missing Registry Components
+
+Install components from the shadcn-svelte registry that would improve the app:
+
+- [ ] **Input Group** — replace custom input wrappers with `<InputGroup.Root>` + `<InputGroup.InputSlot>` for search bars
+- [ ] **Sheet** — replace custom slide-in panels with `<Sheet.Root>` for mobile navigation
+- [ ] **Tabs** — replace custom tab state in admin config page with `<Tabs.Root>` + `<Tabs.List>` + `<Tabs.Content>`
+- [ ] **Checkbox** — verify all checkbox usages use `<Checkbox.Root>` + `<Checkbox.Indicator>` (docs-exact)
+
+**Why**: These components are in the registry, tested, accessible, and directly replace existing custom patterns.
+
+### Phase 20: Upgrade Admin Tables to Data Table
+
+Replace raw `<table>` elements in admin pages with shadcn-svelte Data Table (TanStack Table):
+
+- [ ] Admin users page — convert to Data Table with sorting, filtering, row selection
+- [ ] Admin URLs page — convert to Data Table with sorting, filtering
+- [ ] File list pages — convert to Data Table with column definitions
+
+**Why**: Data Table provides sorting, filtering, selection, and pagination out of the box. Replaces manual table implementations with a tested, accessible one.
+
+### Phase 21: CSS Final Polish
 
 - [ ] Verify dark mode contrast ratios (WCAG AA) for all pages
 - [ ] Audit Tailwind utility vs custom CSS overlap — replace custom CSS with Tailwind where equivalent
@@ -437,15 +859,25 @@ Components from the registry that would replace custom implementations:
 
 **Why**: Ensures visual consistency and reduces CSS maintenance burden.
 
-### Phase 17: Playwright Visual Verification
+### Phase 22: Playwright Visual Verification
 
 - [ ] Navigate to each page and verify rendering (home, upload, download, view, login, admin)
 - [ ] Verify dark mode toggle works on all pages
 - [ ] Verify responsive layout at mobile (375px), tablet (768px), desktop (1920px)
 - [ ] Verify upload flow end-to-end (drop files -> encrypt -> share link)
 - [ ] Verify form validation errors display correctly
+- [ ] Verify reverse file share flow (create room -> upload -> receive)
 
 **Why**: The only way to confirm no visual regressions after all changes.
+
+### Phase 23: Code Readability Final Pass
+
+- [ ] Expand remaining compressed template elements in view page
+- [ ] Expand remaining compressed template elements in download page
+- [ ] Verify all pages follow `readable-typescript.md` rules (descriptive names, early returns, expression-oriented)
+- [ ] Remove unused imports across all pages
+
+**Why**: Completes the readability refactor started in Phase 13.
 
 ---
 
