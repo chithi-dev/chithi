@@ -12,6 +12,7 @@
   import { CloudOff } from '@lucide/svelte';
   import { UploadStage, isWhichUploadStage } from './enums';
   import { clipboardFiles, hasFileItems } from '#functions/file-tree';
+  import * as Accordion from '$lib/components/ui/accordion/index.js';
 
   // Stages
   const { default: Stage1 } = await import('./stage_1.svelte');
@@ -195,12 +196,27 @@
 
 {#snippet encryptionInfo()}
   <div class="flex h-full w-full flex-col justify-center p-4 lg:p-8">
-    <h2 class="mb-4 text-2xl font-bold md:mb-2 md:text-xl lg:mb-6 lg:text-3xl">End-to-End Encryption</h2>
-    <p class="mb-6 text-muted-foreground md:mb-4 md:text-sm lg:mb-8 lg:text-lg lg:leading-relaxed">Your files are encrypted in your browser before they are ever uploaded. This means only you and the people you share the link with can access them. We cannot see your files.</p>
-    <div class="rounded-xl border border-border bg-muted/50 p-4 md:p-3 lg:p-5">
-      <h3 class="mb-2 font-semibold">How it works</h3>
-      <p class="text-sm text-muted-foreground">A unique key is generated for each upload. This key is used to encrypt your files and is included in the share link after the '#' symbol. The server never receives this key.</p>
-    </div>
+    <h2 class="mb-4 text-2xl font-bold md:mb-2 md:text-xl lg:mb-6 lg:text-3xl">Security</h2>
+    <Accordion.Root type="single" collapsible class="space-y-3">
+      <Accordion.Item value="encryption">
+        <Accordion.Trigger>End-to-End Encryption</Accordion.Trigger>
+        <Accordion.Content>
+          <p class="text-sm text-muted-foreground">Your files are encrypted in your browser before they are ever uploaded. This means only you and the people you share the link with can access them. We cannot see your files.</p>
+        </Accordion.Content>
+      </Accordion.Item>
+      <Accordion.Item value="how-it-works">
+        <Accordion.Trigger>How it works</Accordion.Trigger>
+        <Accordion.Content>
+          <p class="text-sm text-muted-foreground">A unique key is generated for each upload. This key is used to encrypt your files and is included in the share link after the '#' symbol. The server never receives this key.</p>
+        </Accordion.Content>
+      </Accordion.Item>
+      <Accordion.Item value="key-storage">
+        <Accordion.Trigger>Key storage</Accordion.Trigger>
+        <Accordion.Content>
+          <p class="text-sm text-muted-foreground">The encryption key lives only in your browser and the share URL fragment. Losing the link means losing access — store it securely.</p>
+        </Accordion.Content>
+      </Accordion.Item>
+    </Accordion.Root>
   </div>
 {/snippet}
 

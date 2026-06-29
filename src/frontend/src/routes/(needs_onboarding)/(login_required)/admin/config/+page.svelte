@@ -1,10 +1,11 @@
 <script lang="ts">
-	import { LoaderCircle } from '@lucide/svelte';
+	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
 	import { useConfigQuery } from '#queries/config';
 	import { formatBytes, type ByteUnit } from '#functions/bytes';
 	import { type TimeUnit } from '#functions/times';
+	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import ConfigLoadingSkeleton from './config_loading_skeleton.svelte';
 
 	const { default: StorageFilesCard } = await import('./storage_file_card.svelte');
@@ -13,6 +14,8 @@
 	const { default: SiteDescriptionCard } = await import('./site_description_card.svelte');
 
 	const { config: configQuery, updateConfig } = useConfigQuery();
+
+	let activeTab = $state('storage');
 
 	let configData = $derived(configQuery.data);
 	let descDraft = $state('');
@@ -93,25 +96,41 @@
 			in:fade
 			class="fixed top-24 right-10 z-50 flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase shadow-sm backdrop-blur-sm"
 		>
-			<LoaderCircle class="size-3.5 animate-spin" /> Syncing
+			<Spinner class="size-3.5" /> Syncing
 		</div>
 	{/if}
 
 	{#if configQuery.isLoading}
 		<ConfigLoadingSkeleton />
 	{:else if configData}
-		<StorageFilesCard {configData} bind:editing bind:editVal bind:editUnit {startEdit} {save} />
-		<RetentionPolicyCard {configData} bind:editing bind:tempInput {save} />
-		<FileSecurityCard {configData} bind:editing bind:tempInput {save} />
-		<SiteDescriptionCard
-			bind:editing
-			bind:descDraft
-			{previewMarkdown}
-			{descWordCount}
-			{descExceeds}
-			wordLimit={LIMITS.site_description.words}
-			{save}
-			openEditor={openDescriptionEditor}
-		/>
+		<Tabs.Root bind:value={activeTab} class="space-y-4">
+			<Tabs.List class="flex gap-2">
+				<Tabs.Trigger value="storage">Storage</Tabs.Trigger>
+				<Tabs.Trigger value="retention">Retention</Tabs.Trigger>
+				<Tabs.Trigger value="security">Security</Tabs.Trigger>
+				<Tabs.Trigger value="description">Description</Tabs.Trigger>
+			</Tabs.List>
+			<Tabs.Content value="storage">
+				<StorageFilesCard {configData} bind:editing bind:editVal bind:editUnit {startEdit} {save} />
+			</Tabs.Content>
+			<Tabs.Content value="retention">
+				<RetentionPolicyCard {configData} bind:editing bind:tempInput {save} />
+			</Tabs.Content>
+			<Tabs.Content value="security">
+				<FileSecurityCard {configData} bind:editing bind:tempInput {save} />
+			</Tabs.Content>
+			<Tabs.Content value="description">
+				<SiteDescriptionCard
+					bind:editing
+					bind:descDraft
+					{previewMarkdown}
+					{descWordCount}
+					{descExceeds}
+					wordLimit={LIMITS.site_description.words}
+					{save}
+					openEditor={openDescriptionEditor}
+				/>
+			</Tabs.Content>
+		</Tabs.Root>
 	{/if}
 </div>
