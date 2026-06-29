@@ -314,7 +314,7 @@
         <p class="text-lg text-muted-foreground">Choose how you want to receive files from the host.</p>
       </div>
       <div class="grid w-full gap-6 sm:grid-cols-2">
-        <Card.Rootclass="relative cursor-pointer border-2 border-primary bg-primary/5 transition-all hover:border-primary/50 hover:shadow-lg" onclick={() => downloadPreference = 'eager'}>
+        <Card.Root class="relative cursor-pointer border-2 border-primary bg-primary/5 transition-all hover:border-primary/50 hover:shadow-lg" onclick={() => downloadPreference = 'eager'}>
           <div class="absolute -top-3 left-1/2 -translate-x-1/2">
             <Badge class="bg-primary px-3 py-1 text-primary-foreground shadow-md">Recommended</Badge>
           </div>
@@ -325,7 +325,7 @@
           <Card.Content class="text-center text-muted-foreground">Files are automatically downloaded as soon as they are shared. Perfect for real-time collaboration.</Card.Content>
           <Card.Footer class="justify-center pb-6"><Button class="w-full">Select Eager</Button></Card.Footer>
         </Card.Root>
-        <Card.Rootclass="cursor-pointer border-2 border-transparent transition-all hover:border-primary/50 hover:shadow-lg" onclick={() => downloadPreference = 'manual'}>
+        <Card.Root class="cursor-pointer border-2 border-transparent transition-all hover:border-primary/50 hover:shadow-lg" onclick={() => downloadPreference = 'manual'}>
           <Card.Header class="flex flex-col items-center pt-8 pb-2 text-center">
             <div class="mb-3 rounded-full bg-muted p-4"><MousePointerClick class="h-8 w-8 text-muted-foreground" /></div>
             <Card.Title class="text-xl">Manual Download</Card.Title>
