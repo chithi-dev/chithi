@@ -470,7 +470,6 @@ The shadcn-svelte registry has evolved significantly. Components available NOW t
 | ButtonGroup for file actions | Yes | `ButtonGroup.Trigger` + snippets | **Chithi better** |
 | Alert for errors | No | `<Alert.Root>` inline | **Chithi better** |
 | Accordion for FAQ | No | Wired into encryption info section | **Chithi better** |
-| Carousel for showcase | No | Installed (not yet wired) | TODO |
 
 #### Download Page (`/download/[slug]/+page.svelte`)
 
@@ -492,6 +491,7 @@ The shadcn-svelte registry has evolved significantly. Components available NOW t
 | Expanded readable code | Partial | Yes (Phase 13 expanded) | **Chithi better** |
 | File type detection | Yes | Yes | Conformed |
 | Media preview | Yes | Yes | Conformed |
+| Context Menu for file actions | No | Yes (right-click View/Save) | **Chithi better** |
 | Zoom controls | No | Yes | **Chithi better** |
 | File info sidebar | No | Yes | **Chithi better** |
 
@@ -745,6 +745,7 @@ The shadcn-svelte registry has evolved significantly. Components available NOW t
 17. **View page enhancements** — zoom controls, file info sidebar
 18. **Accordion for encryption FAQ** — collapsible security info on upload page
 19. **Tabs for admin config** — organized settings in 4 tab panels instead of stacked cards
+20. **Context Menu for file list** — right-click View/Save actions on view page
 
 ### What Reference Does Better Than Chithi (Summary)
 
@@ -755,10 +756,9 @@ The shadcn-svelte registry has evolved significantly. Components available NOW t
 
 1. **Carousel not wired into upload showcase** — installed but not used for showcase
 2. **Hover Card not used** — installed but not wired for file previews
-3. **Context Menu not used** — installed but not wired for file list right-click actions
-4. **Sheet not installed** — available in registry, would improve slide-in panels
-5. **Data Table not fully utilized** — admin pages use raw tables, could upgrade to TanStack Table
-6. **View page template** — still has some compressed one-line template elements
+3. **Sheet not installed** — available in registry, would improve slide-in panels
+4. **Data Table not fully utilized** — admin pages use raw tables, could upgrade to TanStack Table
+5. **View page template** — still has some compressed one-line template elements
 
 ---
 
@@ -789,6 +789,7 @@ The shadcn-svelte registry has evolved significantly. Components available NOW t
 | Card/Field import inconsistency | Named imports | Namespace imports | DONE |
 | Accordion not wired | FAQ text static | Collapsible Accordion | DONE |
 | Admin config stacked cards | Vertical scroll | Tabs with 4 panels | DONE |
+| Context Menu not wired | No right-click actions | ContextMenu on view page file list | DONE |
 
 ---
 
@@ -825,9 +826,9 @@ Components from the registry that would replace custom implementations:
 Install the components that Phase 15 added but didn't wire:
 
 - [x] **Accordion** into upload page FAQ section — wrap help text in `<Accordion.Root>` with 3 collapsible items (End-to-End Encryption, How it works, Key storage)
-- [ ] **Carousel** into home page showcase — replace static showcase cards with `<Carousel.Root>` + `<Carousel.Slide>`
+- [ ] **Carousel** into upload showcase — replace static showcase cards with `<Carousel.Root>` + `<Carousel.Slide>`
 - [ ] **Hover Card** into file list views — wrap file info links with `<HoverCard.Root>` for rich previews
-- [ ] **Context Menu** into file lists — add right-click actions (download, delete, copy link) via `<ContextMenu.Root>`
+- [x] **Context Menu** into view page file list — right-click actions (View, Save) via `<ContextMenu.Root>`
 
 **Why**: Components are installed but unused. Wires them into actual pages to realize the accessibility + UX benefits.
 
