@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { Label } from '$lib/components/ui/label';
-  import * as Card from '$lib/components/ui/card';
-  import * as Select from '$lib/components/ui/select';
+  import { Button } from '$lib/components/ui/button/index.js';
+  import { Input } from '$lib/components/ui/input/index.js';
+  import * as Card from '$lib/components/ui/card/index.js';
+  import * as Field from '$lib/components/ui/field/index.js';
+  import * as Select from '$lib/components/ui/select/index.js';
   import type { Props } from './types';
-  import { Settings, Check, LoaderCircle } from '@lucide/svelte';
+  import { Settings, Check } from '@lucide/svelte';
+  import { Spinner } from '$lib/components/ui/spinner/index.js';
   import { useConfigQuery } from '#queries/config';
   import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '#functions/bytes';
   import { toast } from 'svelte-sonner';
@@ -44,26 +45,32 @@
   </Card.Header>
   <Card.Content>
     {#if configQuery.isLoading}
-      <div class="flex h-60 items-center justify-center"><LoaderCircle class="size-8 animate-spin text-primary" /></div>
+      <div class="flex h-60 items-center justify-center"><Spinner class="size-8 text-primary" /></div>
     {:else}
       <div class="grid gap-6">
-        <div class="grid gap-3">
-          <Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400">Total Storage Limit</Label>
-          <div class="flex gap-2"><Input type="number" bind:value={storageLimitVal} min="0" step="0.01" class="bg-white/50 dark:bg-zinc-950/50" /><Select.Root type="single" bind:value={storageLimitUnit}><Select.Trigger class="w-24 bg-white/50 dark:bg-zinc-950/50">{storageLimitUnit}</Select.Trigger><Select.Content>{#each Object.keys(B_VALS) as u}<Select.Item value={u} label={u}>{u}</Select.Item>{/each}</Select.Content></Select.Root></div>
-          <p class="px-1 text-xs text-slate-500 dark:text-zinc-500">Total capacity for your Chithi instance.</p>
-        </div>
-        <div class="grid gap-3">
-          <Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400">Max File Size</Label>
-          <div class="flex gap-2"><Input type="number" bind:value={maxFileVal} min="0" step="0.01" class="bg-white/50 dark:bg-zinc-950/50" /><Select.Root type="single" bind:value={maxFileUnit}><Select.Trigger class="w-24 bg-white/50 dark:bg-zinc-950/50">{maxFileUnit}</Select.Trigger><Select.Content>{#each Object.keys(B_VALS) as u}<Select.Item value={u} label={u}>{u}</Select.Item>{/each}</Select.Content></Select.Root></div>
-          <p class="px-1 text-xs text-slate-500 dark:text-zinc-500">Maximum size for a single upload.</p>
-        </div>
-        <div class="grid gap-3">
-          <Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400">Site Description</Label>
-          <Input bind:value={description} placeholder="Welcome to my simplified file sharing..." class="bg-white/50 dark:bg-zinc-950/50" />
-          <p class="px-1 text-xs text-slate-500 dark:text-zinc-500">Displayed on the home page. Supports Markdown.</p>
-        </div>
+        <Field.Field class="grid gap-3">
+          <Field.Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400">Total Storage Limit</Field.Label>
+          <Field.Content>
+            <div class="flex gap-2"><Input type="number" bind:value={storageLimitVal} min="0" step="0.01" class="bg-white/50 dark:bg-zinc-950/50" /><Select.Root type="single" bind:value={storageLimitUnit}><Select.Trigger class="w-24 bg-white/50 dark:bg-zinc-950/50">{storageLimitUnit}</Select.Trigger><Select.Content>{#each Object.keys(B_VALS) as u}<Select.Item value={u} label={u}>{u}</Select.Item>{/each}</Select.Content></Select.Root></div>
+          </Field.Content>
+          <Field.Description class="px-1 text-xs text-slate-500 dark:text-zinc-500">Total capacity for your Chithi instance.</Field.Description>
+        </Field.Field>
+        <Field.Field class="grid gap-3">
+          <Field.Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400">Max File Size</Field.Label>
+          <Field.Content>
+            <div class="flex gap-2"><Input type="number" bind:value={maxFileVal} min="0" step="0.01" class="bg-white/50 dark:bg-zinc-950/50" /><Select.Root type="single" bind:value={maxFileUnit}><Select.Trigger class="w-24 bg-white/50 dark:bg-zinc-950/50">{maxFileUnit}</Select.Trigger><Select.Content>{#each Object.keys(B_VALS) as u}<Select.Item value={u} label={u}>{u}</Select.Item>{/each}</Select.Content></Select.Root></div>
+          </Field.Content>
+          <Field.Description class="px-1 text-xs text-slate-500 dark:text-zinc-500">Maximum size for a single upload.</Field.Description>
+        </Field.Field>
+        <Field.Field class="grid gap-3">
+          <Field.Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400">Site Description</Field.Label>
+          <Field.Content>
+            <Input bind:value={description} placeholder="Welcome to my simplified file sharing..." class="bg-white/50 dark:bg-zinc-950/50" />
+          </Field.Content>
+          <Field.Description class="px-1 text-xs text-slate-500 dark:text-zinc-500">Displayed on the home page. Supports Markdown.</Field.Description>
+        </Field.Field>
         <Button type="button" onclick={handleSave} disabled={isLoading} class="mt-2 h-12 w-full font-semibold shadow-lg shadow-indigo-500/20 transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-70">
-          {#if isLoading}<LoaderCircle class="mr-2 size-5 animate-spin" />Saving...{:else}Finish Setup<Check class="ml-2 size-5" />{/if}
+          {#if isLoading}<Spinner />Saving...{:else}Finish Setup<Check class="ml-2 size-5" />{/if}
         </Button>
       </div>
     {/if}
