@@ -3,7 +3,7 @@ import { fetchDecryptedBlob } from '#functions/fetch-decrypt';
 import { ZipReader } from '@zip.js/zip.js';
 import { validateZipBlob } from '#functions/zip-validate';
 
-export async function downloadAndDecryptFile(slug: string, key: string, password: string, filename: string, fileSize: number, onProgress: (p: number) => void) {
+export async function downloadAndDecryptFile(slug: string, key: string, password: string, filename: string, fileSize: number, _numberOfFiles: number, onProgress: (p: number) => void) {
   const blob = await fetchDecryptedBlob(slug, key, password, { knownSize: fileSize, onProgress });
   await validateZipBlob(blob);
 
