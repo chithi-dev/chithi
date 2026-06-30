@@ -830,7 +830,7 @@ Components from the registry that would replace custom implementations:
 Install the components that Phase 15 added but didn't wire:
 
 - [x] **Accordion** into upload page FAQ section — wrap help text in `<Accordion.Root>` with 3 collapsible items (End-to-End Encryption, How it works, Key storage)
-- [ ] **Carousel** into upload showcase — replace static showcase cards with `<Carousel.Root>` + `<Carousel.Slide>`
+- [ ] **Carousel** into upload showcase — replace static showcase cards with `<Carousel.Root>` + `<Carousel.Slide>` (deferred: upload showcase is a custom progress visualization, not carousel cards)
 - [ ] **Hover Card** into file list views — wrap file info links with `<HoverCard.Root>` for rich previews
 - [x] **Context Menu** into view page file list — right-click actions (View, Save) via `<ContextMenu.Root>`
 - [x] **Command** into navbar layout — Ctrl+K command palette for quick navigation
