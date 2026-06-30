@@ -1,8 +1,7 @@
 use chithi_core::send_crypto::{
-    decrypt_all, decrypt_chunk, decrypt_chunks_parallel, decrypt_record,
-    encrypt_all, encrypt_chunk, encrypt_chunks_parallel, encrypt_record,
-    get_chunk_nonce, Keychain, sdk_upload, sdk_download,
-    bundle_to_json, bundle_from_json,
+    bundle_from_json, bundle_to_json, decrypt_all, decrypt_chunk, decrypt_chunks_parallel,
+    decrypt_record, encrypt_all, encrypt_chunk, encrypt_chunks_parallel, encrypt_record,
+    get_chunk_nonce, sdk_download, sdk_upload, Keychain,
 };
 use js_sys::Uint8Array;
 use rand::rngs::OsRng;
@@ -19,8 +18,8 @@ pub fn wasm_generate_secret() -> String {
 /// Derive a 32-byte key from password and salt using Argon2id + HKDF.
 #[wasm_bindgen]
 pub fn wasm_derive_key(password: &[u8], salt: &[u8]) -> Result<Uint8Array, JsValue> {
-    let key = chithi_core::send_crypto::derive_key(password, salt)
-        .map_err(|e| JsValue::from_str(&e))?;
+    let key =
+        chithi_core::send_crypto::derive_key(password, salt).map_err(|e| JsValue::from_str(&e))?;
     Ok(Uint8Array::from(&key[..]))
 }
 
@@ -37,14 +36,11 @@ pub fn wasm_argon2_derive(
     argon2::Argon2::new(
         argon2::Algorithm::Argon2id,
         argon2::Version::V0x13,
-        argon2::Params::new(
-            memory_cost_kib,
-            iterations,
-            1,
-            Some(hash_length),
-        ).map_err(|e| JsValue::from_str(&e.to_string()))?,
-    ).hash_password_into(password, salt, &mut out)
-        .map_err(|e| JsValue::from_str(&e.to_string()))?;
+        argon2::Params::new(memory_cost_kib, iterations, 1, Some(hash_length))
+            .map_err(|e| JsValue::from_str(&e.to_string()))?,
+    )
+    .hash_password_into(password, salt, &mut out)
+    .map_err(|e| JsValue::from_str(&e.to_string()))?;
     Ok(Uint8Array::from(&out[..]))
 }
 
@@ -110,7 +106,8 @@ pub fn wasm_decrypt_chunk(data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Uint8
 
 #[wasm_bindgen]
 pub fn wasm_get_chunk_nonce(base_iv: &[u8], chunk_index: u32) -> Uint8Array {
-    let base: [u8; 12] = base_iv.try_into()
+    let base: [u8; 12] = base_iv
+        .try_into()
         .map_err(|_| panic!("base_iv must be 12 bytes"))
         .unwrap();
     let nonce = get_chunk_nonce(&base, chunk_index);
@@ -139,7 +136,10 @@ pub fn wasm_encrypt_chunks_parallel(
     let chunk_vecs: Vec<Vec<u8>> = chunks.into_iter().map(|c| c.to_vec()).collect();
     let results = encrypt_chunks_parallel(&chunk_vecs, &key_arr, &base_iv_arr)
         .map_err(|e| JsValue::from_str(&e))?;
-    Ok(results.into_iter().map(|r| Uint8Array::from(&r[..])).collect())
+    Ok(results
+        .into_iter()
+        .map(|r| Uint8Array::from(&r[..]))
+        .collect())
 }
 
 /// Decrypt multiple chunks using AES-256-GCM.
@@ -160,7 +160,10 @@ pub fn wasm_decrypt_chunks_parallel(
     let chunk_vecs: Vec<Vec<u8>> = chunks.into_iter().map(|c| c.to_vec()).collect();
     let results = decrypt_chunks_parallel(&chunk_vecs, &key_arr, &base_iv_arr)
         .map_err(|e| JsValue::from_str(&e))?;
-    Ok(results.into_iter().map(|r| Uint8Array::from(&r[..])).collect())
+    Ok(results
+        .into_iter()
+        .map(|r| Uint8Array::from(&r[..]))
+        .collect())
 }
 
 // --- Batch record encryption (AES-256-CBC) ---
@@ -172,9 +175,11 @@ pub fn wasm_encrypt_all(records: Vec<Uint8Array>, key: &[u8]) -> Result<Vec<Uint
     }
     let key_arr: [u8; 32] = key.try_into().unwrap();
     let record_vecs: Vec<Vec<u8>> = records.into_iter().map(|r| r.to_vec()).collect();
-    let results = encrypt_all(&record_vecs, &key_arr)
-        .map_err(|e| JsValue::from_str(&e))?;
-    Ok(results.into_iter().map(|r| Uint8Array::from(&r[..])).collect())
+    let results = encrypt_all(&record_vecs, &key_arr).map_err(|e| JsValue::from_str(&e))?;
+    Ok(results
+        .into_iter()
+        .map(|r| Uint8Array::from(&r[..]))
+        .collect())
 }
 
 #[wasm_bindgen]
@@ -184,9 +189,11 @@ pub fn wasm_decrypt_all(records: Vec<Uint8Array>, key: &[u8]) -> Result<Vec<Uint
     }
     let key_arr: [u8; 32] = key.try_into().unwrap();
     let record_vecs: Vec<Vec<u8>> = records.into_iter().map(|r| r.to_vec()).collect();
-    let results = decrypt_all(&record_vecs, &key_arr)
-        .map_err(|e| JsValue::from_str(&e))?;
-    Ok(results.into_iter().map(|r| Uint8Array::from(&r[..])).collect())
+    let results = decrypt_all(&record_vecs, &key_arr).map_err(|e| JsValue::from_str(&e))?;
+    Ok(results
+        .into_iter()
+        .map(|r| Uint8Array::from(&r[..]))
+        .collect())
 }
 
 // --- SDK-level upload/download (raw data, no compression) ---
@@ -201,23 +208,18 @@ pub fn wasm_upload_data(data: &[u8], password: String) -> Result<String, JsValue
         return Err(JsValue::from_str("Password must not be empty"));
     }
 
-    let bundle = sdk_upload(data, &password)
-        .map_err(|e| JsValue::from_str(&e))?;
-    let json_bytes = bundle_to_json(&bundle)
-        .map_err(|e| JsValue::from_str(&e))?;
+    let bundle = sdk_upload(data, &password).map_err(|e| JsValue::from_str(&e))?;
+    let json_bytes = bundle_to_json(&bundle).map_err(|e| JsValue::from_str(&e))?;
 
-    String::from_utf8(json_bytes)
-        .map_err(|e| JsValue::from_str(&e.to_string()))
+    String::from_utf8(json_bytes).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
 /// Download raw data: verify + decrypt JSON-serialized bundle.
 #[wasm_bindgen(js_name = "downloadData")]
 pub fn wasm_download_data(bundle_json: String, password: String) -> Result<Uint8Array, JsValue> {
-    let bundle = bundle_from_json(bundle_json.as_bytes())
-        .map_err(|e| JsValue::from_str(&e))?;
+    let bundle = bundle_from_json(bundle_json.as_bytes()).map_err(|e| JsValue::from_str(&e))?;
 
-    let decrypted = sdk_download(&bundle, &password)
-        .map_err(|e| JsValue::from_str(&e))?;
+    let decrypted = sdk_download(&bundle, &password).map_err(|e| JsValue::from_str(&e))?;
 
     Ok(Uint8Array::from(&decrypted[..]))
 }
@@ -249,7 +251,9 @@ impl WasmKeychain {
     /// Re-derive all keys from a new password.
     #[wasm_bindgen(js_name = "setPassword")]
     pub fn set_password(&mut self, password: String) -> Result<(), JsValue> {
-        self.inner.set_password(&password).map_err(|e| JsValue::from_str(&e))
+        self.inner
+            .set_password(&password)
+            .map_err(|e| JsValue::from_str(&e))
     }
 
     /// Generate a random shared secret (base64-encoded).
@@ -261,14 +265,20 @@ impl WasmKeychain {
     /// Encrypt metadata using ChaCha20-Poly1305.
     #[wasm_bindgen(js_name = "encryptMetadata")]
     pub fn encrypt_metadata(&self, metadata: String) -> Result<Uint8Array, JsValue> {
-        let result = self.inner.encrypt_metadata(&metadata).map_err(|e| JsValue::from_str(&e))?;
+        let result = self
+            .inner
+            .encrypt_metadata(&metadata)
+            .map_err(|e| JsValue::from_str(&e))?;
         Ok(Uint8Array::from(&result[..]))
     }
 
     /// Decrypt metadata using ChaCha20-Poly1305.
     #[wasm_bindgen(js_name = "decryptMetadata")]
     pub fn decrypt_metadata(&self, data: &[u8]) -> Result<String, JsValue> {
-        let result = self.inner.decrypt_metadata(data).map_err(|e| JsValue::from_str(&e))?;
+        let result = self
+            .inner
+            .decrypt_metadata(data)
+            .map_err(|e| JsValue::from_str(&e))?;
         Ok(result)
     }
 

@@ -1,5 +1,4 @@
-use aes::cipher::{BlockDecryptMut, BlockEncryptMut, KeyIvInit};
-use aes::Aes256;
+use aes_gcm_siv::aead::{Aead, KeyInit};
 use base64::{Engine, engine::general_purpose::STANDARD as B64};
 use ed25519_dalek::{Signer, SigningKey, Verifier};
 use rand::rngs::OsRng;
@@ -76,8 +75,7 @@ impl ProgressCallback {
 /// Clone the Arc wrapper for sharing across Rayon threads.
 pub type Progress = Option<Arc<ProgressCallback>>;
 
-type Aes256Cbc = cbc::Encryptor<Aes256>;
-type Aes256CbcDec = cbc::Decryptor<Aes256>;
+// GCM-SIV is the only record format. Wire: nonce[12] || ciphertext[N+16_tag]
 
 // Constants matching Firefox Send
 pub const MAX_CONTENT_LENGTH: usize = 100 * 1024 * 1024;
@@ -444,73 +442,35 @@ pub fn parallel_decrypt_data(
 
 // --- PKCS7 padding ---
 
-fn pad_data(data: &[u8]) -> Vec<u8> {
-    let block_size = 16;
-    let remainder = data.len() % block_size;
-    let padding_len = if remainder == 0 { block_size } else { block_size - remainder };
-
-    let mut padded = data.to_vec();
-    padded.extend_from_slice(&vec![padding_len as u8; padding_len]);
-    padded
-}
-
-fn unpad_data(data: &[u8]) -> Result<Vec<u8>, String> {
-    if data.is_empty() {
-        return Err("Empty data cannot be unpadded".to_string());
-    }
-    let padding_len = *data.last().unwrap() as usize;
-    if padding_len == 0 || padding_len > 16 || padding_len > data.len() {
-        return Err("Invalid padding".to_string());
-    }
-
-    for i in (data.len() - padding_len)..data.len() {
-        if data[i] != padding_len as u8 {
-            return Err("Invalid padding bytes".to_string());
-        }
-    }
-
-    Ok(data[..data.len() - padding_len].to_vec())
-}
-
-/// Encrypt a single record using AES-256-CBC with random IV
+/// Encrypt a single record using AES-256-GCM-SIV with random 12-byte nonce.
+/// Wire format: nonce[12] || ciphertext[N+16_tag]
 pub fn encrypt_record(data: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, String> {
-    let mut iv = [0u8; 16];
-    OsRng.fill_bytes(&mut iv);
+    let mut nonce = [0u8; 12];
+    OsRng.fill_bytes(&mut nonce);
 
-    let mut cipher = Aes256Cbc::new_from_slices(key, &iv)
-        .map_err(|_| "Invalid AES key or IV length")?;
+    let cipher = aes_gcm_siv::Aes256GcmSiv::new_from_slice(key)
+        .map_err(|_| "Invalid AES key length")?;
+    let gcm_nonce = aes_gcm_siv::Nonce::from_slice(&nonce);
+    let ciphertext = cipher.encrypt(gcm_nonce, data)
+        .map_err(|e| format!("GCM-SIV record encryption failed: {e}"))?;
 
-    let padded = pad_data(data);
-    let mut ciphertext = padded.clone();
-
-    for chunk in ciphertext.chunks_mut(16) {
-        cipher.encrypt_block_mut(chunk.into());
-    }
-
-    let mut result = Vec::with_capacity(16 + ciphertext.len());
-    result.extend_from_slice(&iv);
+    let mut result = Vec::with_capacity(12 + ciphertext.len());
+    result.extend_from_slice(&nonce);
     result.extend_from_slice(&ciphertext);
     Ok(result)
 }
 
-/// Decrypt a single record using AES-256-CBC
+/// Decrypt a single record using AES-256-GCM-SIV.
+/// Wire format: nonce[12] || ciphertext[N+16_tag]
 pub fn decrypt_record(data: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, String> {
-    if data.len() < 16 {
-        return Err("Data too short for decryption".to_string());
+    if data.len() < 12 {
+        return Err("Record too short for decryption".to_string());
     }
-
-    let iv = &data[..16];
-    let ciphertext = &data[16..];
-
-    let mut cipher = Aes256CbcDec::new_from_slices(key, iv)
-        .map_err(|_| "Invalid AES key or IV length")?;
-
-    let mut decrypted = ciphertext.to_vec();
-    for chunk in decrypted.chunks_mut(16) {
-        cipher.decrypt_block_mut(chunk.into());
-    }
-
-    unpad_data(&decrypted)
+    let cipher = aes_gcm_siv::Aes256GcmSiv::new_from_slice(key)
+        .map_err(|_| "Invalid AES key length")?;
+    let gcm_nonce = aes_gcm_siv::Nonce::from_slice(&data[..12]);
+    cipher.decrypt(gcm_nonce, &data[12..])
+        .map_err(|e| format!("GCM-SIV record decryption failed: {e}"))
 }
 
 // --- Parallel record encryption ---
@@ -665,6 +625,7 @@ mod tests {
         assert_eq!(decrypted, data);
     }
 
+ 
     #[test]
     fn test_encrypt_decrypt_chunk_gcm() {
         let key = [0u8; 32];
