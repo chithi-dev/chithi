@@ -1,9 +1,9 @@
 <script lang="ts">
-  import * as Card from '$lib/components/ui/card';
-  import * as Item from '$lib/components/ui/item';
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { Badge } from '$lib/components/ui/badge';
+  import * as Card from '$lib/components/ui/card/index.js';
+  import * as Item from '$lib/components/ui/item/index.js';
+  import { Button } from '$lib/components/ui/button/index.js';
+  import { Input } from '$lib/components/ui/input/index.js';
+  import { Badge } from '$lib/components/ui/badge/index.js';
   import { X } from '@lucide/svelte';
   import { sanitizeExt } from '#functions/sanitize';
   import type { Config } from '#queries/config';

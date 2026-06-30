@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card';
+	import * as Card from '$lib/components/ui/card/index.js';
 	import { page } from '$app/state';
 	import { ShieldCheck, ChevronLeft } from '@lucide/svelte';
 	import { fly } from 'svelte/transition';

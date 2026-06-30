@@ -1,10 +1,10 @@
 <script lang="ts">
-  import * as Card from '$lib/components/ui/card';
-  import * as Item from '$lib/components/ui/item';
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { Badge } from '$lib/components/ui/badge';
-  import * as Select from '$lib/components/ui/select';
+  import * as Card from '$lib/components/ui/card/index.js';
+  import * as Item from '$lib/components/ui/item/index.js';
+  import { Button } from '$lib/components/ui/button/index.js';
+  import { Input } from '$lib/components/ui/input/index.js';
+  import { Badge } from '$lib/components/ui/badge/index.js';
+  import * as Select from '$lib/components/ui/select/index.js';
   import { X } from '@lucide/svelte';
   import { slide } from 'svelte/transition';
   import { formatSeconds, secondsToNumber, T_UNITS, type TimeUnit } from '#functions/times';

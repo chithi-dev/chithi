@@ -1,8 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import type { LucideIcon } from '@lucide/svelte';
-  import * as Card from '$lib/components/ui/card';
-  import { Button } from '$lib/components/ui/button';
+  import * as Card from '$lib/components/ui/card/index.js';
+  import { Button } from '$lib/components/ui/button/index.js';
   import { SiGithub } from '@icons-pack/svelte-simple-icons';
   import { BookOpen } from '@lucide/svelte';
 

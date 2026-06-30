@@ -1,7 +1,7 @@
 <script lang="ts">
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { Button } from '$lib/components/ui/button';
-	import * as Pagination from '$lib/components/ui/pagination';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Pagination from '$lib/components/ui/pagination/index.js';
 	import { useFilesQuery } from '#queries/files';
 	import { formatDate } from '$lib/functions/dates';
 	import { toast } from 'svelte-sonner';
@@ -82,15 +82,15 @@
 		</Pagination.Root>
 	</div>
 
-	<Dialog.Root bind:open={isRevokeDialogOpen}>
-		<Dialog.Content>
-			<Dialog.Header>
-				<Dialog.Title>Revoke URL</Dialog.Title>
-				<Dialog.Description>
+	<AlertDialog.Root open={isRevokeDialogOpen}>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>Revoke URL</AlertDialog.Title>
+				<AlertDialog.Description>
 					Are you sure you want to revoke this URL? This cannot be undone.
-				</Dialog.Description>
-			</Dialog.Header>
-			<Dialog.Footer>
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
 				<Button variant="outline" onclick={() => (isRevokeDialogOpen = false)} disabled={isRevoking}
 					>Cancel</Button
 				>
@@ -101,7 +101,7 @@
 						Revoke
 					{/if}
 				</Button>
-			</Dialog.Footer>
-		</Dialog.Content>
-	</Dialog.Root>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
 </div>

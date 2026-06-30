@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { useAuth } from '#queries/auth';
 	import { useUsersQuery } from '#queries/admin_users';
-	import * as Table from '$lib/components/ui/table';
-	import * as Card from '$lib/components/ui/card';
-	import * as Pagination from '$lib/components/ui/pagination';
-	import { Button } from '$lib/components/ui/button';
+	import * as Table from '$lib/components/ui/table/index.js';
+	import * as Card from '$lib/components/ui/card/index.js';
+	import * as Pagination from '$lib/components/ui/pagination/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import { Trash2, UserPlus } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
 

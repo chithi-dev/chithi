@@ -1,10 +1,10 @@
 <script lang="ts">
-  import * as Card from '$lib/components/ui/card';
-  import * as Item from '$lib/components/ui/item';
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import * as Select from '$lib/components/ui/select';
-  import { Switch } from '$lib/components/ui/switch';
+  import * as Card from '$lib/components/ui/card/index.js';
+  import * as Item from '$lib/components/ui/item/index.js';
+  import { Button } from '$lib/components/ui/button/index.js';
+  import { Input } from '$lib/components/ui/input/index.js';
+  import * as Select from '$lib/components/ui/select/index.js';
+  import { Switch } from '$lib/components/ui/switch/index.js';
   import { slide } from 'svelte/transition';
   import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '#functions/bytes';
   import type { Config } from '#queries/config';
