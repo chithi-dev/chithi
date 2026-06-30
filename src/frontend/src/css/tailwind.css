@@ -44,8 +44,8 @@
 	--sidebar-ring: oklch(0.708 0 0);
 
 	/* Grid pattern gradients - theme-adaptive via color-mix */
-	--grid-gradient: linear-gradient(to_right, color-mix(in srgb, var(--foreground) 5%, transparent) 1px, transparent 1px),
-	                 linear-gradient(to_bottom, color-mix(in srgb, var(--foreground) 5%, transparent) 1px, transparent 1px);
+	--grid-gradient: linear-gradient(to_right, color-mix(in oklch, var(--foreground) 5%, transparent) 1px, transparent 1px),
+	                 linear-gradient(to_bottom, color-mix(in oklch, var(--foreground) 5%, transparent) 1px, transparent 1px);
 }
 
 .dark {
