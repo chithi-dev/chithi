@@ -234,7 +234,7 @@
 									style="animation-duration: 1.5s;
 										background-image: repeating-linear-gradient(
 											-45deg, transparent, transparent 3px,
-											color-mix(in srgb, var(--foreground) 20%, transparent) 3px, color-mix(in srgb, var(--foreground) 20%, transparent) 6px
+											color-mix(in oklch, var(--foreground) 20%, transparent) 3px, color-mix(in oklch, var(--foreground) 20%, transparent) 6px
 										)"
 								></div>
 							</Tooltip.Trigger>
@@ -257,7 +257,7 @@
 							style="left: {activeStartPct}%; width: {activeWidthPct}%;
 								background-image: repeating-linear-gradient(
 									45deg, transparent, transparent 4px,
-									color-mix(in srgb, var(--foreground) 40%, transparent) 4px, color-mix(in srgb, var(--foreground) 40%, transparent) 8px
+									color-mix(in oklch, var(--foreground) 40%, transparent) 4px, color-mix(in oklch, var(--foreground) 40%, transparent) 8px
 								)"
 						></div>
 					{/if}
