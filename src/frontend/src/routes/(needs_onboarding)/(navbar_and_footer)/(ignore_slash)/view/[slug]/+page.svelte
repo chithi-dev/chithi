@@ -23,6 +23,7 @@
   import { autoDownload } from '$lib/functions/browser-download';
   import { validateZipBlob } from '#functions/zip-validate';
   import * as ContextMenu from '$lib/components/ui/context-menu/index.js';
+  import * as HoverCard from '$lib/components/ui/hover-card/index.js';
   import { useFileInfoQuery } from '#queries/file-info';
 
   const key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
@@ -279,12 +280,26 @@
                               {@const Icon = fileIcon(entry.filename)}
                               <Icon class="h-5 w-5 shrink-0 text-primary" />
                             {/if}
-                            <div class="flex-1 overflow-hidden">
-                              <p class="truncate text-sm font-medium">{entry.filename}</p>
-                              {#if !entry.directory}
-                                <p class="text-xs text-muted-foreground">{formatFileSize(entry.uncompressedSize)}</p>
-                              {/if}
-                            </div>
+                            <HoverCard.Root>
+                              <HoverCard.Trigger class="cursor-default">
+                                <div class="flex-1 overflow-hidden">
+                                  <p class="truncate text-sm font-medium">{entry.filename}</p>
+                                  {#if !entry.directory}
+                                    <p class="text-xs text-muted-foreground">{formatFileSize(entry.uncompressedSize)}</p>
+                                  {/if}
+                                </div>
+                              </HoverCard.Trigger>
+                              <HoverCard.Content class="w-80">
+                                <div class="space-y-2">
+                                  <p class="text-sm font-medium">{entry.filename}</p>
+                                  {#if !entry.directory}
+                                    <p class="text-xs text-muted-foreground">Size: {formatFileSize(entry.uncompressedSize)}</p>
+                                  {:else}
+                                    <p class="text-xs text-muted-foreground">Directory</p>
+                                  {/if}
+                                </div>
+                              </HoverCard.Content>
+                            </HoverCard.Root>
                           </button>
                           {#if !entry.directory}
                             <div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
