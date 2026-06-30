@@ -831,7 +831,7 @@ Install the components that Phase 15 added but didn't wire:
 
 - [x] **Accordion** into upload page FAQ section — wrap help text in `<Accordion.Root>` with 3 collapsible items (End-to-End Encryption, How it works, Key storage)
 - [ ] **Carousel** into upload showcase — replace static showcase cards with `<Carousel.Root>` + `<Carousel.Slide>` (deferred: upload showcase is a custom progress visualization, not carousel cards)
-- [ ] **Hover Card** into file list views — wrap file info links with `<HoverCard.Root>` for rich previews
+- [x] **Hover Card** into file list views — wrap file info links with `<HoverCard.Root>` for rich previews
 - [x] **Context Menu** into view page file list — right-click actions (View, Save) via `<ContextMenu.Root>`
 - [x] **Command** into navbar layout — Ctrl+K command palette for quick navigation
 
@@ -841,10 +841,10 @@ Install the components that Phase 15 added but didn't wire:
 
 Install components from the shadcn-svelte registry that would improve the app:
 
-- [ ] **Input Group** — replace custom input wrappers with `<InputGroup.Root>` + `<InputGroup.InputSlot>` for search bars
+- [x] **Input Group** — already wired in view and download pages via `<InputGroup.Root>` + `<InputGroup.InputSlot>`
 - [x] **Sheet** — replace hidden reconnect card with `<Sheet.Root>` slide-in panel on home page (fixes missing trigger bug)
 - [x] **Tabs** — replace stacked cards in admin config page with `<Tabs.Root>` + `<Tabs.List>` + `<Tabs.Content>` (4 tabs: Storage, Retention, Security, Description)
-- [ ] **Checkbox** — verify all checkbox usages use `<Checkbox.Root>` + `<Checkbox.Indicator>` (docs-exact)
+- [x] **Checkbox** — verified: no Checkbox usages in route files, component installed and ready
 
 **Why**: These components are in the registry, tested, accessible, and directly replace existing custom patterns.
 
