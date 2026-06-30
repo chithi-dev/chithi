@@ -2,10 +2,10 @@
   import { fly, fade } from 'svelte/transition';
   import { goto } from '$app/navigation';
   import { useOnboarding } from '#queries/onboarding';
-  import * as Card from '$lib/components/ui/card';
+  import * as Card from '$lib/components/ui/card/index.js';
   import { Check } from '@lucide/svelte';
-  import { Button } from '$lib/components/ui/button';
-  import { Skeleton } from '$lib/components/ui/skeleton';
+  import { Button } from '$lib/components/ui/button/index.js';
+  import { Skeleton } from '$lib/components/ui/skeleton/index.js';
   import FancyGrid from '$lib/components/FancyGrid.svelte';
   import { OnboardingStep } from './enums';
   const { default: Step1 } = await import('./stage_1.svelte');
@@ -42,9 +42,9 @@
         </Card.Root>
       </div>
     {:else if step === OnboardingStep.Stage_1}
-      <div in:fly={{ x: -20, duration: 400, delay: 200 }} out:fade={{ duration: 200 }} class="absolute inset-0 m-auto h-fit w-full max-w-100 p-4"><Step1 {nextStep} /></div>
+      <div in:fly={{ x: -20, duration: 400, delay: 200 }} out:fade={{ duration: 200 }} class="absolute inset-0 m-auto h-fit w-full max-w-100 p-4"><Step1 onNext={nextStep} /></div>
     {:else if step === OnboardingStep.Stage_2}
-      <div in:fly={{ x: 20, duration: 400, delay: 200 }} class="relative w-full"><Step2 {nextStep} /></div>
+      <div in:fly={{ x: 20, duration: 400, delay: 200 }} class="relative w-full"><Step2 onNext={nextStep} /></div>
     {/if}
   </div>
 </div>

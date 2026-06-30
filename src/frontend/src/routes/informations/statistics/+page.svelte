@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Button } from '$lib/components/ui/button';
+  import { Button } from '$lib/components/ui/button/index.js';
   import {
     HardDrive,
     Files,
@@ -8,11 +8,11 @@
     Share2,
     Clock,
     CalendarClock,
-    LoaderCircle,
     CircleAlert,
     TrendingUp,
     ShieldCheck
   } from '@lucide/svelte';
+  import { Spinner } from '$lib/components/ui/spinner/index.js';
   import { useInstanceStatisticsQuery } from '$lib/queries/instance';
   import { formatFileSize } from '$lib/functions/bytes';
   import { formatDateLong } from '$lib/functions/dates';
@@ -34,7 +34,7 @@
 
 {#if statsQuery.isLoading}
   <div class="flex h-64 items-center justify-center">
-    <LoaderCircle class="h-8 w-8 animate-spin text-muted-foreground" />
+    <Spinner class="size-8 text-muted-foreground" />
   </div>
 {:else if statsQuery.isError}
   <div class="flex flex-col items-center justify-center gap-4 py-12 text-destructive">

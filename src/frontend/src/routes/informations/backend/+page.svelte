@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { Button } from '$lib/components/ui/button';
+  import { Button } from '$lib/components/ui/button/index.js';
   import { SiPython, SiFastapi, SiRedis, SiPostgresql } from '@icons-pack/svelte-simple-icons';
-  import { Server, Tag, ShieldCheck, LoaderCircle, CircleAlert } from '@lucide/svelte';
+  import { Server, Tag, ShieldCheck, CircleAlert } from '@lucide/svelte';
+  import { Spinner } from '$lib/components/ui/spinner/index.js';
   import { useInstanceInformationQuery } from '$lib/queries/instance';
   import InfoCard from '../components/InfoCard.svelte';
   import StatusBadge from '../components/StatusBadge.svelte';
@@ -21,7 +22,7 @@
 
 {#if instanceQuery.isLoading}
   <div class="flex h-64 items-center justify-center">
-    <LoaderCircle class="h-8 w-8 animate-spin text-muted-foreground" />
+    <Spinner class="size-8 text-muted-foreground" />
   </div>
 {:else if instanceQuery.isError}
   <div class="flex flex-col items-center justify-center gap-4 py-12 text-destructive">

@@ -4,8 +4,8 @@
 	import { formatFileSize } from '#functions/bytes';
 	import { subscribeAppState, appState } from './state.svelte';
 	import { HardDrive, Wifi, WifiOff } from '@lucide/svelte';
-	import { Progress } from '$lib/components/ui/progress';
-	import * as Tooltip from '$lib/components/ui/tooltip';
+	import { Progress } from '$lib/components/ui/progress/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
 	const { localUploadSize = 0 }: { localUploadSize: number } = $props();
 
@@ -91,7 +91,10 @@
 		}
 	});
 
-	$effect(() => subscribeAppState());
+	$effect(() => {
+    const unsub = subscribeAppState();
+    return unsub;
+  });
 </script>
 
 <div class="mx-auto mt-6 w-full max-w-5xl">
@@ -231,7 +234,7 @@
 									style="animation-duration: 1.5s;
 										background-image: repeating-linear-gradient(
 											-45deg, transparent, transparent 3px,
-											rgba(255,255,255,0.2) 3px, rgba(255,255,255,0.2) 6px
+											color-mix(in srgb, var(--foreground) 20%, transparent) 3px, color-mix(in srgb, var(--foreground) 20%, transparent) 6px
 										)"
 								></div>
 							</Tooltip.Trigger>
@@ -254,7 +257,7 @@
 							style="left: {activeStartPct}%; width: {activeWidthPct}%;
 								background-image: repeating-linear-gradient(
 									45deg, transparent, transparent 4px,
-									rgba(255,255,255,0.4) 4px, rgba(255,255,255,0.4) 8px
+									color-mix(in srgb, var(--foreground) 40%, transparent) 4px, color-mix(in srgb, var(--foreground) 40%, transparent) 8px
 								)"
 						></div>
 					{/if}

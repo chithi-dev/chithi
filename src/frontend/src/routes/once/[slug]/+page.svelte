@@ -1,7 +1,8 @@
 <script lang="ts">
-  import { Button } from '$lib/components/ui/button';
-  import { Input } from '$lib/components/ui/input';
-  import { CircleAlert, LoaderCircle, KeyRound } from '@lucide/svelte';
+  import { Button } from '$lib/components/ui/button/index.js';
+  import { Input } from '$lib/components/ui/input/index.js';
+  import { CircleAlert, KeyRound } from '@lucide/svelte';
+  import { Spinner } from '$lib/components/ui/spinner/index.js';
   import { page } from '$app/state';
   import { fetchDecryptedBlob } from '$lib/functions/fetch-decrypt';
   import { PasswordRequiredError } from '#errors/password';
@@ -81,5 +82,5 @@
     <CircleAlert class="h-10 w-10" /><p class="font-medium">{errorMsg}</p>
   </div>
 {:else}
-  <div class="flex min-h-screen items-center justify-center"><LoaderCircle class="h-8 w-8 animate-spin text-muted-foreground" /></div>
+  <div class="flex min-h-screen items-center justify-center"><Spinner class="size-8 text-muted-foreground" /></div>
 {/if}

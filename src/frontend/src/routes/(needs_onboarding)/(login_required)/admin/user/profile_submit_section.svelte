@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import { LoaderCircle } from '@lucide/svelte';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { fade } from 'svelte/transition';
 
 	let {
@@ -29,7 +29,7 @@
 	<div class="flex justify-end">
 		<Button type="submit" disabled={loading}>
 			{#if loading}
-				<LoaderCircle class="mr-2 size-4 animate-spin" />
+				<Spinner />
 				Saving...
 			{:else}
 				Save Changes

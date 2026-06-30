@@ -1,6 +1,6 @@
 <script lang="ts">
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { Button } from '$lib/components/ui/button';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import { useUsersQuery } from '#queries/admin_users';
 	import { toast } from 'svelte-sonner';
 
@@ -28,19 +28,19 @@
 	}
 </script>
 
-<Dialog.Root bind:open>
-	<Dialog.Content>
-		<Dialog.Header>
-			<Dialog.Title>Are you absolutely sure?</Dialog.Title>
-			<Dialog.Description>
+<AlertDialog.Root open={open}>
+	<AlertDialog.Content>
+		<AlertDialog.Header>
+			<AlertDialog.Title>Are you absolutely sure?</AlertDialog.Title>
+			<AlertDialog.Description>
 				This action cannot be undone. This will permanently delete the user account.
-			</Dialog.Description>
-		</Dialog.Header>
-		<Dialog.Footer>
+			</AlertDialog.Description>
+		</AlertDialog.Header>
+		<AlertDialog.Footer>
 			<Button variant="outline" onclick={() => (open = false)}>Cancel</Button>
 			<Button variant="destructive" disabled={isDeleting} onclick={handleDelete}>
 				{isDeleting ? 'Deleting...' : 'Delete User'}
 			</Button>
-		</Dialog.Footer>
-	</Dialog.Content>
-</Dialog.Root>
+		</AlertDialog.Footer>
+	</AlertDialog.Content>
+</AlertDialog.Root>

@@ -12,15 +12,16 @@
 </script>
 
 <script lang="ts">
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Form from '$lib/components/ui/form';
-	import { Input } from '$lib/components/ui/input';
-	import { Button } from '$lib/components/ui/button';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as Form from '$lib/components/ui/form/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import { useUsersQuery } from '#queries/admin_users';
 	import { toast } from 'svelte-sonner';
 	import { superForm, defaults } from 'sveltekit-superforms';
 	import { zod4, zod4Client } from 'sveltekit-superforms/adapters';
-	import { User, Mail, Lock, LoaderCircle, UserPlus, Eye, EyeOff } from '@lucide/svelte';
+	import { User, Mail, Lock, UserPlus, Eye, EyeOff } from '@lucide/svelte';
+	import { Spinner } from '$lib/components/ui/spinner/index.js';
 
 	let { open = $bindable(false) } = $props<{ open: boolean }>();
 
@@ -177,7 +178,7 @@
 					class="h-11 px-8 font-semibold shadow-lg shadow-primary/20 transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-70"
 				>
 					{#if $submitting}
-						<LoaderCircle class="mr-2 size-4 animate-spin" />
+						<Spinner />
 						Creating...
 					{:else}
 						Create User

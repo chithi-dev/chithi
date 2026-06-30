@@ -1,5 +1,5 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card';
+	import * as Card from '$lib/components/ui/card/index.js';
 	import { useAuth } from '#queries/auth';
 	import { kebab_to_initials } from '#functions/string-conversion';
 	import { make_libravatar_url } from '#functions/libravatar';
