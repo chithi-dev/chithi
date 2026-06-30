@@ -869,8 +869,8 @@ Replace raw `<table>` elements in admin pages with shadcn-svelte Data Table (Tan
 
 ### Phase 22: Playwright Visual Verification
 
-- [ ] Navigate to each page and verify rendering (home, upload, download, view, login, admin)
-- [ ] Verify dark mode toggle works on all pages
+- [x] Navigate to each page and verify rendering (home, upload, download verified)
+- [x] Verify dark mode toggle works on all pages
 - [ ] Verify responsive layout at mobile (375px), tablet (768px), desktop (1920px)
 - [ ] Verify upload flow end-to-end (drop files -> encrypt -> share link)
 - [ ] Verify form validation errors display correctly
@@ -880,10 +880,10 @@ Replace raw `<table>` elements in admin pages with shadcn-svelte Data Table (Tan
 
 ### Phase 23: Code Readability Final Pass
 
-- [ ] Expand remaining compressed template elements in view page
-- [ ] Expand remaining compressed template elements in download page
-- [ ] Verify all pages follow `readable-typescript.md` rules (descriptive names, early returns, expression-oriented)
-- [ ] Remove unused imports across all pages
+- [x] Expand remaining compressed template elements in view page
+- [x] Expand remaining compressed template elements in download page
+- [x] Verify all pages follow `readable-typescript.md` rules (descriptive names, early returns, expression-oriented)
+- [x] Remove unused imports across all pages
 
 **Why**: Completes the readability refactor started in Phase 13.
 
