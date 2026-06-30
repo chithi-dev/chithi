@@ -34,31 +34,31 @@
   }
 </script>
 
-<Card.Root class="relative overflow-hidden border-slate-200/60 bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl dark:border-zinc-800/50 dark:bg-zinc-900/50">
+<Card.Root class="relative overflow-hidden border-border/60 bg-card/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl">
   <div class="absolute left-0 top-0 h-px w-full bg-linear-to-r from-transparent via-primary/40 to-transparent"></div>
   <Card.Header class="space-y-3 pt-10 pb-8 text-center">
-    <div class="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 text-primary shadow-sm ring-1 ring-blue-200 dark:border-primary/20 dark:bg-primary/10 dark:ring-primary/20"><User class="size-8" /></div>
-    <div class="space-y-1"><Card.Title class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Welcome to Chithi</Card.Title><Card.Description class="text-sm text-slate-500 dark:text-zinc-400">Create your admin account to get started</Card.Description></div>
+    <div class="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20"><User class="size-8" /></div>
+    <div class="space-y-1"><Card.Title class="text-2xl font-semibold tracking-tight text-foreground">Welcome to Chithi</Card.Title><Card.Description class="text-sm text-muted-foreground">Create your admin account to get started</Card.Description></div>
   </Card.Header>
   <Card.Content>
     <form onsubmit={handleSubmit} class="grid gap-6">
       <div class="grid gap-4">
         <Field.Field>
-          <Field.Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400">Username</Field.Label>
+          <Field.Label class="ml-1 text-sm font-medium text-foreground">Username</Field.Label>
           <Field.Content>
-            <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"><User class="size-4" /></div><Input bind:value={username} placeholder="Admin" class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50" required /></div>
+            <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-muted-foreground transition-colors group-focus-within:text-primary"><User class="size-4" /></div><Input bind:value={username} placeholder="Admin" class="h-12 border-border bg-background/50 pl-11 transition-all focus-visible:ring-primary/40" required /></div>
           </Field.Content>
         </Field.Field>
         <Field.Field>
-          <Field.Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400">Email</Field.Label>
+          <Field.Label class="ml-1 text-sm font-medium text-foreground">Email</Field.Label>
           <Field.Content>
-            <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"><Mail class="size-4" /></div><Input type="email" bind:value={email} placeholder="name@example.com" class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50" required /></div>
+            <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-muted-foreground transition-colors group-focus-within:text-primary"><Mail class="size-4" /></div><Input type="email" bind:value={email} placeholder="name@example.com" class="h-12 border-border bg-background/50 pl-11 transition-all focus-visible:ring-primary/40" required /></div>
           </Field.Content>
         </Field.Field>
         <Field.Field>
-          <Field.Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400">Password</Field.Label>
+          <Field.Label class="ml-1 text-sm font-medium text-foreground">Password</Field.Label>
           <Field.Content>
-            <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-slate-400 transition-colors group-focus-within:text-primary dark:text-zinc-500"><Lock class="size-4" /></div><Input type="password" bind:value={password} class="h-12 border-slate-200 bg-white/50 pl-11 transition-all focus-visible:ring-primary/40 dark:border-zinc-800 dark:bg-zinc-950/50" required /></div>
+            <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-muted-foreground transition-colors group-focus-within:text-primary"><Lock class="size-4" /></div><Input type="password" bind:value={password} class="h-12 border-border bg-background/50 pl-11 transition-all focus-visible:ring-primary/40" required /></div>
           </Field.Content>
         </Field.Field>
       </div>
