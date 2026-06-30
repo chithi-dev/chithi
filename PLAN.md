@@ -852,18 +852,18 @@ Install components from the shadcn-svelte registry that would improve the app:
 
 Replace raw `<table>` elements in admin pages with shadcn-svelte Data Table (TanStack Table):
 
-- [ ] Admin users page — convert to Data Table with sorting, filtering, row selection
-- [ ] Admin URLs page — convert to Data Table with sorting, filtering
-- [ ] File list pages — convert to Data Table with column definitions
+- [x] Admin users page — convert to Data Table with sorting, filtering, row selection
+- [x] Admin URLs page — convert to Data Table with sorting, filtering
+- [x] File list pages — convert to Data Table with column definitions
 
 **Why**: Data Table provides sorting, filtering, selection, and pagination out of the box. Replaces manual table implementations with a tested, accessible one.
 
 ### Phase 21: CSS Final Polish
 
-- [ ] Verify dark mode contrast ratios (WCAG AA) for all pages
-- [ ] Audit Tailwind utility vs custom CSS overlap — replace custom CSS with Tailwind where equivalent
-- [ ] Extract repeated icon-badge class `flex h-8 w-8 items-center justify-center rounded-full bg-primary/10` to a shared utility
-- [ ] Verify `@theme inline` block maps all custom CSS variables to Tailwind semantic colors
+- [x] Verify dark mode contrast ratios (WCAG AA) for all pages
+- [x] Audit Tailwind utility vs custom CSS overlap — replace custom CSS with Tailwind where equivalent
+- [x] Extract repeated icon-badge class `flex h-8 w-8 items-center justify-center rounded-full bg-primary/10` to a shared utility
+- [x] Verify `@theme inline` block maps all custom CSS variables to Tailwind semantic colors
 
 **Why**: Ensures visual consistency and reduces CSS maintenance burden.
 
@@ -871,10 +871,10 @@ Replace raw `<table>` elements in admin pages with shadcn-svelte Data Table (Tan
 
 - [x] Navigate to each page and verify rendering (home, upload, download verified)
 - [x] Verify dark mode toggle works on all pages
-- [ ] Verify responsive layout at mobile (375px), tablet (768px), desktop (1920px)
-- [ ] Verify upload flow end-to-end (drop files -> encrypt -> share link)
-- [ ] Verify form validation errors display correctly
-- [ ] Verify reverse file share flow (create room -> upload -> receive)
+- [x] Verify responsive layout at mobile (375px), tablet (768px), desktop (1920px)
+- [x] Verify upload flow end-to-end (drop files -> encrypt -> share link)
+- [x] Verify form validation errors display correctly
+- [x] Verify reverse file share flow (create room -> upload -> receive)
 
 **Why**: The only way to confirm no visual regressions after all changes.
 
