@@ -1,308 +1,738 @@
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::Mutex;
+use std::sync::Arc;
+
 use chithi_core::chithi_cryto::{
     decrypt_all, decrypt_chunk, decrypt_chunks_parallel, decrypt_record,
     encrypt_all, encrypt_chunk, encrypt_chunks_parallel, encrypt_record,
-    get_chunk_nonce, Keychain, sdk_upload, sdk_download,
-    bundle_to_json, bundle_from_json,
+    get_chunk_nonce, Keychain, parallel_decrypt_data, parallel_encrypt_data,
+    sdk_upload, sdk_download, bundle_to_json, bundle_from_json,
+    ProgressCallback,
 };
-use js_sys::Uint8Array;
 use rand::rngs::OsRng;
 use rand::RngCore;
-use wasm_bindgen::prelude::*;
 
-/// Generate a random secret (base64-encoded).
-#[wasm_bindgen]
-pub fn wasm_generate_secret() -> String {
-    let kc = Keychain::new();
-    kc.generate_secret()
+use crate::{read_slice, write_slice, write_out_len, read_chunk_array, write_chunk_array};
+
+// ---------------------------------------------------------------------------
+// Linear memory allocator (simple bump pointer)
+// ---------------------------------------------------------------------------
+
+static HEAP_PTR: AtomicU32 = AtomicU32::new(0x10000);
+
+#[no_mangle]
+pub extern "C" fn chithi_alloc(len: u32) -> u32 {
+    HEAP_PTR.fetch_add(len, Ordering::Relaxed)
 }
 
-/// Derive a 32-byte key from password and salt using Argon2id + HKDF.
-#[wasm_bindgen]
-pub fn wasm_derive_key(password: &[u8], salt: &[u8]) -> Result<Uint8Array, JsValue> {
-    let key = chithi_core::chithi_cryto::derive_key(password, salt)
-        .map_err(|e| JsValue::from_str(&e))?;
-    Ok(Uint8Array::from(&key[..]))
+#[no_mangle]
+pub extern "C" fn chithi_dealloc(_ptr: u32, _len: u32) {
+    // Bump allocator — no-op free. Memory reclaimed on module reload.
 }
 
-/// Derive a key using Argon2id with explicit parameters.
-#[wasm_bindgen]
-pub fn wasm_argon2_derive(
-    password: &[u8],
-    salt: &[u8],
-    iterations: u32,
-    memory_cost_kib: u32,
-    hash_length: usize,
-) -> Result<Uint8Array, JsValue> {
-    let mut out = vec![0u8; hash_length];
-    argon2::Argon2::new(
-        argon2::Algorithm::Argon2id,
-        argon2::Version::V0x13,
-        argon2::Params::new(
-            memory_cost_kib,
-            iterations,
-            1,
-            Some(hash_length),
-        ).map_err(|e| JsValue::from_str(&e.to_string()))?,
-    ).hash_password_into(password, salt, &mut out)
-        .map_err(|e| JsValue::from_str(&e.to_string()))?;
-    Ok(Uint8Array::from(&out[..]))
+#[no_mangle]
+pub extern "C" fn chithi_reset_heap() {
+    HEAP_PTR.store(0x10000, Ordering::Relaxed);
 }
 
-/// Generate a random 32-byte IKM.
-#[wasm_bindgen]
-pub fn wasm_generate_ikm() -> Uint8Array {
-    let mut ikm = [0u8; 32];
-    OsRng.fill_bytes(&mut ikm);
-    Uint8Array::from(&ikm[..])
+// ---------------------------------------------------------------------------
+// Multi-core detection
+// ---------------------------------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn chithi_available_parallelism() -> u32 {
+    std::thread::available_parallelism()
+        .map(|n| n.get() as u32)
+        .unwrap_or(1)
 }
 
-// --- Record encryption (AES-256-CBC) ---
+// ---------------------------------------------------------------------------
+// Event-driven progress callback bridge
+//
+// JS registers a callback: fn(progress: u32, total: u32, user_data: u32)
+// user_data is passed through unchanged so JS can carry context.
+// Pass callback_ptr = 0 to disable progress events.
+// ---------------------------------------------------------------------------
 
-#[wasm_bindgen]
-pub fn wasm_encrypt_record(data: &[u8], key: &[u8]) -> Result<Uint8Array, JsValue> {
-    if key.len() != 32 {
-        return Err(JsValue::from_str("Key must be 32 bytes"));
-    }
-    let key_arr: [u8; 32] = key.try_into().unwrap();
-    let result = encrypt_record(data, &key_arr).map_err(|e| JsValue::from_str(&e))?;
-    Ok(Uint8Array::from(&result[..]))
+type ProgressFn = unsafe extern "C" fn(processed: u32, total: u32, user_data: usize);
+
+struct CallbackBridge {
+    fn_ptr: ProgressFn,
+    user_data: usize,
 }
 
-#[wasm_bindgen]
-pub fn wasm_decrypt_record(data: &[u8], key: &[u8]) -> Result<Uint8Array, JsValue> {
-    if key.len() != 32 {
-        return Err(JsValue::from_str("Key must be 32 bytes"));
-    }
-    let key_arr: [u8; 32] = key.try_into().unwrap();
-    let result = decrypt_record(data, &key_arr).map_err(|e| JsValue::from_str(&e))?;
-    Ok(Uint8Array::from(&result[..]))
-}
-
-// --- Chunk encryption (AES-256-GCM) ---
-
-#[wasm_bindgen]
-pub fn wasm_encrypt_chunk(data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Uint8Array, JsValue> {
-    if key.len() != 32 {
-        return Err(JsValue::from_str("Key must be 32 bytes"));
-    }
-    if nonce.len() != 12 {
-        return Err(JsValue::from_str("Nonce must be 12 bytes"));
-    }
-    let key_arr: [u8; 32] = key.try_into().unwrap();
-    let nonce_arr: [u8; 12] = nonce.try_into().unwrap();
-    let result = encrypt_chunk(data, &key_arr, &nonce_arr).map_err(|e| JsValue::from_str(&e))?;
-    Ok(Uint8Array::from(&result[..]))
-}
-
-#[wasm_bindgen]
-pub fn wasm_decrypt_chunk(data: &[u8], key: &[u8], nonce: &[u8]) -> Result<Uint8Array, JsValue> {
-    if key.len() != 32 {
-        return Err(JsValue::from_str("Key must be 32 bytes"));
-    }
-    if nonce.len() != 12 {
-        return Err(JsValue::from_str("Nonce must be 12 bytes"));
-    }
-    let key_arr: [u8; 32] = key.try_into().unwrap();
-    let nonce_arr: [u8; 12] = nonce.try_into().unwrap();
-    let result = decrypt_chunk(data, &key_arr, &nonce_arr).map_err(|e| JsValue::from_str(&e))?;
-    Ok(Uint8Array::from(&result[..]))
-}
-
-#[wasm_bindgen]
-pub fn wasm_get_chunk_nonce(base_iv: &[u8], chunk_index: u32) -> Uint8Array {
-    let base: [u8; 12] = base_iv.try_into()
-        .map_err(|_| panic!("base_iv must be 12 bytes"))
-        .unwrap();
-    let nonce = get_chunk_nonce(&base, chunk_index);
-    Uint8Array::from(&nonce[..])
-}
-
-// --- Batch chunk encryption (AES-256-GCM) ---
-
-/// Encrypt multiple chunks using AES-256-GCM.
-/// In browser: uses Web Workers via wasm-bindgen-rayon if initialized.
-/// In Node.js: uses sequential processing.
-#[wasm_bindgen]
-pub fn wasm_encrypt_chunks_parallel(
-    chunks: Vec<Uint8Array>,
-    key: &[u8],
-    base_iv: &[u8],
-) -> Result<Vec<Uint8Array>, JsValue> {
-    if key.len() != 32 {
-        return Err(JsValue::from_str("Key must be 32 bytes"));
-    }
-    if base_iv.len() != 12 {
-        return Err(JsValue::from_str("base_iv must be 12 bytes"));
-    }
-    let key_arr: [u8; 32] = key.try_into().unwrap();
-    let base_iv_arr: [u8; 12] = base_iv.try_into().unwrap();
-    let chunk_vecs: Vec<Vec<u8>> = chunks.into_iter().map(|c| c.to_vec()).collect();
-    let results = encrypt_chunks_parallel(&chunk_vecs, &key_arr, &base_iv_arr, None)
-        .map_err(|e| JsValue::from_str(&e))?;
-    Ok(results.into_iter().map(|r| Uint8Array::from(&r[..])).collect())
-}
-
-/// Decrypt multiple chunks using AES-256-GCM-SIV.
-#[wasm_bindgen]
-pub fn wasm_decrypt_chunks_parallel(
-    chunks: Vec<Uint8Array>,
-    key: &[u8],
-    base_iv: &[u8],
-) -> Result<Vec<Uint8Array>, JsValue> {
-    if key.len() != 32 {
-        return Err(JsValue::from_str("Key must be 32 bytes"));
-    }
-    if base_iv.len() != 12 {
-        return Err(JsValue::from_str("base_iv must be 12 bytes"));
-    }
-    let key_arr: [u8; 32] = key.try_into().unwrap();
-    let base_iv_arr: [u8; 12] = base_iv.try_into().unwrap();
-    let chunk_vecs: Vec<Vec<u8>> = chunks.into_iter().map(|c| c.to_vec()).collect();
-    let results = decrypt_chunks_parallel(&chunk_vecs, &key_arr, &base_iv_arr, None)
-        .map_err(|e| JsValue::from_str(&e))?;
-    Ok(results.into_iter().map(|r| Uint8Array::from(&r[..])).collect())
-}
-
-// --- Batch record encryption (AES-256-CBC) ---
-
-#[wasm_bindgen]
-pub fn wasm_encrypt_all(records: Vec<Uint8Array>, key: &[u8]) -> Result<Vec<Uint8Array>, JsValue> {
-    if key.len() != 32 {
-        return Err(JsValue::from_str("Key must be 32 bytes"));
-    }
-    let key_arr: [u8; 32] = key.try_into().unwrap();
-    let record_vecs: Vec<Vec<u8>> = records.into_iter().map(|r| r.to_vec()).collect();
-    let results = encrypt_all(&record_vecs, &key_arr)
-        .map_err(|e| JsValue::from_str(&e))?;
-    Ok(results.into_iter().map(|r| Uint8Array::from(&r[..])).collect())
-}
-
-#[wasm_bindgen]
-pub fn wasm_decrypt_all(records: Vec<Uint8Array>, key: &[u8]) -> Result<Vec<Uint8Array>, JsValue> {
-    if key.len() != 32 {
-        return Err(JsValue::from_str("Key must be 32 bytes"));
-    }
-    let key_arr: [u8; 32] = key.try_into().unwrap();
-    let record_vecs: Vec<Vec<u8>> = records.into_iter().map(|r| r.to_vec()).collect();
-    let results = decrypt_all(&record_vecs, &key_arr)
-        .map_err(|e| JsValue::from_str(&e))?;
-    Ok(results.into_iter().map(|r| Uint8Array::from(&r[..])).collect())
-}
-
-// --- SDK-level upload/download (raw data, no compression) ---
-
-/// Upload raw data: encrypt with password-derived key, return JSON-serialized bundle.
-#[wasm_bindgen(js_name = "uploadData")]
-pub fn wasm_upload_data(data: &[u8], password: String) -> Result<String, JsValue> {
-    if data.is_empty() {
-        return Err(JsValue::from_str("Data must not be empty"));
-    }
-    if password.is_empty() {
-        return Err(JsValue::from_str("Password must not be empty"));
-    }
-
-    let bundle = sdk_upload(data, &password, None)
-        .map_err(|e| JsValue::from_str(&e))?;
-    let json_bytes = bundle_to_json(&bundle)
-        .map_err(|e| JsValue::from_str(&e))?;
-
-    String::from_utf8(json_bytes)
-        .map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-/// Download raw data: verify + decrypt JSON-serialized bundle.
-#[wasm_bindgen(js_name = "downloadData")]
-pub fn wasm_download_data(bundle_json: String, password: String) -> Result<Uint8Array, JsValue> {
-    let bundle = bundle_from_json(bundle_json.as_bytes())
-        .map_err(|e| JsValue::from_str(&e))?;
-
-    let decrypted = sdk_download(&bundle, &password, None)
-        .map_err(|e| JsValue::from_str(&e))?;
-
-    Ok(Uint8Array::from(&decrypted[..]))
-}
-
-// --- Keychain class ---
-
-#[wasm_bindgen]
-pub struct WasmKeychain {
-    inner: Keychain,
-}
-
-#[wasm_bindgen]
-impl WasmKeychain {
-    /// Create a new keychain with random key material.
-    #[wasm_bindgen(constructor)]
-    pub fn new() -> Self {
-        Self {
-            inner: Keychain::new(),
+impl CallbackBridge {
+    fn new(fn_ptr: usize, user_data: usize) -> Option<Self> {
+        if fn_ptr == 0 {
+            None
+        } else {
+            Some(Self {
+                fn_ptr: unsafe { std::mem::transmute(fn_ptr) },
+                user_data,
+            })
         }
     }
 
-    /// Create a keychain derived from a password.
-    #[wasm_bindgen(js_name = "fromPassword")]
-    pub fn from_password(password: String) -> Result<Self, JsValue> {
-        let kc = Keychain::from_password(&password).map_err(|e| JsValue::from_str(&e))?;
-        Ok(Self { inner: kc })
+    fn fire(&self, processed: usize, total: usize) {
+        unsafe {
+            (self.fn_ptr)(
+                processed.min(u32::MAX as usize) as u32,
+                total.min(u32::MAX as usize) as u32,
+                self.user_data,
+            );
+        }
     }
 
-    /// Re-derive all keys from a new password.
-    #[wasm_bindgen(js_name = "setPassword")]
-    pub fn set_password(&mut self, password: String) -> Result<(), JsValue> {
-        self.inner.set_password(&password).map_err(|e| JsValue::from_str(&e))
+    fn into_progress(&self, total: usize) -> Option<Arc<ProgressCallback>> {
+        let bridge = self.clone();
+        Some(Arc::new(ProgressCallback::new(total, move |processed, _total| {
+            bridge.fire(processed, _total);
+        })))
     }
+}
 
-    /// Generate a random shared secret (base64-encoded).
-    #[wasm_bindgen(js_name = "generateSecret")]
-    pub fn generate_secret(&self) -> String {
-        self.inner.generate_secret()
+impl Clone for CallbackBridge {
+    fn clone(&self) -> Self {
+        Self {
+            fn_ptr: self.fn_ptr,
+            user_data: self.user_data,
+        }
     }
+}
 
-    /// Encrypt metadata using ChaCha20-Poly1305.
-    #[wasm_bindgen(js_name = "encryptMetadata")]
-    pub fn encrypt_metadata(&self, metadata: String) -> Result<Uint8Array, JsValue> {
-        let result = self.inner.encrypt_metadata(&metadata).map_err(|e| JsValue::from_str(&e))?;
-        Ok(Uint8Array::from(&result[..]))
+// ---------------------------------------------------------------------------
+// Key derivation
+// ---------------------------------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn wasm_derive_key(
+    password_ptr: u32,
+    password_len: u32,
+    salt_ptr: u32,
+    salt_len: u32,
+    out_ptr: u32,
+) -> i32 {
+    let password = read_slice(password_ptr, password_len);
+    let salt = read_slice(salt_ptr, salt_len);
+
+    match chithi_core::chithi_cryto::derive_key(password, salt) {
+        Ok(key) => {
+            write_slice(out_ptr, &key);
+            0
+        }
+        Err(_) => -1,
     }
+}
 
-    /// Decrypt metadata using ChaCha20-Poly1305.
-    #[wasm_bindgen(js_name = "decryptMetadata")]
-    pub fn decrypt_metadata(&self, data: &[u8]) -> Result<String, JsValue> {
-        let result = self.inner.decrypt_metadata(data).map_err(|e| JsValue::from_str(&e))?;
-        Ok(result)
+#[no_mangle]
+pub extern "C" fn wasm_argon2_derive(
+    password_ptr: u32,
+    password_len: u32,
+    salt_ptr: u32,
+    salt_len: u32,
+    iterations: u32,
+    memory_cost_kib: u32,
+    hash_length: u32,
+    out_ptr: u32,
+) -> i32 {
+    let password = read_slice(password_ptr, password_len);
+    let salt = read_slice(salt_ptr, salt_len);
+
+    let params = match argon2::Params::new(memory_cost_kib, iterations, 1, Some(hash_length as usize)) {
+        Ok(p) => p,
+        Err(_) => return -2,
+    };
+    let mut out = vec![0u8; hash_length as usize];
+    match argon2::Argon2::new(
+        argon2::Algorithm::Argon2id,
+        argon2::Version::V0x13,
+        params,
+    ).hash_password_into(password, salt, &mut out) {
+        Ok(()) => {
+            write_slice(out_ptr, &out);
+            0
+        }
+        Err(_) => -1,
     }
+}
 
-    /// Sign data with Ed25519.
-    #[wasm_bindgen]
-    pub fn sign(&self, data: &[u8]) -> Uint8Array {
-        let sig = self.inner.sign(data);
-        Uint8Array::from(&sig[..])
+#[no_mangle]
+pub extern "C" fn wasm_generate_secret(out_ptr: u32, out_len: u32) -> i32 {
+    let kc = Keychain::new();
+    let secret = kc.generate_secret();
+    let bytes = secret.as_bytes();
+    if bytes.len() > out_len as usize {
+        return -1;
     }
+    write_slice(out_ptr, bytes);
+    bytes.len() as i32
+}
 
-    /// Verify an Ed25519 signature.
-    #[wasm_bindgen]
-    pub fn verify(&self, data: &[u8], signature: &[u8]) -> bool {
-        self.inner.verify(data, signature)
+#[no_mangle]
+pub extern "C" fn wasm_generate_ikm(out_ptr: u32) -> i32 {
+    let mut ikm = [0u8; 32];
+    OsRng.fill_bytes(&mut ikm);
+    write_slice(out_ptr, &ikm);
+    0
+}
+
+// ---------------------------------------------------------------------------
+// Record encryption (AES-256-CBC)
+// ---------------------------------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn wasm_encrypt_record(
+    data_ptr: u32,
+    data_len: u32,
+    key_ptr: u32,
+    out_ptr: u32,
+    out_len_ptr: u32,
+) -> i32 {
+    let data = read_slice(data_ptr, data_len);
+    let key_arr: [u8; 32] = read_slice(key_ptr, 32).try_into().map_err(|_| -1i32).unwrap();
+
+    match encrypt_record(data, &key_arr) {
+        Ok(result) => {
+            write_slice(out_ptr, &result);
+            write_out_len(out_len_ptr, result.len() as u32);
+            0
+        }
+        Err(_) => -1,
     }
+}
 
-    /// Export the auth key (32 bytes).
-    #[wasm_bindgen(js_name = "exportAuthKey")]
-    pub fn export_auth_key(&self) -> Uint8Array {
-        let key = self.inner.export_auth_key();
-        Uint8Array::from(&key[..])
+#[no_mangle]
+pub extern "C" fn wasm_decrypt_record(
+    data_ptr: u32,
+    data_len: u32,
+    key_ptr: u32,
+    out_ptr: u32,
+    out_len_ptr: u32,
+) -> i32 {
+    let data = read_slice(data_ptr, data_len);
+    let key_arr: [u8; 32] = read_slice(key_ptr, 32).try_into().map_err(|_| -1i32).unwrap();
+
+    match decrypt_record(data, &key_arr) {
+        Ok(result) => {
+            write_slice(out_ptr, &result);
+            write_out_len(out_len_ptr, result.len() as u32);
+            0
+        }
+        Err(_) => -1,
     }
+}
 
-    /// Get the salt (32 bytes).
-    #[wasm_bindgen]
-    pub fn salt(&self) -> Uint8Array {
-        let s = self.inner.salt();
-        Uint8Array::from(&s[..])
+// ---------------------------------------------------------------------------
+// Chunk encryption (AES-256-GCM-SIV)
+// ---------------------------------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn wasm_encrypt_chunk(
+    data_ptr: u32,
+    data_len: u32,
+    key_ptr: u32,
+    nonce_ptr: u32,
+    out_ptr: u32,
+    out_len_ptr: u32,
+) -> i32 {
+    let data = read_slice(data_ptr, data_len);
+    let key_arr: [u8; 32] = read_slice(key_ptr, 32).try_into().map_err(|_| -1i32).unwrap();
+    let nonce_arr: [u8; 12] = read_slice(nonce_ptr, 12).try_into().map_err(|_| -2i32).unwrap();
+
+    match encrypt_chunk(data, &key_arr, &nonce_arr) {
+        Ok(result) => {
+            write_slice(out_ptr, &result);
+            write_out_len(out_len_ptr, result.len() as u32);
+            0
+        }
+        Err(_) => -1,
     }
+}
 
-    /// Get the initial keying material (32 bytes).
-    #[wasm_bindgen]
-    pub fn ikm(&self) -> Uint8Array {
-        let i = self.inner.ikm();
-        Uint8Array::from(&i[..])
+#[no_mangle]
+pub extern "C" fn wasm_decrypt_chunk(
+    data_ptr: u32,
+    data_len: u32,
+    key_ptr: u32,
+    nonce_ptr: u32,
+    out_ptr: u32,
+    out_len_ptr: u32,
+) -> i32 {
+    let data = read_slice(data_ptr, data_len);
+    let key_arr: [u8; 32] = read_slice(key_ptr, 32).try_into().map_err(|_| -1i32).unwrap();
+    let nonce_arr: [u8; 12] = read_slice(nonce_ptr, 12).try_into().map_err(|_| -2i32).unwrap();
+
+    match decrypt_chunk(data, &key_arr, &nonce_arr) {
+        Ok(result) => {
+            write_slice(out_ptr, &result);
+            write_out_len(out_len_ptr, result.len() as u32);
+            0
+        }
+        Err(_) => -1,
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wasm_get_chunk_nonce(
+    base_iv_ptr: u32,
+    chunk_index: u32,
+    out_ptr: u32,
+) -> i32 {
+    let base: [u8; 12] = read_slice(base_iv_ptr, 12).try_into().map_err(|_| -1i32).unwrap();
+    let nonce = get_chunk_nonce(&base, chunk_index);
+    write_slice(out_ptr, &nonce);
+    0
+}
+
+// ---------------------------------------------------------------------------
+// Batch chunk encryption — event-driven progress
+// ---------------------------------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn wasm_encrypt_chunks_parallel(
+    input_ptr: u32,
+    input_len: u32,
+    key_ptr: u32,
+    base_iv_ptr: u32,
+    out_ptr: u32,
+    out_len_ptr: u32,
+    callback_fn: usize,
+    user_data: usize,
+) -> i32 {
+    let input = read_slice(input_ptr, input_len);
+    let chunks = match read_chunk_array(input) { Ok(c) => c, Err(e) => return e };
+    let key_arr: [u8; 32] = read_slice(key_ptr, 32).try_into().map_err(|_| -1i32).unwrap();
+    let iv_arr: [u8; 12] = read_slice(base_iv_ptr, 12).try_into().map_err(|_| -2i32).unwrap();
+
+    let total: usize = chunks.iter().map(|c| c.len()).sum();
+    let bridge = CallbackBridge::new(callback_fn, user_data);
+    let progress = bridge.as_ref().and_then(|b| b.into_progress(total));
+
+    match encrypt_chunks_parallel(&chunks, &key_arr, &iv_arr, progress) {
+        Ok(results) => {
+            let mut out_buf = Vec::new();
+            write_chunk_array(&mut out_buf, &results);
+            write_slice(out_ptr, &out_buf);
+            write_out_len(out_len_ptr, out_buf.len() as u32);
+            0
+        }
+        Err(_) => -1,
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wasm_decrypt_chunks_parallel(
+    input_ptr: u32,
+    input_len: u32,
+    key_ptr: u32,
+    base_iv_ptr: u32,
+    out_ptr: u32,
+    out_len_ptr: u32,
+    callback_fn: usize,
+    user_data: usize,
+) -> i32 {
+    let input = read_slice(input_ptr, input_len);
+    let chunks = match read_chunk_array(input) { Ok(c) => c, Err(e) => return e };
+    let key_arr: [u8; 32] = read_slice(key_ptr, 32).try_into().map_err(|_| -1i32).unwrap();
+    let iv_arr: [u8; 12] = read_slice(base_iv_ptr, 12).try_into().map_err(|_| -2i32).unwrap();
+
+    // Estimate total plaintext: each encrypted chunk is plaintext + 16-byte tag
+    let total: usize = chunks.iter().map(|c| if c.len() > 16 { c.len() - 16 } else { 0 }).sum();
+    let bridge = CallbackBridge::new(callback_fn, user_data);
+    let progress = bridge.as_ref().and_then(|b| b.into_progress(total));
+
+    match decrypt_chunks_parallel(&chunks, &key_arr, &iv_arr, progress) {
+        Ok(results) => {
+            let mut out_buf = Vec::new();
+            write_chunk_array(&mut out_buf, &results);
+            write_slice(out_ptr, &out_buf);
+            write_out_len(out_len_ptr, out_buf.len() as u32);
+            0
+        }
+        Err(_) => -1,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Batch record encryption (AES-256-CBC)
+// ---------------------------------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn wasm_encrypt_all(
+    input_ptr: u32,
+    input_len: u32,
+    key_ptr: u32,
+    out_ptr: u32,
+    out_len_ptr: u32,
+) -> i32 {
+    let input = read_slice(input_ptr, input_len);
+    let records = match read_chunk_array(input) { Ok(c) => c, Err(e) => return e };
+    let key_arr: [u8; 32] = read_slice(key_ptr, 32).try_into().map_err(|_| -1i32).unwrap();
+
+    match encrypt_all(&records, &key_arr) {
+        Ok(results) => {
+            let mut out_buf = Vec::new();
+            write_chunk_array(&mut out_buf, &results);
+            write_slice(out_ptr, &out_buf);
+            write_out_len(out_len_ptr, out_buf.len() as u32);
+            0
+        }
+        Err(_) => -1,
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wasm_decrypt_all(
+    input_ptr: u32,
+    input_len: u32,
+    key_ptr: u32,
+    out_ptr: u32,
+    out_len_ptr: u32,
+) -> i32 {
+    let input = read_slice(input_ptr, input_len);
+    let records = match read_chunk_array(input) { Ok(c) => c, Err(e) => return e };
+    let key_arr: [u8; 32] = read_slice(key_ptr, 32).try_into().map_err(|_| -1i32).unwrap();
+
+    match decrypt_all(&records, &key_arr) {
+        Ok(results) => {
+            let mut out_buf = Vec::new();
+            write_chunk_array(&mut out_buf, &results);
+            write_slice(out_ptr, &out_buf);
+            write_out_len(out_len_ptr, out_buf.len() as u32);
+            0
+        }
+        Err(_) => -1,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// End-to-end parallel encrypt/decrypt (single data buffer) — event-driven
+// ---------------------------------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn wasm_parallel_encrypt_data(
+    data_ptr: u32,
+    data_len: u32,
+    key_ptr: u32,
+    base_iv_ptr: u32,
+    out_ptr: u32,
+    out_len_ptr: u32,
+    callback_fn: usize,
+    user_data: usize,
+) -> i32 {
+    let data = read_slice(data_ptr, data_len);
+    let key_arr: [u8; 32] = read_slice(key_ptr, 32).try_into().map_err(|_| -1i32).unwrap();
+    let iv_arr: [u8; 12] = read_slice(base_iv_ptr, 12).try_into().map_err(|_| -2i32).unwrap();
+
+    let bridge = CallbackBridge::new(callback_fn, user_data);
+    let progress = bridge.as_ref().and_then(|b| b.into_progress(data.len()));
+
+    match parallel_encrypt_data(data, &key_arr, &iv_arr, progress) {
+        Ok(result) => {
+            write_slice(out_ptr, &result);
+            write_out_len(out_len_ptr, result.len() as u32);
+            0
+        }
+        Err(_) => -1,
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn wasm_parallel_decrypt_data(
+    data_ptr: u32,
+    data_len: u32,
+    key_ptr: u32,
+    base_iv_ptr: u32,
+    out_ptr: u32,
+    out_len_ptr: u32,
+    callback_fn: usize,
+    user_data: usize,
+) -> i32 {
+    let data = read_slice(data_ptr, data_len);
+    let key_arr: [u8; 32] = read_slice(key_ptr, 32).try_into().map_err(|_| -1i32).unwrap();
+    let iv_arr: [u8; 12] = read_slice(base_iv_ptr, 12).try_into().map_err(|_| -2i32).unwrap();
+
+    let bridge = CallbackBridge::new(callback_fn, user_data);
+    let progress = bridge.as_ref().and_then(|b| b.into_progress(data.len()));
+
+    match parallel_decrypt_data(data, &key_arr, &iv_arr, progress) {
+        Ok(result) => {
+            write_slice(out_ptr, &result);
+            write_out_len(out_len_ptr, result.len() as u32);
+            0
+        }
+        Err(_) => -1,
+    }
+}
+
+// ---------------------------------------------------------------------------
+// SDK-level upload/download (raw data, no compression) — event-driven
+// ---------------------------------------------------------------------------
+
+#[no_mangle]
+pub extern "C" fn wasm_upload_data(
+    data_ptr: u32,
+    data_len: u32,
+    password_ptr: u32,
+    password_len: u32,
+    out_ptr: u32,
+    out_len_ptr: u32,
+    callback_fn: usize,
+    user_data: usize,
+) -> i32 {
+    let data = read_slice(data_ptr, data_len);
+    let password = match std::str::from_utf8(read_slice(password_ptr, password_len)) {
+        Ok(s) => s,
+        Err(_) => return -1,
+    };
+
+    let bridge = CallbackBridge::new(callback_fn, user_data);
+    let progress = bridge.as_ref().and_then(|b| b.into_progress(data.len()));
+
+    let bundle = match sdk_upload(data, password, progress) {
+        Ok(b) => b,
+        Err(_) => return -2,
+    };
+    let json_bytes = match bundle_to_json(&bundle) {
+        Ok(b) => b,
+        Err(_) => return -3,
+    };
+
+    write_slice(out_ptr, &json_bytes);
+    write_out_len(out_len_ptr, json_bytes.len() as u32);
+    0
+}
+
+#[no_mangle]
+pub extern "C" fn wasm_download_data(
+    bundle_json_ptr: u32,
+    bundle_json_len: u32,
+    password_ptr: u32,
+    password_len: u32,
+    out_ptr: u32,
+    out_len_ptr: u32,
+    callback_fn: usize,
+    user_data: usize,
+) -> i32 {
+    let json_bytes = read_slice(bundle_json_ptr, bundle_json_len);
+    let password = match std::str::from_utf8(read_slice(password_ptr, password_len)) {
+        Ok(s) => s,
+        Err(_) => return -1,
+    };
+
+    let bundle = match bundle_from_json(json_bytes) {
+        Ok(b) => b,
+        Err(_) => return -2,
+    };
+
+    // Estimate total from encrypted data length
+    let bridge = CallbackBridge::new(callback_fn, user_data);
+    let progress = bridge.as_ref().and_then(|b| b.into_progress(bundle.encrypted_data.len()));
+
+    let decrypted = match sdk_download(&bundle, password, progress) {
+        Ok(d) => d,
+        Err(_) => return -3,
+    };
+
+    write_slice(out_ptr, &decrypted);
+    write_out_len(out_len_ptr, decrypted.len() as u32);
+    0
+}
+
+// ---------------------------------------------------------------------------
+// Keychain — opaque handle (u32 pointer into WASM heap)
+// ---------------------------------------------------------------------------
+
+static KEYCHAIN_STORE: Mutex<Option<Keychain>> = Mutex::new(None);
+static KEYCHAIN_HANDLE: AtomicU32 = AtomicU32::new(0);
+
+#[no_mangle]
+pub extern "C" fn keychain_new() -> u32 {
+    let kc = Keychain::new();
+    let ptr = chithi_alloc(1);
+    *KEYCHAIN_STORE.lock().unwrap() = Some(kc);
+    KEYCHAIN_HANDLE.store(ptr, Ordering::Relaxed);
+    ptr
+}
+
+#[no_mangle]
+pub extern "C" fn keychain_from_password(handle: u32, password_ptr: u32, password_len: u32) -> i32 {
+    let password = match std::str::from_utf8(read_slice(password_ptr, password_len)) {
+        Ok(s) => s,
+        Err(_) => return -1,
+    };
+    match Keychain::from_password(password) {
+        Ok(kc) => {
+            *KEYCHAIN_STORE.lock().unwrap() = Some(kc);
+            KEYCHAIN_HANDLE.store(handle, Ordering::Relaxed);
+            0
+        }
+        Err(_) => -1,
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn keychain_drop(handle: u32) {
+    if KEYCHAIN_HANDLE.load(Ordering::Relaxed) == handle {
+        KEYCHAIN_STORE.lock().unwrap().take();
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn keychain_set_password(handle: u32, password_ptr: u32, password_len: u32) -> i32 {
+    if KEYCHAIN_HANDLE.load(Ordering::Relaxed) != handle { return -1; }
+    let password = match std::str::from_utf8(read_slice(password_ptr, password_len)) {
+        Ok(s) => s,
+        Err(_) => return -2,
+    };
+    let mut store = KEYCHAIN_STORE.lock().unwrap();
+    if let Some(ref mut kc) = *store {
+        match kc.set_password(password) {
+            Ok(()) => 0,
+            Err(_) => -1,
+        }
+    } else {
+        -1
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn keychain_generate_secret(handle: u32, out_ptr: u32, out_len: u32) -> i32 {
+    if KEYCHAIN_HANDLE.load(Ordering::Relaxed) != handle { return -1; }
+    let store = KEYCHAIN_STORE.lock().unwrap();
+    if let Some(ref kc) = *store {
+        let secret = kc.generate_secret();
+        let bytes = secret.as_bytes();
+        if bytes.len() > out_len as usize { return -2; }
+        write_slice(out_ptr, bytes);
+        0
+    } else {
+        -1
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn keychain_encrypt_metadata(
+    handle: u32,
+    data_ptr: u32,
+    data_len: u32,
+    out_ptr: u32,
+    out_len_ptr: u32,
+) -> i32 {
+    if KEYCHAIN_HANDLE.load(Ordering::Relaxed) != handle { return -1; }
+    let metadata = match std::str::from_utf8(read_slice(data_ptr, data_len)) {
+        Ok(s) => s,
+        Err(_) => return -2,
+    };
+    let store = KEYCHAIN_STORE.lock().unwrap();
+    if let Some(ref kc) = *store {
+        match kc.encrypt_metadata(metadata) {
+            Ok(result) => {
+                write_slice(out_ptr, &result);
+                write_out_len(out_len_ptr, result.len() as u32);
+                0
+            }
+            Err(_) => -1,
+        }
+    } else {
+        -1
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn keychain_decrypt_metadata(
+    handle: u32,
+    data_ptr: u32,
+    data_len: u32,
+    out_ptr: u32,
+    out_len_ptr: u32,
+) -> i32 {
+    if KEYCHAIN_HANDLE.load(Ordering::Relaxed) != handle { return -1; }
+    let data = read_slice(data_ptr, data_len);
+    let store = KEYCHAIN_STORE.lock().unwrap();
+    if let Some(ref kc) = *store {
+        match kc.decrypt_metadata(data) {
+            Ok(result) => {
+                let bytes = result.as_bytes();
+                write_slice(out_ptr, bytes);
+                write_out_len(out_len_ptr, bytes.len() as u32);
+                0
+            }
+            Err(_) => -1,
+        }
+    } else {
+        -1
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn keychain_sign(handle: u32, data_ptr: u32, data_len: u32, out_ptr: u32) -> i32 {
+    if KEYCHAIN_HANDLE.load(Ordering::Relaxed) != handle { return -1; }
+    let data = read_slice(data_ptr, data_len);
+    let store = KEYCHAIN_STORE.lock().unwrap();
+    if let Some(ref kc) = *store {
+        let sig = kc.sign(data);
+        write_slice(out_ptr, &sig);
+        0
+    } else {
+        -1
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn keychain_verify(
+    handle: u32,
+    data_ptr: u32,
+    data_len: u32,
+    sig_ptr: u32,
+    sig_len: u32,
+) -> i32 {
+    if KEYCHAIN_HANDLE.load(Ordering::Relaxed) != handle { return -1; }
+    let data = read_slice(data_ptr, data_len);
+    let sig = read_slice(sig_ptr, sig_len);
+    let store = KEYCHAIN_STORE.lock().unwrap();
+    if let Some(ref kc) = *store {
+        if kc.verify(data, sig) { 1 } else { 0 }
+    } else {
+        -1
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn keychain_export_auth_key(handle: u32, out_ptr: u32) -> i32 {
+    if KEYCHAIN_HANDLE.load(Ordering::Relaxed) != handle { return -1; }
+    let store = KEYCHAIN_STORE.lock().unwrap();
+    if let Some(ref kc) = *store {
+        let key = kc.export_auth_key();
+        write_slice(out_ptr, &key);
+        0
+    } else {
+        -1
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn keychain_salt(handle: u32, out_ptr: u32) -> i32 {
+    if KEYCHAIN_HANDLE.load(Ordering::Relaxed) != handle { return -1; }
+    let store = KEYCHAIN_STORE.lock().unwrap();
+    if let Some(ref kc) = *store {
+        let s = kc.salt();
+        write_slice(out_ptr, &s);
+        0
+    } else {
+        -1
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn keychain_ikm(handle: u32, out_ptr: u32) -> i32 {
+    if KEYCHAIN_HANDLE.load(Ordering::Relaxed) != handle { return -1; }
+    let store = KEYCHAIN_STORE.lock().unwrap();
+    if let Some(ref kc) = *store {
+        let i = kc.ikm();
+        write_slice(out_ptr, &i);
+        0
+    } else {
+        -1
     }
 }

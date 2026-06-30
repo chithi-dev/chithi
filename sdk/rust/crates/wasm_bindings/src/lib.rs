@@ -1,10 +1,10 @@
 use wasm_bindgen::prelude::*;
 
-mod seven;
 mod send_crypto;
+mod seven;
 
-pub use seven::*;
 pub use send_crypto::*;
+pub use seven::*;
 
 /// Initialize panic hooks so Rust panics appear in the browser console.
 #[wasm_bindgen(start)]

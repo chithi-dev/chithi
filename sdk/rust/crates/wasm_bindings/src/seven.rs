@@ -1,4 +1,6 @@
-use chithi_core::seven::{sdk_compress_and_encrypt, sdk_decrypt_and_decompress, SevenZBackend, SevenZDefault};
+use chithi_core::seven::{
+    sdk_compress_and_encrypt, sdk_decrypt_and_decompress, SevenZBackend, SevenZDefault,
+};
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
@@ -15,7 +17,11 @@ pub fn compress_7z(
     datas: Vec<Uint8Array>,
     password: String,
 ) -> Result<Uint8Array, JsValue> {
-    let pwd = if password.is_empty() { None } else { Some(password.as_str()) };
+    let pwd = if password.is_empty() {
+        None
+    } else {
+        Some(password.as_str())
+    };
 
     let files: Vec<(String, Vec<u8>)> = names
         .into_iter()
@@ -30,11 +36,12 @@ pub fn compress_7z(
 /// Decompress a 7z archive with optional password.
 /// Returns an array of {name, data} objects.
 #[wasm_bindgen]
-pub fn decompress_7z(
-    data: &[u8],
-    password: String,
-) -> Result<Vec<JsValue>, JsValue> {
-    let pwd = if password.is_empty() { None } else { Some(password.as_str()) };
+pub fn decompress_7z(data: &[u8], password: String) -> Result<Vec<JsValue>, JsValue> {
+    let pwd = if password.is_empty() {
+        None
+    } else {
+        Some(password.as_str())
+    };
 
     let entries = SevenZDefault::decompress(data, pwd).map_err(|e| JsValue::from_str(&e))?;
 
@@ -42,7 +49,11 @@ pub fn decompress_7z(
     for (name, entry_data) in entries {
         let obj = js_sys::Object::new();
         js_sys::Reflect::set(&obj, &JsValue::from_str("name"), &JsValue::from_str(&name))?;
-        js_sys::Reflect::set(&obj, &JsValue::from_str("data"), &Uint8Array::from(&entry_data[..]).into())?;
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("data"),
+            &Uint8Array::from(&entry_data[..]).into(),
+        )?;
         results.push(&obj);
     }
     Ok(results.iter().collect())
@@ -57,7 +68,9 @@ pub fn wasm_upload(
     password: String,
 ) -> Result<Uint8Array, JsValue> {
     if names.len() != datas.len() {
-        return Err(JsValue::from_str("names and datas arrays must have the same length"));
+        return Err(JsValue::from_str(
+            "names and datas arrays must have the same length",
+        ));
     }
     if names.is_empty() {
         return Err(JsValue::from_str("At least one file is required"));
@@ -69,9 +82,12 @@ pub fn wasm_upload(
         .map(|(name, data)| (name.as_string().unwrap_or_default(), data.to_vec()))
         .collect();
 
-    let pwd = if password.is_empty() { None } else { Some(password.as_str()) };
-    let bundle = sdk_compress_and_encrypt(&files, pwd)
-        .map_err(|e| JsValue::from_str(&e))?;
+    let pwd = if password.is_empty() {
+        None
+    } else {
+        Some(password.as_str())
+    };
+    let bundle = sdk_compress_and_encrypt(&files, pwd).map_err(|e| JsValue::from_str(&e))?;
 
     Ok(Uint8Array::from(&bundle[..]))
 }
@@ -79,20 +95,24 @@ pub fn wasm_upload(
 /// SDK download: decrypt + decompress bundle back to files.
 /// Returns an array of {name, data} objects.
 #[wasm_bindgen(js_name = "download")]
-pub fn wasm_download(
-    bundle: &[u8],
-    password: String,
-) -> Result<Vec<JsValue>, JsValue> {
-    let pwd = if password.is_empty() { None } else { Some(password.as_str()) };
+pub fn wasm_download(bundle: &[u8], password: String) -> Result<Vec<JsValue>, JsValue> {
+    let pwd = if password.is_empty() {
+        None
+    } else {
+        Some(password.as_str())
+    };
 
-    let entries = sdk_decrypt_and_decompress(bundle, pwd)
-        .map_err(|e| JsValue::from_str(&e))?;
+    let entries = sdk_decrypt_and_decompress(bundle, pwd).map_err(|e| JsValue::from_str(&e))?;
 
     let results = js_sys::Array::new();
     for (name, entry_data) in entries {
         let obj = js_sys::Object::new();
         js_sys::Reflect::set(&obj, &JsValue::from_str("name"), &JsValue::from_str(&name))?;
-        js_sys::Reflect::set(&obj, &JsValue::from_str("data"), &Uint8Array::from(&entry_data[..]).into())?;
+        js_sys::Reflect::set(
+            &obj,
+            &JsValue::from_str("data"),
+            &Uint8Array::from(&entry_data[..]).into(),
+        )?;
         results.push(&obj);
     }
     Ok(results.iter().collect())
