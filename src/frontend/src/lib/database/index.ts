@@ -10,7 +10,10 @@ const openDB = () => new Promise<IDBDatabase>((resolve, reject) => {
   req.onupgradeneeded = (e) => { const db = (e.target as IDBOpenDBRequest).result; if (!db.objectStoreNames.contains(STORE)) db.createObjectStore(STORE, { keyPath: 'id' }); };
 });
 
-const waitTx = (tx: IDBTransaction) => new Promise<void>((r, j) => { tx.oncomplete = r; tx.onerror = () => j(tx.error); });
+const waitTx = (tx: IDBTransaction) => new Promise<void>((resolve, reject) => {
+  tx.oncomplete = () => resolve();
+  tx.onerror = () => reject(tx.error);
+});
 
 const refresh = async () => { const entries = await getHistory(); syncEntries(entries); };
 
@@ -44,8 +47,20 @@ const withError = async <T>(name: string, fn: () => Promise<T>): Promise<T | voi
   try { return await fn(); } catch (err) { console.error(`Failed to ${name}`, err); if (name !== 'cleanup history') throw err; }
 };
 
-export const addHistoryEntry = (entry: UploadEntry) => withError('add history entry', () => write((s) => s.add(entry)));
-export const deleteHistoryEntry = (id: string) => withError('delete history entry', () => write((s) => s.delete(id)));
+export const addHistoryEntry = (entry: UploadEntry) => withError('add history entry', () => write(async (s) => {
+  await new Promise<void>((resolve, reject) => {
+    const req = s.add(entry);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}));
+export const deleteHistoryEntry = (id: string) => withError('delete history entry', () => write(async (s) => {
+  await new Promise<void>((resolve, reject) => {
+    const req = s.delete(id);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}));
 export const updateHistoryEntry = (id: string, updates: Partial<UploadEntry>) => withError('update history entry', () => write(async (s) => {
   const entry = await new Promise<UploadEntry>((r, j) => { const req = s.get(id); req.onsuccess = () => r(req.result); req.onerror = () => j(req.error); });
   if (entry) s.put({ ...entry, ...updates });

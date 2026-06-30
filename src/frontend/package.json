@@ -17,6 +17,7 @@
 		"update-ui": "node --experimental-strip-types scripts/update-ui.ts"
 	},
 	"dependencies": {
+		"embla-carousel-svelte": "^8.6.0",
 		"takumi-js": "^1.0.15"
 	},
 	"devDependencies": {
@@ -40,7 +41,7 @@
 		"@jsquash/oxipng": "^2.3.0",
 		"@jsquash/png": "^3.1.1",
 		"@jsquash/qoi": "^1.1.0",
-		"@lucide/svelte": "^1.21.0",
+		"@lucide/svelte": "^1.22.0",
 		"@resvg/resvg-wasm": "^2.6.2",
 		"@sveltejs/adapter-node": "^5.5.4",
 		"@sveltejs/kit": "^2.58.0",
