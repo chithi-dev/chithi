@@ -18,7 +18,7 @@
   import { formatDateLong } from '$lib/functions/dates';
   import InfoCard from '../components/InfoCard.svelte';
 
-  const { query: statsQuery } = useInstanceStatisticsQuery();
+  const { stats: statsQuery } = useInstanceStatisticsQuery();
   const stats = $derived(statsQuery.data);
 
   const statRows = $derived([

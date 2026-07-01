@@ -38,7 +38,7 @@
     // Filter
     if (globalFilter) {
       const filter = globalFilter.toLowerCase();
-      items = items.filter(u =>
+      items = items.filter((u: { username: string; email?: string }) =>
         u.username.toLowerCase().includes(filter) ||
         (u.email && u.email.toLowerCase().includes(filter))
       );
@@ -46,10 +46,11 @@
 
     // Sort
     if (sortCol && sortDir) {
+      const col = sortCol as 'username' | 'email';
       items = [...items].sort((a, b) => {
-        const aVal = a[sortCol] ?? '';
-        const bVal = b[sortCol] ?? '';
-        const cmp = aVal.localeCompare(bVal);
+        const aVal = (a as any)[col] ?? '';
+        const bVal = (b as any)[col] ?? '';
+        const cmp = String(aVal).localeCompare(String(bVal));
         return sortDir === 'asc' ? cmp : -cmp;
       });
     }
@@ -70,10 +71,7 @@
 
   function SortIcon({ column }: { column: 'username' | 'email' }) {
     $effect(() => {
-      if (sortCol !== column) return 'inactive';
-      if (sortDir === 'asc') return 'asc';
-      if (sortDir === 'desc') return 'desc';
-      return 'inactive';
+      void column;
     });
   }
 

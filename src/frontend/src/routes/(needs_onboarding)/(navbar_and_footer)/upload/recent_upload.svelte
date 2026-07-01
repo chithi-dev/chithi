@@ -31,7 +31,7 @@
 		return res.json();
 	};
 
-	const formatExpiry = (ms: number) => Temporal.Instant.from({ epochMilliseconds: ms }).toZonedDateTimeISO(Temporal.Now.timeZoneId()).toLocaleString('en-US');
+	const formatExpiry = (ms: number) => Temporal.Instant.fromEpochMilliseconds(ms).toZonedDateTimeISO(Temporal.Now.timeZoneId()).toLocaleString('en-US');
 
 	$effect(() => {
 		const init = async () => {

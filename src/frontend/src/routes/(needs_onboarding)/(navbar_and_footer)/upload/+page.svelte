@@ -197,7 +197,7 @@
 {#snippet encryptionInfo()}
   <div class="flex h-full w-full flex-col justify-center p-4 lg:p-8">
     <h2 class="mb-4 text-2xl font-bold md:mb-2 md:text-xl lg:mb-6 lg:text-3xl">Security</h2>
-    <Accordion.Root type="single" collapsible class="space-y-3">
+    <Accordion.Root type="single" class="space-y-3">
       <Accordion.Item value="encryption">
         <Accordion.Trigger>End-to-End Encryption</Accordion.Trigger>
         <Accordion.Content>

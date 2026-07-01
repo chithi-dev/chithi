@@ -8,7 +8,7 @@
   import StatusBadge from '../components/StatusBadge.svelte';
   import CommitLink from '../components/CommitLink.svelte';
 
-  const { query: instanceQuery } = useInstanceInformationQuery();
+  const { info: instanceQuery } = useInstanceInformationQuery();
   const info = $derived(instanceQuery.data);
   const commitUrl = $derived(info?.commit === 'dev' ? 'https://github.com/chithi-dev/chithi' : `https://github.com/chithi-dev/chithi/commit/${info?.commit}`);
 
