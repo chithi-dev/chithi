@@ -172,14 +172,14 @@
           if (roomKey) {
             isDecrypting = true;
             decryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
-            const { stream } = await createDecryptedStream(
+            const decryptedStream = await createDecryptedStream(
               blob.stream() as any,
               roomKey,
               undefined,
               blob.size,
               (p, t) => { if (t && t > 0) decryptionProgress.target = Math.min(100, Math.round((p / t) * 100)); }
             );
-            blob = await new Response(stream as any).blob();
+            blob = await new Response(decryptedStream as any).blob();
             isDecrypting = false;
             decryptionProgress.target = 100;
           }

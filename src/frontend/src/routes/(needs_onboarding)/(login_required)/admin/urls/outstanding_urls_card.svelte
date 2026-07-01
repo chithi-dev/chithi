@@ -39,7 +39,7 @@
 
     if (globalFilter) {
       const filter = globalFilter.toLowerCase();
-      items = items.filter(f =>
+      items = items.filter((f: { filename: string; folder_name?: string }) =>
         f.filename.toLowerCase().includes(filter) ||
         (f.folder_name && f.folder_name.toLowerCase().includes(filter))
       );

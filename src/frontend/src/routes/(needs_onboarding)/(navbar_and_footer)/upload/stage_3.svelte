@@ -32,41 +32,33 @@
     <Tooltip.Provider>
       <ButtonGroup.Root>
         <Tooltip.Root>
-          <ButtonGroup.Trigger>
-            {#snippet child({ props })}
-              <Button variant="outline" size="sm" class="w-32" {...props} onclick={copyLink}>
-                {#if isCopied}<Check class="mr-2 size-4" /> Copied{:else}<Copy class="mr-2 size-4" /> Copy link{/if}
-              </Button>
-            {/snippet}
-          </ButtonGroup.Trigger>
+          <Tooltip.Trigger>
+            <Button variant="outline" size="sm" class="w-32" onclick={copyLink}>
+              {#if isCopied}<Check class="mr-2 size-4" /> Copied{:else}<Copy class="mr-2 size-4" /> Copy link{/if}
+            </Button>
+          </Tooltip.Trigger>
           <Tooltip.Content>Copy link to clipboard</Tooltip.Content>
         </Tooltip.Root>
         <ButtonGroup.Separator />
         {#if isViewOnce}
           <Tooltip.Root>
-            <ButtonGroup.Trigger>
-              {#snippet child({ props })}
-                <Button variant="outline" size="icon-sm" {...props} href={viewOnceLink} aria-label="View once"><ScanEye class="size-4" /></Button>
-              {/snippet}
-            </ButtonGroup.Trigger>
+            <Tooltip.Trigger>
+              <Button variant="outline" size="icon-sm" href={viewOnceLink} aria-label="View once"><ScanEye class="size-4" /></Button>
+            </Tooltip.Trigger>
             <Tooltip.Content>View once in browser</Tooltip.Content>
           </Tooltip.Root>
         {:else}
           <Tooltip.Root>
-            <ButtonGroup.Trigger>
-              {#snippet child({ props })}
-                <Button variant="outline" size="icon-sm" {...props} href={finalLink} aria-label="Download"><Download class="size-4" /></Button>
-              {/snippet}
-            </ButtonGroup.Trigger>
+            <Tooltip.Trigger>
+              <Button variant="outline" size="icon-sm" href={finalLink} aria-label="Download"><Download class="size-4" /></Button>
+            </Tooltip.Trigger>
             <Tooltip.Content>Download file</Tooltip.Content>
           </Tooltip.Root>
           <ButtonGroup.Separator />
           <Tooltip.Root>
-            <ButtonGroup.Trigger>
-              {#snippet child({ props })}
-                <Button variant="outline" size="icon-sm" {...props} href={finalLink.replace('/download/', '/view/')} aria-label="View"><Eye class="size-4" /></Button>
-              {/snippet}
-            </ButtonGroup.Trigger>
+            <Tooltip.Trigger>
+              <Button variant="outline" size="icon-sm" href={finalLink.replace('/download/', '/view/')} aria-label="View"><Eye class="size-4" /></Button>
+            </Tooltip.Trigger>
             <Tooltip.Content>View file in browser</Tooltip.Content>
           </Tooltip.Root>
         {/if}

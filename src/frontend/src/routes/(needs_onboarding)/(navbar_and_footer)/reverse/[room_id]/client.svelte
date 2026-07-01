@@ -60,7 +60,9 @@
       roomFiles = structuredClone(ro.files);
       hostCount = ro.host_count ?? 1;
       remoteUploads = ro.active_uploads?.map((u) => ({
-        ...u,
+        key: u.upload_key,
+        filename: u.filename,
+        size: u.size,
         uploadedBytes: u.uploaded_bytes,
         progress: new Tween(
           u.size > 0 ? Math.min((u.uploaded_bytes / u.size) * 100, 100) : 0,
@@ -104,11 +106,11 @@
         const { key: rk, filename: rf, size: rs, chunks } = receiveState;
         receiveState = { type: 'processing', key: rk, filename: rf, size: rs };
         try {
-          let blob = new Blob(chunks);
+          let blob = new Blob(chunks as BlobPart[]);
           if (roomKey) {
             isDecrypting = true;
             decryptionProgress = new Tween(0, { duration: 500, easing: cubicOut });
-            const { stream } = await createDecryptedStream(
+            const decryptedStream = await createDecryptedStream(
               blob.stream() as any,
               roomKey,
               undefined,
@@ -119,7 +121,7 @@
                 }
               }
             );
-            blob = await new Response(stream as any).blob();
+            blob = await new Response(decryptedStream as any).blob();
             isDecrypting = false;
             decryptionProgress.target = 100;
           }
@@ -175,7 +177,7 @@
   );
   const isStreaming = $derived(receiveState.type === 'streaming');
   const isProcessing = $derived(receiveState.type === 'processing');
-  const transferKey = $derived((isStreaming || isProcessing) ? receiveState.key : null);
+  const transferKey = $derived((isStreaming || isProcessing) ? (receiveState as any).key : null);
 
   function submitKey() {
     const k = keyInput.trim();
