@@ -1,0 +1,23 @@
+[package]
+name = "chithi-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sevenz-rust2 = { workspace = true }
+rayon = { workspace = true, optional = true }
+argon2 = { workspace = true }
+sha2 = { workspace = true }
+ed25519 = { workspace = true }
+hkdf = { workspace = true }
+rand = { workspace = true }
+base64 = { workspace = true }
+chacha20poly1305 = { workspace = true }
+aes-gcm-siv = { workspace = true }
+ed25519-dalek = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[features]
+default = ["rayon"]
+rayon = ["dep:rayon"]

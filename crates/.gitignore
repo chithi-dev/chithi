@@ -1,0 +1,6 @@
+# Build artifacts
+target/
+*.wasm
+*.so
+*.dylib
+*.dll
