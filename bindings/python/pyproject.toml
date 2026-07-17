@@ -1,0 +1,27 @@
+[project]
+name = "chithi-sdk"
+version = "0.1.0"
+description = "Chithi SDK — encrypted file upload/download via WASM + wasmtime"
+requires-python = ">=3.14"
+license = { text = "MIT" }
+dependencies = [
+    "wasmtime>=45.0.0",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Topic :: Security :: Cryptography",
+    "Topic :: System :: Archiving :: Compression",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff", "mypy"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/chithi_sdk"]
+artifacts = ["src/chithi_sdk/chithi.wasm"]

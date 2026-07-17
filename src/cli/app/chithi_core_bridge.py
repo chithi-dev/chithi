@@ -1,16 +1,17 @@
-"""Bridge to the native chithi_core Rust module.
+"""Bridge to the chithi WASM module via wasmtime.
 
-This module imports the compiled PyO3 extension. The extension is built
-by maturin from core/crates/python_bindings/.
+The WASM module is built by scripts/build_wasm.py and installed
+by scripts/build_python_wheel.py. It provides all crypto and
+compression functions through a wasmtime-based Python bridge.
 """
 
 try:
-    import chithi_core  # type: ignore
+    from chithi_sdk import Chithi, FileEntry, EncryptedBundle, DownloadResult  # type: ignore
 except ImportError as e:
     raise ImportError(
-        "Cannot import chithi_core native module. "
-        "Ensure the Rust extension is compiled: "
-        "  maturin develop"
+        "Cannot import chithi_sdk. "
+        "Ensure the WASM module is built and installed:\n"
+        "  python scripts/build_all.py"
     ) from e
 
-__all__ = ["chithi_core"]
+__all__ = ["Chithi", "FileEntry", "EncryptedBundle", "DownloadResult"]
