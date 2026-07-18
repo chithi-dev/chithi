@@ -118,15 +118,15 @@ pub fn sdk_compress_and_encrypt(
     let key = keychain.export_auth_key();
     let salt = keychain.salt();
 
-    let mut base_iv = [0u8; 12];
+    let mut base_iv = [0u8; 24];
     OsRng.fill_bytes(&mut base_iv);
 
     let encrypted = parallel_encrypt_data(&compressed, &key, &base_iv, progress)?;
     let signature = keychain.sign(&encrypted);
 
-    // Step 3: serialize: [salt(32)][base_iv(12)][signature_len(4)][signature][encrypted_data]
+    // Step 3: serialize: [salt(32)][base_iv(24)][signature_len(4)][signature][encrypted_data]
     let sig_len = signature.len() as u32;
-    let total = 32 + 12 + 4 + sig_len as usize + encrypted.len();
+    let total = 32 + 24 + 4 + sig_len as usize + encrypted.len();
     let mut bundle = Vec::with_capacity(total);
     bundle.extend_from_slice(&salt);
     bundle.extend_from_slice(&base_iv);
@@ -145,17 +145,17 @@ pub fn sdk_decrypt_and_decompress(
 ) -> Result<Vec<(String, Vec<u8>)>, String> {
     use crate::chithi_cryto::{derive_key, parallel_decrypt_data};
 
-    if bundle.len() < 32 + 12 + 4 {
+if bundle.len() < 32 + 24 + 4 {
         return Err("Bundle too small".to_string());
     }
 
     let salt: [u8; 32] = bundle[..32].try_into().unwrap();
-    let base_iv: [u8; 12] = bundle[32..44].try_into().unwrap();
+    let base_iv: [u8; 24] = bundle[32..56].try_into().unwrap();
     let sig_len = u32::from_be_bytes([
-        bundle[44], bundle[45], bundle[46], bundle[47],
+        bundle[56], bundle[57], bundle[58], bundle[59],
     ]) as usize;
-    let signature = &bundle[48..48 + sig_len];
-    let encrypted = &bundle[48 + sig_len..];
+    let signature = &bundle[60..60 + sig_len];
+    let encrypted = &bundle[60 + sig_len..];
 
     // Derive key from password + salt
     let key = derive_key(

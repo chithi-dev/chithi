@@ -177,7 +177,7 @@ pub extern "C" fn wasm_generate_ikm(out_ptr: u32) -> i32 {
 }
 
 // ---------------------------------------------------------------------------
-// Record encryption (AES-256-CBC)
+// Record encryption (XChaCha20-Poly1305)
 // ---------------------------------------------------------------------------
 
 #[unsafe(no_mangle)]
@@ -223,7 +223,7 @@ pub extern "C" fn wasm_decrypt_record(
 }
 
 // ---------------------------------------------------------------------------
-// Chunk encryption (AES-256-GCM-SIV)
+// Chunk encryption (XChaCha20-Poly1305)
 // ---------------------------------------------------------------------------
 
 #[unsafe(no_mangle)]
@@ -237,7 +237,7 @@ pub extern "C" fn wasm_encrypt_chunk(
 ) -> i32 {
     let data = read_slice(data_ptr, data_len);
     let key_arr: [u8; 32] = read_slice(key_ptr, 32).try_into().map_err(|_| -1i32).unwrap();
-    let nonce_arr: [u8; 12] = read_slice(nonce_ptr, 12).try_into().map_err(|_| -2i32).unwrap();
+    let nonce_arr: [u8; 24] = read_slice(nonce_ptr, 24).try_into().map_err(|_| -2i32).unwrap();
 
     match encrypt_chunk(data, &key_arr, &nonce_arr) {
         Ok(result) => {
@@ -260,7 +260,7 @@ pub extern "C" fn wasm_decrypt_chunk(
 ) -> i32 {
     let data = read_slice(data_ptr, data_len);
     let key_arr: [u8; 32] = read_slice(key_ptr, 32).try_into().map_err(|_| -1i32).unwrap();
-    let nonce_arr: [u8; 12] = read_slice(nonce_ptr, 12).try_into().map_err(|_| -2i32).unwrap();
+    let nonce_arr: [u8; 24] = read_slice(nonce_ptr, 24).try_into().map_err(|_| -2i32).unwrap();
 
     match decrypt_chunk(data, &key_arr, &nonce_arr) {
         Ok(result) => {
@@ -278,7 +278,7 @@ pub extern "C" fn wasm_get_chunk_nonce(
     chunk_index: u32,
     out_ptr: u32,
 ) -> i32 {
-    let base: [u8; 12] = read_slice(base_iv_ptr, 12).try_into().map_err(|_| -1i32).unwrap();
+    let base: [u8; 24] = read_slice(base_iv_ptr, 24).try_into().map_err(|_| -1i32).unwrap();
     let nonce = get_chunk_nonce(&base, chunk_index);
     write_slice(out_ptr, &nonce);
     0
@@ -302,7 +302,7 @@ pub extern "C" fn wasm_encrypt_chunks_parallel(
     let input = read_slice(input_ptr, input_len);
     let chunks = match read_chunk_array(input) { Ok(c) => c, Err(e) => return e };
     let key_arr: [u8; 32] = read_slice(key_ptr, 32).try_into().map_err(|_| -1i32).unwrap();
-    let iv_arr: [u8; 12] = read_slice(base_iv_ptr, 12).try_into().map_err(|_| -2i32).unwrap();
+    let iv_arr: [u8; 24] = read_slice(base_iv_ptr, 24).try_into().map_err(|_| -2i32).unwrap();
 
     let total: usize = chunks.iter().map(|c| c.len()).sum();
     let bridge = CallbackBridge::new(callback_fn, user_data);
@@ -334,7 +334,7 @@ pub extern "C" fn wasm_decrypt_chunks_parallel(
     let input = read_slice(input_ptr, input_len);
     let chunks = match read_chunk_array(input) { Ok(c) => c, Err(e) => return e };
     let key_arr: [u8; 32] = read_slice(key_ptr, 32).try_into().map_err(|_| -1i32).unwrap();
-    let iv_arr: [u8; 12] = read_slice(base_iv_ptr, 12).try_into().map_err(|_| -2i32).unwrap();
+    let iv_arr: [u8; 24] = read_slice(base_iv_ptr, 24).try_into().map_err(|_| -2i32).unwrap();
 
     // Estimate total plaintext: each encrypted chunk is plaintext + 16-byte tag
     let total: usize = chunks.iter().map(|c| if c.len() > 16 { c.len() - 16 } else { 0 }).sum();
@@ -354,7 +354,7 @@ pub extern "C" fn wasm_decrypt_chunks_parallel(
 }
 
 // ---------------------------------------------------------------------------
-// Batch record encryption (AES-256-CBC)
+// Batch record encryption (XChaCha20-Poly1305)
 // ---------------------------------------------------------------------------
 
 #[unsafe(no_mangle)]
@@ -422,7 +422,7 @@ pub extern "C" fn wasm_parallel_encrypt_data(
 ) -> i32 {
     let data = read_slice(data_ptr, data_len);
     let key_arr: [u8; 32] = read_slice(key_ptr, 32).try_into().map_err(|_| -1i32).unwrap();
-    let iv_arr: [u8; 12] = read_slice(base_iv_ptr, 12).try_into().map_err(|_| -2i32).unwrap();
+    let iv_arr: [u8; 24] = read_slice(base_iv_ptr, 24).try_into().map_err(|_| -2i32).unwrap();
 
     let bridge = CallbackBridge::new(callback_fn, user_data);
     let progress = bridge.as_ref().and_then(|b| b.into_progress(data.len()));
@@ -450,7 +450,7 @@ pub extern "C" fn wasm_parallel_decrypt_data(
 ) -> i32 {
     let data = read_slice(data_ptr, data_len);
     let key_arr: [u8; 32] = read_slice(key_ptr, 32).try_into().map_err(|_| -1i32).unwrap();
-    let iv_arr: [u8; 12] = read_slice(base_iv_ptr, 12).try_into().map_err(|_| -2i32).unwrap();
+    let iv_arr: [u8; 24] = read_slice(base_iv_ptr, 24).try_into().map_err(|_| -2i32).unwrap();
 
     let bridge = CallbackBridge::new(callback_fn, user_data);
     let progress = bridge.as_ref().and_then(|b| b.into_progress(data.len()));
