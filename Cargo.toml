@@ -2,7 +2,6 @@
 members = [
     "crates/chithi-core",
     "crates/wasm_bindings",
-    "crates/python_bindings",
 ]
 resolver = "2"
 
