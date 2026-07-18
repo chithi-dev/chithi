@@ -26,6 +26,7 @@ _CRATES_DIR = _REPO_ROOT / "crates"
 _WASM_BINDINGS = _CRATES_DIR / "wasm_bindings"
 _FRONTEND_WASM_DIR = _REPO_ROOT / "src" / "frontend" / "src" / "lib" / "wasm"
 _PYTHON_WASM_DIR = _REPO_ROOT / "sdks" / "python" / "src" / "chithi_sdk"
+_JS_WASM_DIR = _REPO_ROOT / "sdks" / "js" / "dist"
 
 
 def find_cargo() -> str:
@@ -366,11 +367,19 @@ export default typeof init;
 
 
 def deploy_to_python(wasm_file: pathlib.Path) -> None:
-    """Copy the WASM module to the Python binding package."""
+    """Copy the WASM module to the Python SDK package."""
     _PYTHON_WASM_DIR.mkdir(parents=True, exist_ok=True)
     dest = _PYTHON_WASM_DIR / "chithi.wasm"
     shutil.copy2(wasm_file, dest)
     print(f"[DEPLOY] Python:    {dest}")
+
+
+def deploy_to_js(wasm_file: pathlib.Path) -> None:
+    """Copy the WASM module to the JS SDK dist directory."""
+    _JS_WASM_DIR.mkdir(parents=True, exist_ok=True)
+    dest = _JS_WASM_DIR / "chithi.wasm"
+    shutil.copy2(wasm_file, dest)
+    print(f"[DEPLOY] JS:        {dest}")
 
 
 def main() -> None:
@@ -402,6 +411,7 @@ def main() -> None:
     # Step 3: Deploy
     deploy_to_frontend(wasm_file)
     deploy_to_python(wasm_file)
+    deploy_to_js(wasm_file)
 
     print("\n[DONE] WASM build and deployment complete.")
 
