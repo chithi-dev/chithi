@@ -22,7 +22,7 @@ async function deriveSecrets(ikm: Uint8Array, password?: string) {
     finalIKM = xorBytes(ikm, await argon2Derive(enc.encode(password), salt, 32, 16384, 32));
   }
   const hkdfSalt = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode('aes-key')]))).slice(0, 16);
-  const baseIv = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode(HKDF_IV_STR)]))).slice(0, 12);
+  const baseIv = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode(HKDF_IV_STR)]))).slice(0, 24);
   const keyRaw = await deriveAESKeyRaw(finalIKM, hkdfSalt);
   return { keyRaw, baseIv, finalIKM };
 }
