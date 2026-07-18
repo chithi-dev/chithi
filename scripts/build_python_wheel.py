@@ -6,11 +6,12 @@ Usage:
 """
 
 import argparse
+import pathlib
 import shutil
 import subprocess
 import sys
 
-_PYTHON_BINDING_DIR = __file__.resolve().parent.parent / "bindings" / "python"
+_PYTHON_BINDING_DIR = __file__.resolve().parent.parent / "sdks" / "python"
 _CLI_DIR = __file__.resolve().parent.parent / "src" / "cli"
 
 
@@ -102,8 +103,6 @@ def install_develop() -> None:
 
 
 def main() -> None:
-    import pathlib
-
     parser = argparse.ArgumentParser(description="Build chithi-sdk Python wheel")
     parser.add_argument(
         "--develop", action="store_true",

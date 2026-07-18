@@ -25,7 +25,7 @@ _REPO_ROOT = __file__.resolve().parent.parent
 _CRATES_DIR = _REPO_ROOT / "crates"
 _WASM_BINDINGS = _CRATES_DIR / "wasm_bindings"
 _FRONTEND_WASM_DIR = _REPO_ROOT / "src" / "frontend" / "src" / "lib" / "wasm"
-_PYTHON_WASM_DIR = _REPO_ROOT / "bindings" / "python" / "src" / "chithi_sdk"
+_PYTHON_WASM_DIR = _REPO_ROOT / "sdks" / "python" / "src" / "chithi_sdk"
 
 
 def find_cargo() -> str:
