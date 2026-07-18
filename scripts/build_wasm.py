@@ -21,7 +21,7 @@ WASM_TARGETS = [
 ]
 
 # Paths relative to the repo root.
-_REPO_ROOT = __file__.resolve().parent.parent
+_REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 _CRATES_DIR = _REPO_ROOT / "crates"
 _WASM_BINDINGS = _CRATES_DIR / "wasm_bindings"
 _FRONTEND_WASM_DIR = _REPO_ROOT / "src" / "frontend" / "src" / "lib" / "wasm"
@@ -355,7 +355,7 @@ export class WasmKeychain {
 export function wasm_generate_secret(): string;
 export function wasm_generate_ikm(): Uint8Array;
 
-export default typeof init;
+export default init;
 '''
 
     js_wrapper_path = _FRONTEND_WASM_DIR / "wasm_bindings.js"

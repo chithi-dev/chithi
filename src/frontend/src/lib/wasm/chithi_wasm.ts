@@ -53,8 +53,12 @@ function _readU32(ptr: number): number {
 export async function ensureInitialized(): Promise<void> {
     if (initialized) return;
     if (initPromise) return initPromise;
-    initPromise = init().then(() => { initialized = true; }).finally(() => { initPromise = null; });
-    return initPromise;
+    initPromise = init().then(() => { initialized = true; });
+    try {
+        await initPromise;
+    } finally {
+        initPromise = null;
+    }
 }
 
 // ============================================================================
@@ -105,7 +109,7 @@ function _deserializeFiles(data: Uint8Array): SevenEntry[] {
 
 export function compress7z(entries: SevenEntry[], password?: string): Uint8Array {
     const serialized = _serializeFiles(entries);
-    const pwd = (password ?? "").encode ? new TextEncoder().encode(password ?? "") : new Uint8Array(0);
+    const pwd = password?.length ? new TextEncoder().encode(password) : new Uint8Array(0);
 
     const inputPtr = _alloc(serialized.length);
     const pwdPtr = pwd.length > 0 ? _alloc(pwd.length) : 0;
@@ -233,13 +237,13 @@ export function wasmGenerateSecret(): string {
 }
 
 // ============================================================================
-// Chunk encryption (AES-256-GCM-SIV)
+// Chunk encryption (XChaCha20-Poly1305)
 // ============================================================================
 
 export function wasmEncryptChunk(data: Uint8Array, key: Uint8Array, nonce: Uint8Array): Uint8Array {
     const dataPtr = _alloc(data.length);
     const keyPtr = _alloc(32);
-    const noncePtr = _alloc(12);
+    const noncePtr = _alloc(24);
     const outPtr = _alloc(data.length + 16);
     const outLenPtr = _alloc(4);
     _writeBytes(dataPtr, data);
@@ -251,7 +255,7 @@ export function wasmEncryptChunk(data: Uint8Array, key: Uint8Array, nonce: Uint8
     const result = _readBytes(outPtr, outLen);
     _dealloc(dataPtr, data.length);
     _dealloc(keyPtr, 32);
-    _dealloc(noncePtr, 12);
+    _dealloc(noncePtr, 24);
     _dealloc(outPtr, outLen);
     _dealloc(outLenPtr, 4);
     return result;
@@ -260,7 +264,7 @@ export function wasmEncryptChunk(data: Uint8Array, key: Uint8Array, nonce: Uint8
 export function wasmDecryptChunk(data: Uint8Array, key: Uint8Array, nonce: Uint8Array): Uint8Array {
     const dataPtr = _alloc(data.length);
     const keyPtr = _alloc(32);
-    const noncePtr = _alloc(12);
+    const noncePtr = _alloc(24);
     const outPtr = _alloc(data.length);
     const outLenPtr = _alloc(4);
     _writeBytes(dataPtr, data);
@@ -272,20 +276,20 @@ export function wasmDecryptChunk(data: Uint8Array, key: Uint8Array, nonce: Uint8
     const result = _readBytes(outPtr, outLen);
     _dealloc(dataPtr, data.length);
     _dealloc(keyPtr, 32);
-    _dealloc(noncePtr, 12);
+    _dealloc(noncePtr, 24);
     _dealloc(outPtr, outLen);
     _dealloc(outLenPtr, 4);
     return result;
 }
 
 export function wasmGetChunkNonce(baseIv: Uint8Array, chunkIndex: number): Uint8Array {
-    const basePtr = _alloc(12);
-    const outPtr = _alloc(12);
+    const basePtr = _alloc(24);
+    const outPtr = _alloc(24);
     _writeBytes(basePtr, baseIv);
     (_getExports().wasm_get_chunk_nonce as any)(basePtr, chunkIndex, outPtr);
-    const result = _readBytes(outPtr, 12);
-    _dealloc(basePtr, 12);
-    _dealloc(outPtr, 12);
+    const result = _readBytes(outPtr, 24);
+    _dealloc(basePtr, 24);
+    _dealloc(outPtr, 24);
     return result;
 }
 
@@ -326,7 +330,7 @@ export function wasmEncryptChunksParallel(
     const serialized = _serializeChunks(chunks);
     const inputPtr = _alloc(serialized.length);
     const keyPtr = _alloc(32);
-    const ivPtr = _alloc(12);
+    const ivPtr = _alloc(24);
     const outPtr = _alloc(serialized.length * 2);
     const outLenPtr = _alloc(4);
     _writeBytes(inputPtr, serialized);
@@ -341,7 +345,7 @@ export function wasmEncryptChunksParallel(
     const results = _deserializeChunks(resultData);
     _dealloc(inputPtr, serialized.length);
     _dealloc(keyPtr, 32);
-    _dealloc(ivPtr, 12);
+    _dealloc(ivPtr, 24);
     _dealloc(outPtr, outLen);
     _dealloc(outLenPtr, 4);
     return results;
@@ -353,7 +357,7 @@ export function wasmDecryptChunksParallel(
     const serialized = _serializeChunks(chunks);
     const inputPtr = _alloc(serialized.length);
     const keyPtr = _alloc(32);
-    const ivPtr = _alloc(12);
+    const ivPtr = _alloc(24);
     const outPtr = _alloc(serialized.length * 2);
     const outLenPtr = _alloc(4);
     _writeBytes(inputPtr, serialized);
@@ -368,7 +372,7 @@ export function wasmDecryptChunksParallel(
     const results = _deserializeChunks(resultData);
     _dealloc(inputPtr, serialized.length);
     _dealloc(keyPtr, 32);
-    _dealloc(ivPtr, 12);
+    _dealloc(ivPtr, 24);
     _dealloc(outPtr, outLen);
     _dealloc(outLenPtr, 4);
     return results;
