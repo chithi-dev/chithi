@@ -1,4 +1,4 @@
-use aes_gcm_siv::aead::{Aead, KeyInit};
+use chacha20poly1305::aead::{Aead, KeyInit};
 use base64::{Engine, engine::general_purpose::STANDARD as B64};
 use ed25519_dalek::{Signer, SigningKey, Verifier};
 use rand::rngs::OsRng;
@@ -75,7 +75,7 @@ impl ProgressCallback {
 /// Clone the Arc wrapper for sharing across Rayon threads.
 pub type Progress = Option<Arc<ProgressCallback>>;
 
-// GCM-SIV is the only record format. Wire: nonce[12] || ciphertext[N+16_tag]
+// XChaCha20-Poly1305 is the only record format. Wire: nonce[24] || ciphertext[N+16_tag]
 
 // Constants matching Firefox Send
 pub const MAX_CONTENT_LENGTH: usize = 100 * 1024 * 1024;
@@ -89,7 +89,7 @@ pub const KEY_DERIVATION_ITERATIONS: u32 = 8;
 pub const KEY_DERIVATION_MEMORY: u32 = 64 * 1024;
 pub const KEY_DERIVATION_PARALLELISM: u32 = 1;
 pub const KEY_DERIVATION_LENGTH: usize = 32;
-pub const NONCE_LENGTH: usize = 12;
+pub const NONCE_LENGTH: usize = 24;
 pub const PAD_LIMIT: usize = 128;
 pub const SALT_LENGTH: usize = 32;
 pub const SIGNING_KEY_LENGTH: usize = 32;
@@ -186,10 +186,10 @@ impl Keychain {
 
     pub fn encrypt_metadata(&self, metadata: &str) -> Result<Vec<u8>, String> {
         use chacha20poly1305::aead::{Aead, KeyInit};
-        let cs = chacha20poly1305::ChaCha20Poly1305::new(&self.secret.into());
+        let cs = chacha20poly1305::XChaCha20Poly1305::new(&self.secret.into());
         let mut nonce_bytes = [0u8; NONCE_LENGTH];
         OsRng.fill_bytes(&mut nonce_bytes);
-        let nonce = chacha20poly1305::Nonce::from_slice(&nonce_bytes);
+        let nonce = chacha20poly1305::XNonce::from_slice(&nonce_bytes);
 
         let ciphertext = cs
             .encrypt(nonce, metadata.as_bytes())
@@ -210,8 +210,8 @@ impl Keychain {
         let ciphertext = &data[NONCE_LENGTH..];
 
         use chacha20poly1305::aead::{Aead, KeyInit};
-        let cs = chacha20poly1305::ChaCha20Poly1305::new(&self.secret.into());
-        let nonce = chacha20poly1305::Nonce::from_slice(nonce_bytes);
+        let cs = chacha20poly1305::XChaCha20Poly1305::new(&self.secret.into());
+        let nonce = chacha20poly1305::XNonce::from_slice(nonce_bytes);
 
         let plaintext = cs
             .decrypt(nonce, ciphertext)
@@ -259,31 +259,29 @@ impl Keychain {
 }
 
 /// Generate per-chunk nonce: base_iv with last 4 bytes XORed with chunk_index.
-pub fn get_chunk_nonce(base_iv: &[u8; 12], chunk_index: u32) -> [u8; 12] {
+pub fn get_chunk_nonce(base_iv: &[u8; 24], chunk_index: u32) -> [u8; 24] {
     let mut nonce = *base_iv;
-    let idx = u32::from_be_bytes([nonce[8], nonce[9], nonce[10], nonce[11]]) ^ chunk_index;
-    nonce[8..12].copy_from_slice(&idx.to_be_bytes());
+    let idx = u32::from_be_bytes([nonce[20], nonce[21], nonce[22], nonce[23]]) ^ chunk_index;
+    nonce[20..24].copy_from_slice(&idx.to_be_bytes());
     nonce
 }
 
-/// Encrypt a single chunk using AES-256-GCM-SIV with explicit 12-byte nonce.
-pub fn encrypt_chunk(data: &[u8], key: &[u8; 32], nonce: &[u8; 12]) -> Result<Vec<u8>, String> {
-    use aes_gcm_siv::aead::{Aead, KeyInit};
-    let cipher = aes_gcm_siv::Aes256GcmSiv::new_from_slice(key)
-        .map_err(|_| "Invalid AES key length")?;
-    let gcm_nonce = aes_gcm_siv::Nonce::from_slice(nonce);
-    cipher.encrypt(gcm_nonce, data)
-        .map_err(|e| format!("GCM-SIV encryption failed: {e}"))
+/// Encrypt a single chunk using XChaCha20-Poly1305 with explicit 24-byte nonce.
+pub fn encrypt_chunk(data: &[u8], key: &[u8; 32], nonce: &[u8; 24]) -> Result<Vec<u8>, String> {
+    let cipher = chacha20poly1305::XChaCha20Poly1305::new_from_slice(key)
+        .map_err(|_| "Invalid key length")?;
+    let xnonce = chacha20poly1305::XNonce::from_slice(nonce);
+    cipher.encrypt(xnonce, data)
+        .map_err(|e| format!("XChaCha20 encryption failed: {e}"))
 }
 
-/// Decrypt a single chunk using AES-256-GCM-SIV with explicit 12-byte nonce.
-pub fn decrypt_chunk(data: &[u8], key: &[u8; 32], nonce: &[u8; 12]) -> Result<Vec<u8>, String> {
-    use aes_gcm_siv::aead::{Aead, KeyInit};
-    let cipher = aes_gcm_siv::Aes256GcmSiv::new_from_slice(key)
-        .map_err(|_| "Invalid AES key length")?;
-    let gcm_nonce = aes_gcm_siv::Nonce::from_slice(nonce);
-    cipher.decrypt(gcm_nonce, data)
-        .map_err(|e| format!("GCM-SIV decryption failed: {e}"))
+/// Decrypt a single chunk using XChaCha20-Poly1305 with explicit 24-byte nonce.
+pub fn decrypt_chunk(data: &[u8], key: &[u8; 32], nonce: &[u8; 24]) -> Result<Vec<u8>, String> {
+    let cipher = chacha20poly1305::XChaCha20Poly1305::new_from_slice(key)
+        .map_err(|_| "Invalid key length")?;
+    let xnonce = chacha20poly1305::XNonce::from_slice(nonce);
+    cipher.decrypt(xnonce, data)
+        .map_err(|e| format!("XChaCha20 decryption failed: {e}"))
 }
 
 // --- Parallel chunk encryption (Rayon) ---
@@ -293,7 +291,7 @@ pub fn decrypt_chunk(data: &[u8], key: &[u8; 32], nonce: &[u8; 12]) -> Result<Ve
 pub fn encrypt_chunks_parallel(
     chunks: &[Vec<u8>],
     key: &[u8; 32],
-    base_iv: &[u8; 12],
+    base_iv: &[u8; 24],
     progress: Progress,
 ) -> Result<Vec<Vec<u8>>, String> {
     use rayon::prelude::*;
@@ -312,7 +310,7 @@ pub fn encrypt_chunks_parallel(
 pub fn decrypt_chunks_parallel(
     chunks: &[Vec<u8>],
     key: &[u8; 32],
-    base_iv: &[u8; 12],
+    base_iv: &[u8; 24],
     progress: Progress,
 ) -> Result<Vec<Vec<u8>>, String> {
     use rayon::prelude::*;
@@ -334,7 +332,7 @@ pub fn decrypt_chunks_parallel(
 pub fn encrypt_chunks_parallel(
     chunks: &[Vec<u8>],
     key: &[u8; 32],
-    base_iv: &[u8; 12],
+    base_iv: &[u8; 24],
     progress: Progress,
 ) -> Result<Vec<Vec<u8>>, String> {
     chunks.iter()
@@ -352,7 +350,7 @@ pub fn encrypt_chunks_parallel(
 pub fn decrypt_chunks_parallel(
     chunks: &[Vec<u8>],
     key: &[u8; 32],
-    base_iv: &[u8; 12],
+    base_iv: &[u8; 24],
     progress: Progress,
 ) -> Result<Vec<Vec<u8>>, String> {
     chunks.iter()
@@ -384,13 +382,13 @@ pub fn join_chunks(chunks: &[Vec<u8>]) -> Vec<u8> {
 }
 
 // --- End-to-end parallel encrypt/decrypt ---
-// Encrypted chunks are larger than plaintext chunks (GCM-SIV adds 16-byte auth tag).
+// Encrypted chunks are larger than plaintext chunks (XChaCha20-Poly1305 adds 16-byte auth tag).
 // Format: [num_chunks: u32 BE][chunk0_len: u32 BE][chunk0...][chunk1_len: u32 BE][chunk1...]...
 
 pub fn parallel_encrypt_data(
     data: &[u8],
     key: &[u8; 32],
-    base_iv: &[u8; 12],
+    base_iv: &[u8; 24],
     progress: Progress,
 ) -> Result<Vec<u8>, String> {
     let chunks = split_into_chunks(data);
@@ -409,7 +407,7 @@ pub fn parallel_encrypt_data(
 pub fn parallel_decrypt_data(
     data: &[u8],
     key: &[u8; 32],
-    base_iv: &[u8; 12],
+    base_iv: &[u8; 24],
     progress: Progress,
 ) -> Result<Vec<u8>, String> {
     if data.len() < 4 {
@@ -442,35 +440,35 @@ pub fn parallel_decrypt_data(
 
 // --- PKCS7 padding ---
 
-/// Encrypt a single record using AES-256-GCM-SIV with random 12-byte nonce.
-/// Wire format: nonce[12] || ciphertext[N+16_tag]
+/// Encrypt a single record using XChaCha20-Poly1305 with random 24-byte nonce.
+/// Wire format: nonce[24] || ciphertext[N+16_tag]
 pub fn encrypt_record(data: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, String> {
-    let mut nonce = [0u8; 12];
+    let mut nonce = [0u8; 24];
     OsRng.fill_bytes(&mut nonce);
 
-    let cipher = aes_gcm_siv::Aes256GcmSiv::new_from_slice(key)
-        .map_err(|_| "Invalid AES key length")?;
-    let gcm_nonce = aes_gcm_siv::Nonce::from_slice(&nonce);
-    let ciphertext = cipher.encrypt(gcm_nonce, data)
-        .map_err(|e| format!("GCM-SIV record encryption failed: {e}"))?;
+    let cipher = chacha20poly1305::XChaCha20Poly1305::new_from_slice(key)
+        .map_err(|_| "Invalid key length")?;
+    let xnonce = chacha20poly1305::XNonce::from_slice(&nonce);
+    let ciphertext = cipher.encrypt(xnonce, data)
+        .map_err(|e| format!("XChaCha20 record encryption failed: {e}"))?;
 
-    let mut result = Vec::with_capacity(12 + ciphertext.len());
+    let mut result = Vec::with_capacity(24 + ciphertext.len());
     result.extend_from_slice(&nonce);
     result.extend_from_slice(&ciphertext);
     Ok(result)
 }
 
-/// Decrypt a single record using AES-256-GCM-SIV.
-/// Wire format: nonce[12] || ciphertext[N+16_tag]
+/// Decrypt a single record using XChaCha20-Poly1305.
+/// Wire format: nonce[24] || ciphertext[N+16_tag]
 pub fn decrypt_record(data: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, String> {
-    if data.len() < 12 {
+    if data.len() < 24 {
         return Err("Record too short for decryption".to_string());
     }
-    let cipher = aes_gcm_siv::Aes256GcmSiv::new_from_slice(key)
-        .map_err(|_| "Invalid AES key length")?;
-    let gcm_nonce = aes_gcm_siv::Nonce::from_slice(&data[..12]);
-    cipher.decrypt(gcm_nonce, &data[12..])
-        .map_err(|e| format!("GCM-SIV record decryption failed: {e}"))
+    let cipher = chacha20poly1305::XChaCha20Poly1305::new_from_slice(key)
+        .map_err(|_| "Invalid key length")?;
+    let xnonce = chacha20poly1305::XNonce::from_slice(&data[..24]);
+    cipher.decrypt(xnonce, &data[24..])
+        .map_err(|e| format!("XChaCha20 record decryption failed: {e}"))
 }
 
 // --- Parallel record encryption ---
@@ -521,7 +519,7 @@ pub fn sdk_upload(data: &[u8], password: &str, progress: Progress) -> Result<Upl
     let keychain = Keychain::from_password(password)?;
     let key = keychain.export_auth_key();
     let salt = keychain.salt();
-    let mut base_iv = [0u8; 12];
+    let mut base_iv = [0u8; 24];
     OsRng.fill_bytes(&mut base_iv);
 
     let encrypted = parallel_encrypt_data(data, &key, &base_iv, progress)?;
@@ -540,14 +538,14 @@ pub fn sdk_download(bundle: &UploadBundle, password: &str, progress: Progress) -
     if bundle.salt.len() != 32 {
         return Err("Invalid salt length".to_string());
     }
-    if bundle.base_iv.len() != 12 {
+    if bundle.base_iv.len() != 24 {
         return Err("Invalid base_iv length".to_string());
     }
 
     let mut salt_arr = [0u8; 32];
     salt_arr.copy_from_slice(&bundle.salt);
 
-    let mut base_iv_arr = [0u8; 12];
+    let mut base_iv_arr = [0u8; 24];
     base_iv_arr.copy_from_slice(&bundle.base_iv);
 
     let derived_key = derive_key(password.as_bytes(), &salt_arr)?;
@@ -627,10 +625,10 @@ mod tests {
 
  
     #[test]
-    fn test_encrypt_decrypt_chunk_gcm() {
+    fn test_encrypt_decrypt_chunk_xchacha() {
         let key = [0u8; 32];
-        let nonce = [0u8; 12];
-        let data = b"test chunk data for GCM";
+        let nonce = [0u8; 24];
+        let data = b"test chunk data for XChaCha20";
         let encrypted = encrypt_chunk(data, &key, &nonce).unwrap();
         let decrypted = decrypt_chunk(&encrypted, &key, &nonce).unwrap();
         assert_eq!(decrypted, data);
@@ -639,7 +637,7 @@ mod tests {
     #[test]
     fn test_encrypt_decrypt_chunks_parallel() {
         let key = [0u8; 32];
-        let base_iv = [0u8; 12];
+        let base_iv = [0u8; 24];
         let chunks = vec![vec![1, 2, 3], vec![4, 5, 6], vec![7, 8, 9]];
         let encrypted = encrypt_chunks_parallel(&chunks, &key, &base_iv, None).unwrap();
         let decrypted = decrypt_chunks_parallel(&encrypted, &key, &base_iv, None).unwrap();
@@ -658,7 +656,7 @@ mod tests {
     #[test]
     fn test_parallel_encrypt_decrypt_data() {
         let key = [0u8; 32];
-        let base_iv = [0u8; 12];
+        let base_iv = [0u8; 24];
         let data = vec![42u8; 100 * 1024];
         let encrypted = parallel_encrypt_data(&data, &key, &base_iv, None).unwrap();
         let decrypted = parallel_decrypt_data(&encrypted, &key, &base_iv, None).unwrap();
@@ -702,7 +700,7 @@ mod tests {
     #[test]
     fn test_progress_callback_fires() {
         let key = [0u8; 32];
-        let base_iv = [0u8; 12];
+        let base_iv = [0u8; 24];
         let data = vec![42u8; 100 * 1024];
         let reported = std::sync::Arc::new(std::sync::Mutex::new(0usize));
         let reported_clone = reported.clone();
