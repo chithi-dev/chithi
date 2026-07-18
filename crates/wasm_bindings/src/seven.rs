@@ -101,13 +101,13 @@ impl Clone for CallbackBridge {
 // 7z operations
 // ---------------------------------------------------------------------------
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn validate_7z(data_ptr: u32, data_len: u32) -> i32 {
     let data = read_slice(data_ptr, data_len);
     if SevenZDefault::validate(data) { 1 } else { 0 }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn compress_7z(
     input_ptr: u32,
     input_len: u32,
@@ -135,7 +135,7 @@ pub extern "C" fn compress_7z(
     0
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn decompress_7z(
     data_ptr: u32,
     data_len: u32,
@@ -168,7 +168,7 @@ pub extern "C" fn decompress_7z(
 // SDK upload/download (compress + encrypt) — event-driven
 // ---------------------------------------------------------------------------
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_upload(
     input_ptr: u32,
     input_len: u32,
@@ -204,7 +204,7 @@ pub extern "C" fn wasm_upload(
     0
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_download(
     bundle_ptr: u32,
     bundle_len: u32,
