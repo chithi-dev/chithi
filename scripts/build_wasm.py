@@ -373,20 +373,6 @@ def deploy_to_python(wasm_file: pathlib.Path) -> None:
     print(f"[DEPLOY] Python:    {dest}")
 
 
-def deploy_to_sdk(wasm_file: pathlib.Path) -> None:
-    """Copy the WASM module to the legacy SDK paths for compatibility."""
-    sdk_wasm_dir = _REPO_ROOT / "src" / "core" / "sdk" / "js" / "wasm"
-    sdk_node_dir = _REPO_ROOT / "src" / "core" / "sdk" / "js" / "node_wasm"
-    sdk_python_dir = _REPO_ROOT / "src" / "core" / "sdk" / "python" / "chithi_wasm"
-
-    for directory in [sdk_wasm_dir, sdk_node_dir, sdk_python_dir]:
-        directory.mkdir(parents=True, exist_ok=True)
-        dest = directory / ("chithi.wasm" if directory != sdk_python_dir else "wasm_bindings.wasm")
-        shutil.copy2(wasm_file, dest)
-
-    print(f"[DEPLOY] SDK compat copies placed.")
-
-
 def main() -> None:
     import pathlib
 
@@ -416,7 +402,6 @@ def main() -> None:
     # Step 3: Deploy
     deploy_to_frontend(wasm_file)
     deploy_to_python(wasm_file)
-    deploy_to_sdk(wasm_file)
 
     print("\n[DONE] WASM build and deployment complete.")
 

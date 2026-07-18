@@ -8,7 +8,7 @@ node_modules
 /.svelte-kit
 /build
 
-# WASM build artifacts (built from sdk/rust/)
+# WASM build artifacts (built from crates/wasm_bindings/)
 src/lib/wasm/*.wasm
 src/lib/wasm/*.js
 src/lib/wasm/*.d.ts

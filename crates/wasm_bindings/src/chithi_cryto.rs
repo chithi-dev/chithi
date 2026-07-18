@@ -20,17 +20,17 @@ use crate::{read_slice, write_slice, write_out_len, read_chunk_array, write_chun
 
 static HEAP_PTR: AtomicU32 = AtomicU32::new(0x10000);
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn chithi_alloc(len: u32) -> u32 {
     HEAP_PTR.fetch_add(len, Ordering::Relaxed)
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn chithi_dealloc(_ptr: u32, _len: u32) {
     // Bump allocator — no-op free. Memory reclaimed on module reload.
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn chithi_reset_heap() {
     HEAP_PTR.store(0x10000, Ordering::Relaxed);
 }
@@ -39,7 +39,7 @@ pub extern "C" fn chithi_reset_heap() {
 // Multi-core detection
 // ---------------------------------------------------------------------------
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn chithi_available_parallelism() -> u32 {
     std::thread::available_parallelism()
         .map(|n| n.get() as u32)
@@ -104,7 +104,7 @@ impl Clone for CallbackBridge {
 // Key derivation
 // ---------------------------------------------------------------------------
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_derive_key(
     password_ptr: u32,
     password_len: u32,
@@ -124,7 +124,7 @@ pub extern "C" fn wasm_derive_key(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_argon2_derive(
     password_ptr: u32,
     password_len: u32,
@@ -156,7 +156,7 @@ pub extern "C" fn wasm_argon2_derive(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_generate_secret(out_ptr: u32, out_len: u32) -> i32 {
     let kc = Keychain::new();
     let secret = kc.generate_secret();
@@ -168,7 +168,7 @@ pub extern "C" fn wasm_generate_secret(out_ptr: u32, out_len: u32) -> i32 {
     bytes.len() as i32
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_generate_ikm(out_ptr: u32) -> i32 {
     let mut ikm = [0u8; 32];
     OsRng.fill_bytes(&mut ikm);
@@ -180,7 +180,7 @@ pub extern "C" fn wasm_generate_ikm(out_ptr: u32) -> i32 {
 // Record encryption (AES-256-CBC)
 // ---------------------------------------------------------------------------
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_encrypt_record(
     data_ptr: u32,
     data_len: u32,
@@ -201,7 +201,7 @@ pub extern "C" fn wasm_encrypt_record(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_decrypt_record(
     data_ptr: u32,
     data_len: u32,
@@ -226,7 +226,7 @@ pub extern "C" fn wasm_decrypt_record(
 // Chunk encryption (AES-256-GCM-SIV)
 // ---------------------------------------------------------------------------
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_encrypt_chunk(
     data_ptr: u32,
     data_len: u32,
@@ -249,7 +249,7 @@ pub extern "C" fn wasm_encrypt_chunk(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_decrypt_chunk(
     data_ptr: u32,
     data_len: u32,
@@ -272,7 +272,7 @@ pub extern "C" fn wasm_decrypt_chunk(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_get_chunk_nonce(
     base_iv_ptr: u32,
     chunk_index: u32,
@@ -288,7 +288,7 @@ pub extern "C" fn wasm_get_chunk_nonce(
 // Batch chunk encryption — event-driven progress
 // ---------------------------------------------------------------------------
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_encrypt_chunks_parallel(
     input_ptr: u32,
     input_len: u32,
@@ -320,7 +320,7 @@ pub extern "C" fn wasm_encrypt_chunks_parallel(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_decrypt_chunks_parallel(
     input_ptr: u32,
     input_len: u32,
@@ -357,7 +357,7 @@ pub extern "C" fn wasm_decrypt_chunks_parallel(
 // Batch record encryption (AES-256-CBC)
 // ---------------------------------------------------------------------------
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_encrypt_all(
     input_ptr: u32,
     input_len: u32,
@@ -381,7 +381,7 @@ pub extern "C" fn wasm_encrypt_all(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_decrypt_all(
     input_ptr: u32,
     input_len: u32,
@@ -409,7 +409,7 @@ pub extern "C" fn wasm_decrypt_all(
 // End-to-end parallel encrypt/decrypt (single data buffer) — event-driven
 // ---------------------------------------------------------------------------
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_parallel_encrypt_data(
     data_ptr: u32,
     data_len: u32,
@@ -437,7 +437,7 @@ pub extern "C" fn wasm_parallel_encrypt_data(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_parallel_decrypt_data(
     data_ptr: u32,
     data_len: u32,
@@ -469,7 +469,7 @@ pub extern "C" fn wasm_parallel_decrypt_data(
 // SDK-level upload/download (raw data, no compression) — event-driven
 // ---------------------------------------------------------------------------
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_upload_data(
     data_ptr: u32,
     data_len: u32,
@@ -503,7 +503,7 @@ pub extern "C" fn wasm_upload_data(
     0
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn wasm_download_data(
     bundle_json_ptr: u32,
     bundle_json_len: u32,
@@ -546,7 +546,7 @@ pub extern "C" fn wasm_download_data(
 static KEYCHAIN_STORE: Mutex<Option<Keychain>> = Mutex::new(None);
 static KEYCHAIN_HANDLE: AtomicU32 = AtomicU32::new(0);
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn keychain_new() -> u32 {
     let kc = Keychain::new();
     let ptr = chithi_alloc(1);
@@ -555,7 +555,7 @@ pub extern "C" fn keychain_new() -> u32 {
     ptr
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn keychain_from_password(handle: u32, password_ptr: u32, password_len: u32) -> i32 {
     let password = match std::str::from_utf8(read_slice(password_ptr, password_len)) {
         Ok(s) => s,
@@ -571,14 +571,14 @@ pub extern "C" fn keychain_from_password(handle: u32, password_ptr: u32, passwor
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn keychain_drop(handle: u32) {
     if KEYCHAIN_HANDLE.load(Ordering::Relaxed) == handle {
         KEYCHAIN_STORE.lock().unwrap().take();
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn keychain_set_password(handle: u32, password_ptr: u32, password_len: u32) -> i32 {
     if KEYCHAIN_HANDLE.load(Ordering::Relaxed) != handle { return -1; }
     let password = match std::str::from_utf8(read_slice(password_ptr, password_len)) {
@@ -596,7 +596,7 @@ pub extern "C" fn keychain_set_password(handle: u32, password_ptr: u32, password
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn keychain_generate_secret(handle: u32, out_ptr: u32, out_len: u32) -> i32 {
     if KEYCHAIN_HANDLE.load(Ordering::Relaxed) != handle { return -1; }
     let store = KEYCHAIN_STORE.lock().unwrap();
@@ -611,7 +611,7 @@ pub extern "C" fn keychain_generate_secret(handle: u32, out_ptr: u32, out_len: u
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn keychain_encrypt_metadata(
     handle: u32,
     data_ptr: u32,
@@ -639,7 +639,7 @@ pub extern "C" fn keychain_encrypt_metadata(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn keychain_decrypt_metadata(
     handle: u32,
     data_ptr: u32,
@@ -665,7 +665,7 @@ pub extern "C" fn keychain_decrypt_metadata(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn keychain_sign(handle: u32, data_ptr: u32, data_len: u32, out_ptr: u32) -> i32 {
     if KEYCHAIN_HANDLE.load(Ordering::Relaxed) != handle { return -1; }
     let data = read_slice(data_ptr, data_len);
@@ -679,7 +679,7 @@ pub extern "C" fn keychain_sign(handle: u32, data_ptr: u32, data_len: u32, out_p
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn keychain_verify(
     handle: u32,
     data_ptr: u32,
@@ -698,7 +698,7 @@ pub extern "C" fn keychain_verify(
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn keychain_export_auth_key(handle: u32, out_ptr: u32) -> i32 {
     if KEYCHAIN_HANDLE.load(Ordering::Relaxed) != handle { return -1; }
     let store = KEYCHAIN_STORE.lock().unwrap();
@@ -711,7 +711,7 @@ pub extern "C" fn keychain_export_auth_key(handle: u32, out_ptr: u32) -> i32 {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn keychain_salt(handle: u32, out_ptr: u32) -> i32 {
     if KEYCHAIN_HANDLE.load(Ordering::Relaxed) != handle { return -1; }
     let store = KEYCHAIN_STORE.lock().unwrap();
@@ -724,7 +724,7 @@ pub extern "C" fn keychain_salt(handle: u32, out_ptr: u32) -> i32 {
     }
 }
 
-#[no_mangle]
+#[unsafe(no_mangle)]
 pub extern "C" fn keychain_ikm(handle: u32, out_ptr: u32) -> i32 {
     if KEYCHAIN_HANDLE.load(Ordering::Relaxed) != handle { return -1; }
     let store = KEYCHAIN_STORE.lock().unwrap();
