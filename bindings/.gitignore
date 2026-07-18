@@ -1,6 +1,0 @@
-# Build artifacts
-node_modules/
-dist/
-*.whl
-*.egg-info/
-__pycache__/

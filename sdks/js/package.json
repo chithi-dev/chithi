@@ -1,5 +1,5 @@
 {
-  "name": "@chithi/sdk",
+  "name": "chithi-sdk",
   "version": "0.1.0",
   "description": "Chithi SDK — encrypted file upload/download via WASM C ABI",
   "type": "module",
@@ -13,11 +13,11 @@
     }
   },
   "files": [
-    "dist/"
+    "dist/",
+    "dist/chithi.wasm"
   ],
   "scripts": {
-    "build:ts": "tsc",
-    "build": "tsc",
+    "build": "tsc && cp src/chithi.wasm dist/ 2>/dev/null || true",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
