@@ -111,6 +111,7 @@
 		"vite-plugin-top-level-await": "^1.6.0",
 		"vite-plugin-wasm": "^3.6.0",
 		"vitest": "^4.1.4",
+		"wabt": "^1.0.39",
 		"zod": "^4.3.6"
 	},
 	"allowScripts": {

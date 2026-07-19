@@ -2,7 +2,7 @@ import { WORKER_CONCURRENCY } from '#consts/concurrency';
 import { HKDF_IV_STR, HKDF_SALT_STR } from '#consts/encryption';
 import ChithiWorker from '#workers/chithi.worker?worker';
 import { ZipWriter } from '@zip.js/zip.js';
-import { CHUNK_SIZE, argon2Derive, base64url, base64urlToBytes, deriveAESKeyRaw, xorBytes } from './encryption';
+import { CHUNK_SIZE, argon2Derive, base64url, base64urlToBytes, deriveEncryptionKey, xorBytes } from './encryption';
 import { wasmEncryptChunk, wasmDecryptChunk, wasmGetChunkNonce, ensureInitialized } from '#wasm/chithi_wasm';
 
 const usedNames = new Map<string, number>();
@@ -21,9 +21,9 @@ async function deriveSecrets(ikm: Uint8Array, password?: string) {
     const salt = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array([...ikm, ...enc.encode(HKDF_SALT_STR)]))).slice(0, 16);
     finalIKM = xorBytes(ikm, await argon2Derive(enc.encode(password), salt, 32, 16384, 32));
   }
-  const hkdfSalt = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode('aes-key')]))).slice(0, 16);
+  const hkdfSalt = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode('encryption-key')]))).slice(0, 16);
   const baseIv = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode(HKDF_IV_STR)]))).slice(0, 24);
-  const keyRaw = await deriveAESKeyRaw(finalIKM, hkdfSalt);
+  const keyRaw = await deriveEncryptionKey(finalIKM, hkdfSalt);
   return { keyRaw, baseIv, finalIKM };
 }
 

@@ -40,7 +40,7 @@ export async function argon2Derive(
   return await argon2DeriveWasm(pwdBytes, salt, iterations, Math.min(memorySize, MAX_ARGON2_MEMORY_KIB), hashLength);
 }
 
-export async function deriveAESKeyRaw(ikm: Uint8Array, hkdfSalt: Uint8Array): Promise<Uint8Array> {
+export async function deriveEncryptionKey(ikm: Uint8Array, hkdfSalt: Uint8Array): Promise<Uint8Array> {
   return await argon2DeriveWasm(ikm, hkdfSalt, DEFAULT_ARGON2_ITERATIONS, Math.min(DEFAULT_ARGON2_MEMORY_KIB, MAX_ARGON2_MEMORY_KIB), 32);
 }
 

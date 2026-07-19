@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll } from 'vitest';
 import {
     bytesToBase64,
     base64ToBytes,
@@ -88,115 +88,70 @@ describe('xorBytes', () => {
     });
 });
 
-describe('AES-GCM encryption roundtrip', () => {
-    it('should encrypt and decrypt with Web Crypto API', async () => {
-        const key = await crypto.subtle.generateKey(
-            { name: 'AES-GCM', length: 256 },
-            true,
-            ['encrypt', 'decrypt'],
-        );
+describe('XChaCha20-Poly1305 encryption roundtrip via WASM', async () => {
+    const { ensureInitialized, wasmEncryptChunk, wasmDecryptChunk, wasmGetChunkNonce } = await import('#wasm/chithi_wasm');
 
-        const iv = crypto.getRandomValues(new Uint8Array(12));
+    beforeAll(async () => {
+        await ensureInitialized();
+    });
+
+    it('should encrypt and decrypt a chunk', () => {
+        const key = crypto.getRandomValues(new Uint8Array(32));
+        const nonce = crypto.getRandomValues(new Uint8Array(24));
         const plaintext = new TextEncoder().encode('Hello, encrypted world!');
 
-        const encrypted = await crypto.subtle.encrypt(
-            { name: 'AES-GCM', iv },
-            key,
-            plaintext,
-        );
-
-        // Tampered data should fail decryption
-        const tampered = new Uint8Array(encrypted);
-        tampered[0] ^= 0xff;
-        await expect(
-            crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, tampered),
-        ).rejects.toThrow();
-
-        // Valid decryption
-        const decrypted = await crypto.subtle.decrypt(
-            { name: 'AES-GCM', iv },
-            key,
-            encrypted,
-        );
+        const encrypted = wasmEncryptChunk(plaintext, key, nonce);
+        const decrypted = wasmDecryptChunk(encrypted, key, nonce);
         expect(new TextDecoder().decode(decrypted)).toBe('Hello, encrypted world!');
     });
 
-    it('should detect IV reuse does not produce same ciphertext', async () => {
-        const key = await crypto.subtle.generateKey(
-            { name: 'AES-GCM', length: 256 },
-            true,
-            ['encrypt', 'decrypt'],
-        );
+    it('should produce ciphertext longer than plaintext (auth tag)', () => {
+        const key = crypto.getRandomValues(new Uint8Array(32));
+        const nonce = crypto.getRandomValues(new Uint8Array(24));
+        const plaintext = new Uint8Array([1, 2, 3, 4, 5]);
 
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const plaintext = new TextEncoder().encode('same plaintext');
-
-        const ct1 = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext);
-        const ct2 = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext);
-
-        // AES-GCM with same key+IV produces same ciphertext (deterministic encryption)
-        // This is expected behavior — the test verifies determinism
-        expect(ct1).toEqual(ct2);
+        const encrypted = wasmEncryptChunk(plaintext, key, nonce);
+        expect(encrypted.length).toBe(plaintext.length + 16);
     });
 
-    it('should handle empty plaintext', async () => {
-        const key = await crypto.subtle.generateKey(
-            { name: 'AES-GCM', length: 256 },
-            true,
-            ['encrypt', 'decrypt'],
-        );
-
-        const iv = crypto.getRandomValues(new Uint8Array(12));
+    it('should handle empty plaintext', () => {
+        const key = crypto.getRandomValues(new Uint8Array(32));
+        const nonce = crypto.getRandomValues(new Uint8Array(24));
         const plaintext = new Uint8Array([]);
 
-        const encrypted = await crypto.subtle.encrypt(
-            { name: 'AES-GCM', iv },
-            key,
-            plaintext,
-        );
+        const encrypted = wasmEncryptChunk(plaintext, key, nonce);
+        expect(encrypted.length).toBe(16);
 
-        // AES-GCM on empty data produces a 16-byte auth tag
-        expect(new Uint8Array(encrypted).length).toBe(16);
-
-        const decrypted = await crypto.subtle.decrypt(
-            { name: 'AES-GCM', iv },
-            key,
-            encrypted,
-        );
-        expect(decrypted).toEqual(plaintext);
+        const decrypted = wasmDecryptChunk(encrypted, key, nonce);
+        expect(decrypted.length).toBe(0);
     });
 
-    it('should handle large data (1 MB)', async () => {
-        const key = await crypto.subtle.generateKey(
-            { name: 'AES-GCM', length: 256 },
-            true,
-            ['encrypt', 'decrypt'],
-        );
-
-        const iv = crypto.getRandomValues(new Uint8Array(12));
+    it('should handle large data (1 MB)', () => {
+        const key = crypto.getRandomValues(new Uint8Array(32));
+        const nonce = crypto.getRandomValues(new Uint8Array(24));
         const size = 1024 * 1024;
         const plaintext = crypto.getRandomValues(new Uint8Array(size));
 
-        const encrypted = await crypto.subtle.encrypt(
-            { name: 'AES-GCM', iv },
-            key,
-            plaintext,
-        );
+        const encrypted = wasmEncryptChunk(plaintext, key, nonce);
+        expect(encrypted.length).toBe(size + 16);
 
-        // Ciphertext = plaintext + 16-byte tag
-        expect(new Uint8Array(encrypted).length).toBe(size + 16);
+        const decrypted = wasmDecryptChunk(encrypted, key, nonce);
+        expect(decrypted).toEqual(plaintext);
+    });
 
-        const decrypted = await crypto.subtle.decrypt(
-            { name: 'AES-GCM', iv },
-            key,
-            encrypted,
-        );
-        expect(new Uint8Array(decrypted)).toEqual(plaintext);
+    it('should derive correct per-chunk nonces via wasmGetChunkNonce', () => {
+        const baseIv = crypto.getRandomValues(new Uint8Array(24));
+        const nonce0 = wasmGetChunkNonce(baseIv, 0);
+        expect(nonce0).toEqual(baseIv);
+
+        const nonce1 = wasmGetChunkNonce(baseIv, 1);
+        expect(nonce1.length).toBe(24);
+        expect(nonce1).not.toEqual(nonce0);
     });
 });
 
 describe('HKDF key derivation', () => {
-    it('should derive keys from IKM using Web Crypto HKDF', async () => {
+    it('should derive 32-byte key material from IKM using Web Crypto HKDF', async () => {
         const ikm = crypto.getRandomValues(new Uint8Array(32));
         const salt = crypto.getRandomValues(new Uint8Array(16));
 
@@ -205,19 +160,16 @@ describe('HKDF key derivation', () => {
             ikm,
             'HKDF',
             false,
-            ['deriveKey'],
+            ['deriveBits'],
         );
 
-        const aesKey = await crypto.subtle.deriveKey(
-            { name: 'HKDF', hash: 'SHA-256', salt, info: new TextEncoder().encode('content-key') },
+        const derivedBits = await crypto.subtle.deriveBits(
+            { name: 'HKDF', hash: 'SHA-256', salt, info: new TextEncoder().encode('encryption-key') },
             keyMaterial,
-            { name: 'AES-GCM', length: 256 },
-            true,
-            ['encrypt', 'decrypt'],
+            256,
         );
 
-        const exported = await crypto.subtle.exportKey('raw', aesKey);
-        expect(exported.byteLength).toBe(32);
+        expect(derivedBits.byteLength).toBe(32);
     });
 
     it('should produce different keys for different info strings', async () => {
