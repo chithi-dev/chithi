@@ -954,3 +954,15 @@ Replace raw `<table>` elements in admin pages with shadcn-svelte Data Table (Tan
 - Remaining TS2614 errors are in shadcn-svelte `index.ts` barrel files — known false positives where Svelte type export detection conflicts with TypeScript module resolution. Do not affect runtime or build.
 - Build: `npm run build` succeeds with no errors
 - Dev server: starts and serves all pages (200 OK)
+
+---
+
+## Crypto Migration Status
+
+- **DONE**: Replaced AES-256-GCM with XChaCha20-Poly1305 across Rust core, WASM bindings, and frontend
+- **DONE**: Updated nonce sizes from 12B to 24B (extended XNonce)
+- **DONE**: Updated chunk size from 64KB to 32KB
+- **DONE**: Updated WASM wrapper with sevenz-rust2 stub imports and getrandom backend
+- **DONE**: Updated frontend tests from Web Crypto AES-GCM to WASM XChaCha20-Poly1305
+- **DONE**: Renamed `deriveAESKeyRaw` to `deriveEncryptionKey`
+- **DONE**: Updated crypto architecture documentation
