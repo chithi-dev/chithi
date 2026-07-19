@@ -72,7 +72,7 @@ impl ProgressCallback {
     }
 }
 
-/// Clone the Arc wrapper for sharing across Rayon threads.
+/// Clone the Arc wrapper for sharing across parallel threads.
 pub type Progress = Option<Arc<ProgressCallback>>;
 
 // XChaCha20-Poly1305 is the only record format. Wire: nonce[24] || ciphertext[N+16_tag]
@@ -284,51 +284,69 @@ pub fn decrypt_chunk(data: &[u8], key: &[u8; 32], nonce: &[u8; 24]) -> Result<Ve
         .map_err(|e| format!("XChaCha20 decryption failed: {e}"))
 }
 
-// --- Parallel chunk encryption (Rayon) ---
+// --- Parallel chunk encryption (wasm_thread) ---
 
 /// Encrypt chunks in parallel, reporting progress when subscribed.
-#[cfg(feature = "rayon")]
+#[cfg(feature = "parallel")]
 pub fn encrypt_chunks_parallel(
     chunks: &[Vec<u8>],
     key: &[u8; 32],
     base_iv: &[u8; 24],
     progress: Progress,
 ) -> Result<Vec<Vec<u8>>, String> {
-    use rayon::prelude::*;
-    chunks.par_iter()
-        .enumerate()
-        .map(|(i, chunk)| {
-            let result = encrypt_chunk(chunk, key, &get_chunk_nonce(base_iv, i as u32));
-            if let Some(ref prog) = progress { prog.report(chunk.len()); }
-            result
-        })
-        .collect()
+    let key = *key;
+    let base_iv = *base_iv;
+    let chunks_owned: Vec<Vec<u8>> = chunks.to_vec();
+    wasm_thread::scope(|s| {
+        let handles: Vec<_> = chunks_owned
+            .into_iter()
+            .enumerate()
+            .map(|(i, chunk)| {
+                let prog = progress.clone();
+                s.spawn(move || {
+                    let result = encrypt_chunk(&chunk, &key, &get_chunk_nonce(&base_iv, i as u32));
+                    if let Some(ref prog) = prog { prog.report(chunk.len()); }
+                    result
+                })
+            })
+            .collect();
+        handles.into_iter().map(|h| h.join().unwrap_or_else(|e| panic!("{:?}", e))).collect()
+    })
 }
 
 /// Decrypt chunks in parallel, reporting progress when subscribed.
-#[cfg(feature = "rayon")]
+#[cfg(feature = "parallel")]
 pub fn decrypt_chunks_parallel(
     chunks: &[Vec<u8>],
     key: &[u8; 32],
     base_iv: &[u8; 24],
     progress: Progress,
 ) -> Result<Vec<Vec<u8>>, String> {
-    use rayon::prelude::*;
-    chunks.par_iter()
-        .enumerate()
-        .map(|(i, chunk)| {
-            let plaintext_len = if chunk.len() > 16 { chunk.len() - 16 } else { 0 };
-            let result = decrypt_chunk(chunk, key, &get_chunk_nonce(base_iv, i as u32));
-            if let Some(ref prog) = progress { prog.report(plaintext_len); }
-            result
-        })
-        .collect()
+    let key = *key;
+    let base_iv = *base_iv;
+    let chunks_owned: Vec<Vec<u8>> = chunks.to_vec();
+    wasm_thread::scope(|s| {
+        let handles: Vec<_> = chunks_owned
+            .into_iter()
+            .enumerate()
+            .map(|(i, chunk)| {
+                let prog = progress.clone();
+                s.spawn(move || {
+                    let plaintext_len = if chunk.len() > 16 { chunk.len() - 16 } else { 0 };
+                    let result = decrypt_chunk(&chunk, &key, &get_chunk_nonce(&base_iv, i as u32));
+                    if let Some(ref prog) = prog { prog.report(plaintext_len); }
+                    result
+                })
+            })
+            .collect();
+        handles.into_iter().map(|h| h.join().unwrap_or_else(|e| panic!("{:?}", e))).collect()
+    })
 }
 
-// --- Sequential chunk encryption (WASM without rayon) ---
+// --- Sequential chunk fallback (no parallel feature) ---
 
-/// Encrypt chunks sequentially (WASM), reporting progress when subscribed.
-#[cfg(not(feature = "rayon"))]
+/// Encrypt chunks sequentially, reporting progress when subscribed.
+#[cfg(not(feature = "parallel"))]
 pub fn encrypt_chunks_parallel(
     chunks: &[Vec<u8>],
     key: &[u8; 32],
@@ -345,8 +363,8 @@ pub fn encrypt_chunks_parallel(
         .collect()
 }
 
-/// Decrypt chunks sequentially (WASM), reporting progress when subscribed.
-#[cfg(not(feature = "rayon"))]
+/// Decrypt chunks sequentially, reporting progress when subscribed.
+#[cfg(not(feature = "parallel"))]
 pub fn decrypt_chunks_parallel(
     chunks: &[Vec<u8>],
     key: &[u8; 32],
@@ -473,30 +491,44 @@ pub fn decrypt_record(data: &[u8], key: &[u8; 32]) -> Result<Vec<u8>, String> {
 
 // --- Parallel record encryption ---
 
-#[cfg(feature = "rayon")]
+#[cfg(feature = "parallel")]
 pub fn encrypt_all(records: &[Vec<u8>], key: &[u8; 32]) -> Result<Vec<Vec<u8>>, String> {
-    use rayon::prelude::*;
-    records.par_iter()
-        .map(|record| encrypt_record(record, key))
-        .collect()
+    let key = *key;
+    let records_owned: Vec<Vec<u8>> = records.to_vec();
+    wasm_thread::scope(|s| {
+        let handles: Vec<_> = records_owned
+            .into_iter()
+            .map(|record| {
+                s.spawn(move || encrypt_record(&record, &key))
+            })
+            .collect();
+        handles.into_iter().map(|h| h.join().unwrap_or_else(|e| panic!("{:?}", e))).collect()
+    })
 }
 
-#[cfg(feature = "rayon")]
+#[cfg(feature = "parallel")]
 pub fn decrypt_all(records: &[Vec<u8>], key: &[u8; 32]) -> Result<Vec<Vec<u8>>, String> {
-    use rayon::prelude::*;
-    records.par_iter()
-        .map(|record| decrypt_record(record, key))
-        .collect()
+    let key = *key;
+    let records_owned: Vec<Vec<u8>> = records.to_vec();
+    wasm_thread::scope(|s| {
+        let handles: Vec<_> = records_owned
+            .into_iter()
+            .map(|record| {
+                s.spawn(move || decrypt_record(&record, &key))
+            })
+            .collect();
+        handles.into_iter().map(|h| h.join().unwrap_or_else(|e| panic!("{:?}", e))).collect()
+    })
 }
 
-#[cfg(not(feature = "rayon"))]
+#[cfg(not(feature = "parallel"))]
 pub fn encrypt_all(records: &[Vec<u8>], key: &[u8; 32]) -> Result<Vec<Vec<u8>>, String> {
     records.iter()
         .map(|record| encrypt_record(record, key))
         .collect()
 }
 
-#[cfg(not(feature = "rayon"))]
+#[cfg(not(feature = "parallel"))]
 pub fn decrypt_all(records: &[Vec<u8>], key: &[u8; 32]) -> Result<Vec<Vec<u8>>, String> {
     records.iter()
         .map(|record| decrypt_record(record, key))

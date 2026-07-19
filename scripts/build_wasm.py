@@ -34,6 +34,20 @@ def find_cargo() -> str:
     return shutil.which("cargo") or "cargo"
 
 
+def build_wasm_cmd(debug: bool = False) -> list[str]:
+    """Build the WASM module using cargo +nightly (required for wasm_thread)."""
+    cargo = find_cargo()
+    target = detect_wasm_target()
+
+    cmd = [
+        cargo, "+nightly", "build", "-p", "wasm_bindings",
+        "--target", target,
+    ]
+    if not debug:
+        cmd.append("--release")
+    return cmd
+
+
 def detect_wasm_target() -> str:
     """Find the best available WASM target."""
     cargo = find_cargo()
@@ -70,16 +84,8 @@ def check_toolchain() -> bool:
 
 
 def build_wasm(debug: bool = False) -> pathlib.Path:
-    """Build the WASM module using cargo."""
-    cargo = find_cargo()
-    target = detect_wasm_target()
-
-    cmd = [
-        cargo, "build", "-p", "wasm_bindings",
-        "--target", target,
-    ]
-    if not debug:
-        cmd.append("--release")
+    """Build the WASM module using cargo +nightly (required for wasm_thread)."""
+    cmd = build_wasm_cmd(debug)
 
     print(f"[BUILD] Running: {' '.join(cmd)}")
 
@@ -140,7 +146,7 @@ def _generate_frontend_wrapper() -> None:
 let wasm = null;
 let ready = null;
 
-const sharedMemory = new WebAssembly.Memory({ initial: 256 });
+const sharedMemory = new WebAssembly.SharedMemory({ initial: 256 });
 const externrefTable = new WebAssembly.Table({ initial: 0, element: "anyfunc" });
 
 const wbgStubs = {
