@@ -5,7 +5,7 @@ edition.workspace = true
 
 [dependencies]
 sevenz-rust2 = { workspace = true }
-rayon = { workspace = true, optional = true }
+wasm_thread = { workspace = true, optional = true }
 argon2 = { workspace = true }
 sha2 = { workspace = true }
 ed25519 = { workspace = true }
@@ -18,5 +18,5 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 
 [features]
-default = ["rayon"]
-rayon = ["dep:rayon"]
+default = ["parallel"]
+parallel = ["dep:wasm_thread"]
