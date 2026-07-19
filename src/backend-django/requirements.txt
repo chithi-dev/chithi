@@ -1,0 +1,13 @@
+Django>=5.2
+psycopg2-binary
+strawberry-graphql[django]
+djangorestframework-simplejwt
+celery
+redis
+django-celery-beat
+django-cors-headers
+django-storages[boto3]
+python-dotenv
+uuid-utils
+pwdlib[argon2]
+boto3
