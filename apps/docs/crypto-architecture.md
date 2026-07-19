@@ -1,4 +1,4 @@
-# Encrypted File Sharing — Cryptography Architecture
+﻿# Encrypted File Sharing — Cryptography Architecture
 
 ## Overview
 
@@ -7,19 +7,19 @@ This system provides end-to-end encrypted file sharing inspired by Firefox Send'
 **Core properties:**
 - Zero-knowledge: server stores only ciphertext
 - Password optional: random 32-byte IKM or password-derived keys
-- Integrity: every encrypted chunk is authenticated via GCM
+- Integrity: every encrypted chunk is authenticated via Poly1305
 - Parallel: chunk-level encryption/decryption via Rayon (Rust) or worker pool (browser)
 - Deterministic nonces: chunk index → unique nonce per chunk
 
 ```mermaid
 graph LR
     A[Plaintext Files] --> B[7z Compression]
-    B --> C[Split into 64 KB Chunks]
-    C --> D[AES-256-GCM Encrypt]
+    B --> C[Split into 32 KB Chunks]
+    C --> D[XChaCha20-Poly1305 Encrypt]
     D --> E[Upload Ciphertext]
     E --> F[Share URL + Secret]
     F --> G[Download Ciphertext]
-    G --> H[AES-256-GCM Decrypt]
+    G --> H[XChaCha20-Poly1305 Decrypt]
     H --> I[Reassemble Chunks]
     I --> J[7z Decompress]
     J --> K[Plaintext Files]
@@ -31,10 +31,10 @@ graph LR
 |---|---|---|---|---|
 | Key derivation | Argon2id | Password/memory-hard hashing | 32B output | V0x13 |
 | Key expansion | HKDF-SHA256 | Domain-separated subkey derivation | 32B output | Extract-Expand |
-| Metadata encryption | ChaCha20-Poly1305 | Authenticated metadata protection | 256-bit | AEAD |
-| **Content encryption** | **AES-256-GCM** | **Authenticated bulk data encryption** | **256-bit** | **GCM** |
+| Metadata encryption | XChaCha20-Poly1305 | Authenticated metadata protection | 256-bit | AEAD |
+| **Content encryption** | **XChaCha20-Poly1305** | **Authenticated bulk data encryption** | **256-bit** | **AEAD** |
 | Signatures | Ed25519 | Data authenticity | 256-bit seed | Pure EdDSA |
-| **Nonce derivation** | **XOR-based** | **Per-chunk deterministic nonce** | **12B** | **XOR seq** |
+| **Nonce derivation** | **XOR-based** | **Per-chunk deterministic nonce** | **24B** | **XOR seq** |
 
 ---
 
@@ -56,10 +56,10 @@ flowchart TD
     S --> H
     H --> PRK[PRK - 32 bytes]
     PRK --> E[HKDF Expand]
-    E --> EK[AES-256-GCM Key - 32 bytes]
+    E --> EK[Encryption Key - 32 bytes]
     E --> MK[Metadata Key - 32 bytes]
     E --> AK[Auth Key - 32 bytes]
-    E --> NK[Nonce Base - 12 bytes]
+    E --> NK[Nonce Base - 24 bytes]
 ```
 
 ### Argon2id Parameters
@@ -232,126 +232,45 @@ sequenceDiagram
     R->>R: XOR ciphertext with keystream → plaintext
 ```
 
-**On-the-wire format:** `nonce (12 bytes) || ciphertext (variable) || poly1305 tag (16 bytes)`
+**On-the-wire format:** `Nonce (24 bytes) || ciphertext (variable) || poly1305 tag (16 bytes)`
 
 ---
 
-## 3. AES-256-GCM (Content Encryption)
+## 3. XChaCha20-Poly1305 (Content Encryption)
 
-### Why AES-GCM over AES-CBC
+### Why XChaCha20-Poly1305 over AES-GCM
 
-The system migrated from AES-256-CBC to AES-256-GCM to gain authenticated encryption:
+The system uses XChaCha20-Poly1305 for both metadata and content encryption:
 
-| Property | AES-256-CBC | AES-256-GCM |
+| Property | AES-256-GCM | XChaCha20-Poly1305 |
 |---|---|---|
 | Confidentiality | Yes | Yes |
-| Integrity | **No** (bit-flip attacks) | **Yes** (16-byte auth tag) |
-| Padding | PKCS7 required | **None needed** |
-| Parallel decrypt | No (sequential unpad) | **Yes** (independent chunks) |
-| WASM performance | AES-NI dependent | AES-NI + GHASH |
+| Integrity | Yes (16-byte auth tag) | Yes (16-byte Poly1305 tag) |
+| Padding | None needed | None needed |
+| WASM performance | AES-NI dependent | **Pure integer arithmetic** |
+| Nonce size | 12 bytes (96-bit) | **24 bytes (192-bit extended)** |
+| Collision resistance | 2^32 bound | **2^68 bound (extended nonce)** |
 
-GCM combines:
-- **CTR mode** for confidentiality (counter-based keystream, like ChaCha20)
-- **GHASH** for authenticity (polynomial MAC over ciphertext + AAD)
+XChaCha20-Poly1305 combines:
+- **ChaCha20 stream cipher** for confidentiality (counter-based keystream, 25-round variant)
+- **Poly1305** for authenticity (one-time polynomial MAC)
+- **Extended nonce (XNonce)**: 24-byte nonce folded via `HChaCha20` to derive subkey + 12-byte nonce
 
-### AES S-Box
+### XChaCha20 Extended Nonce Folding
 
-The core non-linearity of AES is the S-Box, which computes multiplicative inverses in GF(2^8) followed by an affine transformation:
-
-```mermaid
-flowchart TD
-    Byte["Input byte"] --> Inv["Multiplicative inverse in GF(2^8)"]
-    Inv --> Affine["Affine transformation over GF(2)"]
-    Affine --> Out["Output byte"]
-```
-
-Each byte `b` is treated as a polynomial in GF(2^8) with irreducible polynomial `x^8 + x^4 + x^3 + x + 1`. The inverse of `0x00` is defined as `0x00`.
-
-### GCM Mode
-
-GCM operates in two phases:
-
-#### Phase 1: Counter Mode Encryption
+XChaCha20 uses a 24-byte nonce instead of the standard 12-byte nonce. The extended nonce is folded into a subkey and 12-byte nonce via HChaCha20:
 
 ```mermaid
 flowchart TD
-    subgraph CTR-Encryption
-        N["Nonce (12 bytes)"] --> Pad["Pad to 16 bytes (4B nonce + 12B zeros)"]
-        Pad --> J0["J0 = AES block"]
-        Inc["Increment counter"]
-        J0 --> Inc
-        Inc --> J1["J1 = J0 + 1"]
-        Inc --> J2["J2 = J0 + 2"]
-        Inc --> Jn["Jn = J0 + n"]
-
-        J1 --> AES1["AES-256 encrypt"]
-        J2 --> AES2["AES-256 encrypt"]
-        Jn --> AESn["AES-256 encrypt"]
-
-        AES1 --> KS1["Keystream block 1"]
-        AES2 --> KS2["Keystream block 2"]
-        AESn --> KSn["Keystream block n"]
-
-        P1["Plaintext block 1"] --> XOR1["XOR"]
-        KS1 --> XOR1
-        XOR1 --> C1["Ciphertext block 1"]
-
-        P2["Plaintext block 2"] --> XOR2["XOR"]
-        KS2 --> XOR2
-        XOR2 --> C2["Ciphertext block 2"]
-
-        Pn["Plaintext block n"] --> XORn["XOR"]
-        KSn --> XORn
-        XORn --> Cn["Ciphertext block n"]
+    subgraph XNonce-Folding
+        K["Key: 32 bytes"] --> HCHACHA["HChaCha20"]
+        N["Nonce: 24 bytes"] --> HCHACHA["HChaCha20"]
+        HCHACHA --> Out["Subkey: 16 bytes + Sub-nonce: 16 bytes (truncated to 12)"]
+        Out --> SubK["Subkey for ChaCha20"]
+        Out --> SubN["12-byte nonce for ChaCha20"]
     end
 ```
 
-**CTR mode properties:**
-- Each plaintext block is XORed with an AES-encrypted counter value
-- Counter increments by 1 for each block
-- **Naturally parallelizable**: all counter values known in advance
-- **No padding needed**: last block is truncated to fit remaining data
-
-#### Phase 2: GHASH Authentication
-
-```mermaid
-flowchart TD
-    subgraph GHASH
-        G["H = AES-256 encrypt(0^128)"]
-        C1["Ciphertext block 1"] --> Xor1["XOR with running state"]
-        C2["Ciphertext block 2"] --> Xor2["XOR with running state"]
-        Cn["Ciphertext block n"] --> XorN["XOR with running state"]
-
-        Len["Length block (64 bits)"] --> XorLen["XOR with running state"]
-
-        Xor1 --> Mul1["Multiply by H mod P(x)"]
-        Mul1 --> Xor2
-        Xor2 --> Mul2["Multiply by H mod P(x)"]
-        Mul2 --> XorN
-        XorN --> MulN["Multiply by H mod P(x)"]
-        MulN --> XorLen
-        XorLen --> MulLen["Multiply by H mod P(x)"]
-        MulLen --> GHASH_Out["GHASH result (128 bits)"]
-    end
-
-    G --> Mul1
-```
-
-The GHASH function computes a polynomial MAC over the ciphertext blocks in the finite field GF(2^128) with irreducible polynomial `P(x) = x^128 + x^127 + x^126 + x^125 + x^121 + 1`.
-
-#### Phase 3: Tag Generation
-
-```mermaid
-flowchart TD
-    subgraph Tag-Generation
-        G["GHASH result"] --> XorJ0["XOR with AES-256(J0)"]
-        J0["J0 = AES block (nonce padded)"] --> XorJ0
-        XorJ0 --> Mask["Mask GHASH"]
-        Mask --> Tag["Auth tag (16 bytes)"]
-    end
-```
-
-The auth tag is the XOR of GHASH output with the encryption of J0 (the initial counter block). This ensures the tag cannot be predicted without the key.
 
 ### Per-Chunk Nonce Derivation
 
@@ -359,9 +278,9 @@ Each chunk gets a unique nonce derived from a base IV plus the chunk index:
 
 ```mermaid
 flowchart TD
-    BaseIV["Base IV (12 bytes)"]
-    Split["Split: first 8 bytes + last 4 bytes"]
-    First8["First 8 bytes (unchanged)"]
+    BaseIV["Base IV (24 bytes)"]
+    Split["Split: first 20 bytes + last 4 bytes"]
+    First8["First 20 bytes (unchanged)"]
     Last4["Last 4 bytes"]
     ChunkIdx["Chunk index (u32)"]
     XOR["XOR"]
@@ -371,13 +290,13 @@ flowchart TD
     XOR --> NewLast4
     First8 --> Concat["Concatenate"]
     NewLast4 --> Concat
-    Concat --> Nonce["Nonce (12 bytes)"]
+    Concat --> Nonce["Nonce (24 bytes)"]
 ```
 
 **Algorithm:**
 ```
-nonce[0..8]  = base_iv[0..8]       // first 8 bytes unchanged
-nonce[8..12] = base_iv[8..12] XOR chunk_index  // last 4 bytes XOR with index
+nonce[0..20] = base_iv[0..20]             // first 20 bytes unchanged
+nonce[20..24] = base_iv[20..24] XOR chunk_index  // last 4 bytes XOR with index
 ```
 
 This ensures:
@@ -391,21 +310,21 @@ This ensures:
 ```mermaid
 flowchart TD
     subgraph Encrypt-Chunk
-        P["Plaintext chunk (up to 64 KB)"]
-        K["AES-256 key (32 bytes)"]
-        N["Nonce (12 bytes)"]
-        K --> GCM["AES-256-GCM encrypt"]
-        N --> GCM
-        P --> GCM
-        GCM --> CT["Ciphertext"]
-        GCM --> Tag["Auth tag (16 bytes)"]
+        P["Plaintext chunk (up to 32 KB)"]
+        K["XChaCha20 key (32 bytes)"]
+        N["Nonce (24 bytes)"]
+        K --> XCHACHA["XChaCha20-Poly1305 encrypt"]
+        N --> XCHACHA
+        P --> XCHACHA
+        XCHACHA --> CT["Ciphertext"]
+        XCHACHA --> Tag["Auth tag (16 bytes)"]
         CT --> Concat["Concatenate"]
         Tag --> Concat
         Concat --> Output["chunk ciphertext || tag"]
     end
 ```
 
-**On-the-wire format per chunk:** `ciphertext (variable) || GCM tag (16 bytes)`
+**On-the-wire format per chunk:** `ciphertext (variable) || Poly1305 tag (16 bytes)`
 
 ### Chunk Decryption
 
@@ -416,13 +335,13 @@ flowchart TD
         Split["Split: ciphertext + tag[16B]"]
         Split --> CT["Ciphertext"]
         Split --> Tag["Auth tag (16 bytes)"]
-        K["AES-256 key (32 bytes)"]
-        N["Nonce (12 bytes)"]
-        K --> GCM["AES-256-GCM decrypt"]
-        N --> GCM
-        CT --> GCM
-        Tag --> GCM
-        GCM --> Verify["Verify tag"]
+        K["XChaCha20 key (32 bytes)"]
+        N["Nonce (24 bytes)"]
+        K --> XCHACHA["XChaCha20-Poly1305 decrypt"]
+        N --> XCHACHA
+        CT --> XCHACHA
+        Tag --> XCHACHA
+        XCHACHA --> Verify["Verify tag"]
         Verify -->|Valid| P["Plaintext chunk"]
         Verify -->|Invalid| Err["Error: tampered data"]
     end
@@ -465,25 +384,6 @@ flowchart TD
 
 Rayon's `par_iter().enumerate().map()` distributes chunks across threads. The enumeration ensures output order matches input order regardless of thread scheduling.
 
-### CBC Legacy Functions
-
-The Rust core retains AES-256-CBC encrypt/decrypt functions for backward compatibility:
-
-```mermaid
-flowchart LR
-    subgraph CBC-Legacy
-        IV["Random IV (16B)"]
-        P["Plaintext record"]
-        Pad["PKCS7 pad"]
-        Enc["AES-256-CBC encrypt"]
-        IV --> Enc
-        Pad --> Enc
-        Enc --> CT["IV || Ciphertext"]
-    end
-    P --> Pad
-```
-
-These are **deprecated** and scheduled for removal. All new code should use AES-256-GCM.
 
 ---
 
@@ -614,11 +514,11 @@ The `wasm_binding` crate exports these crypto functions to JavaScript:
 
 | WASM Function | TypeScript Name | Purpose |
 |---|---|---|
-| `wasm_encrypt_chunk` | `wasmEncryptChunk` | AES-256-GCM encrypt single chunk |
-| `wasm_decrypt_chunk` | `wasmDecryptChunk` | AES-256-GCM decrypt single chunk |
+| `wasm_encrypt_chunk` | `wasmEncryptChunk` | XChaCha20-Poly1305 encrypt single chunk |
+| `wasm_decrypt_chunk` | `wasmDecryptChunk` | XChaCha20-Poly1305 decrypt single chunk |
 | `wasm_get_chunk_nonce` | `wasmGetChunkNonce` | Derive nonce from base IV + chunk index |
-| `wasm_encrypt_record` | — | AES-256-CBC encrypt (legacy) |
-| `wasm_decrypt_record` | — | AES-256-CBC decrypt (legacy) |
+| `wasm_encrypt_record` | — | XChaCha20-Poly1305 encrypt record |
+| `wasm_decrypt_record` | — | XChaCha20-Poly1305 decrypt record |
 | `wasm_derive_key` | `wasmDeriveKey` | Argon2id key derivation |
 | `wasm_generate_secret` | — | Generate random 32-byte secret |
 | `WasmKeychain` | `WasmKeychain` | Keychain class with metadata/signing ops |
@@ -755,10 +655,10 @@ flowchart TD
         Password["Optional password"]
         XOR["XOR with password-derived bytes"]
         Argon2["argon2DeriveWasm"]
-        SHA256_1["SHA-256(IKM + 'aes-key')"]
+        SHA256_1["SHA-256(IKM + 'encryption-key')"]
         SHA256_2["SHA-256(IKM + HKDF_IV_STR)"]
         HKDFSalt["HKDF salt (16 bytes)"]
-        BaseIV["Base IV (12 bytes)"]
+        BaseIV["Base IV (24 bytes)"]
         KeyRaw["Raw key (32 bytes)"]
     end
 
@@ -772,7 +672,7 @@ flowchart TD
 ```
 
 The frontend derives:
-- **`keyRaw`**: 32-byte AES-256 key via `deriveAESKeyRaw(finalIKM, hkdfSalt)`
+- **`keyRaw`**: 32-byte encryption key via `deriveEncryptionKey(finalIKM, hkdfSalt)`
 - **`baseIv`**: 12-byte base IV via SHA-256 of IKM + constant string
 - **Password integration**: if password is set, IKM is XORed with Argon2-derived bytes before key/IV derivation
 
@@ -780,8 +680,8 @@ The frontend derives:
 
 | Constant | Value | Purpose |
 |---|---|---|
-| `CHUNK_SIZE` | 65,536 bytes (64 KB) | Optimal for GCM tag overhead vs. parallelism |
-| GCM Tag | 16 bytes | Auth tag appended to each chunk |
+| `CHUNK_SIZE` | 32,768 bytes (32 KB) | Optimal for Poly1305 tag overhead vs parallelism |
+| Poly1305 Tag | 16 bytes | Auth tag appended to each chunk |
 | Worker concurrency | Configurable | Default from `WORKER_CONCURRENCY` constant |
 
 ---
@@ -877,10 +777,10 @@ flowchart TD
 | Network eavesdropping | All data encrypted in transit; keys derived client-side |
 | Metadata leakage | Metadata encrypted with ChaCha20-Poly1305 (filenames, sizes) |
 | Replay attacks | Per-upload random salts, nonces, IVs ensure unique ciphertexts |
-| Tampering | **AES-256-GCM auth tag per chunk**; Ed25519 signatures on payload; Poly1305 MAC on metadata |
+| Tampering | **XChaCha20-Poly1305 auth tag per chunk**; Ed25519 signatures on payload; Poly1305 MAC on metadata |
 | Brute-force password | Argon2id with 64 KiB memory cost + 8 iterations slows guessing |
-| Side-channel (WASM) | ChaCha20 uses constant-time integer arithmetic; GCM uses constant-time GHASH |
-| Chunk reordering | GCM tag verification rejects any modified chunk; ordered collection ensures correct reassembly |
+| Side-channel (WASM) | XChaCha20 uses constant-time integer arithmetic |
+| Chunk reordering | Poly1305 tag verification rejects any modified chunk; ordered collection ensures correct reassembly |
 
 ---
 
@@ -893,9 +793,9 @@ erdiagram
         "KEY_DERIVATION_ITERATIONS" : u32 "8"
         "KEY_DERIVATION_PARALLELISM" : u32 "1"
         "KEY_DERIVATION_LENGTH" : usize "32"
-        "CHUNK_SIZE" : usize "65536 (64 KB)"
-        "GCM_TAG_LENGTH" : usize "16"
-        "NONCE_LENGTH" : usize "12"
+        "CHUNK_SIZE : usize "32768 (32 KB)" (64 KB)"
+        "POLY1305_TAG_LENGTH" : usize "16"
+        "NONCE_LENGTH : usize "24""
         "SALT_LENGTH" : usize "32"
         "SIGNING_KEY_LENGTH" : usize "32"
         "AUTH_KEY_LENGTH" : usize "32"
@@ -939,38 +839,27 @@ classDiagram
     Keychain --> Metadata : "encrypts/decrypts"
 ```
 
-### Encrypted Chunk Format (AES-256-GCM)
+### Encrypted Chunk Format (XChaCha20-Poly1305)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ Ciphertext (variable, no padding needed)                    │
 ├─────────────────────────────────────────────────────────────┤
-│ GCM Auth Tag (16 bytes)                                     │
+│ Poly1305 Auth Tag (16 bytes)                                     │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-Total per chunk: `plaintext_length + 16` bytes (GCM tag only, no padding)
+Total per chunk: `plaintext_length + 16` bytes (Poly1305 tag only, no padding)
 
 ### Encrypted Metadata Format
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Nonce (12 bytes)                                            │
+│ Nonce (24 bytes)                                            │
 ├─────────────────────────────────────────────────────────────┤
 │ ChaCha20-Poly1305 ciphertext (variable)                     │
 ├─────────────────────────────────────────────────────────────┤
 │ Poly1305 tag (16 bytes)                                     │
-└─────────────────────────────────────────────────────────────┘
-```
-
-### CBC Legacy Record Format (deprecated)
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ IV (16 bytes)                                               │
-├─────────────────────────────────────────────────────────────┤
-│ AES-256-CBC ciphertext (N × 16 bytes, N ≥ 1)               │
-│ (includes PKCS7 padding)                                    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -991,9 +880,6 @@ graph TD
         HKDF[hkdf 0.12]
         SHA2[sha2 0.10]
         ChaCha[chacha20poly1305 0.10]
-        AES[aes 0.8]
-        AESGCM[aes-gcm 0.10]
-        CBC[cbc 0.1]
         Ed25519[ed25519-dalek 2]
     end
 
@@ -1014,9 +900,6 @@ graph TD
     Core --> HKDF
     Core --> SHA2
     Core --> ChaCha
-    Core --> AES
-    Core --> AESGCM
-    Core --> CBC
     Core --> Ed25519
     Core --> Base64
     Core --> Rand
@@ -1063,7 +946,7 @@ Data encrypted on any platform can be decrypted on any other:
 - **Rust encrypts** → Frontend/Python decrypts
 
 This is guaranteed because:
-1. Same AES-256-GCM implementation
+1. Same XChaCha20-Poly1305 implementation
 2. Same nonce derivation (`get_chunk_nonce`)
 3. Same key derivation (`argon2DeriveWasm` / `argon2_derive`)
 4. Same chunk size (64 KB)
@@ -1072,18 +955,18 @@ This is guaranteed because:
 
 ## 13. Performance Considerations
 
-### AES-GCM vs ChaCha20-Poly1305 in WASM
+### XChaCha20-Poly1305 in WASM
 
-| Factor | AES-GCM | ChaCha20-Poly1305 |
+| Factor | XChaCha20-Poly1305 |
 |---|---|---|
-| WASM performance | Depends on AES-NI in host | Consistent integer arithmetic |
+| WASM performance | Pure integer arithmetic |
 | Auth tag | 16 bytes (built-in) | 16 bytes (built-in) |
 | Padding | None | None |
 | Parallelism | Per-chunk (nonce from index) | Per-chunk (unique nonce) |
 
-AES-GCM is chosen for content encryption because:
-- Modern browsers optimize WASM AES instructions via WasmSIMD
-- GCM tag provides stronger integrity guarantees than CBC padding
+XChaCha20-Poly1305 is used for content encryption because:
+- XChaCha20 uses pure integer arithmetic, optimal in WASM
+- Poly1305 tag provides authenticated encryption integrity
 - No padding means slightly less overhead per chunk
 
 ### Worker Pool Sizing
@@ -1132,7 +1015,7 @@ Total memory per worker: ~64 KB (chunk) + ~200 KB (WASM) = ~264 KB. With 8 worke
 graph TD
     subgraph send_crypto.rs
         T1[test_get_chunk_nonce]
-        T2[test_encrypt_decrypt_chunk_gcm]
+        T2[test_encrypt_decrypt_chunk_xchacha]
         T3[test_encrypt_decrypt_chunk_empty]
         T4[test_encrypt_decrypt_chunks_parallel]
         T5[test_encrypt_decrypt_record]
