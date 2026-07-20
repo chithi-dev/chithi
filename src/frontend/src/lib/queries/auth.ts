@@ -10,32 +10,26 @@ export const queryKey = ['auth-user'];
 
 // ─── Module-level ME query state ───────────────────────────────────────────────
 
-let meQuery = $state({
+const meQueryState = {
   data: null as UserData | null,
   error: null as string | null,
   fetching: true
-});
+};
 
 const source = client.query(ME_QUERY, {});
 
 const subscription = source.subscribe((result: OperationResult<MeData>) => {
-  meQuery.fetching = result.stale || (!result.data && !result.error);
-  meQuery.error = result.error ? result.error.message : null;
-  meQuery.data = result.data ? result.data.me : null;
+  meQueryState.fetching = result.stale || (!result.data && !result.error);
+  meQueryState.error = result.error ? result.error.message : null;
+  meQueryState.data = result.data ? result.data.me : null;
 
   if (browser) {
-    if (meQuery.data) {
+    if (meQueryState.data) {
       user_store.authenticate();
     } else if (result.error) {
       user_store.unauthenticate();
     }
   }
-});
-
-$effect(() => {
-  return () => {
-    subscription.unsubscribe();
-  };
 });
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
@@ -55,13 +49,13 @@ export const prefetch = async () => {
 export const useAuth = () => {
   const user = {
     get data() {
-      return meQuery.data;
+      return meQueryState.data;
     },
     get isLoading() {
-      return meQuery.fetching;
+      return meQueryState.fetching;
     },
     get error() {
-      return meQuery.error;
+      return meQueryState.error;
     }
   };
 
@@ -80,7 +74,7 @@ export const useAuth = () => {
   const updateUser = async (data: { username?: string; email?: string | null }) => {
     if (!browser) return;
 
-    const currentUser = meQuery.data;
+    const currentUser = meQueryState.data;
     if (!currentUser) {
       throw new Error('No authenticated user');
     }
