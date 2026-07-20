@@ -1,59 +1,114 @@
-import { Api } from '#consts/backend';
-import { createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { client } from '#graphql/client';
+import { USERS_QUERY, CREATE_USER_MUTATION, DELETE_USER_MUTATION } from '#graphql/queries';
+import type { DocumentInput } from '@urql/core';
 
 export const usersQueryKey = ['admin-users'];
 
-export const useUsersQuery = (page: () => number, size: number) => {
-  const queryClient = useQueryClient();
+// Shape expected by callers (matches the old REST paginated response).
+interface UsersResponse {
+  items: Array<{ id: string; username: string; email: string | null; created_at: string }>;
+  total_items: number;
+}
 
-  const users = createQuery(() => ({
-    queryKey: [...usersQueryKey, page()],
-    queryFn: async () => {
-      const res = await fetch(`${Api.ADMIN.USERS}?page=${page()}&size=${size}`, {
-        credentials: 'include'
-      });
+// urql OperationResult shape for error access.
+interface QueryResult {
+  data: UsersResponse | undefined;
+  error: string | undefined;
+  fetching: boolean;
+}
 
-      if (!res.ok) {
-        throw new Error('Failed to fetch users');
-      }
-
-      return res.json();
+/**
+ * Thin adapter that makes the urql query result look like the old
+ * tanstack-svelte-query result, so callers need zero changes.
+ */
+function adaptQuery(result: QueryResult) {
+  return {
+    get data() {
+      return result.data;
+    },
+    get isLoading() {
+      return result.fetching;
+    },
+    get error() {
+      return result.error ? new Error(result.error) : null;
     }
-  }));
+  };
+}
 
-  const invalidate = () => queryClient.invalidateQueries({ queryKey: usersQueryKey });
+export const useUsersQuery = (page: () => number, size: number) => {
+  // GraphQL users query returns a flat list (no server-side pagination).
+  // The page/size params are accepted for API compatibility but ignored.
+
+  let fetching = $state(true);
+  let data = $state<UsersResponse | undefined>(undefined);
+  let error = $state<string | undefined>(undefined);
+
+  const source = client.query(USERS_QUERY, {});
+
+  const subscription = source.subscribe((result) => {
+    fetching = result.operation.kind === 'query' && result.stale;
+    error = result.error ? result.error.message : undefined;
+
+    if (result.data) {
+      data = {
+        items: result.data.users,
+        total_items: result.data.users.length
+      };
+    }
+  });
+
+  $effect(() => {
+    return () => {
+      subscription.unsubscribe();
+    };
+  });
+
+  const queryResult = adaptQuery({ fetching, data, error });
+
+  const invalidate = () => {
+    // Re-fetch the users query from the urql cache.
+    client.query(USERS_QUERY, {}).subscribe((r) => {
+      if (r.error) {
+        error = r.error.message;
+      } else if (r.data) {
+        data = {
+          items: r.data.users,
+          total_items: r.data.users.length
+        };
+      }
+      fetching = false;
+    });
+  };
 
   const createUser = async (user_in: { username: string; email?: string | null; password?: string }) => {
-    const res = await fetch(Api.ADMIN.USER_CREATE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(user_in),
-      credentials: 'include'
-    });
+    const result = await client
+      .mutation(CREATE_USER_MUTATION, {
+        username: user_in.username,
+        password: user_in.password || '',
+        email: user_in.email
+      })
+      .toPromise();
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to create user');
+    if (result.error) {
+      throw new Error(result.error.message);
     }
 
     invalidate();
-    return res.json();
+    return result.data;
   };
 
   const deleteUser = async (user_id: string) => {
-    const res = await fetch(Api.ADMIN.USER_DELETE(user_id), {
-      method: 'DELETE',
-      credentials: 'include'
-    });
+    const result = await client
+      .mutation(DELETE_USER_MUTATION, { id: user_id })
+      .toPromise();
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || 'Failed to delete user');
+    if (result.error) {
+      throw new Error(result.error.message);
     }
 
     invalidate();
-    return res.json();
+    return result.data;
   };
 
-  return { users, createUser, deleteUser };
+  return { users: queryResult, createUser, deleteUser };
 };
