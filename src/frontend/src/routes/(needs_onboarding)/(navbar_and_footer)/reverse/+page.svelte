@@ -12,6 +12,7 @@
 	import { Api } from '#consts/backend';
 	import { useConfigQuery } from '#queries/config';
 	import { base64url } from '#functions/encryption';
+	import { H1, P } from '$lib/components/ui/typography/index.js';
 
 	type LandingView = 'main' | 'create' | 'join';
 	let landingView = $state<LandingView>('main');
@@ -86,11 +87,11 @@
 <div class="flex min-h-[70vh] items-center justify-center p-4">
 	<div class="w-full max-w-2xl space-y-6">
 		<div class="space-y-1 text-center">
-			<h1 class="text-3xl font-bold tracking-tight">Reverse File Share</h1>
-			<p class="text-muted-foreground">
+			<H1>Reverse File Share</H1>
+			<P class="text-muted-foreground">
 				Host a room to push files to everyone - clients receive them in real time or download via a
 				permanent link.
-			</p>
+			</P>
 		</div>
 
 		{#if landingView === 'main'}
