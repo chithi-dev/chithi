@@ -1,37 +1,64 @@
-import { Api } from '#consts/backend';
-import { createQuery, type QueryClient, useQueryClient } from '@tanstack/svelte-query';
-import { fetchJson, prefetch as prefetchFn } from './fetch-utils';
+import { client } from '$lib/graphql/client.js';
+import { ONBOARDING_QUERY } from '$lib/graphql/queries.js';
+import { useOnboardingQuery, completeOnboardingMutation } from '$lib/graphql/hooks.js';
+import type { OnboardingData } from '$lib/graphql/hooks.js';
 
-const key = ['onboarding-status'];
+// ─── Types ─────────────────────────────────────────────────────────────────────
 
-export const prefetch = ({ queryClient, fetch }: { queryClient: QueryClient; fetch?: typeof globalThis.fetch }) =>
-  prefetchFn(queryClient, key, () => fetchJson<{ onboarded: boolean }>(Api.ONBOARDING, 'onboarding status', fetch), { retry: false });
+interface OnboardingStatus {
+  onboarded: boolean;
+}
+
+interface OnboardingState {
+  data: OnboardingStatus | undefined;
+  error: string | undefined;
+  isLoading: boolean;
+  stale: boolean;
+}
+
+// ─── Prefetch ──────────────────────────────────────────────────────────────────
+
+export const prefetch = async (_params?: { queryClient?: unknown; fetch?: typeof globalThis.fetch }) => {
+  const source = client.query(ONBOARDING_QUERY, {});
+  await source.toPromise();
+};
+
+// ─── Query Hook ────────────────────────────────────────────────────────────────
+
+function mapOnboardingState(raw: ReturnType<typeof useOnboardingQuery>): OnboardingState {
+  return {
+    data: raw.data ? { onboarded: raw.data.onboarding.is_configured } : undefined,
+    error: raw.error,
+    isLoading: raw.fetching,
+    stale: raw.stale
+  };
+}
+
+// ─── Public API ────────────────────────────────────────────────────────────────
 
 export const useOnboarding = () => {
-  const queryClient = useQueryClient();
+  const rawState = useOnboardingQuery();
 
-  const query = createQuery(() => ({
-    queryKey: key,
-    queryFn: () => fetchJson<{ onboarded: boolean }>(Api.ONBOARDING, 'onboarding status'),
-    retry: false
-  }));
+  const status = $derived(mapOnboardingState(rawState));
 
   const completeOnboarding = async (user: { username: string; email: string; password: string }) => {
-    const res = await fetch(Api.ONBOARDING, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(user)
-    });
+    const result = await completeOnboardingMutation(
+      user.username,
+      user.email,
+      user.password,
+      ''
+    );
 
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.detail || 'Failed to complete onboarding');
+    if (result.error) {
+      throw new Error(result.error.message);
     }
 
-    await queryClient.invalidateQueries({ queryKey: key });
-    return res.json();
+    // Refetch the onboarding status after mutation.
+    const refetchSource = client.query(ONBOARDING_QUERY, {});
+    await refetchSource.toPromise();
+
+    return result.data;
   };
 
-  return { status: query, completeOnboarding };
+  return { status, completeOnboarding };
 };
