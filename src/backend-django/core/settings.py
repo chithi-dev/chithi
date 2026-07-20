@@ -1,11 +1,10 @@
 """
-Django settings for chithi project.
+Django settings for core project.
 
 Generated following alumni-backend patterns using Django 5.2+.
 """
 
 import os
-from datetime import timedelta
 from pathlib import Path
 
 from celery.schedules import crontab
@@ -44,8 +43,6 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.postgres",
-    # JWT token blacklist (used by simplejwt for token revocation)
-    "rest_framework_simplejwt.token_blacklist",
     # Celery
     "django_celery_beat",
     # Third-party apps
@@ -71,7 +68,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "chithi.urls"
+ROOT_URLCONF = "core.urls"
 
 TEMPLATES = [
     {
@@ -88,8 +85,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "chithi.wsgi.application"
-ASGI_APPLICATION = "chithi.asgi.application"
+ASGI_APPLICATION = "core.asgi.application"
 
 
 # Database
@@ -173,7 +169,9 @@ AUTH_USER_MODEL = "users.User"
 
 # Celery settings
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get(
+    "CELERY_RESULT_BACKEND", "redis://localhost:6379/0"
+)
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 
@@ -186,29 +184,6 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": crontab(minute=0),  # Every hour
         "args": (),
     },
-    "remove-expired-blacklisted-tokens-daily": {
-        "task": "apps.graphql.tasks.remove_expired_blacklisted_tokens",
-        "schedule": crontab(hour=0, minute=0),
-        "args": (),
-    },
-    "remove-expired-outstanding-tokens-daily": {
-        "task": "apps.graphql.tasks.remove_expired_outstanding_tokens",
-        "schedule": crontab(hour=0, minute=0),
-        "args": (),
-    },
-}
-
-
-# Simple JWT settings
-# https://django-rest-framework-simplejwt.readthedocs.io/en/latest/getting_started.html
-
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=2),
-    "ROTATE_REFRESH_TOKENS": False,
-    "BLACKLIST_AFTER_ROTATION": True,
-    "ALGORITHM": "HS512",
-    "SIGNING_KEY": SECRET_KEY,
 }
 
 

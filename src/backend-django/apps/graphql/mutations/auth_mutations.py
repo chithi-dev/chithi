@@ -3,14 +3,8 @@ from django.contrib.auth import get_user_model
 from strawberry.types import Info
 
 from apps.config.models import Config
+from apps.graphql.auth import get_jwt_tokens
 from apps.graphql.types import OnboardingPOSTOut, TokenResponse
-
-
-def get_jwt_tokens(user) -> tuple[str, str]:
-    from rest_framework_simplejwt.tokens import RefreshToken
-
-    refresh = RefreshToken.for_user(user)
-    return str(refresh.access_token), str(refresh)
 
 
 @strawberry.type
@@ -26,20 +20,7 @@ class AuthMutations:
 
     @strawberry.mutation
     def logout(self, info: Info) -> bool:
-        from rest_framework_simplejwt.tokens import RefreshToken
-
-        auth_header = info.context.request.META.get("HTTP_AUTHORIZATION", "")
-        if auth_header.startswith("Bearer "):
-            token_string = (
-                info.context.request.META.get("HTTP_AUTHORIZATION", "")
-                .split("Bearer ", 1)[1]
-                .strip()
-            )
-            try:
-                refresh = RefreshToken(token_string)
-                refresh.blacklist()
-            except Exception:
-                pass
+        """Logout is client-side (discard tokens). Server-side no-op since we don't maintain a blacklist."""
         return True
 
     @strawberry.mutation

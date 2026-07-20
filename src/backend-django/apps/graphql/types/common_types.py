@@ -34,5 +34,3 @@ class OnboardingPOSTOut:
     access: str
     refresh: str
     onboarded: bool
-
-

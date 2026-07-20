@@ -1,11 +1,11 @@
-import uuid_utils.compat as uuid
 from django.db import models
+from uuid import uuid4
 
 
 class UUIDPrimaryKeyMixin(models.Model):
     id = models.UUIDField(
         primary_key=True,
-        default=uuid.uuid7,
+        default=uuid4,
         editable=False,
     )
 

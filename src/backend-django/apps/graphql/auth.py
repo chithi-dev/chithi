@@ -1,37 +1,41 @@
-"""JWT authentication bridge for Strawberry GraphQL.
+"""JWT authentication utilities for Strawberry GraphQL.
 
-The frontend sends Bearer JWT tokens. This module resolves the user from
-the JWT token and sets it on the Django request so Strawberry's
-info.context.request.user returns the correct user.
+Handles token creation, validation, and user resolution using PyJWT.
 """
 
-from django.contrib.auth.models import AbstractBaseUser
-from rest_framework_simplejwt.authentication import JWTAuthentication
-from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+import jwt
+from django.conf import settings
+from django.contrib.auth import get_user_model
 
 
-def get_user_from_jwt_token(token_string: str) -> AbstractBaseUser | None:
+def get_jwt_tokens(user) -> tuple[str, str]:
+    """Generate access and refresh JWT tokens for a user."""
+    from datetime import UTC, datetime, timedelta
+
+    now = datetime.now(UTC)
+
+    access_payload = {
+        "user_id": user.id,
+        "exp": now + timedelta(hours=1),
+        "iat": now,
+    }
+    access_token = jwt.encode(access_payload, settings.SECRET_KEY, algorithm="HS512")
+
+    refresh_payload = {
+        "user_id": user.id,
+        "exp": now + timedelta(days=2),
+        "iat": now,
+    }
+    refresh_token = jwt.encode(refresh_payload, settings.SECRET_KEY, algorithm="HS512")
+
+    return access_token, refresh_token
+
+
+def get_user_from_jwt_token(token_string: str):
     """Resolve a user from a JWT access token string."""
     try:
-        validator = JWTAuthentication()
-        validated_token = validator.get_validated_token(token_string.encode())
-        return validator.get_user(validated_token)
-    except TokenError:
+        payload = jwt.decode(token_string, settings.SECRET_KEY, algorithms=["HS512"])
+        User = get_user_model()
+        return User.objects.get(id=payload["user_id"])
+    except (jwt.PyJWTError, get_user_model().DoesNotExist):
         return None
-    except Exception:
-        return None
-
-
-def refresh_access_token(refresh_token_string: str) -> str | None:
-    """Exchange a refresh token for a new access token."""
-    try:
-        refresh = RefreshToken(refresh_token_string)
-        return str(refresh.access_token)
-    except TokenError:
-        return None
-
-
-def generate_tokens_for_user(user: AbstractBaseUser) -> tuple[str, str]:
-    """Generate access and refresh tokens for a user."""
-    refresh = RefreshToken.for_user(user)
-    return str(refresh.access_token), str(refresh)
