@@ -59,7 +59,6 @@ import {
   INSTANCE_STATS_QUERY,
   FILE_INFO_QUERY,
   ADMIN_FILES_QUERY,
-  USERS_QUERY
 } from './queries.js';
 
 export interface ConfigData {
@@ -100,6 +99,12 @@ export interface InstanceInfoData {
     backend_version: string;
     python_version: string;
     platform: string;
+    commit: string;
+    is_release: boolean;
+    version: string;
+    fastapi_version: string;
+    redis_version: string;
+    postgres_version: string;
   };
 }
 
@@ -110,6 +115,14 @@ export interface InstanceStatsData {
     expired_files: number;
     total_storage_used: number;
     total_users: number;
+    total_bytes: number;
+    total_downloads: number;
+    active_urls: number;
+    active_rooms: number;
+    expiring_soon: number;
+    latest_expiry: string | null;
+    oldest_file: string | null;
+    newest_file: string | null;
   };
 }
 
@@ -138,10 +151,6 @@ export interface AdminFilesData {
     size: number;
     pages: number;
   };
-}
-
-export interface UsersData {
-  users: UserData[];
 }
 
 /** Fetch the site configuration. */
@@ -177,11 +186,6 @@ export function useFileInfoQuery(slug: string) {
 /** Fetch paginated file list for admin. */
 export function useAdminFilesQuery(page: number = 1, size: number = 20, search: string | null = null) {
   return createQueryStore<AdminFilesData>(ADMIN_FILES_QUERY, { page, size, search });
-}
-
-/** Fetch all users. */
-export function useUsersQuery() {
-  return createQueryStore<UsersData>(USERS_QUERY);
 }
 
 // ─── Mutation Helpers ──────────────────────────────────────────────────────────

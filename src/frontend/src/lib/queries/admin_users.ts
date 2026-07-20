@@ -1,5 +1,5 @@
-import { client } from '#graphql/client';
-import { USERS_QUERY, CREATE_USER_MUTATION, DELETE_USER_MUTATION } from '#graphql/queries';
+import { client } from '$lib/graphql/client.js';
+import { USERS_QUERY, CREATE_USER_MUTATION, DELETE_USER_MUTATION } from '$lib/graphql/queries.js';
 import type { DocumentInput } from '@urql/core';
 
 export const usersQueryKey = ['admin-users'];

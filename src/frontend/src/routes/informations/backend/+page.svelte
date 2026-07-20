@@ -4,6 +4,8 @@
   import { Server, Tag, ShieldCheck, CircleAlert } from '@lucide/svelte';
   import { Spinner } from '$lib/components/ui/spinner/index.js';
   import { useInstanceInformationQuery } from '$lib/queries/instance';
+  import { client } from '$lib/graphql/client.js';
+  import { INSTANCE_INFO_QUERY } from '$lib/graphql/queries.js';
   import InfoCard from '../components/InfoCard.svelte';
   import StatusBadge from '../components/StatusBadge.svelte';
   import CommitLink from '../components/CommitLink.svelte';
@@ -24,11 +26,11 @@
   <div class="flex h-64 items-center justify-center">
     <Spinner class="size-8 text-muted-foreground" />
   </div>
-{:else if instanceQuery.isError}
+{:else if instanceQuery.error !== null}
   <div class="flex flex-col items-center justify-center gap-4 py-12 text-destructive">
     <CircleAlert class="h-12 w-12" />
     <p class="font-medium">Failed to load backend information</p>
-    <Button variant="outline" onclick={() => instanceQuery.refetch()}>Retry</Button>
+    <Button variant="outline" onclick={() => client.query(INSTANCE_INFO_QUERY, {}).toPromise()}>Retry</Button>
   </div>
 {:else if info}
   <InfoCard

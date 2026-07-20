@@ -10,7 +10,7 @@ export const load: PageLoad = async ({ fetch, parent, url }) => {
     ogLabel: 'PERFORMANCE METRICS'
   }, async () => {
     const { queryClient } = await parent();
-    await prefetchInstanceStatistics({ queryClient, fetch });
+    await prefetchInstanceStatistics();
   });
 
   await prefetch?.();

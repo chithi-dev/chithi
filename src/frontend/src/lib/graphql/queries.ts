@@ -45,6 +45,12 @@ export const INSTANCE_INFO_QUERY = gql`
       backend_version
       python_version
       platform
+      commit
+      is_release
+      version
+      fastapi_version
+      redis_version
+      postgres_version
     }
   }
 `;
@@ -57,6 +63,14 @@ export const INSTANCE_STATS_QUERY = gql`
       expired_files
       total_storage_used
       total_users
+      total_bytes
+      total_downloads
+      active_urls
+      active_rooms
+      expiring_soon
+      latest_expiry
+      oldest_file
+      newest_file
     }
   }
 `;

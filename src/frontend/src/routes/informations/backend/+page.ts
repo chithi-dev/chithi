@@ -10,7 +10,7 @@ export const load: PageLoad = async ({ fetch, parent, url }) => {
     ogLabel: 'BACKEND INFRASTRUCTURE'
   }, async () => {
     const { queryClient } = await parent();
-    await prefetchInstanceInformation({ queryClient, fetch });
+    await prefetchInstanceInformation();
   });
 
   await prefetch?.();

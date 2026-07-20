@@ -22,7 +22,7 @@
 		<!-- You could add a spinner here if you want -->
 		<div class="animate-pulse text-muted-foreground">Checking authentication...</div>
 	</div>
-{:else if [null, undefined].includes(userData.data)}
+{:else if (userData.data === null || userData.data === undefined)}
 	<div class="flex min-h-svh w-full flex-1 items-center justify-center p-4">
 		<Empty.Root>
 			<Empty.Header class="text-center">
