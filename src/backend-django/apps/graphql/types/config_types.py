@@ -1,4 +1,3 @@
-import strawberry
 from strawberry_django import type
 
 from apps.config.models import Config
