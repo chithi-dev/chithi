@@ -84,9 +84,7 @@ class Query:
         total = File.objects.count()
         expired = File.objects.filter(expires_at__lt=now).count()
         active = total - expired
-        total_storage = File.objects.aggregate(
-            total=models.Sum("size")
-        )["total"] or 0
+        total_storage = File.objects.aggregate(total=models.Sum("size"))["total"] or 0
         total_users = User.objects.count()
 
         return InstanceStatisticsType(
@@ -118,7 +116,7 @@ class Query:
         total = queryset.count()
         pages = max(1, math.ceil(total / size))
         start = (page - 1) * size
-        items = list(queryset.order_by("-created_at")[start:start + size])
+        items = list(queryset.order_by("-created_at")[start : start + size])
 
         return PaginatedFiles(
             items=items,
@@ -146,7 +144,11 @@ class Mutation:
 
         auth_header = info.context.request.META.get("HTTP_AUTHORIZATION", "")
         if auth_header.startswith("Bearer "):
-            token_string = info.context.request.META.get("HTTP_AUTHORIZATION", "").split("Bearer ", 1)[1].strip()
+            token_string = (
+                info.context.request.META.get("HTTP_AUTHORIZATION", "")
+                .split("Bearer ", 1)[1]
+                .strip()
+            )
             try:
                 refresh = RefreshToken(token_string)
                 refresh.blacklist()
@@ -176,8 +178,13 @@ class Mutation:
         if config.time_configs and expire_after not in config.time_configs:
             raise ValueError(f"Invalid expiry. Choose from: {config.time_configs}")
 
-        if config.download_configs and expire_after_n_download not in config.download_configs:
-            raise ValueError(f"Invalid download count. Choose from: {config.download_configs}")
+        if (
+            config.download_configs
+            and expire_after_n_download not in config.download_configs
+        ):
+            raise ValueError(
+                f"Invalid download count. Choose from: {config.download_configs}"
+            )
 
         from django.utils import timezone
         import uuid_utils.compat as uuid
@@ -281,7 +288,9 @@ class Mutation:
         email: str | None = None,
     ) -> UserType:
         User = get_user_model()
-        user = User.objects.create_user(username=username, password=password, email=email)
+        user = User.objects.create_user(
+            username=username, password=password, email=email
+        )
         return user
 
     @strawberry_django.mutation
