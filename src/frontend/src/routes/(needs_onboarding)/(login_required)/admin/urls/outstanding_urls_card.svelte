@@ -158,8 +158,13 @@
 {#snippet sizeHeaderSnippet()}
   <span class="flex items-center gap-1">
     Size
-    {@const iconComponent = getSortIcon('size')}
-    <svelte:component this={iconComponent} class={isSortActive('size') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {#if getSortIcon('size') === ArrowUp}
+      <ArrowUp class={isSortActive('size') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {:else if getSortIcon('size') === ArrowDown}
+      <ArrowDown class={isSortActive('size') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {:else}
+      <ArrowUpDown class={isSortActive('size') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {/if}
   </span>
 {/snippet}
 
@@ -172,8 +177,13 @@
 {#snippet activityHeaderSnippet()}
   <span class="flex items-center gap-1">
     Activity
-    {@const iconComponent = getSortIcon('created_at')}
-    <svelte:component this={iconComponent} class={isSortActive('created_at') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {#if getSortIcon('created_at') === ArrowUp}
+      <ArrowUp class={isSortActive('created_at') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {:else if getSortIcon('created_at') === ArrowDown}
+      <ArrowDown class={isSortActive('created_at') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {:else}
+      <ArrowUpDown class={isSortActive('created_at') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {/if}
   </span>
 {/snippet}
 
@@ -195,8 +205,13 @@
 {#snippet downloadsHeaderSnippet()}
   <span class="flex items-center gap-1">
     Downloads
-    {@const iconComponent = getSortIcon('downloads')}
-    <svelte:component this={iconComponent} class={isSortActive('downloads') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {#if getSortIcon('downloads') === ArrowUp}
+      <ArrowUp class={isSortActive('downloads') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {:else if getSortIcon('downloads') === ArrowDown}
+      <ArrowDown class={isSortActive('downloads') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {:else}
+      <ArrowUpDown class={isSortActive('downloads') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {/if}
   </span>
 {/snippet}
 

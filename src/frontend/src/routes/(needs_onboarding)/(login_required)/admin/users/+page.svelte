@@ -115,8 +115,10 @@
     },
   ];
 
+  const processedUsersSnapshot = $derived(processedUsers);
+
   const table = createSvelteTable<UserRow>({
-    data: processedUsers,
+    data: processedUsersSnapshot,
     columns,
     getCoreRowModel: getCoreRowModel(),
   });
@@ -125,14 +127,26 @@
 {#snippet usernameHeaderSnippet()}
   <span class="flex items-center gap-1">
     Username
-    <svelte:component this={getSortIcon('username')} class={isSortActive('username') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {#if getSortIcon('username') === ArrowUp}
+      <ArrowUp class={isSortActive('username') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {:else if getSortIcon('username') === ArrowDown}
+      <ArrowDown class={isSortActive('username') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {:else}
+      <ArrowUpDown class={isSortActive('username') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {/if}
   </span>
 {/snippet}
 
 {#snippet emailHeaderSnippet()}
   <span class="flex items-center gap-1">
     Email
-    <svelte:component this={getSortIcon('email')} class={isSortActive('email') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {#if getSortIcon('email') === ArrowUp}
+      <ArrowUp class={isSortActive('email') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {:else if getSortIcon('email') === ArrowDown}
+      <ArrowDown class={isSortActive('email') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {:else}
+      <ArrowUpDown class={isSortActive('email') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+    {/if}
   </span>
 {/snippet}
 
