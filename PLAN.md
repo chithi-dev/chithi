@@ -29,6 +29,7 @@
 | **Django Backend Check** | DONE | `manage.py check` passes 0 issues, `makemigrations --check` passes, all migrations committed |
 | **Frontend Form Migration** | DONE | Login, onboarding, admin config all use GraphQL. File upload remains REST (needs multipart GraphQL support) |
 | **Django Migrations** | TODO | Need PostgreSQL `chithi` database created before `migrate` can run |
+| **WASM Parallel Verification** | DONE | `wasm_thread::scope` correct in 4 call sites, sequential fallbacks compile, C ABI clean, TS wrappers export all parallel functions |
 
 ---
 
@@ -228,8 +229,8 @@ The old FastAPI backend broadcasted global state via WebSocket. **Not ported** â
 - [x] Upload mutation validates against config limits
 - [x] Delete mutation calls S3 before DB delete
 - [x] Celery task deletes from S3 before DB
-- [ ] `python manage.py check` passes
-- [ ] `python manage.py migrate` runs
+- [x] `python manage.py check` passes (0 issues)
+- [ ] `python manage.py migrate` runs (needs PostgreSQL `chithi` database)
 - [ ] GraphQL endpoint responds
 - [ ] Login mutation returns JWT tokens
 - [ ] Upload mutation creates File record
@@ -252,6 +253,10 @@ The old FastAPI backend broadcasted global state via WebSocket. **Not ported** â
 - [x] All tests pass (14/14)
 - [x] `wasm_thread` parallel feature enabled
 - [x] COOP/COEP headers configured
+- [x] `wasm_thread::scope` correct in all 4 parallel call sites
+- [x] Sequential fallbacks compile
+- [x] C ABI exports clean (pure C types only)
+- [x] TS wrappers export all parallel functions
 - [ ] All CPU cores active during encryption (browser test)
 - [ ] End-to-end encrypt/decrypt integrity verified
 - [ ] Memory stable across repeated operations
