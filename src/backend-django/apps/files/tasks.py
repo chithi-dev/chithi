@@ -27,7 +27,9 @@ def delete_expired_files() -> str:
 
     for file_obj in expired_files:
         try:
-            s3_client.delete_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=file_obj.key)
+            s3_client.delete_object(
+                Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=file_obj.key
+            )
         except ClientError as e:
             logger.error(f"Failed to delete S3 object {file_obj.key}: {e}")
         file_obj.delete()

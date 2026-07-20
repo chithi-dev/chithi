@@ -38,9 +38,9 @@ class FileMutations:
             )
 
         from django.utils import timezone
-        import uuid_utils.compat as uuid
+        from uuid import uuid4
 
-        key = str(uuid.uuid7())
+        key = str(uuid4())
         now = timezone.now()
 
         file_obj = File.objects.create(
