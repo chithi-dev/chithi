@@ -1,23 +1,91 @@
-import { Api } from '#consts/backend';
-import { fetchJson } from './fetch-utils';
-import { createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { FILE_INFO_QUERY } from '../graphql/queries.js';
+import { client } from '../graphql/client.js';
+import type { FileInfoData, FileInfoItem } from '../graphql/hooks.js';
 
-export type FileInfo = { filename: string; size: number; number_of_files?: number; download_count?: number; created_at?: string; expires_at?: string; expired?: boolean };
+/** Shape returned in fileInfo.data — matches caller expectations. */
+export interface FileInfoResult {
+  filename: string;
+  fileSize: number;
+  numberOfFiles: number;
+}
 
+/** Shape returned by the fileInfo store — matches tanstack-svelte-query API callers expect. */
+interface FileInfoStore {
+  isPending: boolean;
+  isError: boolean;
+  error: Error | undefined;
+  data: FileInfoResult | undefined;
+}
+
+/**
+ * Reactive file-info query backed by urql (GraphQL) instead of REST fetch.
+ * Returns the same shape as the old tanstack-svelte-query wrapper so callers
+ * (view/[slug] and download/[slug]) do not need to change.
+ */
 export function useFileInfoQuery(slug: () => string) {
-  const queryClient = useQueryClient();
+  let currentSlug = $derived(slug());
+  let state = $state<FileInfoStore>({
+    isPending: true,
+    isError: false,
+    error: undefined,
+    data: undefined
+  });
 
-  const query = createQuery(() => ({
-    queryKey: ['file-info', slug()],
-    queryFn: () => fetchJson<FileInfo>(Api.FILE_INFO(slug()), 'file info').then((info) => ({
-      ...info,
-      filename: typeof info.filename === 'string' ? info.filename : 'file',
-      fileSize: typeof info.size === 'number' ? info.size : 0,
-      numberOfFiles: info.number_of_files ?? 0
-    })),
-    staleTime: Infinity,
-    retry: false
-  }));
+  let subscription: any = null;
 
-  return { fileInfo: query, queryClient };
+  function runQuery() {
+    // Cancel previous subscription to avoid stale results.
+    if (subscription) {
+      subscription.unsubscribe();
+      subscription = null;
+    }
+
+    const s = currentSlug;
+    if (!s) {
+      state = { isPending: false, isError: false, error: undefined, data: undefined };
+      return;
+    }
+
+    state.isPending = true;
+    state.isError = false;
+    state.error = undefined;
+    state.data = undefined;
+
+    const source = client.query(FILE_INFO_QUERY, { slug: s });
+    subscription = source.subscribe((result) => {
+      state.isPending = false;
+      if (result.error) {
+        state.isError = true;
+        state.error = new Error(result.error.message);
+        state.data = undefined;
+      } else if (result.data) {
+        state.isError = false;
+        const item = result.data.file_info as FileInfoItem | null;
+        state.data = item
+          ? {
+              filename: item.filename || 'file',
+              fileSize: item.size || 0,
+              numberOfFiles: item.number_of_files ?? 0
+            }
+          : undefined;
+      }
+    });
+  }
+
+  // Re-run whenever the slug changes.
+  $effect(() => {
+    currentSlug; // track
+    runQuery();
+    return () => {
+      if (subscription) {
+        subscription.unsubscribe();
+        subscription = null;
+      }
+    };
+  });
+
+  // Run immediately on creation.
+  runQuery();
+
+  return { fileInfo: state };
 }

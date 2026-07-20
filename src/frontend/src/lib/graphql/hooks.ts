@@ -208,7 +208,8 @@ import {
   DELETE_FILE_MUTATION,
   CREATE_USER_MUTATION,
   UPDATE_USER_MUTATION,
-  DELETE_USER_MUTATION
+  DELETE_USER_MUTATION,
+  UPDATE_CONFIG_MUTATION
 } from './queries.js';
 
 export interface LoginResult {
@@ -241,6 +242,21 @@ export interface UpdateUserResult {
 
 export interface DeleteUserResult {
   delete_user: boolean;
+}
+
+export interface UpdateConfigResult {
+  update_config: {
+    total_storage_limit: number;
+    max_file_size_limit: number;
+    default_expiry: number;
+    default_number_of_downloads: number;
+    site_description: string;
+    download_configs: number[];
+    time_configs: number[];
+    allowed_file_types: string[];
+    banned_file_types: string[];
+    allow_uploads: boolean;
+  };
 }
 
 export async function loginMutation(username: string, password: string) {
@@ -309,4 +325,15 @@ export async function updateUserMutation(
 
 export async function deleteUserMutation(id: string) {
   return await executeMutation<DeleteUserResult>(DELETE_USER_MUTATION, { id });
+}
+
+export async function updateConfigMutation(params: {
+  total_storage_limit?: number | null;
+  max_file_size_limit?: number | null;
+  default_expiry?: number | null;
+  default_number_of_downloads?: number | null;
+  site_description?: string | null;
+  allow_uploads?: boolean | null;
+}) {
+  return await executeMutation<UpdateConfigResult>(UPDATE_CONFIG_MUTATION, params);
 }

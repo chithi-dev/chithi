@@ -209,3 +209,34 @@ export const DELETE_USER_MUTATION = gql`
     delete_user(id: $id)
   }
 `;
+
+export const UPDATE_CONFIG_MUTATION = gql`
+  mutation UpdateConfig(
+    $total_storage_limit: Int
+    $max_file_size_limit: Int
+    $default_expiry: Int
+    $default_number_of_downloads: Int
+    $site_description: String
+    $allow_uploads: Boolean
+  ) {
+    update_config(
+      total_storage_limit: $total_storage_limit
+      max_file_size_limit: $max_file_size_limit
+      default_expiry: $default_expiry
+      default_number_of_downloads: $default_number_of_downloads
+      site_description: $site_description
+      allow_uploads: $allow_uploads
+    ) {
+      total_storage_limit
+      max_file_size_limit
+      default_expiry
+      default_number_of_downloads
+      site_description
+      download_configs
+      time_configs
+      allowed_file_types
+      banned_file_types
+      allow_uploads
+    }
+  }
+`;

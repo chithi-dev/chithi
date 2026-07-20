@@ -1,87 +1,85 @@
-import { Api } from '#consts/backend';
-import { createQuery, type QueryClient, useQueryClient } from '@tanstack/svelte-query';
-import { fetchJson, prefetch as prefetchFn } from './fetch-utils';
+import { client } from '#graphql/client';
+import { INSTANCE_INFO_QUERY, INSTANCE_STATS_QUERY } from '#graphql/queries';
+import {
+  useInstanceInfoQuery,
+  useInstanceStatsQuery
+} from '#graphql/hooks';
+import type { InstanceInfoData, InstanceStatsData } from '#graphql/hooks';
 
-const STALE = 5 * 60 * 1000; // 5 minutes
+// ─── Types ─────────────────────────────────────────────────────────────────────
 
 export interface InstanceInformation {
-	version: string;
-	is_release: boolean;
-	commit: string;
-	python_version: string;
-	fastapi_version: string;
-	redis_version: string;
-	postgres_version: string;
+  backend_version: string;
+  python_version: string;
+  platform: string;
 }
 
 export interface InstanceStatistics {
-	total_bytes: number;
-	total_files: number;
-	total_downloads: number;
-	active_urls: number;
-	active_rooms: number;
-	expiring_soon: number;
-	latest_expiry: number | null;
-	oldest_file: number;
-	newest_file: number;
+  total_files: number;
+  active_files: number;
+  expired_files: number;
+  total_storage_used: number;
+  total_users: number;
 }
 
-// Instance information
-const infoKey = ['instance-information'];
+// ─── Prefetch ──────────────────────────────────────────────────────────────────
 
-export const prefetchInstanceInformation = async ({
-	queryClient,
-	fetch
-}: {
-	queryClient: QueryClient;
-	fetch?: typeof globalThis.fetch;
-}) => {
-	await prefetchFn(
-		queryClient,
-		infoKey,
-		() => fetchJson<InstanceInformation>(Api.INSTANCE, 'instance information', fetch),
-		{ staleTime: STALE }
-	);
+export const prefetchInstanceInformation = async () => {
+  const source = client.query(INSTANCE_INFO_QUERY, {});
+  await source.toPromise();
 };
+
+export const prefetchInstanceStatistics = async () => {
+  const source = client.query(INSTANCE_STATS_QUERY, {});
+  await source.toPromise();
+};
+
+// ─── Query Hooks ───────────────────────────────────────────────────────────────
 
 export const useInstanceInformationQuery = () => {
-	const queryClient = useQueryClient();
+  const rawInfo = useInstanceInfoQuery();
 
-	const query = createQuery(() => ({
-		queryKey: infoKey,
-		queryFn: () => fetchJson<InstanceInformation>(Api.INSTANCE, 'instance information'),
-		staleTime: STALE
-	}));
+  const info = $derived({
+    data: rawInfo.data ? mapInstanceInfo(rawInfo.data.instance_information) : undefined,
+    isLoading: rawInfo.fetching,
+    error: rawInfo.error ? new Error(rawInfo.error) : null
+  });
 
-	return { info: query, queryClient };
-};
-
-// Instance statistics
-const statsKey = ['instance-statistics'];
-
-export const prefetchInstanceStatistics = async ({
-	queryClient,
-	fetch
-}: {
-	queryClient: QueryClient;
-	fetch?: typeof globalThis.fetch;
-}) => {
-	await prefetchFn(
-		queryClient,
-		statsKey,
-		() => fetchJson<InstanceStatistics>(Api.INSTANCE_STATISTICS, 'instance statistics', fetch),
-		{ staleTime: STALE }
-	);
+  return { info };
 };
 
 export const useInstanceStatisticsQuery = () => {
-	const queryClient = useQueryClient();
+  const rawStats = useInstanceStatsQuery();
 
-	const query = createQuery(() => ({
-		queryKey: statsKey,
-		queryFn: () => fetchJson<InstanceStatistics>(Api.INSTANCE_STATISTICS, 'instance statistics'),
-		staleTime: STALE
-	}));
+  const stats = $derived({
+    data: rawStats.data ? mapInstanceStats(rawStats.data.instance_statistics) : undefined,
+    isLoading: rawStats.fetching,
+    error: rawStats.error ? new Error(rawStats.error) : null
+  });
 
-	return { stats: query, queryClient };
+  return { stats };
 };
+
+// ─── Mappers ───────────────────────────────────────────────────────────────────
+
+function mapInstanceInfo(
+  data: InstanceInfoData['instance_information']
+): InstanceInformation {
+  return {
+    backend_version: data.backend_version,
+    python_version: data.python_version,
+    platform: data.platform
+  };
+}
+
+function mapInstanceStats(
+  data: InstanceStatsData['instance_statistics']
+): InstanceStatistics {
+  return {
+    total_files: data.total_files,
+    active_files: data.active_files,
+    expired_files: data.expired_files,
+    total_storage_used: data.total_storage_used,
+    total_users: data.total_users
+  };
+}

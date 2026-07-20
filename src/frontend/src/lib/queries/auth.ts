@@ -1,83 +1,106 @@
-import { Api } from '#consts/backend';
 import { browser } from '$app/environment';
 import { login as loginRemote, logout as logoutRemote } from '$lib/remote/auth.remote';
 import { user_store } from '$lib/store/user.svelte';
-import { createQuery, type QueryClient, useQueryClient } from '@tanstack/svelte-query';
+import { client } from '$lib/graphql/hooks.js';
+import { ME_QUERY, UPDATE_USER_MUTATION } from '$lib/graphql/queries.js';
+import type { MeData, UserData, UpdateUserResult } from '$lib/graphql/hooks.js';
+import type { OperationResult } from '@urql/core';
 
 export const queryKey = ['auth-user'];
 
-const fetchUser = async ({ fetch }: { fetch?: typeof globalThis.fetch } = {}) => {
-	if (browser && user_store.is_authenticated === false) return null;
+// ─── Module-level ME query state ───────────────────────────────────────────────
 
-	const res = await (fetch ?? globalThis.fetch)(Api.USER, {
-		credentials: 'include'
-	});
+let meQuery = $state({
+  data: null as UserData | null,
+  error: null as string | null,
+  fetching: true
+});
 
-	if (!res.ok || [401, 403].includes(res.status)) {
-		if (browser) user_store.unauthenticate();
-		await logoutRemote();
-		return null;
-	}
+const source = client.query(ME_QUERY);
 
-	if (browser) user_store.authenticate();
-	return res.json();
-};
+const subscription = source.subscribe((result: OperationResult<MeData>) => {
+  meQuery.fetching = result.stale || (!result.data && !result.error);
+  meQuery.error = result.error ? result.error.message : null;
+  meQuery.data = result.data ? result.data.me : null;
 
-export const prefetch = async ({ queryClient, fetch }: { queryClient: QueryClient; fetch?: typeof globalThis.fetch }) => {
-	await queryClient.prefetchQuery({
-		queryKey: queryKey,
-		queryFn: () => fetchUser({ fetch }),
-		staleTime: Infinity,
-		retry: false
-	});
+  if (browser) {
+    if (meQuery.data) {
+      user_store.authenticate();
+    } else if (result.error) {
+      user_store.unauthenticate();
+    }
+  }
+});
+
+$effect(() => {
+  return () => {
+    subscription.unsubscribe();
+  };
+});
+
+// ─── Helpers ───────────────────────────────────────────────────────────────────
+
+async function refetchMe() {
+  await client.refetchQuery(ME_QUERY);
+}
+
+// ─── Public API ────────────────────────────────────────────────────────────────
+
+export const prefetch = async () => {
+  // urql manages its own cache; no explicit prefetch needed.
+  // Kept for backward compatibility with existing callers.
 };
 
 export const useAuth = () => {
-	const queryClient = useQueryClient();
+  const user = {
+    get data() {
+      return meQuery.data;
+    },
+    get isLoading() {
+      return meQuery.fetching;
+    },
+    get error() {
+      return meQuery.error;
+    }
+  };
 
-	const query = createQuery(() => ({
-		queryKey: queryKey,
-		queryFn: () => fetchUser({}),
-		staleTime: Infinity,
-		retry: false
-	}));
+  const login = async (username: string, password: string) => {
+    if (!browser) return;
+    try {
+      await loginRemote({ username, password });
+      user_store.authenticate();
+      await refetchMe();
+    } catch (error) {
+      user_store.unauthenticate();
+      throw new Error(error instanceof Error ? error.message : 'Invalid username or password');
+    }
+  };
 
-	const login = async (username: string, password: string) => {
-		if (!browser) return;
-		try {
-			await loginRemote({ username, password });
-			user_store.authenticate();
-			await queryClient.invalidateQueries({ queryKey });
-		} catch (error) {
-			user_store.unauthenticate();
-			throw new Error(error instanceof Error ? error.message : 'Invalid username or password');
-		}
-	};
+  const updateUser = async (data: { username?: string; email?: string | null }) => {
+    if (!browser) return;
 
-	const updateUser = async (data: { username?: string; email?: string | null }) => {
-		if (!browser) return;
+    const currentUser = meQuery.data;
+    if (!currentUser) {
+      throw new Error('No authenticated user');
+    }
 
-		const res = await fetch(Api.ADMIN.USER_UPDATE, {
-			method: 'PATCH',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			credentials: 'include',
-			body: JSON.stringify(data)
-		});
+    const result = await client.mutation(UPDATE_USER_MUTATION, {
+      id: currentUser.id,
+      username: data.username ?? undefined,
+      email: data.email ?? undefined
+    });
 
-		if (!res.ok) {
-			const err = await res.json();
-			throw new Error(err.detail || 'Failed to update user');
-		}
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
 
-		await queryClient.invalidateQueries({ queryKey: queryKey });
-		return res.json();
-	};
+    await refetchMe();
+    return result.data as UpdateUserResult;
+  };
 
-	return {
-		user: query,
-		login,
-		updateUser
-	};
+  return {
+    user,
+    login,
+    updateUser
+  };
 };
