@@ -18,7 +18,7 @@
   const { default: CreateUserDialog } = await import('./create_user_dialog.svelte');
   const { default: DeleteUserDialog } = await import('./delete_user_dialog.svelte');
 
-  type UserRow = { id: string; username: string; email?: string };
+  type UserRow = { id: string; username: string; email?: string | null };
 
   let currentPage = $state(1);
   const pageSize = 20;

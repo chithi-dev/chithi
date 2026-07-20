@@ -16,7 +16,7 @@ export const load: LayoutLoad = async ({ data, url, fetch }) => {
 	});
 
 	if (data.token) {
-		await prefetchAuth({ queryClient, fetch });
+		await prefetchAuth();
 	} else {
 		user_store.unauthenticate();
 	}

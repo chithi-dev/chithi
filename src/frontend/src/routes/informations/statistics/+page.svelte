@@ -14,6 +14,8 @@
   } from '@lucide/svelte';
   import { Spinner } from '$lib/components/ui/spinner/index.js';
   import { useInstanceStatisticsQuery } from '$lib/queries/instance';
+  import { client } from '$lib/graphql/client.js';
+  import { INSTANCE_STATS_QUERY } from '$lib/graphql/queries.js';
   import { formatFileSize } from '$lib/functions/bytes';
   import { formatDateLong } from '$lib/functions/dates';
   import InfoCard from '../components/InfoCard.svelte';
@@ -28,7 +30,7 @@
     { Icon: LinkIcon, label: 'Active URLs', value: (stats?.active_urls ?? 0).toLocaleString(), cls: 'text-xl font-bold text-foreground' },
     { Icon: Share2, label: 'Active Rooms', value: (stats?.active_rooms ?? 0).toLocaleString(), cls: 'text-xl font-bold text-foreground' },
     { Icon: Clock, label: 'Expiring Soon', value: (stats?.expiring_soon ?? 0).toLocaleString(), sub: 'Within next 24 hours', cls: 'text-xl font-bold text-foreground' },
-    { Icon: CalendarClock, label: 'Latest Expiry', value: stats?.latest_expiry ? formatDateLong(stats.latest_expiry) : 'N/A', cls: 'text-sm font-semibold text-foreground' },
+    { Icon: CalendarClock, label: 'Latest Expiry', value: stats?.latest_expiry ? formatDateLong(new Date(stats.latest_expiry).getTime()) : 'N/A', cls: 'text-sm font-semibold text-foreground' },
   ]);
 </script>
 
@@ -36,11 +38,11 @@
   <div class="flex h-64 items-center justify-center">
     <Spinner class="size-8 text-muted-foreground" />
   </div>
-{:else if statsQuery.isError}
+{:else if statsQuery.error !== null}
   <div class="flex flex-col items-center justify-center gap-4 py-12 text-destructive">
     <CircleAlert class="h-12 w-12" />
     <p class="font-medium">Failed to load instance statistics</p>
-    <Button variant="outline" onclick={() => statsQuery.refetch()}>Retry</Button>
+    <Button variant="outline" onclick={() => client.query(INSTANCE_STATS_QUERY, {}).toPromise()}>Retry</Button>
   </div>
 {:else if stats}
   <InfoCard

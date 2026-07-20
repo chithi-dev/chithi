@@ -1,7 +1,7 @@
 import { browser } from '$app/environment';
 import { login as loginRemote, logout as logoutRemote } from '$lib/remote/auth.remote';
 import { user_store } from '$lib/store/user.svelte';
-import { client } from '$lib/graphql/hooks.js';
+import { client } from '$lib/graphql/client.js';
 import { ME_QUERY, UPDATE_USER_MUTATION } from '$lib/graphql/queries.js';
 import type { MeData, UserData, UpdateUserResult } from '$lib/graphql/hooks.js';
 import type { OperationResult } from '@urql/core';
@@ -16,7 +16,7 @@ let meQuery = $state({
   fetching: true
 });
 
-const source = client.query(ME_QUERY);
+const source = client.query(ME_QUERY, {});
 
 const subscription = source.subscribe((result: OperationResult<MeData>) => {
   meQuery.fetching = result.stale || (!result.data && !result.error);
@@ -41,7 +41,8 @@ $effect(() => {
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 async function refetchMe() {
-  await client.refetchQuery(ME_QUERY);
+  const refetchSource = client.query(ME_QUERY, {});
+  await refetchSource.toPromise();
 }
 
 // ─── Public API ────────────────────────────────────────────────────────────────

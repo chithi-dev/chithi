@@ -1,5 +1,6 @@
 import { client } from '$lib/graphql/client.js';
-import { CONFIG_QUERY, UPDATE_CONFIG_MUTATION } from '$lib/graphql/queries.js';
+import { CONFIG_QUERY } from '$lib/graphql/queries.js';
+import { updateConfigMutation } from '$lib/graphql/hooks.js';
 import type { OperationResult } from '@urql/core';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
@@ -28,7 +29,7 @@ interface ConfigState {
 // ─── Prefetch ──────────────────────────────────────────────────────────────────
 
 export const prefetch = async (_params?: { queryClient?: unknown; fetch?: typeof globalThis.fetch }) => {
-  const source = client.query(CONFIG_QUERY);
+  const source = client.query(CONFIG_QUERY, {});
   await source.toPromise();
 };
 
@@ -45,7 +46,7 @@ function createConfigState() {
 
   let state = $state<ConfigState>(initialState);
 
-  const source = client.query(CONFIG_QUERY);
+  const source = client.query(CONFIG_QUERY, {});
 
   const subscription = source.subscribe((result: OperationResult) => {
     state.isLoading = result.operation.kind === 'query' && result.stale;
@@ -70,14 +71,14 @@ export const useConfigQuery = () => {
   const query = createConfigState();
 
   const updateConfig = async (data: Partial<Config>) => {
-    const result = await client.mutation(UPDATE_CONFIG_MUTATION, data);
+    const result = await updateConfigMutation(data);
 
     if (result.error) {
       throw new Error(result.error.message);
     }
 
     // Refetch the config query after mutation to sync the cache.
-    const refetchSource = client.query(CONFIG_QUERY);
+    const refetchSource = client.query(CONFIG_QUERY, {});
     await refetchSource.toPromise();
   };
 
