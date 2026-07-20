@@ -26,6 +26,9 @@
 | **Frontend Build** | DONE | `npm run build` succeeds |
 | **shadcn-svelte Compliance** | DONE | All components follow docs exactly: Dialog.Trigger uses buttonVariants, DropdownMenu uses snippet child, Form uses snippet children, Select has type single |
 | **UI Components** | DONE | Spinner used consistently, Typography on info pages, no LoaderCircle usage, admin empty states use Table pattern correctly |
+| **Django Backend Check** | DONE | `manage.py check` passes 0 issues, `makemigrations --check` passes, all migrations committed |
+| **Frontend Form Migration** | DONE | Login, onboarding, admin config all use GraphQL. File upload remains REST (needs multipart GraphQL support) |
+| **Django Migrations** | TODO | Need PostgreSQL `chithi` database created before `migrate` can run |
 
 ---
 
