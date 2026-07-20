@@ -1,5 +1,6 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card/index.js';
+	import { H2, Mutated } from '$lib/components/ui/typography/index.js';
 	import { useAuth } from '#queries/auth';
 	import { kebab_to_initials } from '#functions/string-conversion';
 	import { make_libravatar_url } from '#functions/libravatar';
@@ -84,8 +85,8 @@
 
 <div class="flex items-center justify-between space-y-2 pb-6">
 	<div>
-		<h2 class="text-3xl font-bold tracking-tight">Settings</h2>
-		<p class="text-muted-foreground">Manage your public profile and private details.</p>
+		<H2>Profile</H2>
+		<Mutated>Manage your public profile and private details.</Mutated>
 	</div>
 </div>
 

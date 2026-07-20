@@ -3,8 +3,9 @@
   import { Button } from '$lib/components/ui/button/index.js';
   import { Input } from '$lib/components/ui/input/index.js';
   import * as InputGroup from '$lib/components/ui/input-group/index.js';
-  import { FileText, CircleAlert, Download, KeyRound } from '@lucide/svelte';
+  import { FileText, CircleAlert, Download, KeyRound, HardDrive, File } from '@lucide/svelte';
   import { Spinner } from '$lib/components/ui/spinner/index.js';
+  import * as HoverCard from '$lib/components/ui/hover-card/index.js';
   import { page } from '$app/state';
   import { fly } from 'svelte/transition';
   import { downloadAndDecryptFile } from '#functions/download';
@@ -113,19 +114,36 @@
               </div>
             </div>
           {:else}
-            <div class="mb-6 flex items-center gap-4 rounded-lg border bg-background/50 p-4">
-              <div class="rounded bg-primary/10 p-2 text-primary">
-                {#if status === 'downloading'}
-                  <Download class="h-6 w-6" />
-                {:else}
-                  <FileText class="h-6 w-6" />
-                {/if}
-              </div>
-              <div class="flex-1 overflow-hidden">
-                <p class="truncate font-medium">{filename}</p>
-                <p class="text-xs text-muted-foreground">{formatFileSize(fileSize)}</p>
-              </div>
-            </div>
+            <HoverCard.Root>
+              <HoverCard.Trigger class="mb-6 flex w-full items-center gap-4 rounded-lg border bg-background/50 p-4 cursor-default">
+                <div class="rounded bg-primary/10 p-2 text-primary">
+                  {#if status === 'downloading'}
+                    <Download class="h-6 w-6" />
+                  {:else}
+                    <FileText class="h-6 w-6" />
+                  {/if}
+                </div>
+                <div class="flex-1 overflow-hidden">
+                  <p class="truncate font-medium">{filename}</p>
+                  <p class="text-xs text-muted-foreground">{formatFileSize(fileSize)}</p>
+                </div>
+              </HoverCard.Trigger>
+              <HoverCard.Content class="w-80">
+                <div class="space-y-2">
+                  <p class="text-sm font-medium">{filename}</p>
+                  <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                    <HardDrive class="h-3 w-3" />
+                    <span>{formatFileSize(fileSize)}</span>
+                  </div>
+                  {#if fileInfo.data?.numberOfFiles}
+                    <div class="flex items-center gap-2 text-xs text-muted-foreground">
+                      <File class="h-3 w-3" />
+                      <span>{fileInfo.data.numberOfFiles} file{fileInfo.data.numberOfFiles === 1 ? '' : 's'}</span>
+                    </div>
+                  {/if}
+                </div>
+              </HoverCard.Content>
+            </HoverCard.Root>
             <Card.Footer class="flex w-full flex-col gap-6 px-0">
               {#if status === 'downloading'}
                 <div class="w-full space-y-2">
