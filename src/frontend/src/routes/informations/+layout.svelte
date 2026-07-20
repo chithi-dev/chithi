@@ -4,6 +4,7 @@
 	import favicon from '$lib/assets/logo.svg';
 	import FancyGrid from '$lib/components/FancyGrid.svelte';
 	import { page } from '$app/state';
+	import { H1, P, Small } from '$lib/components/ui/typography/index.js';
 
 	const { children } = $props();
 
@@ -41,15 +42,15 @@
 			</div>
 
 			<div class="space-y-2">
-				<p class="text-xs font-semibold tracking-[0.28em] text-muted-foreground uppercase">
+				<Small class="text-xs font-semibold tracking-[0.28em] text-muted-foreground uppercase">
 					{header?.subtitle}
-				</p>
-				<h1 class="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+				</Small>
+				<H1 class="text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
 					{header?.title}
-				</h1>
-				<p class="mx-auto max-w-xl text-sm text-muted-foreground sm:text-base">
+				</H1>
+				<P class="mx-auto max-w-xl text-sm text-muted-foreground sm:text-base">
 					{header?.description}
-				</p>
+				</P>
 			</div>
 		</div>
 

@@ -6,6 +6,22 @@
   import { Skeleton } from '$lib/components/ui/skeleton/index.js';
   import { Trash2, FileIcon, FolderIcon, Download, Clock, CalendarClock, ArrowUpDown, ArrowUp, ArrowDown, Search } from '@lucide/svelte';
   import { formatFileSize } from '#functions/bytes';
+  import { createSvelteTable } from '$lib/components/ui/data-table/data-table.svelte';
+  import { renderSnippet } from '$lib/components/ui/data-table/render-helpers.js';
+  import FlexRender from '$lib/components/ui/data-table/flex-render.svelte';
+  import type { ColumnDef } from '@tanstack/table-core';
+  import { getCoreRowModel } from '@tanstack/table-core';
+
+  type FileRow = {
+    id: string;
+    filename: string;
+    folder_name?: string;
+    size?: number;
+    created_at?: string;
+    expires_at?: string;
+    expire_after_n_download?: number;
+    download_count?: number;
+  };
 
   let {
     files,
@@ -34,12 +50,23 @@
     }
   }
 
+  function getSortIcon(col: 'filename' | 'size' | 'created_at' | 'downloads') {
+    if (sortCol !== col) return ArrowUpDown;
+    if (sortDir === 'asc') return ArrowUp;
+    if (sortDir === 'desc') return ArrowDown;
+    return ArrowUpDown;
+  }
+
+  function isSortActive(col: 'filename' | 'size' | 'created_at' | 'downloads') {
+    return sortCol === col;
+  }
+
   const processedFiles = $derived.by(() => {
-    let items = files.data?.items ?? [];
+    let items: FileRow[] = files.data?.items ?? [];
 
     if (globalFilter) {
       const filter = globalFilter.toLowerCase();
-      items = items.filter((f: { filename: string; folder_name?: string }) =>
+      items = items.filter((f) =>
         f.filename.toLowerCase().includes(filter) ||
         (f.folder_name && f.folder_name.toLowerCase().includes(filter))
       );
@@ -69,7 +96,134 @@
     return items;
   });
 
+  // Column definitions for TanStack Table
+  const columns: ColumnDef<FileRow>[] = [
+    {
+      accessorKey: 'filename',
+      meta: { className: 'w-[40%]' },
+      header: 'File Name',
+      cell: (ctx) => renderSnippet(filenameCellSnippet, { row: ctx.row }),
+    },
+    {
+      accessorKey: 'size',
+      header: () => renderSnippet(sizeHeaderSnippet),
+      cell: (ctx) => renderSnippet(sizeCellSnippet, { row: ctx.row }),
+    },
+    {
+      accessorKey: 'created_at',
+      header: () => renderSnippet(activityHeaderSnippet),
+      cell: (ctx) => renderSnippet(activityCellSnippet, { row: ctx.row }),
+    },
+    {
+      id: 'downloads',
+      accessorFn: (row) => row.download_count,
+      header: () => renderSnippet(downloadsHeaderSnippet),
+      cell: (ctx) => renderSnippet(downloadsCellSnippet, { row: ctx.row }),
+    },
+    {
+      id: 'action',
+      meta: { className: 'text-right' },
+      header: 'Action',
+      cell: (ctx) => renderSnippet(actionCellSnippet, { row: ctx.row }),
+    },
+  ];
+
+  const table = createSvelteTable<FileRow>({
+    data: processedFiles,
+    columns,
+    getCoreRowModel: getCoreRowModel(),
+  });
 </script>
+
+{#snippet filenameCellSnippet({ row }: { row: { original: FileRow } })}
+  <div class="flex items-center gap-3">
+    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+      {#if row.original.folder_name}
+        <FolderIcon class="h-4 w-4 text-primary" />
+      {:else}
+        <FileIcon class="h-4 w-4 text-primary" />
+      {/if}
+    </div>
+    <div class="flex flex-col">
+      <span class="max-w-50 truncate lg:max-w-75" title={row.original.filename}>
+        {row.original.filename}
+      </span>
+      {#if row.original.folder_name}
+        <span class="text-xs text-muted-foreground">in {row.original.folder_name}</span>
+      {/if}
+    </div>
+  </div>
+{/snippet}
+
+{#snippet sizeHeaderSnippet()}
+  <span class="flex items-center gap-1">
+    Size
+    {@const iconComponent = getSortIcon('size')}
+    <svelte:component this={iconComponent} class={isSortActive('size') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+  </span>
+{/snippet}
+
+{#snippet sizeCellSnippet({ row }: { row: { original: FileRow } })}
+  <span class="whitespace-nowrap text-muted-foreground">
+    {row.original.size ? formatFileSize(row.original.size) : '-'}
+  </span>
+{/snippet}
+
+{#snippet activityHeaderSnippet()}
+  <span class="flex items-center gap-1">
+    Activity
+    {@const iconComponent = getSortIcon('created_at')}
+    <svelte:component this={iconComponent} class={isSortActive('created_at') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+  </span>
+{/snippet}
+
+{#snippet activityCellSnippet({ row }: { row: { original: FileRow } })}
+  <div class="flex flex-col gap-1 text-xs text-muted-foreground">
+    <span class="flex items-center gap-1.5" title="Created At">
+      <Clock class="h-3 w-3" />
+      {formatDate(row.original.created_at)}
+    </span>
+    {#if row.original.expires_at}
+      <span class="flex items-center gap-1.5 text-orange-600/80" title="Expires At">
+        <CalendarClock class="h-3 w-3" />
+        {formatDate(row.original.expires_at)}
+      </span>
+    {/if}
+  </div>
+{/snippet}
+
+{#snippet downloadsHeaderSnippet()}
+  <span class="flex items-center gap-1">
+    Downloads
+    {@const iconComponent = getSortIcon('downloads')}
+    <svelte:component this={iconComponent} class={isSortActive('downloads') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+  </span>
+{/snippet}
+
+{#snippet downloadsCellSnippet({ row }: { row: { original: FileRow } })}
+  {#if row.original.download_count !== undefined}
+    <div class="flex items-center gap-1.5 text-sm text-muted-foreground">
+      <Download class="h-3.5 w-3.5" />
+      <span>{row.original.download_count}</span>
+      {#if row.original.expire_after_n_download}
+        <span class="opacity-50">/ {row.original.expire_after_n_download}</span>
+      {/if}
+    </div>
+  {/if}
+{/snippet}
+
+{#snippet actionCellSnippet({ row }: { row: { original: FileRow } })}
+  <Button
+    variant="ghost"
+    size="icon"
+    class="h-8 w-8 text-muted-foreground opacity-100 transition-all hover:bg-destructive/10 hover:text-destructive lg:opacity-0 lg:group-hover:opacity-100"
+    onclick={() => openRevokeDialog(row.original.id)}
+    disabled={isRevoking}
+    title="Revoke URL"
+  >
+    <Trash2 class="h-4 w-4" />
+  </Button>
+{/snippet}
 
 <Card.Root class="border bg-background">
   <Card.Header class="px-6 py-4">
@@ -92,43 +246,27 @@
   <Card.Content class="p-0">
     <Table.Root>
       <Table.Header>
-        <Table.Row>
-          <Table.Head class="w-[40%]">File Name</Table.Head>
-          <Table.Head class="cursor-pointer select-none" onclick={() => toggleSort('size')}>
-            <span class="flex items-center gap-1">
-              Size
-              {#if sortCol === 'size'}
-                {#if sortDir === 'asc'}<ArrowUp class="h-4 w-4" />
-                {:else if sortDir === 'desc'}<ArrowDown class="h-4 w-4" />
-                {:else}<ArrowUpDown class="h-4 w-4" />
-                {/if}
-              {:else}<ArrowUpDown class="h-4 w-4 opacity-30" />{/if}
-            </span>
-          </Table.Head>
-          <Table.Head class="cursor-pointer select-none" onclick={() => toggleSort('created_at')}>
-            <span class="flex items-center gap-1">
-              Activity
-              {#if sortCol === 'created_at'}
-                {#if sortDir === 'asc'}<ArrowUp class="h-4 w-4" />
-                {:else if sortDir === 'desc'}<ArrowDown class="h-4 w-4" />
-                {:else}<ArrowUpDown class="h-4 w-4" />
-                {/if}
-              {:else}<ArrowUpDown class="h-4 w-4 opacity-30" />{/if}
-            </span>
-          </Table.Head>
-          <Table.Head class="cursor-pointer select-none" onclick={() => toggleSort('downloads')}>
-            <span class="flex items-center gap-1">
-              Downloads
-              {#if sortCol === 'downloads'}
-                {#if sortDir === 'asc'}<ArrowUp class="h-4 w-4" />
-                {:else if sortDir === 'desc'}<ArrowDown class="h-4 w-4" />
-                {:else}<ArrowUpDown class="h-4 w-4" />
-                {/if}
-              {:else}<ArrowUpDown class="h-4 w-4 opacity-30" />{/if}
-            </span>
-          </Table.Head>
-          <Table.Head class="text-right">Action</Table.Head>
-        </Table.Row>
+        {#each table.getHeaderGroups() as headerGroup}
+          <Table.Row>
+            {#each headerGroup.headers as header}
+              <Table.Head
+                class={
+                  (header.column.id === 'size' || header.column.id === 'created_at' || header.column.id === 'downloads')
+                    ? 'cursor-pointer select-none'
+                    : ''
+                }
+                onclick={
+                  header.column.id === 'size' ? () => toggleSort('size')
+                    : header.column.id === 'created_at' ? () => toggleSort('created_at')
+                    : header.column.id === 'downloads' ? () => toggleSort('downloads')
+                    : undefined
+                }
+              >
+                <FlexRender content={header.column.columnDef.header} context={header.getContext()} />
+              </Table.Head>
+            {/each}
+          </Table.Row>
+        {/each}
       </Table.Header>
 
       <Table.Body>
@@ -144,84 +282,24 @@
           {/each}
         {:else if files.error}
           <Table.Row>
-            <Table.Cell colspan={5} class="h-24 text-center text-destructive">
+            <Table.Cell colspan={columns.length} class="h-24 text-center text-destructive">
               Error loading files: {files.error.message}
             </Table.Cell>
           </Table.Row>
-        {:else if !processedFiles || processedFiles.length === 0}
+        {:else if processedFiles.length === 0}
           <Table.Row>
-            <Table.Cell colspan={5} class="h-32 text-center text-muted-foreground">
+            <Table.Cell colspan={columns.length} class="h-32 text-center text-muted-foreground">
               {globalFilter ? 'No files match your filter.' : 'No outstanding URLs found.'}
             </Table.Cell>
           </Table.Row>
         {:else}
-          {#each processedFiles as file (file.id)}
+          {#each table.getRowModel().rows as row}
             <Table.Row class="group">
-              <Table.Cell class="font-medium">
-                <div class="flex items-center gap-3">
-                  <div
-                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10"
-                  >
-                    {#if file.folder_name}
-                      <FolderIcon class="h-4 w-4 text-primary" />
-                    {:else}
-                      <FileIcon class="h-4 w-4 text-primary" />
-                    {/if}
-                  </div>
-                  <div class="flex flex-col">
-                    <span class="max-w-50 truncate lg:max-w-75" title={file.filename}>
-                      {file.filename}
-                    </span>
-                    {#if file.folder_name}
-                      <span class="text-xs text-muted-foreground">in {file.folder_name}</span>
-                    {/if}
-                  </div>
-                </div>
-              </Table.Cell>
-
-              <Table.Cell class="whitespace-nowrap text-muted-foreground">
-                {file.size ? formatFileSize(file.size) : '-'}
-              </Table.Cell>
-
-              <Table.Cell>
-                <div class="flex flex-col gap-1 text-xs text-muted-foreground">
-                  <span class="flex items-center gap-1.5" title="Created At">
-                    <Clock class="h-3 w-3" />
-                    {formatDate(file.created_at)}
-                  </span>
-                  {#if file.expires_at}
-                    <span class="flex items-center gap-1.5 text-orange-600/80" title="Expires At">
-                      <CalendarClock class="h-3 w-3" />
-                      {formatDate(file.expires_at)}
-                    </span>
-                  {/if}
-                </div>
-              </Table.Cell>
-
-              <Table.Cell>
-                {#if file.download_count !== undefined}
-                  <div class="flex items-center gap-1.5 text-sm text-muted-foreground">
-                    <Download class="h-3.5 w-3.5" />
-                    <span>{file.download_count}</span>
-                    {#if file.expire_after_n_download}
-                      <span class="opacity-50">/ {file.expire_after_n_download}</span>
-                    {/if}
-                  </div>
-                {/if}
-              </Table.Cell>
-
-              <Table.Cell class="text-right">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  class="h-8 w-8 text-muted-foreground opacity-100 transition-all hover:bg-destructive/10 hover:text-destructive lg:opacity-0 lg:group-hover:opacity-100"
-                  onclick={() => openRevokeDialog(file.id)}
-                  disabled={isRevoking}
-                  title="Revoke URL"
-                >
-                  <Trash2 class="h-4 w-4" />
-                </Button>
-              </Table.Cell>
+              {#each row.getVisibleCells() as cell}
+                <Table.Cell>
+                  <FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
+                </Table.Cell>
+              {/each}
             </Table.Row>
           {/each}
         {/if}

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
+	import { H2, Mutated, InlineCode } from '$lib/components/ui/typography/index.js';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
 	import { useConfigQuery } from '#queries/config';
@@ -83,10 +84,10 @@
 
 <div class="flex items-center justify-between space-y-2 pb-6">
 	<div>
-		<h2 class="text-3xl font-bold tracking-tight">Settings</h2>
-		<p class="text-muted-foreground">
-			Manage your <code>{page.url.origin}</code> chithi instance.
-		</p>
+		<H2>Settings</H2>
+		<Mutated>
+			Manage your <InlineCode>{page.url.origin}</InlineCode> chithi instance.
+		</Mutated>
 	</div>
 </div>
 
