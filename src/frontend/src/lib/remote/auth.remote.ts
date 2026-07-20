@@ -1,6 +1,7 @@
 import { Api } from '#consts/backend';
 import { command, getRequestEvent } from '$app/server';
 import { user_store } from '$lib/store/user.svelte';
+import { LOGIN_MUTATION, LOGOUT_MUTATION } from '$lib/graphql/queries.js';
 import { z } from 'zod';
 
 const loginSchema = z.object({
@@ -8,25 +9,30 @@ const loginSchema = z.object({
 	password: z.string().min(1)
 });
 
+const GRAPHQL_URL = `${Api.BASE}/graphql/`;
+
 export const login = command(loginSchema, async ({ username, password }) => {
 	const { fetch, cookies, url } = getRequestEvent();
 
-	const form = new FormData();
-	form.append('username', username);
-	form.append('password', password);
-
-	const res = await fetch(Api.LOGIN, {
+	const res = await fetch(GRAPHQL_URL, {
 		method: 'POST',
-		body: form
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({
+			query: LOGIN_MUTATION,
+			variables: { username, password }
+		})
 	});
 
 	if (!res.ok) {
 		const err = await res.json().catch(() => ({}));
-		throw new Error(err?.detail || 'Invalid username or password');
+		const message = err?.errors?.[0]?.message || err?.detail || 'Invalid username or password';
+		throw new Error(message);
 	}
 
 	const data = await res.json().catch(() => ({}));
-	const token = data?.access_token;
+	const token = data?.data?.login?.access;
 	if (!token) {
 		throw new Error('Failed to login');
 	}
@@ -44,8 +50,24 @@ export const login = command(loginSchema, async ({ username, password }) => {
 });
 
 export const logout = command(async () => {
-	const { cookies } = getRequestEvent();
+	const { fetch, cookies } = getRequestEvent();
+
 	cookies.delete('access_token', { path: '/' });
+
+	try {
+		await fetch(GRAPHQL_URL, {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				query: LOGOUT_MUTATION
+			})
+		});
+	} catch {
+		// Best-effort server-side logout; cookie is already cleared.
+	}
+
 	user_store.unauthenticate();
 	return { success: true };
 });

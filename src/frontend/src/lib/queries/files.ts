@@ -1,71 +1,141 @@
-import { Api } from '#consts/backend';
-import { createQuery, useQueryClient } from '@tanstack/svelte-query';
+import { client } from '$lib/graphql/client.js';
+import { ADMIN_FILES_QUERY, DELETE_FILE_MUTATION } from '$lib/graphql/queries.js';
 
 export type FileInfo = {
-	id: string;
-	filename: string;
-	folder_name?: string;
-	size?: number;
-	created_at: string;
-	expires_at?: string;
-	expire_after_n_download?: number;
-	download_count?: number;
+  id: string;
+  filename: string;
+  folder_name?: string;
+  size?: number;
+  created_at: string;
+  expires_at?: string;
+  expire_after_n_download?: number;
+  download_count?: number;
 };
 
 export type PaginatedFiles = {
-	items: FileInfo[];
-	total_items: number;
-	start_index: number;
-	end_index: number;
-	total_pages: number;
-	current_page: number;
-	current_page_size: number;
+  items: FileInfo[];
+  total_items: number;
+  start_index: number;
+  end_index: number;
+  total_pages: number;
+  current_page: number;
+  current_page_size: number;
 };
 
-const queryKey = ['admin-files'];
+interface QueryState {
+  data: PaginatedFiles | undefined;
+  error: Error | null;
+  isLoading: boolean;
+}
 
-export const useFilesQuery = (page: () => number = () => 1, pageSize: number = 20) => {
-	const queryClient = useQueryClient();
+function mapAdminFilesToPaginatedFiles(adminFilesData: any): PaginatedFiles {
+  const items: FileInfo[] = (adminFilesData?.items ?? []).map((item: any) => ({
+    id: item.id,
+    filename: item.filename,
+    size: item.size,
+    created_at: item.created_at,
+    expires_at: item.expires_at,
+    expire_after_n_download: item.expire_after_n_download,
+    download_count: item.download_count
+  }));
 
-	const query = createQuery(() => ({
-		queryKey: [...queryKey, page(), pageSize],
-		queryFn: async () => {
-			const url = new URL(Api.ADMIN.FILES, location.origin);
-			url.searchParams.set('page', page().toString());
-			url.searchParams.set('page_size', pageSize.toString());
+  const page = adminFilesData?.page ?? 1;
+  const size = adminFilesData?.size ?? 20;
+  const total = adminFilesData?.total ?? 0;
+  const totalPages = adminFilesData?.pages ?? Math.ceil(total / size);
 
-			const res = await fetch(url.toString(), {
-				credentials: 'include'
-			});
+  return {
+    items,
+    total_items: total,
+    start_index: (page - 1) * size + 1,
+    end_index: Math.min(page * size, total),
+    total_pages: totalPages,
+    current_page: page,
+    current_page_size: size
+  };
+}
 
-			if (!res.ok) {
-				if (res.status === 401) {
-					throw new Error('Authentication failed');
-				}
-				throw new Error(`Failed to fetch files: ${res.statusText}`);
-			}
+export function useFilesQuery(page: () => number = () => 1, pageSize: number = 20) {
+  const state = $state<QueryState>({
+    data: undefined,
+    error: null,
+    isLoading: true
+  });
 
-			return res.json() as Promise<PaginatedFiles>;
-		},
-		refetchInterval: 1000, // 1 second
-		retry: true
-	}));
+  let currentPage = $state(page());
 
-	const revokeFile = async (id: string) => {
-		const res = await fetch(Api.ADMIN.FILE_REVOKE(id), {
-			method: 'DELETE',
-			credentials: 'include'
-		});
+  function fetchFiles(p: number) {
+    state.isLoading = true;
+    state.error = null;
 
-		if (res.ok) {
-			await queryClient.invalidateQueries({ queryKey });
-		} else {
-			throw new Error('Failed to revoke file');
-		}
-	};
+    const source = client.query(ADMIN_FILES_QUERY, {
+      page: p,
+      size: pageSize,
+      search: null
+    });
 
-	return {
-		files: query,
-		revokeFile
-	};
-};
+    source.toPromise().then(
+      (result) => {
+        if (result.error) {
+          state.error = new Error(result.error.message);
+          state.data = undefined;
+        } else {
+          state.data = mapAdminFilesToPaginatedFiles(result.data?.admin_files);
+          state.error = null;
+        }
+        state.isLoading = false;
+      },
+      (err) => {
+        state.error = err instanceof Error ? err : new Error(String(err));
+        state.data = undefined;
+        state.isLoading = false;
+      }
+    );
+  }
+
+  // Initial fetch
+  fetchFiles(currentPage);
+
+  // Refetch on a 1-second interval (matching original refetchInterval behavior)
+  let intervalId: number | undefined = undefined;
+
+  function startRefetchInterval() {
+    if (intervalId !== undefined) return;
+    intervalId = setInterval(() => {
+      fetchFiles(currentPage);
+    }, 1000) as unknown as number;
+  }
+
+  $effect(() => {
+    startRefetchInterval();
+    return () => {
+      if (intervalId !== undefined) {
+        clearInterval(intervalId);
+        intervalId = undefined;
+      }
+    };
+  });
+
+  // Watch for page changes and refetch
+  $effect(() => {
+    const p = page();
+    currentPage = p;
+    fetchFiles(p);
+  });
+
+  const revokeFile = async (id: string) => {
+    const result = await client.mutation(DELETE_FILE_MUTATION, { id }).toPromise();
+
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+
+    // Refetch the file list after successful revoke
+    fetchFiles(currentPage);
+  };
+
+  return {
+    files: state,
+    revokeFile
+  };
+}
