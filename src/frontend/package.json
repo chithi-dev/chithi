@@ -18,7 +18,8 @@
 	},
 	"dependencies": {
 		"embla-carousel-svelte": "^8.6.0",
-		"takumi-js": "^1.0.15"
+		"takumi-js": "^1.0.15",
+		"urql": "^5.0.3"
 	},
 	"devDependencies": {
 		"@codemirror/commands": "^6.10.3",
