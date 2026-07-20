@@ -1,7 +1,11 @@
+"""Custom user manager for the User model."""
+
 from django.contrib.auth.models import BaseUserManager
 
 
 class UserManager(BaseUserManager):
+    """Manager for creating users and superusers."""
+
     def create_user(self, username, password=None, email=None, **extra_fields):
         if not username:
             raise ValueError("Username is required")

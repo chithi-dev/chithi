@@ -1,92 +1,51 @@
-"""S3 / RUSTFS service layer for file storage operations."""
+"""Storage service layer for file operations.
+
+Uses Django's default storage backend (configured via django-storages)
+so the code is backend-agnostic and testable.
+"""
 
 import logging
 
-import boto3
-from botocore.exceptions import ClientError
-from django.conf import settings
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 
 logger = logging.getLogger(__name__)
 
 
-def _get_s3_client() -> boto3.client:
-    """Create and return an S3 client configured with project settings."""
-    return boto3.client(
-        "s3",
-        endpoint_url=settings.AWS_S3_ENDPOINT_URL,
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-    )
-
-
 def upload_file_data(key: str, data: bytes) -> bool:
-    """Upload raw bytes to S3 under the given key."""
-    s3 = _get_s3_client()
+    """Upload raw bytes under the given key via the default storage backend."""
     try:
-        s3.put_object(
-            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-            Key=key,
-            Body=data,
-        )
+        default_storage.save(key, ContentFile(data))
         return True
-    except ClientError as e:
-        logger.error(f"Failed to upload file {key} to S3: {e}")
+    except Exception as e:
+        logger.error("Failed to upload file %s: %s", key, e)
         return False
 
 
 def download_file_data(key: str) -> bytes | None:
-    """Download file contents from S3 by key. Returns None if not found."""
-    s3 = _get_s3_client()
+    """Download file contents by key. Returns None if not found."""
     try:
-        response = s3.get_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=key)
-        return response["Body"].read()
-    except ClientError as e:
-        logger.error(f"Failed to download file {key} from S3: {e}")
+        with default_storage.open(key, "rb") as f:
+            return f.read()
+    except Exception as e:
+        logger.error("Failed to download file %s: %s", key, e)
         return None
 
 
 def delete_file_from_s3(key: str) -> bool:
-    """Delete a file from S3 by key. Returns True if deleted or already absent."""
-    s3 = _get_s3_client()
+    """Delete a file by key. Returns True if deleted or already absent."""
     try:
-        s3.delete_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=key)
+        if default_storage.exists(key):
+            default_storage.delete(key)
         return True
-    except ClientError as e:
-        logger.error(f"Failed to delete file {key} from S3: {e}")
+    except Exception as e:
+        logger.error("Failed to delete file %s: %s", key, e)
         return False
 
 
-def get_presigned_upload_url(key: str, expires_in: int = 3600) -> str:
-    """Return a presigned URL for uploading a file directly to S3."""
-    s3 = _get_s3_client()
-    return s3.generate_presigned_url(
-        "put_object",
-        Params={
-            "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
-            "Key": key,
-        },
-        ExpiresIn=expires_in,
-    )
-
-
-def get_presigned_download_url(key: str, expires_in: int = 3600) -> str:
-    """Return a presigned URL for downloading a file directly from S3."""
-    s3 = _get_s3_client()
-    return s3.generate_presigned_url(
-        "get_object",
-        Params={
-            "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
-            "Key": key,
-        },
-        ExpiresIn=expires_in,
-    )
-
-
 def file_exists(key: str) -> bool:
-    """Check if a file exists in S3."""
-    s3 = _get_s3_client()
+    """Check if a file exists."""
     try:
-        s3.head_object(Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=key)
-        return True
-    except ClientError:
+        return default_storage.exists(key)
+    except Exception:
         return False

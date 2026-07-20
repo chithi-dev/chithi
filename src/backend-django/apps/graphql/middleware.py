@@ -1,9 +1,4 @@
-"""Middleware that resolves JWT Bearer tokens for GraphQL requests.
-
-When the frontend sends a Bearer token to the /graphql/ endpoint, this
-middleware validates the JWT and sets request.user so Strawberry's
-info.context.request.user returns the authenticated user.
-"""
+"""Middleware that resolves JWT Bearer tokens for GraphQL requests."""
 
 from .auth import get_user_from_jwt_token
 
@@ -15,11 +10,9 @@ class GraphQLJwtMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        response = self.get_response(request)
-        return response
+        return self.get_response(request)
 
     def process_view(self, request, view_func, view_args, view_kwargs) -> None:
-        """Before the view runs, resolve the user from JWT if present."""
         if not request.path_info.startswith("/graphql"):
             return None
 
@@ -31,4 +24,3 @@ class GraphQLJwtMiddleware:
         user = get_user_from_jwt_token(token_string)
         if user:
             request.user = user
-        return None

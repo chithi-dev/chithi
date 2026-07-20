@@ -1,10 +1,12 @@
-from typing import Self
+"""Singleton model mixin."""
 
 from django.core.exceptions import ValidationError
 from django.db import models
 
 
-class SingletonModel(models.Model):
+class SingletonModel[T: SingletonModel](models.Model):
+    """Abstract model that enforces a single instance in the database."""
+
     class Meta:
         abstract = True
 
@@ -16,7 +18,6 @@ class SingletonModel(models.Model):
         super().save(*args, **kwargs)
 
     @classmethod
-    def load(cls) -> Self:
-        """Return the single instance, create if doesn't exist."""
-        obj, created = cls.objects.get_or_create(pk=1)
-        return obj
+    def load(cls) -> T:
+        """Return the single instance, creating it if it doesn't exist."""
+        return cls.objects.get_or_create(pk=1)[0]
