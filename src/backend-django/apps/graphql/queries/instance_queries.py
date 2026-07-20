@@ -1,9 +1,12 @@
+"""Instance information queries for the GraphQL API."""
+
 import platform
 import sys
 
 import strawberry
 from django.contrib.auth import get_user_model
-from django.db import models
+from django.db.models import Sum
+from django.utils import timezone
 
 from apps.files.models import File
 from apps.graphql.types import InstanceInfoType, InstanceStatisticsType
@@ -11,30 +14,25 @@ from apps.graphql.types import InstanceInfoType, InstanceStatisticsType
 
 @strawberry.type
 class InstanceQueries:
+    """Instance metadata and statistics queries."""
+
     @strawberry.field
     def instance_information(self) -> InstanceInfoType:
         return InstanceInfoType(
-            backend_version="1.0.0",
+            backend_version="0.1.0",
             python_version=sys.version,
-            platform=platform.platform(),
+            platform=platform.system(),
         )
 
     @strawberry.field
     def instance_statistics(self) -> InstanceStatisticsType:
-        User = get_user_model()
-        from django.utils import timezone
-
         now = timezone.now()
-        total = File.objects.count()
-        expired = File.objects.filter(expires_at__lt=now).count()
-        active = total - expired
-        total_storage = File.objects.aggregate(total=models.Sum("size"))["total"] or 0
-        total_users = User.objects.count()
+        User = get_user_model()
 
         return InstanceStatisticsType(
-            total_files=total,
-            active_files=active,
-            expired_files=expired,
-            total_storage_used=total_storage,
-            total_users=total_users,
+            total_files=File.objects.count(),
+            active_files=File.objects.filter(expires_at__gt=now).count(),
+            expired_files=File.objects.filter(expires_at__lte=now).count(),
+            total_storage_used=File.objects.aggregate(Sum("size"))["sum"] or 0,
+            total_users=User.objects.count(),
         )

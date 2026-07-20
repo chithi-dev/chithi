@@ -1,5 +1,6 @@
+"""User management mutations for the GraphQL API."""
+
 import strawberry
-import strawberry_django
 from django.contrib.auth import get_user_model
 from strawberry.types import Info
 
@@ -8,39 +9,43 @@ from apps.graphql.types import UserType
 
 @strawberry.type
 class UserMutations:
-    @strawberry_django.mutation
-    def create_user(
-        self,
-        info: Info,
-        username: str,
-        password: str,
-        email: str | None = None,
-    ) -> UserType:
-        User = get_user_model()
-        user = User.objects.create_user(
-            username=username, password=password, email=email
-        )
-        return user
+    """User CRUD mutations."""
 
-    @strawberry_django.mutation
+    @strawberry.mutation
+    def create_user(self, info: Info, username: str, password: str, email: str | None = None) -> UserType:
+        User = get_user_model()
+        return User.objects.create_user(username=username, password=password, email=email)
+
+    @strawberry.mutation
     def update_user(
         self,
         info: Info,
-        id: strawberry.ID,
+        user_id: strawberry.ID,
         username: str | None = None,
         email: str | None = None,
+        is_staff: bool | None = None,
+        is_active: bool | None = None,
     ) -> UserType:
         User = get_user_model()
-        user = User.objects.get(id=id)
-        if username is not None:
-            user.username = username
-        if email is not None:
-            user.email = email
+        user = User.objects.get(id=user_id)
+
+        for field, value in {
+            "username": username,
+            "email": email,
+            "is_staff": is_staff,
+            "is_active": is_active,
+        }.items():
+            if value is not None:
+                setattr(user, field, value)
+
         user.save()
         return user
 
-    @strawberry_django.mutation
-    def delete_user(self, info: Info, id: strawberry.ID) -> bool:
+    @strawberry.mutation
+    def delete_user(self, info: Info, user_id: strawberry.ID) -> bool:
         User = get_user_model()
-        User.objects.filter(id=id).delete()
-        return True
+        try:
+            User.objects.get(id=user_id).delete()
+            return True
+        except User.DoesNotExist:
+            return False

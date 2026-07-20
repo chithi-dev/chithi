@@ -1,6 +1,4 @@
-"""
-URL configuration for chithi project.
-"""
+"""Root URL configuration for the chithi project."""
 
 from django.conf import settings
 from django.conf.urls.static import static

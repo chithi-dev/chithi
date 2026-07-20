@@ -1,3 +1,5 @@
+"""Authentication mutations for the GraphQL API."""
+
 import strawberry
 from django.contrib.auth import get_user_model
 from strawberry.types import Info
@@ -9,6 +11,8 @@ from apps.graphql.types import OnboardingPOSTOut, TokenResponse
 
 @strawberry.type
 class AuthMutations:
+    """Authentication-related mutations."""
+
     @strawberry.mutation
     def login(self, username: str, password: str) -> TokenResponse:
         User = get_user_model()
@@ -20,7 +24,7 @@ class AuthMutations:
 
     @strawberry.mutation
     def logout(self, info: Info) -> bool:
-        """Logout is client-side (discard tokens). Server-side no-op since we don't maintain a blacklist."""
+        """Client-side token discard. Stateless JWT — no server blacklist."""
         return True
 
     @strawberry.mutation
