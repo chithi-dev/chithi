@@ -20,6 +20,38 @@ class OnboardingType:
     has_users: bool
 
 
+@strawberry.type
+class InstanceInfoType:
+    backend_version: str
+    python_version: str
+    platform: str
+
+
+@strawberry.type
+class InstanceStatisticsType:
+    total_files: int
+    active_files: int
+    expired_files: int
+    total_storage_used: int
+    total_users: int
+
+
+@strawberry.type
+class PaginatedFiles:
+    items: list[FileType]
+    total: int
+    page: int
+    size: int
+    pages: int
+
+
+@strawberry.type
+class OnboardingPOSTOut:
+    access: str
+    refresh: str
+    onboarded: bool
+
+
 @type(model=User)
 class UserType:
     id: strawberry.ID

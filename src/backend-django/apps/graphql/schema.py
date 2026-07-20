@@ -1,12 +1,28 @@
+import math
+import platform
+import sys
+
 import strawberry
 import strawberry_django
 from django.contrib.auth import get_user_model
+from django.db import models
 from strawberry.types import Info
 
 from apps.config.models import Config
 from apps.files.models import File
+from apps.files.services import delete_file_from_s3
 
-from .types import ConfigType, FileType, OnboardingType, TokenResponse, UserType
+from .types import (
+    ConfigType,
+    FileType,
+    InstanceInfoType,
+    InstanceStatisticsType,
+    OnboardingPOSTOut,
+    OnboardingType,
+    PaginatedFiles,
+    TokenResponse,
+    UserType,
+)
 
 
 def get_jwt_tokens(user) -> tuple[str, str]:
@@ -28,6 +44,11 @@ class Query:
         return list(File.objects.all())
 
     @strawberry.field
+    def file_info(self, slug: str) -> FileType | None:
+        """Look up a single file by its S3 key (slug)."""
+        return File.objects.filter(key=slug).first()
+
+    @strawberry.field
     def config(self) -> ConfigType:
         return Config.load()
 
@@ -45,6 +66,67 @@ class Query:
         if not user.is_authenticated:
             return None
         return user
+
+    @strawberry.field
+    def instance_information(self) -> InstanceInfoType:
+        return InstanceInfoType(
+            backend_version="1.0.0",
+            python_version=sys.version,
+            platform=platform.platform(),
+        )
+
+    @strawberry.field
+    def instance_statistics(self) -> InstanceStatisticsType:
+        User = get_user_model()
+        from django.utils import timezone
+
+        now = timezone.now()
+        total = File.objects.count()
+        expired = File.objects.filter(expires_at__lt=now).count()
+        active = total - expired
+        total_storage = File.objects.aggregate(
+            total=models.Sum("size")
+        )["total"] or 0
+        total_users = User.objects.count()
+
+        return InstanceStatisticsType(
+            total_files=total,
+            active_files=active,
+            expired_files=expired,
+            total_storage_used=total_storage,
+            total_users=total_users,
+        )
+
+    @strawberry.field
+    def admin_files(
+        self,
+        info: Info,
+        page: int = 1,
+        size: int = 10,
+        search: str | None = None,
+    ) -> PaginatedFiles:
+        """Paginated file list for admin with optional search."""
+        user = info.context.request.user
+        if not user.is_authenticated:
+            raise PermissionError("Authentication required")
+
+        queryset = File.objects.all()
+
+        if search:
+            queryset = queryset.filter(filename__icontains=search)
+
+        total = queryset.count()
+        pages = max(1, math.ceil(total / size))
+        start = (page - 1) * size
+        items = list(queryset.order_by("-created_at")[start:start + size])
+
+        return PaginatedFiles(
+            items=items,
+            total=total,
+            page=page,
+            size=size,
+            pages=pages,
+        )
 
 
 @strawberry.type
@@ -64,13 +146,84 @@ class Mutation:
 
         auth_header = info.context.request.META.get("HTTP_AUTHORIZATION", "")
         if auth_header.startswith("Bearer "):
-            token_string = auth_header.split("Bearer ", 1)[1].strip()
+            token_string = info.context.request.META.get("HTTP_AUTHORIZATION", "").split("Bearer ", 1)[1].strip()
             try:
                 refresh = RefreshToken(token_string)
                 refresh.blacklist()
             except Exception:
                 pass
         return True
+
+    @strawberry.mutation
+    def upload_file(
+        self,
+        info: Info,
+        filename: str,
+        expire_after: int,
+        expire_after_n_download: int,
+        number_of_files: int | None = None,
+    ) -> FileType:
+        """Create a File record for an upload. Actual data upload is handled via presigned URLs or separate streaming."""
+        user = info.context.request.user
+        if not user.is_authenticated:
+            raise PermissionError("Authentication required")
+
+        config = Config.load()
+
+        if not config.allow_uploads:
+            raise ValueError("Uploads are currently disabled")
+
+        if config.time_configs and expire_after not in config.time_configs:
+            raise ValueError(f"Invalid expiry. Choose from: {config.time_configs}")
+
+        if config.download_configs and expire_after_n_download not in config.download_configs:
+            raise ValueError(f"Invalid download count. Choose from: {config.download_configs}")
+
+        from django.utils import timezone
+        import uuid_utils.compat as uuid
+
+        key = str(uuid.uuid7())
+        now = timezone.now()
+
+        file_obj = File.objects.create(
+            key=key,
+            filename=filename,
+            size=0,
+            number_of_files=number_of_files,
+            expires_at=now + timezone.timedelta(seconds=expire_after),
+            expire_after_n_download=expire_after_n_download,
+            download_count=0,
+        )
+        return file_obj
+
+    @strawberry.mutation
+    def complete_onboarding(
+        self,
+        username: str,
+        email: str,
+        password: str,
+        site_description: str,
+    ) -> OnboardingPOSTOut:
+        """Create the initial superuser, default config, and return JWT tokens."""
+        User = get_user_model()
+
+        user = User.objects.create_superuser(
+            username=username,
+            email=email,
+            password=password,
+        )
+
+        Config.objects.update_or_create(
+            defaults={"site_description": site_description},
+        )
+
+        access, refresh = get_jwt_tokens(user)
+
+        return OnboardingPOSTOut(
+            access=access,
+            refresh=refresh,
+            onboarded=True,
+        )
 
     @strawberry_django.mutation
     def update_config(
@@ -113,7 +266,10 @@ class Mutation:
 
     @strawberry_django.mutation
     def delete_file(self, info: Info, id: strawberry.ID) -> bool:
-        File.objects.filter(id=id).delete()
+        file_obj = File.objects.filter(id=id).first()
+        if file_obj:
+            delete_file_from_s3(file_obj.key)
+            file_obj.delete()
         return True
 
     @strawberry_django.mutation
