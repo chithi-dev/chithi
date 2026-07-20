@@ -966,3 +966,104 @@ Replace raw `<table>` elements in admin pages with shadcn-svelte Data Table (Tan
 - **DONE**: Updated frontend tests from Web Crypto AES-GCM to WASM XChaCha20-Poly1305
 - **DONE**: Renamed `deriveAESKeyRaw` to `deriveEncryptionKey`
 - **DONE**: Updated crypto architecture documentation
+
+---
+
+## Phase 24: Rust WASM Multi-Core Parallelism — DONE
+
+Replace rayon with wasm_thread for WASM multi-core execution:
+
+- [x] Replace `rayon` dependency with `wasm_thread` (Rayon-compatible for WASM)
+- [x] Rename feature from `rayon` to `parallel` (enabled by default)
+- [x] Update parallel encrypt/decrypt functions to use `wasm_thread::scope()`
+- [x] Add `+simd128` to WASM target features in `.cargo/config.toml`
+- [x] Update build script to use SharedArrayBuffer and `+nightly` toolchain
+- [x] Reduce JS worker concurrency to 1 (Rust handles all parallelism via `wasm_thread`)
+- [x] All 14 Rust tests pass with parallel feature enabled
+
+**Commit**: `e955ac4` — feat: replace rayon with wasm_thread for WASM multi-core parallelism
+
+**Why**: `wasm_thread` enables true multi-core parallelism inside WASM using WebAssembly Threads. The Rust side now spawns threads for parallel chunk encryption/decryption, so the JS worker pool only needs a single transport worker. This eliminates the overhead of spawning multiple JS workers and lets Cranelift optimize the parallel work inside WASM.
+
+---
+
+## Phase 25: Django + Strawberry-Django GraphQL Backend — DONE
+
+Port FastAPI backend to Django at `src/backend-django/` following alumni-backend patterns:
+
+- [x] Create Django project structure with PostgreSQL, DRF-SimpleJWT, Celery, django-storages[S3]
+- [x] Create mixins: UUIDPrimaryKeyMixin (uuid7), CreatedAtMixin, SingletonModel
+- [x] Create User model with custom UserManager, AbstractBaseUser, PermissionsMixin
+- [x] Create File model with is_expired property, S3 integration
+- [x] Create Config singleton model with site-wide settings
+- [x] Create Strawberry-Django types: UserType, FileType, ConfigType, TokenResponse, OnboardingType
+- [x] Create GraphQL Query: users, files, config, onboarding, me
+- [x] Create GraphQL Mutation: login, logout, update_config, delete_file, create_user, update_user, delete_user
+- [x] Create JWT auth bridge: get_user_from_jwt_token, GraphQLJwtMiddleware
+- [x] Create Celery tasks: delete_expired_files, remove_expired_blacklisted_tokens, remove_expired_outstanding_tokens
+- [x] Configure django-celery-beat schedule: file cleanup hourly, token cleanup daily
+- [x] Configure S3/RustFS storage via django-storages with env vars
+- [x] Configure Redis cache, CORS headers, logging
+- [x] Create requirements.txt with all dependencies
+- [x] Create .env.example with all environment variables
+- [x] 39 files created following alumni-backend patterns exactly
+
+**Commit**: `0630b5d` — feat: create Django + Strawberry-Django GraphQL backend
+
+**Why**: Django + Strawberry-Django provides a robust, well-tested backend with:
+- ORM with migrations, admin interface, and PostgreSQL support
+- DRF-SimpleJWT with token blacklist for secure authentication
+- GraphQL API replacing REST endpoints (single /graphql/ endpoint)
+- Celery + django_celery_beat for background tasks and scheduled cleanup
+- django-storages for S3/RustFS file storage
+- NO AppState broadcast to frontend — frontend queries GraphQL directly
+
+---
+
+## Phase 26: Frontend shadcn-svelte Refactoring — DONE
+
+Apply shadcn-svelte patterns across the frontend:
+
+- [x] Install Typography components via CLI
+- [x] Upgrade admin users page to Data Table with TanStack Table column definitions
+- [x] Upgrade admin URLs page to Data Table with TanStack Table column definitions
+- [x] Apply Typography components to admin pages
+- [x] Apply Typography components to information pages
+- [x] Frontend builds successfully with all changes
+
+**Commit**: `7c1b428` — feat: upgrade admin tables to Data Table and apply Typography components
+**Commit**: `fe86f71` — feat: add shadcn-svelte Typography components
+
+**Why**: Data Table provides sorting, filtering, selection, and pagination out of the box. Typography components ensure consistent heading/paragraph styling across all pages. Both follow the exact shadcn-svelte docs pattern.
+
+---
+
+## Summary of Completed Work (2026-07-19 to 2026-07-20)
+
+| Phase | Description | Status | Commits |
+|---|---|---|---|
+| Phase 24 | Rust wasm_thread multi-core parallelism | DONE | `e955ac4` |
+| Phase 25 | Django + Strawberry-Django GraphQL backend | DONE | `0630b5d` |
+| Phase 26 | Frontend shadcn-svelte refactoring | DONE | `7c1b428`, `fe86f71` |
+
+### What Changed
+
+**Rust/WASM**:
+- Replaced `rayon` with `wasm_thread` for WASM multi-core parallelism
+- Updated build script to use `+nightly` toolchain and SharedArrayBuffer
+- Reduced JS worker concurrency to 1 (Rust handles all parallelism)
+- All 14 Rust tests pass
+
+**Backend**:
+- Created complete Django project at `src/backend-django/` (39 files)
+- Strawberry-Django GraphQL schema with Query/Mutation types
+- DRF-SimpleJWT auth with token blacklist, GraphQLJwtMiddleware
+- Celery tasks for expired file cleanup, token cleanup
+- S3/RustFS storage via django-storages
+- Mixins: UUIDPrimaryKeyMixin, CreatedAtMixin, SingletonModel
+
+**Frontend**:
+- Installed shadcn-svelte Typography components
+- Migrated admin tables to Data Table with TanStack Table
+- Applied Typography components across admin and information pages
+- Frontend builds successfully
