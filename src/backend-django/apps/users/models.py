@@ -13,6 +13,8 @@ class User(UUIDPrimaryKeyMixin, CreatedAtMixin, AbstractBaseUser, PermissionsMix
 
     username = models.CharField(max_length=150, unique=True, db_index=True)
     email = models.EmailField(null=True, blank=True, unique=True, db_index=True)
+    is_staff = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
 
     USERNAME_FIELD = "username"
     REQUIRED_FIELDS = []
