@@ -16,8 +16,9 @@
   import { createZipStream, createEncryptedStream } from '#functions/streams';
   import * as Tooltip from '$lib/components/ui/tooltip/index.js';
   import { v7 as uuidv7 } from 'uuid';
-  import { Api } from '#consts/backend';
   import { Progress } from '$lib/components/ui/progress/index.js';
+  import { client } from '$lib/graphql/client.js';
+  import { UPLOAD_FILE_MUTATION } from '$lib/graphql/queries.js';
   import { addHistoryEntry } from '$lib/database';
   import { toast } from 'svelte-sonner';
   import { cubicOut } from 'svelte/easing';
@@ -146,38 +147,22 @@
       isEncrypting = false;
       encryptionProgress.target = 100;
 
-      const formData = new FormData();
-      formData.append('filename', files.length === 1 ? files[0].name : folderName);
-      formData.append('expire_after_n_download', viewOnce ? '1' : downloadLimit);
-      formData.append('expire_after', timeLimit);
-      formData.append('file', encryptedBlob, uuidv7());
-      formData.append('number_of_files', files.length.toString());
-      if (files.length > 1) formData.append('folder_name', folderName);
+      const result = await client
+        .mutation(UPLOAD_FILE_MUTATION, {
+          file: encryptedBlob,
+          filename: files.length === 1 ? files[0].name : folderName,
+          expires_at: parseInt(timeLimit),
+          expire_after_n_download: viewOnce ? 1 : parseInt(downloadLimit),
+          number_of_files: files.length
+        })
+        .toPromise();
 
-      const data = await new Promise<any>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', Api.UPLOAD);
-        xhr.upload.onprogress = (e) => {
-          uploadProgress.target = e.lengthComputable
-            ? Math.round((e.loaded / e.total) * 100)
-            : Math.min(99, uploadProgress.target + 1);
-        };
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              resolve(JSON.parse(xhr.responseText));
-            } catch {
-              reject(new Error('Invalid JSON response'));
-            }
-          } else {
-            reject(new Error(`Upload failed: ${xhr.status} ${xhr.responseText || ''}`));
-          }
-        };
-        xhr.onerror = () => reject(new Error('Network error during upload'));
-        xhr.send(formData);
-      });
+      if (result.error) {
+        throw new Error(result.error.message);
+      }
 
       uploadProgress.target = 100;
+      const data = result.data?.upload_file;
       const serverPath = String(data?.id ?? data?.path ?? data?.key ?? '');
       if (!serverPath || serverPath === 'null' || serverPath === 'undefined')
         throw new Error('Invalid server response');

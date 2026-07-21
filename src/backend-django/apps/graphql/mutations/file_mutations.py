@@ -3,7 +3,9 @@
 from uuid import uuid4
 
 import strawberry
+from django.core.files.uploadedfile import UploadedFile
 from django.utils import timezone
+from strawberry.file_uploads import Upload
 from strawberry.types import Info
 
 from apps.files.models import File
@@ -19,19 +21,20 @@ class FileMutations:
     def upload_file(
         self,
         info: Info,
+        file: Upload,
         filename: str,
-        size: int,
-        data: bytes,
         expires_at: int,
         expire_after_n_download: int,
         number_of_files: int | None = None,
     ) -> FileType:
+        uploaded_file = file
+        file_data = uploaded_file.read()
         key = str(uuid4())
-        upload_file_data(key=key, data=data)
+        upload_file_data(key=key, data=file_data)
         return File.objects.create(
             key=key,
             filename=filename,
-            size=size,
+            size=len(file_data),
             expires_at=timezone.now() + timezone.timedelta(seconds=expires_at),
             expire_after_n_download=expire_after_n_download,
             number_of_files=number_of_files,

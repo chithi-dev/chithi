@@ -145,14 +145,16 @@ export const LOGOUT_MUTATION = gql`
 
 export const UPLOAD_FILE_MUTATION = gql`
   mutation UploadFile(
+    $file: Upload!
     $filename: String!
-    $expire_after: Int!
+    $expires_at: Int!
     $expire_after_n_download: Int!
     $number_of_files: Int
   ) {
     upload_file(
+      file: $file
       filename: $filename
-      expire_after: $expire_after
+      expires_at: $expires_at
       expire_after_n_download: $expire_after_n_download
       number_of_files: $number_of_files
     ) {
