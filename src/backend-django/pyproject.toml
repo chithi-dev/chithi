@@ -15,6 +15,7 @@ dependencies = [
     "django-storages[boto3]>=1.14",
     "python-dotenv>=1.2.2",
     "boto3>=1.37",
+    "python-multipart>=0.0.18",
 ]
 
 [dependency-groups]

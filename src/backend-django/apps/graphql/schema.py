@@ -1,4 +1,6 @@
 import strawberry
+from django.core.files.uploadedfile import UploadedFile
+from strawberry.file_uploads import UploadDefinition
 
 from apps.graphql.mutations import (
     AuthMutations,
@@ -36,4 +38,8 @@ class Mutation(
     pass
 
 
-schema = strawberry.Schema(query=Query, mutation=Mutation)
+schema = strawberry.Schema(
+    query=Query,
+    mutation=Mutation,
+    scalar_overrides={UploadedFile: UploadDefinition},
+)
