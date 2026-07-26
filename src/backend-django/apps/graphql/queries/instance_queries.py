@@ -1,5 +1,3 @@
-"""Instance information queries for the GraphQL API."""
-
 import platform
 import sys
 

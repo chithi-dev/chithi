@@ -1,5 +1,3 @@
-"""Onboarding queries for the GraphQL API."""
-
 import strawberry
 from django.contrib.auth import get_user_model
 

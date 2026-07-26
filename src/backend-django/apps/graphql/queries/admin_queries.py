@@ -1,5 +1,3 @@
-"""Admin queries for the GraphQL API."""
-
 import math
 
 import strawberry

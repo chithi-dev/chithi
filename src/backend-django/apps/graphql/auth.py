@@ -1,5 +1,3 @@
-"""JWT authentication utilities for Strawberry GraphQL."""
-
 from datetime import UTC, datetime, timedelta
 
 import jwt

@@ -1,5 +1,3 @@
-"""File queries for the GraphQL API."""
-
 import strawberry
 
 from apps.files.models import File

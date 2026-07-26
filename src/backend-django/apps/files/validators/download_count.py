@@ -1,5 +1,3 @@
-"""Validator: download count must be in the configured download_configs."""
-
 from django.core.exceptions import ValidationError
 
 from apps.config.models import Config

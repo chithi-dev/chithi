@@ -1,5 +1,3 @@
-"""Validator: expiry duration must be in the configured time_configs."""
-
 from django.core.exceptions import ValidationError
 
 from apps.config.models import Config

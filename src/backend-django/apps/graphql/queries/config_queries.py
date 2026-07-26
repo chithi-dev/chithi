@@ -1,5 +1,3 @@
-"""Configuration queries for the GraphQL API."""
-
 import strawberry
 
 from apps.config.models import Config

@@ -1,5 +1,3 @@
-"""Configuration mutations for the GraphQL API."""
-
 import strawberry
 from strawberry.types import Info
 

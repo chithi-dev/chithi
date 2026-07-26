@@ -1,5 +1,3 @@
-"""Validator: file size must not exceed the configured max_file_size_limit."""
-
 from django.core.exceptions import ValidationError
 
 from apps.config.models import Config

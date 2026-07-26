@@ -1,5 +1,3 @@
-"""URL configuration for the GraphQL app."""
-
 from django.urls import path
 
 from strawberry.django.views import AsyncGraphQLView

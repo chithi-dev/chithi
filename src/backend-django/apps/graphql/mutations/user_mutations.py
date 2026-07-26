@@ -1,5 +1,3 @@
-"""User management mutations for the GraphQL API."""
-
 import strawberry
 from django.contrib.auth import get_user_model
 from strawberry.types import Info
@@ -12,9 +10,13 @@ class UserMutations:
     """User CRUD mutations."""
 
     @strawberry.mutation
-    def create_user(self, info: Info, username: str, password: str, email: str | None = None) -> UserType:
+    def create_user(
+        self, info: Info, username: str, password: str, email: str | None = None
+    ) -> UserType:
         User = get_user_model()
-        return User.objects.create_user(username=username, password=password, email=email)
+        return User.objects.create_user(
+            username=username, password=password, email=email
+        )
 
     @strawberry.mutation
     def update_user(
