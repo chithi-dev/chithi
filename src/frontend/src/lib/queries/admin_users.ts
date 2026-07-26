@@ -1,93 +1,83 @@
 import { client } from '$lib/graphql/client.js';
 import { USERS_QUERY, CREATE_USER_MUTATION, DELETE_USER_MUTATION } from '$lib/graphql/queries.js';
-import type { DocumentInput } from '@urql/core';
+import type { UserData } from '$lib/graphql/hooks.js';
 
 export const usersQueryKey = ['admin-users'];
 
-// Shape expected by callers (matches the old REST paginated response).
 interface UsersResponse {
   items: Array<{ id: string; username: string; email: string | null; created_at: string }>;
   total_items: number;
 }
 
-// urql OperationResult shape for error access.
-interface QueryResult {
-  data: UsersResponse | undefined;
-  error: string | undefined;
-  fetching: boolean;
+interface UsersData {
+  users: UserData[];
 }
 
-/**
- * Thin adapter that makes the urql query result look like the old
- * tanstack-svelte-query result, so callers need zero changes.
- */
-function adaptQuery(result: QueryResult) {
+interface QueryState {
+  data: UsersResponse | undefined;
+  error: string | undefined;
+  isLoading: boolean;
+}
+
+function mapUsersResult(users: UserData[]): UsersResponse {
   return {
-    get data() {
-      return result.data;
-    },
-    get isLoading() {
-      return result.fetching;
-    },
-    get error() {
-      return result.error ? new Error(result.error) : null;
-    }
+    items: users.map(u => ({
+      id: u.id,
+      username: u.username,
+      email: u.email,
+      created_at: u.created_at
+    })),
+    total_items: users.length
   };
 }
 
 export const useUsersQuery = (page: () => number, size: number) => {
-  // GraphQL users query returns a flat list (no server-side pagination).
-  // The page/size params are accepted for API compatibility but ignored.
-
-  let fetching = $state(true);
-  let data = $state<UsersResponse | undefined>(undefined);
-  let error = $state<string | undefined>(undefined);
-
-  const source = client.query(USERS_QUERY, {});
-
-  const subscription = source.subscribe((result) => {
-    fetching = result.operation.kind === 'query' && result.stale;
-    error = result.error ? result.error.message : undefined;
-
-    if (result.data) {
-      data = {
-        items: result.data.users,
-        total_items: result.data.users.length
-      };
-    }
+  let state = $state<QueryState>({
+    data: undefined,
+    error: undefined,
+    isLoading: true
   });
 
-  $effect(() => {
-    return () => {
-      subscription.unsubscribe();
-    };
-  });
+  function fetchUsers() {
+    state.isLoading = true;
+    const observable = client.watchQuery<UsersData>({ query: USERS_QUERY });
+    observable.subscribe({
+      next(result) {
+        state.isLoading = result.loading;
+        state.error = result.error?.message ?? undefined;
+        if (result.data?.users) {
+          state.data = mapUsersResult(result.data.users);
+        }
+      },
+      error(err) {
+        state.isLoading = false;
+        state.error = err.message;
+      }
+    });
+  }
 
-  const queryResult = adaptQuery({ fetching, data, error });
+  fetchUsers();
 
   const invalidate = () => {
-    // Re-fetch the users query from the urql cache.
-    client.query(USERS_QUERY, {}).subscribe((r) => {
-      if (r.error) {
-        error = r.error.message;
-      } else if (r.data) {
-        data = {
-          items: r.data.users,
-          total_items: r.data.users.length
-        };
+    client.query<UsersData>({ query: USERS_QUERY }).then((result) => {
+      if (result.error) {
+        state.error = result.error.message;
+      } else if (result.data?.users) {
+        state.data = mapUsersResult(result.data.users);
       }
-      fetching = false;
+      state.isLoading = false;
     });
   };
 
   const createUser = async (user_in: { username: string; email?: string | null; password?: string }) => {
-    const result = await client
-      .mutation(CREATE_USER_MUTATION, {
+    const result = await client.mutate({
+      mutation: CREATE_USER_MUTATION,
+      variables: {
         username: user_in.username,
         password: user_in.password || '',
         email: user_in.email
-      })
-      .toPromise();
+      }
+    });
 
     if (result.error) {
       throw new Error(result.error.message);
@@ -98,9 +88,10 @@ export const useUsersQuery = (page: () => number, size: number) => {
   };
 
   const deleteUser = async (user_id: string) => {
-    const result = await client
-      .mutation(DELETE_USER_MUTATION, { id: user_id })
-      .toPromise();
+    const result = await client.mutate({
+      mutation: DELETE_USER_MUTATION,
+      variables: { id: user_id }
+    });
 
     if (result.error) {
       throw new Error(result.error.message);
@@ -110,5 +101,5 @@ export const useUsersQuery = (page: () => number, size: number) => {
     return result.data;
   };
 
-  return { users: queryResult, createUser, deleteUser };
+  return { users: state, createUser, deleteUser };
 };
