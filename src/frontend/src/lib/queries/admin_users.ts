@@ -45,8 +45,9 @@ export const useUsersQuery = (page: () => number, size: number) => {
       next(result) {
         state.isLoading = result.loading;
         state.error = result.error?.message ?? undefined;
-        if (result.data?.users) {
-          state.data = mapUsersResult(result.data.users);
+        const usersData = result.data as UsersData | undefined;
+        if (usersData?.users) {
+          state.data = mapUsersResult(usersData.users);
         }
       },
       error(err) {
@@ -62,8 +63,11 @@ export const useUsersQuery = (page: () => number, size: number) => {
     client.query<UsersData>({ query: USERS_QUERY }).then((result) => {
       if (result.error) {
         state.error = result.error.message;
-      } else if (result.data?.users) {
-        state.data = mapUsersResult(result.data.users);
+      } else {
+        const data = result.data as UsersData | undefined;
+        if (data?.users) {
+          state.data = mapUsersResult(data.users);
+        }
       }
       state.isLoading = false;
     });

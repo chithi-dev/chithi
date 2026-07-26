@@ -6,8 +6,6 @@ import {
 } from '$lib/graphql/hooks.js';
 import type { InstanceInfoData, InstanceStatsData } from '$lib/graphql/hooks.js';
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
-
 export interface InstanceInformation {
   backend_version: string;
   python_version: string;
@@ -36,19 +34,13 @@ export interface InstanceStatistics {
   newest_file: string | null;
 }
 
-// ─── Prefetch ──────────────────────────────────────────────────────────────────
-
 export const prefetchInstanceInformation = async () => {
-  const source = client.query(INSTANCE_INFO_QUERY, {});
-  await source.toPromise();
+  await client.query({ query: INSTANCE_INFO_QUERY });
 };
 
 export const prefetchInstanceStatistics = async () => {
-  const source = client.query(INSTANCE_STATS_QUERY, {});
-  await source.toPromise();
+  await client.query({ query: INSTANCE_STATS_QUERY });
 };
-
-// ─── Query Hooks ───────────────────────────────────────────────────────────────
 
 export const useInstanceInformationQuery = () => {
   const rawInfo = useInstanceInfoQuery();
@@ -73,8 +65,6 @@ export const useInstanceStatisticsQuery = () => {
 
   return { stats };
 };
-
-// ─── Mappers ───────────────────────────────────────────────────────────────────
 
 function mapInstanceInfo(
   data: InstanceInfoData['instance_information']

@@ -17,7 +17,9 @@
 		"update-ui": "node --experimental-strip-types scripts/update-ui.ts"
 	},
 	"dependencies": {
+		"@apollo/client": "^4.2.8",
 		"embla-carousel-svelte": "^8.6.0",
+		"graphql": "^17.0.2",
 		"takumi-js": "^1.0.15",
 		"urql": "^5.0.3"
 	},
@@ -35,6 +37,10 @@
 		"@eslint/js": "^10.0.1",
 		"@fontsource-variable/geist": "^5.2.8",
 		"@fontsource-variable/jetbrains-mono": "^5.2.8",
+		"@graphql-codegen/cli": "^7.2.0",
+		"@graphql-codegen/typescript": "^6.1.0",
+		"@graphql-codegen/typescript-operations": "^6.1.2",
+		"@graphql-codegen/typescript-resolvers": "^6.1.0",
 		"@icons-pack/svelte-simple-icons": "^7.2.0",
 		"@internationalized/date": "^3.12.1",
 		"@jsquash/avif": "^2.1.1",
@@ -73,6 +79,7 @@
 		"eslint-plugin-svelte": "^3.17.1",
 		"formsnap": "^2.0.1",
 		"globals": "^17.5.0",
+		"graphql-tag-pluck": "^0.8.7",
 		"hash-wasm": "^4.12.0",
 		"layerchart": "^2.0.0-next.48",
 		"mode-watcher": "^1.1.0",

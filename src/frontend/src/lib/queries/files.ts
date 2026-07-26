@@ -1,5 +1,6 @@
 import { client } from '$lib/graphql/client.js';
 import { ADMIN_FILES_QUERY, DELETE_FILE_MUTATION } from '$lib/graphql/queries.js';
+import type { AdminFilesData, FileInfoItem, DeleteFileResult } from '$lib/graphql/hooks.js';
 
 export type FileInfo = {
   id: string;
@@ -28,8 +29,8 @@ interface QueryState {
   isLoading: boolean;
 }
 
-function mapAdminFilesToPaginatedFiles(adminFilesData: any): PaginatedFiles {
-  const items: FileInfo[] = (adminFilesData?.items ?? []).map((item: any) => ({
+function mapAdminFilesToPaginatedFiles(adminFilesData: NonNullable<AdminFilesData['admin_files']>): PaginatedFiles {
+  const items: FileInfo[] = (adminFilesData?.items ?? []).map((item: FileInfoItem) => ({
     id: item.id,
     filename: item.filename,
     size: item.size,
@@ -68,35 +69,34 @@ export function useFilesQuery(page: () => number = () => 1, pageSize: number = 2
     state.isLoading = true;
     state.error = null;
 
-    const source = client.query(ADMIN_FILES_QUERY, {
-      page: p,
-      size: pageSize,
-      search: null
+    const observable = client.watchQuery<AdminFilesData>({
+      query: ADMIN_FILES_QUERY,
+      variables: { page: p, size: pageSize, search: null }
     });
 
-    source.toPromise().then(
-      (result) => {
+    observable.subscribe({
+      next(result) {
         if (result.error) {
           state.error = new Error(result.error.message);
           state.data = undefined;
         } else {
-          state.data = mapAdminFilesToPaginatedFiles(result.data?.admin_files);
+          state.data = (result.data as AdminFilesData | undefined)?.admin_files
+            ? mapAdminFilesToPaginatedFiles((result.data as AdminFilesData).admin_files)
+            : undefined;
           state.error = null;
         }
         state.isLoading = false;
       },
-      (err) => {
+      error(err) {
         state.error = err instanceof Error ? err : new Error(String(err));
         state.data = undefined;
         state.isLoading = false;
       }
-    );
+    });
   }
 
-  // Initial fetch
   fetchFiles(currentPage);
 
-  // Refetch on a 1-second interval (matching original refetchInterval behavior)
   let intervalId: number | undefined = undefined;
 
   function startRefetchInterval() {
@@ -116,7 +116,6 @@ export function useFilesQuery(page: () => number = () => 1, pageSize: number = 2
     };
   });
 
-  // Watch for page changes and refetch
   $effect(() => {
     const p = page();
     currentPage = p;
@@ -124,13 +123,15 @@ export function useFilesQuery(page: () => number = () => 1, pageSize: number = 2
   });
 
   const revokeFile = async (id: string) => {
-    const result = await client.mutation(DELETE_FILE_MUTATION, { id }).toPromise();
+    const result = await client.mutate<DeleteFileResult>({
+      mutation: DELETE_FILE_MUTATION,
+      variables: { id }
+    });
 
     if (result.error) {
       throw new Error(result.error.message);
     }
 
-    // Refetch the file list after successful revoke
     fetchFiles(currentPage);
   };
 

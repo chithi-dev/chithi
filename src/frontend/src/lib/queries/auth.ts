@@ -4,7 +4,6 @@ import { user_store } from '$lib/store/user.svelte';
 import { client } from '$lib/graphql/client.js';
 import { ME_QUERY, UPDATE_USER_MUTATION } from '$lib/graphql/queries.js';
 import type { MeData, UserData, UpdateUserResult } from '$lib/graphql/hooks.js';
-import type { OperationResult } from '@urql/core';
 
 export const queryKey = ['auth-user'];
 
@@ -16,33 +15,38 @@ const meQueryState = {
   fetching: true
 };
 
-const source = client.query(ME_QUERY, {});
+const observable = client.watchQuery<MeData>({ query: ME_QUERY });
 
-const subscription = source.subscribe((result: OperationResult<MeData>) => {
-  meQueryState.fetching = result.stale || (!result.data && !result.error);
-  meQueryState.error = result.error ? result.error.message : null;
-  meQueryState.data = result.data ? result.data.me : null;
+observable.subscribe({
+  next(result) {
+    meQueryState.fetching = result.loading || (!result.data && !result.error);
+    meQueryState.error = result.error?.message ?? null;
+    meQueryState.data = (result.data as MeData | undefined)?.me ?? null;
 
-  if (browser) {
-    if (meQueryState.data) {
-      user_store.authenticate();
-    } else if (result.error) {
-      user_store.unauthenticate();
+    if (browser) {
+      if (meQueryState.data) {
+        user_store.authenticate();
+      } else if (result.error) {
+        user_store.unauthenticate();
+      }
     }
+  },
+  error(err) {
+    meQueryState.fetching = false;
+    meQueryState.error = err.message;
   }
 });
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 async function refetchMe() {
-  const refetchSource = client.query(ME_QUERY, {});
-  await refetchSource.toPromise();
+  await client.query<MeData>({ query: ME_QUERY });
 }
 
 // ─── Public API ────────────────────────────────────────────────────────────────
 
 export const prefetch = async () => {
-  // urql manages its own cache; no explicit prefetch needed.
+  // Apollo manages its own cache; no explicit prefetch needed.
   // Kept for backward compatibility with existing callers.
 };
 
@@ -79,10 +83,13 @@ export const useAuth = () => {
       throw new Error('No authenticated user');
     }
 
-    const result = await client.mutation(UPDATE_USER_MUTATION, {
-      id: currentUser.id,
-      username: data.username ?? undefined,
-      email: data.email ?? undefined
+    const result = await client.mutate<UpdateUserResult>({
+      mutation: UPDATE_USER_MUTATION,
+      variables: {
+        id: currentUser.id,
+        username: data.username ?? undefined,
+        email: data.email ?? undefined
+      }
     });
 
     if (result.error) {

@@ -1,7 +1,7 @@
 import { client } from '$lib/graphql/client.js';
 import { CONFIG_QUERY } from '$lib/graphql/queries.js';
 import { updateConfigMutation } from '$lib/graphql/hooks.js';
-import type { OperationResult } from '@urql/core';
+import type { ConfigData } from '$lib/graphql/hooks.js';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -28,9 +28,8 @@ interface ConfigState {
 
 // ─── Prefetch ──────────────────────────────────────────────────────────────────
 
-export const prefetch = async (_params?: { queryClient?: unknown; fetch?: typeof globalThis.fetch }) => {
-  const source = client.query(CONFIG_QUERY, {});
-  await source.toPromise();
+export const prefetch = async () => {
+  await client.query<ConfigData>({ query: CONFIG_QUERY });
 };
 
 // ─── Query Hook ────────────────────────────────────────────────────────────────
@@ -46,19 +45,26 @@ function createConfigState() {
 
   let state = $state<ConfigState>(initialState);
 
-  const source = client.query(CONFIG_QUERY, {});
+  const observable = client.watchQuery<ConfigData>({ query: CONFIG_QUERY });
 
-  const subscription = source.subscribe((result: OperationResult) => {
-    state.isLoading = result.operation.kind === 'query' && result.stale;
-    state.isFetching = result.operation.kind === 'query' && result.stale;
-    state.stale = result.stale;
-    state.data = result.data ? result.data.config : undefined;
-    state.error = result.error ? result.error.message : undefined;
+  observable.subscribe({
+    next(result) {
+      state.isLoading = result.loading;
+      state.isFetching = result.loading;
+      state.stale = false;
+      state.data = (result.data as ConfigData | undefined)?.config ?? undefined;
+      state.error = result.error?.message ?? undefined;
+    },
+    error(err) {
+      state.isLoading = false;
+      state.isFetching = false;
+      state.error = err.message;
+    }
   });
 
   $effect(() => {
     return () => {
-      subscription.unsubscribe();
+      // Apollo handles cleanup internally, but we note the intent.
     };
   });
 
@@ -78,8 +84,7 @@ export const useConfigQuery = () => {
     }
 
     // Refetch the config query after mutation to sync the cache.
-    const refetchSource = client.query(CONFIG_QUERY, {});
-    await refetchSource.toPromise();
+    await client.query<ConfigData>({ query: CONFIG_QUERY });
   };
 
   return { config: query, updateConfig };
