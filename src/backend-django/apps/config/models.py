@@ -1,4 +1,3 @@
-from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
 from mixins.models.base.singleton import SingletonModel
@@ -10,10 +9,10 @@ class Config(SingletonModel):
     default_expiry = models.BigIntegerField(default=7 * 24 * 3600)
     default_number_of_downloads = models.IntegerField(default=10)
     site_description = models.TextField(default="Secure file sharing service")
-    download_configs = ArrayField(models.BigIntegerField(), default=list, blank=True)
-    time_configs = ArrayField(models.BigIntegerField(), default=list, blank=True)
-    allowed_file_types = ArrayField(models.TextField(), default=list, blank=True)
-    banned_file_types = ArrayField(models.TextField(), default=list, blank=True)
+    download_configs = models.JSONField(default=list, blank=True)
+    time_configs = models.JSONField(default=list, blank=True)
+    allowed_file_types = models.JSONField(default=list, blank=True)
+    banned_file_types = models.JSONField(default=list, blank=True)
     allow_uploads = models.BooleanField(default=True)
 
     def __str__(self) -> str:
