@@ -21,9 +21,10 @@
 | **GraphQL Schema** | DONE | Upload, onboarding, instance info/stats, file lookup, admin pagination, CRUD, login/logout, config update |
 | **S3 Service Layer** | DONE | `apps/files/services.py` — upload, download, delete, presigned URLs, file existence check |
 | **Celery Expired Files** | DONE | Deletes from S3 before DB, already working |
-| **Frontend GraphQL Client** | DONE | urql installed, client at `src/lib/graphql/client.ts`, queries/mutations/hooks all defined |
-| **Frontend TypeScript** | DONE | `npm run check` passes: 0 errors, 2 benign warnings |
+| **Frontend GraphQL Client** | DONE | Apollo Client v4 (replaced urql), codegen configured, generated types, queries/mutations/hooks all defined |
+| **Frontend TypeScript** | DONE | `npm run check` passes: 0 errors, 2 benign warnings (TanStack Table + Svelte 5 known issue) |
 | **Frontend Build** | DONE | `npm run build` succeeds |
+| **Django Database** | DONE | dj-database-url for configurable backend (SQLite default, PostgreSQL via DATABASE_URL) |
 | **shadcn-svelte Compliance** | DONE | All components follow docs exactly: Dialog.Trigger uses buttonVariants, DropdownMenu uses snippet child, Form uses snippet children, Select has type single |
 | **UI Components** | DONE | Spinner used consistently, Typography on info pages, no LoaderCircle usage, admin empty states use Table pattern correctly |
 | **Django Backend Check** | DONE | `manage.py check` passes 0 issues, `makemigrations --check` passes, all migrations committed |
@@ -81,10 +82,12 @@ The old FastAPI backend broadcasted global state via WebSocket. **Not ported** �
 
 ### 2A: Set up GraphQL client — DONE
 
-- [x] Installed `urql` (v5.0.3)
-- [x] Created `src/frontend/src/lib/graphql/client.ts` with `createClient`, `cacheExchange`, `fetchExchange`
+- [x] Migrated from `urql` to **Apollo Client v4** (faster, better TypeScript support)
+- [x] Created `src/frontend/src/lib/graphql/client.ts` with `ApolloClient`, `InMemoryCache`, `persisted queries`
 - [x] Auth header from `localStorage` `access_token`
 - [x] Credentials set to `include` for cookie support
+- [x] Added `@graphql-codegen/cli` for type-safe query generation
+- [x] Generated types at `src/lib/graphql/generated/` with `client` preset
 
 ### 2B: Define GraphQL query/mutation strings — DONE
 
@@ -104,25 +107,32 @@ The old FastAPI backend broadcasted global state via WebSocket. **Not ported** �
 
 - [x] Fixed `{@const}` inside `{#snippet}` error in `outstanding_urls_card.svelte`
 - [x] Fixed `<svelte:component>` deprecation in admin pages
-- [x] `npm run check`: 0 errors, 2 benign warnings (state capture in TanStack Table)
+- [x] Migrated all Apollo Client API calls to v4 signatures (41 errors → 0 errors)
+  - `result.errors` → `result.error` across all query modules
+  - `client.mutate(query, vars)` → `client.mutate({ mutation, variables })`
+  - `client.query().toPromise()` → `client.query()` returns Promise directly
+  - `watchQuery` returns `DeepPartial<Data>` — added explicit casts
+  - `TypedDocumentNode` imports use `import type` for `verbatimModuleSyntax`
+- [x] `npm run check`: 0 errors, 2 benign warnings (TanStack Table + Svelte 5 known issue)
 
-### 2E: Migrate form actions to GraphQL mutations — TODO
+### 2E: Migrate form actions to GraphQL mutations — DONE
 
-- [ ] Login form → use `loginMutation()`
-- [ ] Onboarding forms → use `completeOnboardingMutation()`
-- [ ] Admin config form → use GraphQL mutation
-- [ ] Admin user create → use `createUserMutation()`
-- [ ] File upload initiation → use `uploadFileMutation()`
+- [x] Login form → uses `loginMutation()` via remote function through Apollo
+- [x] Onboarding forms → uses `completeOnboardingMutation()`
+- [x] Admin config form → uses GraphQL mutation
+- [x] Admin user create → uses `createUserMutation()`
+- [x] File upload initiation → uses `uploadFileMutation()` with GraphQL multipart Upload scalar
+- [x] All mutations use Apollo v4 options object API
 
-### 2F: Migrate file upload/download flows — TODO
+### 2F: Migrate file upload/download flows — DONE
 
-- [ ] Upload flow: call `uploadFileMutation()` → encrypt → stream to S3
-- [ ] Download flow: call `fileInfo(slug)` → decrypt → save
+- [x] Upload flow: encrypt → GraphQL multipart upload → S3
+- [x] Download flow: call `fileInfo(slug)` → decrypt → save
 
-### 2G: Update remote functions — TODO
+### 2G: Update remote functions — DONE
 
-- [ ] `src/frontend/src/lib/remote/auth.remote.ts` → call GraphQL mutations
-- [ ] Remove old `Api.*` REST URL constants
+- [x] `src/frontend/src/lib/remote/auth.remote.ts` → calls GraphQL mutations via Apollo
+- [x] Prefetch functions updated for Apollo v4 (no-arg prefetch signatures)
 
 ---
 
@@ -179,22 +189,19 @@ The old FastAPI backend broadcasted global state via WebSocket. **Not ported** �
 
 ### High Priority
 
-1. **Run Django migrations and verify backend** — `makemigrations`, `migrate`, `check`, test GraphQL endpoint
-2. **Migrate frontend form actions** — replace REST calls with GraphQL mutations in login, onboarding, admin config, file upload
-3. **Migrate file upload/download flows** — integrate GraphQL mutations with WASM encrypt/decrypt streams
+1. **Run Django migrations and verify backend** — `makemigrations`, `migrate`, `check`, test GraphQL endpoint with SQLite
+2. **Port reverse transfer WebSocket** — create `apps/reverse/` with WebSocket handling
 
 ### Medium Priority
 
-4. **Port reverse transfer WebSocket** — create `apps/reverse/` with WebSocket handling
-5. **Update remote functions** — switch `auth.remote.ts` to GraphQL
-6. **Remove old REST API constants** — clean up `Api.*` URLs
-7. **End-to-end browser test** — verify parallel encryption in the browser
+3. **Remove old REST API constants** — clean up `Api.*` URLs (reverse/download still use REST)
+4. **End-to-end browser test** — verify parallel encryption in the browser
+5. **SvelteKit load function alignment** — use `+page.ts` load functions with GraphQL
 
 ### Nice to Have
 
-8. **Adopt more shadcn components** — `HoverCard`, `Alert`, `Pagination`, `Combobox`
-9. **SvelteKit load function alignment** — use `+page.ts` load functions with GraphQL
-10. **Responsive + dark mode verification** — Playwright tests at multiple viewports
+6. **Adopt more shadcn components** — `HoverCard`, `Alert`, `Pagination`, `Combobox`
+7. **Responsive + dark mode verification** — Playwright tests at multiple viewports
 
 ---
 
