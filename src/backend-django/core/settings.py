@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 
+import dj_database_url
 from celery.schedules import crontab
 from dotenv import load_dotenv
 
@@ -21,7 +22,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django.contrib.postgres",
     "django_celery_beat",
     "corsheaders",
     "apps.users",
@@ -38,7 +38,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "apps.graphql.middleware.GraphQLJwtMiddleware",
+    "core.middleware.GraphQLJwtMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -62,17 +62,17 @@ TEMPLATES = [
 
 ASGI_APPLICATION = "core.asgi.application"
 
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "sqlite:///db.sqlite3",
+)
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("POSTGRES_DB", "chithi"),
-        "USER": os.environ.get("POSTGRES_USER", "postgres"),
-        "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "supersecretpassword"),
-        "HOST": os.environ.get("POSTGRES_SERVER", "localhost"),
-        "PORT": os.environ.get("POSTGRES_PORT", 5432),
-        "CONN_MAX_AGE": 60,
-        "CONN_HEALTH_CHECKS": True,
-    }
+    "default": dj_database_url.config(
+        default=DATABASE_URL,
+        conn_max_age=60,
+        conn_health_checks=True,
+    )
 }
 
 AUTH_PASSWORD_VALIDATORS = [
