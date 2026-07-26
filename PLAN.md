@@ -29,7 +29,7 @@
 | **UI Components** | DONE | Spinner used consistently, Typography on info pages, no LoaderCircle usage, admin empty states use Table pattern correctly |
 | **Django Backend Check** | DONE | `manage.py check` passes 0 issues, `makemigrations --check` passes, all migrations committed |
 | **Frontend Form Migration** | DONE | Login, onboarding, admin config, file upload — all use GraphQL multipart upload |
-| **Django Migrations** | TODO | Need PostgreSQL `chithi` database created before `migrate` can run |
+| **Django Migrations** | DONE | All migrations apply successfully with SQLite and PostgreSQL-compatible JSONField |
 | **WASM Parallel Verification** | DONE | `wasm_thread::scope` correct in 4 call sites, sequential fallbacks compile, C ABI clean, TS wrappers export all parallel functions |
 
 ---
@@ -63,18 +63,20 @@
 
 The old FastAPI backend broadcasted global state via WebSocket. **Not ported** — frontend queries GraphQL directly for config, stats, file info.
 
-### 1F: Run migrations and verify — TODO
+### 1F: Run migrations and verify — DONE
 
-- [ ] `python manage.py makemigrations`
-- [ ] `python manage.py migrate`
-- [ ] `python manage.py check` (fix `BigIntegerArrayField` issue)
-- [ ] Test GraphQL endpoint
+- [x] `python manage.py makemigrations` — no pending changes
+- [x] `python manage.py migrate` — all 39 migrations applied successfully
+- [x] `python manage.py check` — 0 issues (SQLite backend)
+- [x] GraphQL schema loads successfully via `django.setup()`
+- [x] Replaced `ArrayField` with `JSONField` for cross-database compatibility
 
 ### 1G: Fix model issues — DONE
 
-- [x] Fixed `BigIntegerArrayField` → `ArrayField(models.BigIntegerField())` from `django.contrib.postgres.fields`
+- [x] Fixed `BigIntegerArrayField` → `JSONField` for SQLite + PostgreSQL compatibility
 - [x] Fixed `uuid7v4g` import → `uuid_utils.compat.uuid7()`
 - [x] Added `.gitignore` for backend-django
+- [x] Added `dj-database-url` for configurable database backend
 
 ---
 
@@ -189,7 +191,7 @@ The old FastAPI backend broadcasted global state via WebSocket. **Not ported** �
 
 ### High Priority
 
-1. **Run Django migrations and verify backend** — `makemigrations`, `migrate`, `check`, test GraphQL endpoint with SQLite
+1. **Start Django server and test GraphQL endpoint** — run `runserver`, hit `/graphql/` with queries
 2. **Port reverse transfer WebSocket** — create `apps/reverse/` with WebSocket handling
 
 ### Medium Priority
@@ -212,13 +214,18 @@ The old FastAPI backend broadcasted global state via WebSocket. **Not ported** �
 - `src/backend-django/apps/graphql/types.py` — InstanceInfoType, InstanceStatisticsType, PaginatedFiles, OnboardingPOSTOut
 - `src/backend-django/apps/files/services.py` — S3 upload/download/delete/presigned URLs
 - `src/backend-django/apps/files/tasks.py` — Celery expired file cleanup (S3 + DB)
-- `src/backend-django/apps/config/models.py` — Config with ArrayField fix
+- `src/backend-django/apps/config/models.py` — Config with JSONField for cross-database compat
+- `src/backend-django/core/middleware.py` — GraphQL JWT auth middleware
+- `src/backend-django/core/settings.py` — dj-database-url, configurable database backend
 - `rust-toolchain.toml` — nightly toolchain for wasm_thread
 
 ### Frontend
-- `src/frontend/src/lib/graphql/client.ts` — urql client with auth
+- `src/frontend/codegen.ts` — GraphQL codegen config (Apollo v4, strictScalars, maybeValue)
+- `src/frontend/src/lib/graphql/client.ts` — Apollo Client v4 with auth
+- `src/frontend/src/lib/graphql/generated/` — auto-generated TypeScript types from schema
 - `src/frontend/src/lib/graphql/queries.ts` — 15 query/mutation definitions
 - `src/frontend/src/lib/graphql/hooks.ts` — typed hooks + mutation wrappers
+- `src/frontend/src/lib/queries/` — query store modules (auth, config, onboarding, files, admin)
 - `src/frontend/src/hooks.ts` — COOP/COEP headers for SharedArrayBuffer
 
 ### WASM
@@ -231,14 +238,15 @@ The old FastAPI backend broadcasted global state via WebSocket. **Not ported** �
 ## Verification Checklist
 
 ### Django Backend
-- [x] `BigIntegerArrayField` fixed → `ArrayField(models.BigIntegerField())`
+- [x] `ArrayField` fixed → `JSONField` for cross-database compatibility
 - [x] `uuid7v4g` fixed → `uuid_utils.compat.uuid7()`
 - [x] Upload mutation validates against config limits
 - [x] Delete mutation calls S3 before DB delete
 - [x] Celery task deletes from S3 before DB
 - [x] `python manage.py check` passes (0 issues)
-- [ ] `python manage.py migrate` runs (needs PostgreSQL `chithi` database)
-- [ ] GraphQL endpoint responds
+- [x] `python manage.py migrate` runs successfully (SQLite + PostgreSQL compatible)
+- [x] GraphQL schema loads via `django.setup()`
+- [ ] GraphQL endpoint responds (needs server started)
 - [ ] Login mutation returns JWT tokens
 - [ ] Upload mutation creates File record
 - [ ] S3 upload/download works
