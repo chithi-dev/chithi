@@ -1,258 +1,244 @@
-import { gql } from '@urql/core';
+import { gql } from '@apollo/client/core';
 
 // ─── Queries ───────────────────────────────────────────────────────────────────
 
 export const CONFIG_QUERY = gql`
-  query Config {
-    config {
-      total_storage_limit
-      max_file_size_limit
-      default_expiry
-      default_number_of_downloads
-      site_description
-      download_configs
-      time_configs
-      allowed_file_types
-      banned_file_types
-      allow_uploads
-    }
-  }
+	query Config {
+		config {
+			totalStorageLimit
+			maxFileSizeLimit
+			defaultExpiry
+			defaultNumberOfDownloads
+			siteDescription
+			downloadConfigs
+			timeConfigs
+			allowedFileTypes
+			bannedFileTypes
+			allowUploads
+		}
+	}
 `;
 
 export const ONBOARDING_QUERY = gql`
-  query Onboarding {
-    onboarding {
-      is_configured
-      has_users
-    }
-  }
+	query Onboarding {
+		onboarding {
+			isConfigured
+			hasUsers
+		}
+	}
 `;
 
 export const ME_QUERY = gql`
-  query Me {
-    me {
-      id
-      username
-      email
-      created_at
-    }
-  }
+	query Me {
+		me {
+			id
+			username
+			email
+			createdAt
+		}
+	}
 `;
 
 export const INSTANCE_INFO_QUERY = gql`
-  query InstanceInformation {
-    instance_information {
-      backend_version
-      python_version
-      platform
-      commit
-      is_release
-      version
-      fastapi_version
-      redis_version
-      postgres_version
-    }
-  }
+	query InstanceInformation {
+		instanceInformation {
+			backendVersion
+			pythonVersion
+			platform
+		}
+	}
 `;
 
 export const INSTANCE_STATS_QUERY = gql`
-  query InstanceStatistics {
-    instance_statistics {
-      total_files
-      active_files
-      expired_files
-      total_storage_used
-      total_users
-      total_bytes
-      total_downloads
-      active_urls
-      active_rooms
-      expiring_soon
-      latest_expiry
-      oldest_file
-      newest_file
-    }
-  }
+	query InstanceStatistics {
+		instanceStatistics {
+			totalFiles
+			activeFiles
+			expiredFiles
+			totalStorageUsed
+			totalUsers
+		}
+	}
 `;
 
 export const FILE_INFO_QUERY = gql`
-  query FileInfo($slug: String!) {
-    file_info(slug: $slug) {
-      id
-      key
-      filename
-      size
-      number_of_files
-      download_count
-      created_at
-      expires_at
-      expire_after_n_download
-      is_expired
-    }
-  }
+	query FileInfo($slug: String!) {
+		fileInfo(key: $slug) {
+			id
+			key
+			filename
+			size
+			numberOfFiles
+			downloadCount
+			createdAt
+			expiresAt
+			expireAfterNDownload
+			isExpired
+		}
+	}
 `;
 
 export const ADMIN_FILES_QUERY = gql`
-  query AdminFiles($page: Int, $size: Int, $search: String) {
-    admin_files(page: $page, size: $size, search: $search) {
-      items {
-        id
-        key
-        filename
-        size
-        number_of_files
-        download_count
-        created_at
-        expires_at
-        expire_after_n_download
-        is_expired
-      }
-      total
-      page
-      size
-      pages
-    }
-  }
+	query AdminFiles($page: Int, $size: Int, $search: String) {
+		adminFiles(page: $page, size: $size, search: $search) {
+			items {
+				id
+				key
+				filename
+				size
+				numberOfFiles
+				downloadCount
+				createdAt
+				expiresAt
+				expireAfterNDownload
+				isExpired
+			}
+			total
+			page
+			size
+			pages
+		}
+	}
 `;
 
 export const USERS_QUERY = gql`
-  query Users {
-    users {
-      id
-      username
-      email
-      created_at
-    }
-  }
+	query Users {
+		users {
+			id
+			username
+			email
+			createdAt
+		}
+	}
 `;
 
 // ─── Mutations ─────────────────────────────────────────────────────────────────
 
 export const LOGIN_MUTATION = gql`
-  mutation Login($username: String!, $password: String!) {
-    login(username: $username, password: $password) {
-      access
-      refresh
-    }
-  }
+	mutation Login($username: String!, $password: String!) {
+		login(username: $username, password: $password) {
+			access
+			refresh
+		}
+	}
 `;
 
 export const LOGOUT_MUTATION = gql`
-  mutation Logout {
-    logout
-  }
+	mutation Logout {
+		logout
+	}
 `;
 
 export const UPLOAD_FILE_MUTATION = gql`
-  mutation UploadFile(
-    $file: Upload!
-    $filename: String!
-    $expires_at: Int!
-    $expire_after_n_download: Int!
-    $number_of_files: Int
-  ) {
-    upload_file(
-      file: $file
-      filename: $filename
-      expires_at: $expires_at
-      expire_after_n_download: $expire_after_n_download
-      number_of_files: $number_of_files
-    ) {
-      id
-      key
-      filename
-      size
-      number_of_files
-      download_count
-      created_at
-      expires_at
-      expire_after_n_download
-      is_expired
-    }
-  }
+	mutation UploadFile(
+		$file: Upload!
+		$filename: String!
+		$expiresAt: Int!
+		$expireAfterNDownload: Int!
+		$numberOfFiles: Int
+	) {
+		uploadFile(
+			file: $file
+			filename: $filename
+			expiresAt: $expiresAt
+			expireAfterNDownload: $expireAfterNDownload
+			numberOfFiles: $numberOfFiles
+		) {
+			id
+			key
+			filename
+			size
+			numberOfFiles
+			downloadCount
+			createdAt
+			expiresAt
+			expireAfterNDownload
+			isExpired
+		}
+	}
 `;
 
 export const COMPLETE_ONBOARDING_MUTATION = gql`
-  mutation CompleteOnboarding(
-    $username: String!
-    $email: String!
-    $password: String!
-    $site_description: String!
-  ) {
-    complete_onboarding(
-      username: $username
-      email: $email
-      password: $password
-      site_description: $site_description
-    ) {
-      access
-      refresh
-      onboarded
-    }
-  }
+	mutation CompleteOnboarding(
+		$username: String!
+		$email: String!
+		$password: String!
+		$siteDescription: String!
+	) {
+		completeOnboarding(
+			username: $username
+			email: $email
+			password: $password
+			siteDescription: $siteDescription
+		) {
+			access
+			refresh
+			onboarded
+		}
+	}
 `;
 
 export const DELETE_FILE_MUTATION = gql`
-  mutation DeleteFile($id: ID!) {
-    delete_file(id: $id)
-  }
+	mutation DeleteFile($fileId: ID!) {
+		deleteFile(fileId: $fileId)
+	}
 `;
 
 export const CREATE_USER_MUTATION = gql`
-  mutation CreateUser($username: String!, $password: String!, $email: String) {
-    create_user(username: $username, password: $password, email: $email) {
-      id
-      username
-      email
-      created_at
-    }
-  }
+	mutation CreateUser($username: String!, $password: String!, $email: String) {
+		createUser(username: $username, password: $password, email: $email) {
+			id
+			username
+			email
+			createdAt
+		}
+	}
 `;
 
 export const UPDATE_USER_MUTATION = gql`
-  mutation UpdateUser($id: ID!, $username: String, $email: String) {
-    update_user(id: $id, username: $username, email: $email) {
-      id
-      username
-      email
-      created_at
-    }
-  }
+	mutation UpdateUser($userId: ID!, $username: String, $email: String) {
+		updateUser(userId: $userId, username: $username, email: $email) {
+			id
+			username
+			email
+			createdAt
+		}
+	}
 `;
 
 export const DELETE_USER_MUTATION = gql`
-  mutation DeleteUser($id: ID!) {
-    delete_user(id: $id)
-  }
+	mutation DeleteUser($userId: ID!) {
+		deleteUser(userId: $userId)
+	}
 `;
 
 export const UPDATE_CONFIG_MUTATION = gql`
-  mutation UpdateConfig(
-    $total_storage_limit: Int
-    $max_file_size_limit: Int
-    $default_expiry: Int
-    $default_number_of_downloads: Int
-    $site_description: String
-    $allow_uploads: Boolean
-  ) {
-    update_config(
-      total_storage_limit: $total_storage_limit
-      max_file_size_limit: $max_file_size_limit
-      default_expiry: $default_expiry
-      default_number_of_downloads: $default_number_of_downloads
-      site_description: $site_description
-      allow_uploads: $allow_uploads
-    ) {
-      total_storage_limit
-      max_file_size_limit
-      default_expiry
-      default_number_of_downloads
-      site_description
-      download_configs
-      time_configs
-      allowed_file_types
-      banned_file_types
-      allow_uploads
-    }
-  }
+	mutation UpdateConfig(
+		$totalStorageLimit: Int
+		$maxFileSizeLimit: Int
+		$defaultExpiry: Int
+		$defaultNumberOfDownloads: Int
+		$siteDescription: String
+		$allowUploads: Boolean
+	) {
+		updateConfig(
+			totalStorageLimit: $totalStorageLimit
+			maxFileSizeLimit: $maxFileSizeLimit
+			defaultExpiry: $defaultExpiry
+			defaultNumberOfDownloads: $defaultNumberOfDownloads
+			siteDescription: $siteDescription
+			allowUploads: $allowUploads
+		) {
+			totalStorageLimit
+			maxFileSizeLimit
+			defaultExpiry
+			defaultNumberOfDownloads
+			siteDescription
+			downloadConfigs
+			timeConfigs
+			allowedFileTypes
+			bannedFileTypes
+			allowUploads
+		}
+	}
 `;

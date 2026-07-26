@@ -1,86 +1,153 @@
 <script lang="ts">
-  import { Button } from '$lib/components/ui/button/index.js';
-  import { Plus } from '@lucide/svelte';
-  import { formatFileSize } from '#functions/bytes';
-  import { dropFiles } from '#functions/file-tree';
-  import { useConfigQuery } from '#queries/config';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Plus } from '@lucide/svelte';
+	import { formatFileSize } from '#functions/bytes';
+	import { dropFiles } from '#functions/file-tree';
+	import { useConfigQuery } from '#queries/config';
 
-  let { onFilesSelected, isDraggingOverZone, onZoneDragEnter, onZoneDragLeave }: {
-    onFilesSelected: (files: File[], folderName?: string) => void;
-    isDraggingOverZone: boolean;
-    onZoneDragEnter: (e: DragEvent) => void;
-    onZoneDragLeave: (e: DragEvent) => void;
-  } = $props();
+	let {
+		onFilesSelected,
+		isDraggingOverZone,
+		onZoneDragEnter,
+		onZoneDragLeave
+	}: {
+		onFilesSelected: (files: File[], folderName?: string) => void;
+		isDraggingOverZone: boolean;
+		onZoneDragEnter: (e: DragEvent) => void;
+		onZoneDragLeave: (e: DragEvent) => void;
+	} = $props();
 
-  const { config: configData } = useConfigQuery();
-  let fileInput = $state<HTMLInputElement>();
-  let folderInput = $state<HTMLInputElement>();
+	const { config: configData } = useConfigQuery();
+	let fileInput = $state<HTMLInputElement>();
+	let folderInput = $state<HTMLInputElement>();
 
-  const handleZoneDrop = async (e: DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.dataTransfer?.files?.length) {
-      onFilesSelected(Array.from(e.dataTransfer.files));
-      return;
-    }
-    if (e.dataTransfer?.items) {
-      const { files, folderName } = await dropFiles(e.dataTransfer.items);
-      if (files.length > 0) onFilesSelected(files, folderName);
-    }
-  };
+	const handleZoneDrop = async (e: DragEvent) => {
+		e.preventDefault();
+		e.stopPropagation();
+		if (e.dataTransfer?.files?.length) {
+			onFilesSelected(Array.from(e.dataTransfer.files));
+			return;
+		}
+		if (e.dataTransfer?.items) {
+			const { files, folderName } = await dropFiles(e.dataTransfer.items);
+			if (files.length > 0) onFilesSelected(files, folderName);
+		}
+	};
 
-  const selectFiles = (e: Event) => {
-    const target = e.target as HTMLInputElement;
-    if (target.files) onFilesSelected(Array.from(target.files));
-    target.value = '';
-  };
+	const selectFiles = (e: Event) => {
+		const target = e.target as HTMLInputElement;
+		if (target.files) onFilesSelected(Array.from(target.files));
+		target.value = '';
+	};
 
-  const selectFolder = (e: Event) => {
-    const target = e.target as HTMLInputElement;
-    if (target.files) {
-      const fileArray = Array.from(target.files);
-      const firstFile = fileArray[0] as File & { webkitRelativePath?: string };
-      const relativePath = firstFile.webkitRelativePath;
-      const folderName = relativePath ? relativePath.split('/')[0] : undefined;
-      onFilesSelected(fileArray, folderName);
-    }
-    target.value = '';
-  };
+	const selectFolder = (e: Event) => {
+		const target = e.target as HTMLInputElement;
+		if (target.files) {
+			const fileArray = Array.from(target.files);
+			const firstFile = fileArray[0] as File & { webkitRelativePath?: string };
+			const relativePath = firstFile.webkitRelativePath;
+			const folderName = relativePath ? relativePath.split('/')[0] : undefined;
+			onFilesSelected(fileArray, folderName);
+		}
+		target.value = '';
+	};
 </script>
 
-<div class={['relative flex h-full cursor-pointer flex-col items-center justify-center rounded-lg bg-card transition-all duration-200 focus:outline-none', isDraggingOverZone && 'scale-[1.02] shadow-xl']}
-  ondrop={handleZoneDrop}
-  onclick={() => fileInput?.click()}
-  onkeydown={(e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      fileInput?.click();
-    }
-  }}
-  ondragenter={onZoneDragEnter}
-  ondragleave={onZoneDragLeave}
-  tabindex="0"
-  role="button"
-  aria-label="File drop area - click or drop files to upload"
+<div
+	class={[
+		'relative flex h-full cursor-pointer flex-col items-center justify-center rounded-lg bg-card transition-all duration-200 focus:outline-none',
+		isDraggingOverZone && 'scale-[1.02] shadow-xl'
+	]}
+	ondrop={handleZoneDrop}
+	onclick={() => fileInput?.click()}
+	onkeydown={(e) => {
+		if (e.key === 'Enter' || e.key === ' ') {
+			e.preventDefault();
+			fileInput?.click();
+		}
+	}}
+	ondragenter={onZoneDragEnter}
+	ondragleave={onZoneDragLeave}
+	tabindex="0"
+	role="button"
+	aria-label="File drop area - click or drop files to upload"
 >
-  <div class="relative z-10 flex flex-col items-center justify-center p-12">
-    <div class={['mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary transition-all duration-200', isDraggingOverZone && 'scale-110 bg-primary/10']}>
-      <Plus class="h-8 w-8 text-primary transition-transform duration-200" />
-    </div>
-    <h2 class={['mb-2 text-xl font-medium transition-colors duration-200', isDraggingOverZone && 'text-primary']}>Drag and drop files</h2>
-    <p class={['mb-8 text-center transition-colors duration-200 md:mb-4 md:text-sm', isDraggingOverZone ? 'text-primary/80' : 'text-muted-foreground']}>
-      or click to send up to {formatFileSize(configData.data?.max_file_size_limit ?? 0)} of files with end-to-end encryption
-    </p>
-    <div class="flex flex-col gap-3">
-      <Button size="lg" class={['px-8 py-6 text-lg transition-all duration-200 md:px-6 md:py-4 md:text-base', isDraggingOverZone && 'scale-105 shadow-lg']}
-        onclick={(e) => { e.stopPropagation(); fileInput?.click(); }}>Select files to upload</Button>
-      <Button variant="outline" size="lg" class="px-8 py-6 text-lg transition-all duration-200 md:px-6 md:py-4 md:text-base"
-        onclick={(e) => { e.stopPropagation(); folderInput?.click(); }}>Select folder to upload</Button>
-    </div>
-    <input bind:this={fileInput} type="file" id="file-input-initial" class="hidden" multiple onchange={selectFiles} />
-    <input bind:this={folderInput} type="file" id="file-input-folder" class="hidden" {...{ webkitdirectory: '', directory: '' } as Partial<Record<string, string>>} onchange={selectFolder} />
-  </div>
-  <svg class="pointer-events-none absolute inset-0 h-full w-full rounded-lg">
-    <rect width="100%" height="100%" rx="8" ry="8" fill="none" stroke="currentColor" stroke-width="2" class={['text-border transition-all duration-200', isDraggingOverZone && 'animate-dash']} stroke-dasharray="10" />
-  </svg>
+	<div class="relative z-10 flex flex-col items-center justify-center p-12">
+		<div
+			class={[
+				'mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary transition-all duration-200',
+				isDraggingOverZone && 'scale-110 bg-primary/10'
+			]}
+		>
+			<Plus class="h-8 w-8 text-primary transition-transform duration-200" />
+		</div>
+		<h2
+			class={[
+				'mb-2 text-xl font-medium transition-colors duration-200',
+				isDraggingOverZone && 'text-primary'
+			]}
+		>
+			Drag and drop files
+		</h2>
+		<p
+			class={[
+				'mb-8 text-center transition-colors duration-200 md:mb-4 md:text-sm',
+				isDraggingOverZone ? 'text-primary/80' : 'text-muted-foreground'
+			]}
+		>
+			or click to send up to {formatFileSize(configData.data?.max_file_size_limit ?? 0)} of files with
+			end-to-end encryption
+		</p>
+		<div class="flex flex-col gap-3">
+			<Button
+				size="lg"
+				class={[
+					'px-8 py-6 text-lg transition-all duration-200 md:px-6 md:py-4 md:text-base',
+					isDraggingOverZone && 'scale-105 shadow-lg'
+				]}
+				onclick={(e) => {
+					e.stopPropagation();
+					fileInput?.click();
+				}}>Select files to upload</Button
+			>
+			<Button
+				variant="outline"
+				size="lg"
+				class="px-8 py-6 text-lg transition-all duration-200 md:px-6 md:py-4 md:text-base"
+				onclick={(e) => {
+					e.stopPropagation();
+					folderInput?.click();
+				}}>Select folder to upload</Button
+			>
+		</div>
+		<input
+			bind:this={fileInput}
+			type="file"
+			id="file-input-initial"
+			class="hidden"
+			multiple
+			onchange={selectFiles}
+		/>
+		<input
+			bind:this={folderInput}
+			type="file"
+			id="file-input-folder"
+			class="hidden"
+			{...{ webkitdirectory: '', directory: '' } as Partial<Record<string, string>>}
+			onchange={selectFolder}
+		/>
+	</div>
+	<svg class="pointer-events-none absolute inset-0 h-full w-full rounded-lg">
+		<rect
+			width="100%"
+			height="100%"
+			rx="8"
+			ry="8"
+			fill="none"
+			stroke="currentColor"
+			stroke-width="2"
+			class={['text-border transition-all duration-200', isDraggingOverZone && 'animate-dash']}
+			stroke-dasharray="10"
+		/>
+	</svg>
 </div>

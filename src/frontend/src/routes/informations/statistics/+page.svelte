@@ -42,7 +42,7 @@
   <div class="flex flex-col items-center justify-center gap-4 py-12 text-destructive">
     <CircleAlert class="h-12 w-12" />
     <p class="font-medium">Failed to load instance statistics</p>
-    <Button variant="outline" onclick={() => client.query(INSTANCE_STATS_QUERY, {}).toPromise()}>Retry</Button>
+    <Button variant="outline" onclick={() => client.query({ query: INSTANCE_STATS_QUERY })}>Retry</Button>
   </div>
 {:else if stats}
   <InfoCard

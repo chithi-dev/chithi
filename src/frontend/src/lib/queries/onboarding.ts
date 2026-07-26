@@ -3,8 +3,6 @@ import { ONBOARDING_QUERY } from '$lib/graphql/queries.js';
 import { useOnboardingQuery, completeOnboardingMutation } from '$lib/graphql/hooks.js';
 import type { OnboardingData } from '$lib/graphql/hooks.js';
 
-// ─── Types ─────────────────────────────────────────────────────────────────────
-
 interface OnboardingStatus {
   onboarded: boolean;
 }
@@ -16,14 +14,9 @@ interface OnboardingState {
   stale: boolean;
 }
 
-// ─── Prefetch ──────────────────────────────────────────────────────────────────
-
-export const prefetch = async (_params?: { queryClient?: unknown; fetch?: typeof globalThis.fetch }) => {
-  const source = client.query(ONBOARDING_QUERY, {});
-  await source.toPromise();
+export const prefetch = async () => {
+  await client.query({ query: ONBOARDING_QUERY });
 };
-
-// ─── Query Hook ────────────────────────────────────────────────────────────────
 
 function mapOnboardingState(raw: ReturnType<typeof useOnboardingQuery>): OnboardingState {
   return {
@@ -33,8 +26,6 @@ function mapOnboardingState(raw: ReturnType<typeof useOnboardingQuery>): Onboard
     stale: raw.stale
   };
 }
-
-// ─── Public API ────────────────────────────────────────────────────────────────
 
 export const useOnboarding = () => {
   const rawState = useOnboardingQuery();
@@ -53,9 +44,7 @@ export const useOnboarding = () => {
       throw new Error(result.error.message);
     }
 
-    // Refetch the onboarding status after mutation.
-    const refetchSource = client.query(ONBOARDING_QUERY, {});
-    await refetchSource.toPromise();
+    await client.query({ query: ONBOARDING_QUERY });
 
     return result.data;
   };

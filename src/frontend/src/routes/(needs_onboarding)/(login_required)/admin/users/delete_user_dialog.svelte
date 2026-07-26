@@ -28,7 +28,7 @@
 	}
 </script>
 
-<AlertDialog.Root open={open}>
+<AlertDialog.Root {open}>
 	<AlertDialog.Content>
 		<AlertDialog.Header>
 			<AlertDialog.Title>Are you absolutely sure?</AlertDialog.Title>
