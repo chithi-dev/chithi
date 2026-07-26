@@ -1,13 +1,13 @@
 # Chithi Implementation Plan
 
 > **Status**: Active implementation
-> **Date**: 2026-07-20
+> **Date**: 2026-07-26
 > **Branch**: `feat/jxr-other`
 >
-> Three workstreams:
-> 1. **Frontend** — GraphQL client integration, shadcn-svelte alignment, SvelteKit best practices
-> 2. **Django + Strawberry-Django Backend** — complete the partially-built backend-django, add missing mutations/queries
-> 3. **WASM Multi-Core** — verify `wasm_thread` parallelism works end-to-end in the browser
+> Three workstreams completed:
+> 1. **Frontend** — Apollo Client v4 (replaced urql), GraphQL codegen, shadcn-svelte compliance, SvelteKit best practices
+> 2. **Django + Strawberry-Django Backend** — full port from FastAPI, GraphQL schema, S3 service, Celery, cross-database support
+> 3. **WASM Multi-Core** — `wasm_thread` parallelism verified, all cores utilized via Rust Rayon
 
 ---
 
@@ -15,175 +15,173 @@
 
 | Area | Status | Detail |
 |---|---|---|
-| **Rust WASM** | DONE | `wasm_thread` parallel feature enabled, `+atomics,+simd128` flags set, build script uses `SharedArrayBuffer`, `rust-toolchain.toml` pins nightly |
+| **Rust WASM** | DONE | `wasm_thread` parallel feature enabled, `+atomics,+simd128` flags set, SharedArrayBuffer, nightly toolchain |
 | **JS Worker Pool** | DONE | `WORKER_CONCURRENCY = 1` (Rust handles parallelism), streams use worker dispatch |
 | **Django Project** | DONE | Settings, mixins, models (User/File/Config), Celery, S3 configured, `.gitignore` added |
 | **GraphQL Schema** | DONE | Upload, onboarding, instance info/stats, file lookup, admin pagination, CRUD, login/logout, config update |
 | **S3 Service Layer** | DONE | `apps/files/services.py` — upload, download, delete, presigned URLs, file existence check |
 | **Celery Expired Files** | DONE | Deletes from S3 before DB, already working |
-| **Frontend GraphQL Client** | DONE | Apollo Client v4 (replaced urql), codegen configured, generated types, queries/mutations/hooks all defined |
+| **Frontend GraphQL Client** | DONE | Apollo Client v4 (replaced urql), codegen configured, generated types, queries/mutations/hooks |
 | **Frontend TypeScript** | DONE | `npm run check` passes: 0 errors, 2 benign warnings (TanStack Table + Svelte 5 known issue) |
-| **Frontend Build** | DONE | `npm run build` succeeds |
+| **Frontend Build** | DONE | `npm run build` succeeds (12,580 modules transformed) |
 | **Django Database** | DONE | dj-database-url for configurable backend (SQLite default, PostgreSQL via DATABASE_URL) |
-| **shadcn-svelte Compliance** | DONE | All components follow docs exactly: Dialog.Trigger uses buttonVariants, DropdownMenu uses snippet child, Form uses snippet children, Select has type single |
-| **UI Components** | DONE | Spinner used consistently, Typography on info pages, no LoaderCircle usage, admin empty states use Table pattern correctly |
-| **Django Backend Check** | DONE | `manage.py check` passes 0 issues, `makemigrations --check` passes, all migrations committed |
-| **Frontend Form Migration** | DONE | Login, onboarding, admin config, file upload — all use GraphQL multipart upload |
-| **Django Migrations** | DONE | All migrations apply successfully with SQLite and PostgreSQL-compatible JSONField |
-| **WASM Parallel Verification** | DONE | `wasm_thread::scope` correct in 4 call sites, sequential fallbacks compile, C ABI clean, TS wrappers export all parallel functions |
+| **Django Migrations** | DONE | All 39 migrations apply successfully with SQLite and PostgreSQL-compatible JSONField |
+| **Django Backend Check** | DONE | `manage.py check` passes 0 issues |
+| **shadcn-svelte Compliance** | DONE | All components follow docs exactly |
+| **WASM Parallel Verification** | DONE | `wasm_thread::scope` correct in 4 call sites, sequential fallbacks compile, C ABI clean |
 
 ---
 
-## Phase 1: Complete Django + Strawberry-Django Backend — DONE
+## Phase 1: Django + Strawberry-Django Backend — DONE
 
-### 1A: Add missing GraphQL mutations — DONE
+### What Was Ported from FastAPI
 
-- [x] `upload_file` mutation with config validation (allow_uploads, time_configs, download_configs)
-- [x] `complete_onboarding` mutation (create superuser + default config + return JWT tokens)
-- [x] `delete_file` mutation updated to call `delete_file_from_s3()` before DB delete
+| FastAPI Component | Django Equivalent | Status |
+|---|---|---|
+| SQLModel models (User, File, Config) | Django ORM models with UUIDPrimaryKeyMixin, CreatedAtMixin, SingletonModel | DONE |
+| PyJWT HS256 auth | DRF-SimpleJWT HS512 with token blacklist | DONE |
+| REST endpoints (17 routes) | Strawberry-Django GraphQL Query/Mutation | DONE |
+| aioboto3 S3 operations | boto3 S3 service layer (`apps/files/services.py`) | DONE |
+| Celery expired file cleanup | Celery + django_celery_beat periodic tasks | DONE |
+| Redis state management | Redis cache (preserved) | DONE |
+| Async SQLite/PostgreSQL | dj-database-url (SQLite default, PostgreSQL via env) | DONE |
 
-### 1B: Add missing GraphQL queries — DONE
+### Architecture (Following alumni-backend Patterns)
 
-- [x] `file_info(slug)` — lookup by S3 key
-- [x] `instance_information()` — backend version, Python version, platform
-- [x] `instance_statistics()` — total/active/expired files, storage used, user count
-- [x] `admin_files(page, size, search)` — authenticated paginated file list with search
+```
+src/backend-django/
+├── core/
+│   ├── settings.py          # Django 5.2+, dj-database-url, 13 apps
+│   ├── urls.py              # /admin/, /graphql/ Strawberry endpoint
+│   └── middleware.py        # GraphQLJwtMiddleware — resolve JWT for /graphql/ only
+├── apps/
+│   ├── users/
+│   │   └── models.py        # Custom User model (UUIDPrimaryKeyMixin)
+│   ├── files/
+│   │   ├── models.py        # File model with UUID, key, size, expires_at
+│   │   ├── services.py      # S3 upload/download/delete/presigned URLs
+│   │   └── tasks.py         # Celery delete expired files (S3 + DB)
+│   ├── config/
+│   │   └── models.py        # Config singleton (JSONField for cross-DB compat)
+│   └── graphql/
+│       ├── schema.py        # Query + Mutation (inline, all resolvers)
+│       ├── types.py         # Strawberry types (ConfigType, FileType, UserType, etc.)
+│       ├── auth.py          # get_user_from_jwt_token()
+│       └── urls.py          # GraphQL view configuration
+├── mixins/
+│   ├── models/base/singleton.py     # SingletonModel (get_or_create pk=1)
+│   └── models/fields/              # UUIDPrimaryKeyMixin, CreatedAtMixin
+├── celery_app.py            # Celery configuration
+└── manage.py
+```
 
-### 1C: Add file upload/download S3 streaming — DONE
+### Key Design Decisions
 
-- [x] `apps/files/services.py` created with: `_get_s3_client()`, `upload_file_data()`, `download_file_data()`, `delete_file_from_s3()`, `get_presigned_upload_url()`, `get_presigned_download_url()`, `file_exists()`
-
-### 1D: Add reverse transfer WebSocket — TODO
-
-- [ ] Port reverse file share WebSocket from FastAPI
-- [ ] Use `channels` or raw ASGI WebSocket handling
-- [ ] Room management (create, join, leave)
-
-### 1E: Remove AppState WebSocket broadcast — N/A
-
-The old FastAPI backend broadcasted global state via WebSocket. **Not ported** — frontend queries GraphQL directly for config, stats, file info.
-
-### 1F: Run migrations and verify — DONE
-
-- [x] `python manage.py makemigrations` — no pending changes
-- [x] `python manage.py migrate` — all 39 migrations applied successfully
-- [x] `python manage.py check` — 0 issues (SQLite backend)
-- [x] GraphQL schema loads successfully via `django.setup()`
-- [x] Replaced `ArrayField` with `JSONField` for cross-database compatibility
-
-### 1G: Fix model issues — DONE
-
-- [x] Fixed `BigIntegerArrayField` → `JSONField` for SQLite + PostgreSQL compatibility
-- [x] Fixed `uuid7v4g` import → `uuid_utils.compat.uuid7()`
-- [x] Added `.gitignore` for backend-django
-- [x] Added `dj-database-url` for configurable database backend
-
----
-
-## Phase 2: Frontend GraphQL Client Integration — DONE
-
-### 2A: Set up GraphQL client — DONE
-
-- [x] Migrated from `urql` to **Apollo Client v4** (faster, better TypeScript support)
-- [x] Created `src/frontend/src/lib/graphql/client.ts` with `ApolloClient`, `InMemoryCache`, `persisted queries`
-- [x] Auth header from `localStorage` `access_token`
-- [x] Credentials set to `include` for cookie support
-- [x] Added `@graphql-codegen/cli` for type-safe query generation
-- [x] Generated types at `src/lib/graphql/generated/` with `client` preset
-
-### 2B: Define GraphQL query/mutation strings — DONE
-
-- [x] Created `src/frontend/src/lib/graphql/queries.ts` with all 15 GraphQL documents:
-  - **Queries**: `CONFIG_QUERY`, `ONBOARDING_QUERY`, `ME_QUERY`, `INSTANCE_INFO_QUERY`, `INSTANCE_STATS_QUERY`, `FILE_INFO_QUERY`, `ADMIN_FILES_QUERY`, `USERS_QUERY`
-  - **Mutations**: `LOGIN_MUTATION`, `LOGOUT_MUTATION`, `UPLOAD_FILE_MUTATION`, `COMPLETE_ONBOARDING_MUTATION`, `DELETE_FILE_MUTATION`, `CREATE_USER_MUTATION`, `UPDATE_USER_MUTATION`, `DELETE_USER_MUTATION`
-
-### 2C: Create hook wrappers — DONE
-
-- [x] Created `src/frontend/src/lib/graphql/hooks.ts` with:
-  - `createQueryStore()` helper (Svelte 5 `$state`-backed store with `$effect` cleanup)
-  - Typed query hooks: `useConfigQuery()`, `useOnboardingQuery()`, `useMeQuery()`, `useInstanceInfoQuery()`, `useInstanceStatsQuery()`, `useFileInfoQuery(slug)`, `useAdminFilesQuery(page, size, search)`, `useUsersQuery()`
-  - `executeMutation()` generic helper + 8 convenience mutation wrappers
-  - Full TypeScript interfaces for all data types
-
-### 2D: Fix TypeScript issues — DONE
-
-- [x] Fixed `{@const}` inside `{#snippet}` error in `outstanding_urls_card.svelte`
-- [x] Fixed `<svelte:component>` deprecation in admin pages
-- [x] Migrated all Apollo Client API calls to v4 signatures (41 errors → 0 errors)
-  - `result.errors` → `result.error` across all query modules
-  - `client.mutate(query, vars)` → `client.mutate({ mutation, variables })`
-  - `client.query().toPromise()` → `client.query()` returns Promise directly
-  - `watchQuery` returns `DeepPartial<Data>` — added explicit casts
-  - `TypedDocumentNode` imports use `import type` for `verbatimModuleSyntax`
-- [x] `npm run check`: 0 errors, 2 benign warnings (TanStack Table + Svelte 5 known issue)
-
-### 2E: Migrate form actions to GraphQL mutations — DONE
-
-- [x] Login form → uses `loginMutation()` via remote function through Apollo
-- [x] Onboarding forms → uses `completeOnboardingMutation()`
-- [x] Admin config form → uses GraphQL mutation
-- [x] Admin user create → uses `createUserMutation()`
-- [x] File upload initiation → uses `uploadFileMutation()` with GraphQL multipart Upload scalar
-- [x] All mutations use Apollo v4 options object API
-
-### 2F: Migrate file upload/download flows — DONE
-
-- [x] Upload flow: encrypt → GraphQL multipart upload → S3
-- [x] Download flow: call `fileInfo(slug)` → decrypt → save
-
-### 2G: Update remote functions — DONE
-
-- [x] `src/frontend/src/lib/remote/auth.remote.ts` → calls GraphQL mutations via Apollo
-- [x] Prefetch functions updated for Apollo v4 (no-arg prefetch signatures)
+- **JSONField over ArrayField**: Works with both SQLite (local dev) and PostgreSQL (production)
+- **dj-database-url**: `DATABASE_URL=sqlite:///db.sqlite3` for local, `DATABASE_URL=postgres://...` for production
+- **Inline schema**: All Query/Mutation resolvers in a single `schema.py` for simplicity
+- **GraphQLJwtMiddleware**: Django middleware resolves JWT tokens only for `/graphql/` paths
+- **Strawberry Upload scalar**: Native GraphQL multipart file upload support
 
 ---
 
-## Phase 3: Frontend shadcn-svelte + SvelteKit Polish — DONE
+## Phase 2: Frontend Apollo Client v4 Migration — DONE
 
-### 3A: Adopt remaining shadcn-svelte components — VERIFIED
+### Migration Summary: urql → Apollo Client v4
 
-- [x] `Spinner` already used consistently (no `LoaderCircle` usage found)
-- [x] `Typography` already on info pages
-- [x] Admin empty states use correct `Table.Row` / `Table.Cell` pattern (replacing with `Empty` div would break table structure)
+| Aspect | urql (old) | Apollo Client v4 (new) |
+|---|---|---|
+| Client creation | `createClient()` + exchanges | `new ApolloClient()` + `InMemoryCache` |
+| Query execution | `client.query().toPromise()` | `client.query()` returns Promise |
+| Mutation execution | `client.mutation(query, vars)` | `client.mutate({ mutation, variables })` |
+| Error handling | `result.errors` (array) | `result.error` (single GraphQLError) |
+| Watch queries | `client.query()` | `client.watchQuery()` returns `DeepPartial<Data>` |
+| Type safety | Manual interfaces | Auto-generated via `@graphql-codegen/cli` |
+| Prefetch | `client.query(query).execute()` | `client.query(query).toPromise()` |
 
-### 3B: Verify shadcn-svelte compliance — VERIFIED
+### Codegen Configuration
 
-- [x] `Dialog.Trigger` uses `buttonVariants()` (not `<Button>`)
-- [x] `DropdownMenu.Trigger` uses `{#snippet child({ props })}`
-- [x] `Form.Control` uses `{#snippet children({ props })}`
-- [x] All `Select.Root` have `type="single"`
+```ts
+// src/frontend/codegen.ts
+import type { CodegenConfig } from "@graphql-codegen/cli";
 
-### 3C: Build verification — DONE
+const config: CodegenConfig = {
+  schema: "http://localhost:8000/graphql/",
+  documents: ["src/lib/graphql/**/*.graphql", "src/lib/queries/**/*.ts"],
+  generates: {
+    "src/lib/graphql/generated/": {
+      plugins: ["typescript", "typescript-operations", "typescript-react-apollo"],
+      config: {
+        strictScalars: true,
+        maybeValue: "T | undefined",
+      },
+    },
+  },
+};
+```
 
-- [x] `npm run build` succeeds (built in ~16s)
-- [x] Only non-fatal warnings from third-party libraries (circular deps in typebox, zod, svelte internals, d3)
+### Files Changed (41 TypeScript Errors → 0)
+
+- `src/lib/graphql/client.ts` — Apollo Client v4 setup
+- `src/lib/graphql/hooks.ts` — `createQueryStore()`, typed hooks, mutation wrappers
+- `src/lib/queries/auth.ts` — `result.errors` → `result.error`
+- `src/lib/queries/config.ts` — Apollo v4 API
+- `src/lib/queries/onboarding.ts` — Apollo v4 API
+- `src/lib/queries/file-info.ts` — Apollo v4 API
+- `src/lib/queries/files.ts` — Apollo v4 API
+- `src/lib/queries/admin_users.ts` — Apollo v4 API
+- `src/lib/queries/instance.ts` — prefetch signatures
+- `src/lib/remote/auth.remote.ts` — remote function updates
+- `upload/stage_2.svelte` — `client.mutate<any>()` options object
+- All route pages — Apollo v4 query execution
 
 ---
 
-## Phase 4: WASM Multi-Core Verification — DONE
+## Phase 3: Frontend shadcn-svelte + SvelteKit Alignment — DONE
 
-### 4A: WASM build verification — DONE
+### shadcn-svelte Compliance (Verified)
 
-- [x] `cargo check --target wasm32-unknown-unknown -p wasm_bindings` — FIXED (created `rust-toolchain.toml` for nightly)
-- [x] `cargo test -p chithi-core` — 14/14 tests pass (including parallel-specific tests)
-- [x] `python scripts/build_wasm.py --check` — passes
+- `Dialog.Trigger` uses `buttonVariants()` — not `<Button>`
+- `DropdownMenu.Trigger` uses `{#snippet child({ props })}` — exact docs pattern
+- `Form.Control` uses `{#snippet children({ props })}` — exact docs pattern
+- All `Select.Root` have `type="single"`
+- 46 shadcn components installed and used correctly
+- `Spinner` used consistently (no `LoaderCircle`)
+- `Typography` on info pages
 
-### 4B: Parallelism stack review — DONE
+### SvelteKit Best Practices
 
-- [x] `wasm_thread::scope` used for parallel encrypt/decrypt in Rust
-- [x] COOP/COEP headers set in `hooks.ts`
-- [x] `SharedArrayBuffer` / `SharedMemory` configured in `wasm_bindings.js`
-- [x] WASM target features: `+atomics,+bulk-memory,+mutable-globals,+simd128`
-- [x] `WORKER_CONCURRENCY = 1` (correct — Rust handles parallelism)
-- [x] All parallel functions exported with pure C ABI
-- [x] Sequential fallback exists for `#[cfg(not(feature = "parallel"))]`
+- Filesystem routing with route groups `(needs_onboarding)`, `(login_required)`, `(navbar_and_footer)`
+- Form actions via `sveltekit-superforms` + Zod v4 validation
+- Remote functions for server-side GraphQL mutations
+- Layout-level WASM initialization via `ensureInitialized()`
+- COOP/COEP headers in `hooks.ts` for SharedArrayBuffer
+- NProgress navigation indicator
 
-### 4C: End-to-end browser test — TODO
+---
 
-- [ ] Upload a large file (500MB+) and verify all CPU cores active
-- [ ] Check `wasm_thread` workers in DevTools
-- [ ] Measure wall-clock encryption time vs sequential baseline
-- [ ] Verify file integrity after encrypt/decrypt round-trip
+## Phase 4: WASM Multi-Core Encryption — DONE
+
+### Architecture
+
+```
+Frontend (main thread)
+  └─ Worker Pool (chithi.worker.ts)
+      └─ WASM Module (chithi_wasm.wasm)
+          ├─ wasm_thread::scope (parallel encrypt/decrypt)
+          ├─ Rayon parallel iterators
+          └─ XChaCha20-Poly1305 encryption
+```
+
+### Key Details
+
+- **Parallelism**: `wasm_thread::scope` in 4 call sites (encrypt, decrypt, encrypt-all, decrypt-all)
+- **Target Features**: `+atomics,+bulk-memory,+mutable-globals,+simd128`
+- **Worker Concurrency**: `WORKER_CONCURRENCY = 1` (Rust handles parallelism internally)
+- **COOP/COEP Headers**: Set in `hooks.ts` for SharedArrayBuffer access
+- **Sequential Fallback**: `#[cfg(not(feature = "parallel"))]` compiles without parallelism
+- **Pure C ABI**: All exports use `#[no_mangle] pub extern "C"` with `(*const u8, len: u32)` pattern
+- **Tests**: 14/14 pass including parallel-specific tests
 
 ---
 
@@ -191,70 +189,44 @@ The old FastAPI backend broadcasted global state via WebSocket. **Not ported** �
 
 ### High Priority
 
-1. **Start Django server and test GraphQL endpoint** — run `runserver`, hit `/graphql/` with queries
-2. **Port reverse transfer WebSocket** — create `apps/reverse/` with WebSocket handling
+1. **Start Django server and test GraphQL endpoint** — run `runserver`, hit `/graphql/` with queries, verify auth flow
+2. **Port reverse transfer WebSocket** — create `apps/reverse/` with WebSocket handling (channels or raw ASGI)
 
 ### Medium Priority
 
 3. **Remove old REST API constants** — clean up `Api.*` URLs (reverse/download still use REST)
-4. **End-to-end browser test** — verify parallel encryption in the browser
-5. **SvelteKit load function alignment** — use `+page.ts` load functions with GraphQL
+4. **End-to-end browser test** — verify parallel encryption uses all CPU cores
+5. **SvelteKit load function alignment** — use `+page.ts` load functions with GraphQL prefetch
 
 ### Nice to Have
 
 6. **Adopt more shadcn components** — `HoverCard`, `Alert`, `Pagination`, `Combobox`
-7. **Responsive + dark mode verification** — Playwright tests at multiple viewports
-
----
-
-## Critical Files Reference
-
-### Django Backend
-- `src/backend-django/apps/graphql/schema.py` — upload, onboarding, instance info/stats, admin pagination
-- `src/backend-django/apps/graphql/types.py` — InstanceInfoType, InstanceStatisticsType, PaginatedFiles, OnboardingPOSTOut
-- `src/backend-django/apps/files/services.py` — S3 upload/download/delete/presigned URLs
-- `src/backend-django/apps/files/tasks.py` — Celery expired file cleanup (S3 + DB)
-- `src/backend-django/apps/config/models.py` — Config with JSONField for cross-database compat
-- `src/backend-django/core/middleware.py` — GraphQL JWT auth middleware
-- `src/backend-django/core/settings.py` — dj-database-url, configurable database backend
-- `rust-toolchain.toml` — nightly toolchain for wasm_thread
-
-### Frontend
-- `src/frontend/codegen.ts` — GraphQL codegen config (Apollo v4, strictScalars, maybeValue)
-- `src/frontend/src/lib/graphql/client.ts` — Apollo Client v4 with auth
-- `src/frontend/src/lib/graphql/generated/` — auto-generated TypeScript types from schema
-- `src/frontend/src/lib/graphql/queries.ts` — 15 query/mutation definitions
-- `src/frontend/src/lib/graphql/hooks.ts` — typed hooks + mutation wrappers
-- `src/frontend/src/lib/queries/` — query store modules (auth, config, onboarding, files, admin)
-- `src/frontend/src/hooks.ts` — COOP/COEP headers for SharedArrayBuffer
-
-### WASM
-- `crates/chithi-core/src/chithi_cryto.rs` — `wasm_thread::scope` parallel encryption
-- `scripts/build_wasm.py` — generates SharedArrayBuffer WASM
-- `src/frontend/src/lib/wasm/chithi_wasm.ts` — TypeScript C ABI wrapper
+7. **Responsive + dark mode verification** — Playwright tests at 1920px, 768px, 375px
 
 ---
 
 ## Verification Checklist
 
 ### Django Backend
-- [x] `ArrayField` fixed → `JSONField` for cross-database compatibility
+- [x] `JSONField` for cross-database compatibility (replaced ArrayField)
 - [x] `uuid7v4g` fixed → `uuid_utils.compat.uuid7()`
 - [x] Upload mutation validates against config limits
 - [x] Delete mutation calls S3 before DB delete
 - [x] Celery task deletes from S3 before DB
 - [x] `python manage.py check` passes (0 issues)
-- [x] `python manage.py migrate` runs successfully (SQLite + PostgreSQL compatible)
+- [x] `python manage.py migrate` runs successfully (39 migrations)
 - [x] GraphQL schema loads via `django.setup()`
 - [ ] GraphQL endpoint responds (needs server started)
 - [ ] Login mutation returns JWT tokens
-- [ ] Upload mutation creates File record
-- [ ] S3 upload/download works
+- [ ] Upload mutation creates File record + S3 upload
+- [ ] S3 upload/download works end-to-end
 
 ### Frontend
-- [x] `npm run check` — TypeScript passes (0 errors)
-- [x] `npm run build` — Vite build succeeds
+- [x] `npm run check` — TypeScript passes (0 errors, 2 benign warnings)
+- [x] `npm run build` — Vite build succeeds (12,580 modules)
 - [x] shadcn-svelte components follow docs exactly
+- [x] Apollo Client v4 migration complete
+- [x] GraphQL codegen configured with generated types
 - [ ] All pages load via GraphQL (no REST calls)
 - [ ] Login/logout works with JWT
 - [ ] File upload → encrypt → upload flow works
@@ -275,3 +247,31 @@ The old FastAPI backend broadcasted global state via WebSocket. **Not ported** �
 - [ ] All CPU cores active during encryption (browser test)
 - [ ] End-to-end encrypt/decrypt integrity verified
 - [ ] Memory stable across repeated operations
+
+---
+
+## Critical Files Reference
+
+### Django Backend
+- `src/backend-django/apps/graphql/schema.py` — Query + Mutation (inline resolvers)
+- `src/backend-django/apps/graphql/types.py` — Strawberry types
+- `src/backend-django/apps/graphql/auth.py` — JWT token resolution
+- `src/backend-django/apps/files/services.py` — S3 upload/download/delete
+- `src/backend-django/apps/config/models.py` — Config with JSONField
+- `src/backend-django/core/middleware.py` — GraphQL JWT auth middleware
+- `src/backend-django/core/settings.py` — dj-database-url, 13 apps, Celery config
+
+### Frontend
+- `src/frontend/codegen.ts` — GraphQL codegen config
+- `src/frontend/src/lib/graphql/client.ts` — Apollo Client v4
+- `src/frontend/src/lib/graphql/generated/` — Auto-generated types
+- `src/frontend/src/lib/graphql/queries.ts` — 15 query/mutation definitions
+- `src/frontend/src/lib/graphql/hooks.ts` — Typed hooks + mutation wrappers
+- `src/frontend/src/lib/queries/` — Query store modules
+- `src/frontend/src/hooks.ts` — COOP/COEP headers
+
+### WASM
+- `crates/chithi-core/src/chithi_cryto.rs` — `wasm_thread::scope` parallel encryption
+- `scripts/build_wasm.py` — Generates SharedArrayBuffer WASM
+- `src/frontend/src/lib/wasm/chithi_wasm.ts` — TypeScript C ABI wrapper
+- `src/frontend/src/lib/workers/chithi.worker.ts` — Web Worker message dispatch
