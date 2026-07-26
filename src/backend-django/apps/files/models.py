@@ -1,5 +1,3 @@
-"""File model for uploaded file metadata."""
-
 from django.db import models
 from django.utils import timezone
 

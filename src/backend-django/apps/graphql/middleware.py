@@ -1,4 +1,4 @@
-"""Middleware that resolves JWT Bearer tokens for GraphQL requests."""
+import re
 
 from .auth import get_user_from_jwt_token
 
@@ -17,10 +17,11 @@ class GraphQLJwtMiddleware:
             return None
 
         auth_header = request.META.get("HTTP_AUTHORIZATION", "")
-        if not auth_header.startswith("Bearer "):
+        match = re.search(r"Bearer\s+(\S+)", auth_header)
+        if not match:
             return None
 
-        token_string = auth_header.split("Bearer ", 1)[1].strip()
+        token_string = match.group(1)
         user = get_user_from_jwt_token(token_string)
         if user:
             request.user = user

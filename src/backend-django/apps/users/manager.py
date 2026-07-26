@@ -1,5 +1,3 @@
-"""Custom user manager for the User model."""
-
 from django.contrib.auth.models import BaseUserManager
 
 

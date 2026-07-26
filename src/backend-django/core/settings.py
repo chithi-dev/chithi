@@ -1,5 +1,3 @@
-"""Django settings for chithi project."""
-
 import os
 from pathlib import Path
 

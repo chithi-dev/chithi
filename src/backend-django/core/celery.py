@@ -1,5 +1,3 @@
-"""Celery configuration for the chithi project."""
-
 import os
 
 from celery import Celery

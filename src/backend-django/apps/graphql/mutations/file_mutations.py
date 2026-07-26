@@ -1,9 +1,6 @@
-"""File management mutations for the GraphQL API."""
-
 from uuid import uuid4
 
 import strawberry
-from django.core.files.uploadedfile import UploadedFile
 from django.utils import timezone
 from strawberry.file_uploads import Upload
 from strawberry.types import Info

@@ -1,5 +1,3 @@
-"""Created at field mixin."""
-
 from django.db import models
 
 
