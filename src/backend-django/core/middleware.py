@@ -1,6 +1,6 @@
 import re
 
-from .auth import get_user_from_jwt_token
+from apps.graphql.auth import get_user_from_jwt_token
 
 
 class GraphQLJwtMiddleware:
