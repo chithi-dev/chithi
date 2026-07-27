@@ -23,8 +23,8 @@ class FileType:
 
 @strawberry.type
 class FileChunk:
-    """A chunk of file data for streaming downloads."""
-    data: str  # base64 encoded chunk
+    """A raw binary chunk for streaming downloads."""
+    data: bytes
     index: int
     is_last: bool
 
