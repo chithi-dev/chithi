@@ -18,4 +18,7 @@ class SingletonModel[T: SingletonModel](models.Model):
     @classmethod
     def load(cls) -> T:
         """Return the single instance, creating it if it doesn't exist."""
-        return cls.objects.get_or_create(pk=1)[0]
+        instance = cls.objects.first()
+        if instance is None:
+            instance = cls.objects.create(pk=1)
+        return instance
