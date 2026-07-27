@@ -16,6 +16,8 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "boto3>=1.37",
     "python-multipart>=0.0.18",
+    "aioboto3>=15.5.0",
+    "graphql-core==3.3.0rc0",
 ]
 
 [dependency-groups]

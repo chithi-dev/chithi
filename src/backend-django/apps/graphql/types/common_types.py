@@ -1,5 +1,7 @@
 import strawberry
 
+from apps.graphql.types.scalars import BigInt
+
 
 @strawberry.type
 class TokenResponse:
@@ -25,7 +27,7 @@ class InstanceStatisticsType:
     total_files: int
     active_files: int
     expired_files: int
-    total_storage_used: int
+    total_storage_used: BigInt
     total_users: int
 
 

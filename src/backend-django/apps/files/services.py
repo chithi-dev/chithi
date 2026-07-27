@@ -1,51 +1,107 @@
-"""Storage service layer for file operations.
-
-Uses Django's default storage backend (configured via django-storages)
-so the code is backend-agnostic and testable.
-"""
-
-import logging
-
-from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
-
-logger = logging.getLogger(__name__)
+import os
+import io
+import aioboto3
+from django.conf import settings
 
 
-def upload_file_data(key: str, data: bytes) -> bool:
-    """Upload raw bytes under the given key via the default storage backend."""
-    try:
-        default_storage.save(key, ContentFile(data))
-        return True
-    except Exception as e:
-        logger.error("Failed to upload file %s: %s", key, e)
-        return False
+def _get_s3_resource():
+    return aioboto3.resource(
+        "s3",
+        endpoint_url=settings.AWS_S3_ENDPOINT_URL,
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name="us-east-1",
+    )
 
 
-def download_file_data(key: str) -> bytes | None:
-    """Download file contents by key. Returns None if not found."""
-    try:
-        with default_storage.open(key, "rb") as f:
-            return f.read()
-    except Exception as e:
-        logger.error("Failed to download file %s: %s", key, e)
-        return None
+def _get_s3_client():
+    return aioboto3.client(
+        "s3",
+        endpoint_url=settings.AWS_S3_ENDPOINT_URL,
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name="us-east-1",
+    )
 
 
-def delete_file_from_s3(key: str) -> bool:
-    """Delete a file by key. Returns True if deleted or already absent."""
-    try:
-        if default_storage.exists(key):
-            default_storage.delete(key)
-        return True
-    except Exception as e:
-        logger.error("Failed to delete file %s: %s", key, e)
-        return False
+async def upload_file_data(key: str, data: bytes) -> None:
+    """Upload bytes to S3."""
+    resource = _get_s3_resource()
+    async with resource as s3:
+        await s3.Object(settings.AWS_STORAGE_BUCKET_NAME, key).put(Body=data)
 
 
-def file_exists(key: str) -> bool:
-    """Check if a file exists."""
-    try:
-        return default_storage.exists(key)
-    except Exception:
-        return False
+async def upload_file_stream(key: str, stream: io.BytesIO, size: int) -> None:
+    """Upload a stream to S3 without loading entire file into memory."""
+    resource = _get_s3_resource()
+    async with resource as s3:
+        await s3.Object(settings.AWS_STORAGE_BUCKET_NAME, key).put(
+            Body=stream,
+            ContentLength=size,
+        )
+
+
+async def download_file_data(key: str) -> bytes:
+    """Download file from S3 and return bytes."""
+    resource = _get_s3_resource()
+    async with resource as s3:
+        obj = await s3.Object(settings.AWS_STORAGE_BUCKET_NAME, key).get()
+        stream = obj["Body"]
+        data = await stream.read()
+        return data
+
+
+async def download_file_stream(key: str):
+    """Download file from S3 and return the response stream for streaming."""
+    resource = _get_s3_resource()
+    async with resource as s3:
+        obj = await s3.Object(settings.AWS_STORAGE_BUCKET_NAME, key).get()
+        return obj["Body"]
+
+
+async def delete_file_from_s3(key: str) -> None:
+    """Delete a file from S3."""
+    resource = _get_s3_resource()
+    async with resource as s3:
+        await s3.Object(settings.AWS_STORAGE_BUCKET_NAME, key).delete()
+
+
+async def get_presigned_upload_url(key: str, expires_in: int = 3600) -> str:
+    """Generate a presigned URL for uploading."""
+    resource = _get_s3_resource()
+    async with resource as s3:
+        url = await s3.meta.client.generate_presigned_url(
+            "put_object",
+            Params={
+                "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                "Key": key,
+            },
+            ExpiresIn=expires_in,
+        )
+        return url
+
+
+async def get_presigned_download_url(key: str, expires_in: int = 3600) -> str:
+    """Generate a presigned URL for downloading."""
+    resource = _get_s3_resource()
+    async with resource as s3:
+        url = await s3.meta.client.generate_presigned_url(
+            "get_object",
+            Params={
+                "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                "Key": key,
+            },
+            ExpiresIn=expires_in,
+        )
+        return url
+
+
+async def file_exists(key: str) -> bool:
+    """Check if a file exists in S3."""
+    resource = _get_s3_resource()
+    async with resource as s3:
+        try:
+            await s3.Object(settings.AWS_STORAGE_BUCKET_NAME, key).load()
+            return True
+        except Exception:
+            return False
