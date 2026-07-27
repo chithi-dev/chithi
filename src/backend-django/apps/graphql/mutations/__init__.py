@@ -12,6 +12,7 @@ from apps.files.models import File
 from apps.files.services import (
     delete_file_from_s3,
     upload_file_data,
+    get_presigned_download_url,
 )
 from apps.graphql.auth import get_jwt_tokens
 from apps.graphql.types import (
@@ -64,6 +65,11 @@ class AuthMutation:
             refresh=refresh,
             onboarded=True,
         )
+
+    @strawberry.mutation
+    def logout(self) -> bool:
+        # Client-side token cleanup. Server-side JWT is stateless.
+        return True
 
 
 @strawberry.type
@@ -131,7 +137,7 @@ class FileMutation:
     @strawberry.mutation
     async def download_file_stream(self, file_key: str) -> str:
         """Return a presigned URL for direct binary download from S3."""
-        return get_presigned_download_url(file_key)
+        return await get_presigned_download_url(file_key)
 
 
 @strawberry.type

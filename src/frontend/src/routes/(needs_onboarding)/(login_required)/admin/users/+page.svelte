@@ -31,7 +31,7 @@
 	let userToDelete = $state<string | null>(null);
 	let globalFilter = $state('');
 
-	let totalItems = $derived(users.data?.total_items ?? 0);
+	let totalItems = $derived(users.data?.totalItems ?? 0);
 
 	// Sort state
 	let sortDir = $state<'asc' | 'desc' | null>(null);

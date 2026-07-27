@@ -5,22 +5,22 @@ import type { AdminFilesData, FileInfoItem, DeleteFileResult } from '$lib/graphq
 export type FileInfo = {
   id: string;
   filename: string;
-  folder_name?: string;
+  folderName?: string;
   size?: number;
-  created_at: string;
-  expires_at?: string;
-  expire_after_n_download?: number;
-  download_count?: number;
+  createdAt: string;
+  expiresAt?: string;
+  expireAfterNDownload?: number;
+  downloadCount?: number;
 };
 
 export type PaginatedFiles = {
   items: FileInfo[];
-  total_items: number;
-  start_index: number;
-  end_index: number;
-  total_pages: number;
-  current_page: number;
-  current_page_size: number;
+  totalItems: number;
+  startIndex: number;
+  endIndex: number;
+  totalPages: number;
+  currentPage: number;
+  currentPageSize: number;
 };
 
 interface QueryState {
@@ -29,15 +29,15 @@ interface QueryState {
   isLoading: boolean;
 }
 
-function mapAdminFilesToPaginatedFiles(adminFilesData: NonNullable<AdminFilesData['admin_files']>): PaginatedFiles {
+function mapAdminFilesToPaginatedFiles(adminFilesData: NonNullable<AdminFilesData['adminFiles']>): PaginatedFiles {
   const items: FileInfo[] = (adminFilesData?.items ?? []).map((item: FileInfoItem) => ({
     id: item.id,
     filename: item.filename,
     size: item.size,
-    created_at: item.created_at,
-    expires_at: item.expires_at,
-    expire_after_n_download: item.expire_after_n_download,
-    download_count: item.download_count
+    createdAt: item.createdAt,
+    expiresAt: item.expiresAt,
+    expireAfterNDownload: item.expireAfterNDownload,
+    downloadCount: item.downloadCount
   }));
 
   const page = adminFilesData?.page ?? 1;
@@ -47,12 +47,12 @@ function mapAdminFilesToPaginatedFiles(adminFilesData: NonNullable<AdminFilesDat
 
   return {
     items,
-    total_items: total,
-    start_index: (page - 1) * size + 1,
-    end_index: Math.min(page * size, total),
-    total_pages: totalPages,
-    current_page: page,
-    current_page_size: size
+    totalItems: total,
+    startIndex: (page - 1) * size + 1,
+    endIndex: Math.min(page * size, total),
+    totalPages,
+    currentPage: page,
+    currentPageSize: size
   };
 }
 
@@ -80,8 +80,8 @@ export function useFilesQuery(page: () => number = () => 1, pageSize: number = 2
           state.error = new Error(result.error.message);
           state.data = undefined;
         } else {
-          state.data = (result.data as AdminFilesData | undefined)?.admin_files
-            ? mapAdminFilesToPaginatedFiles((result.data as AdminFilesData).admin_files)
+          state.data = (result.data as AdminFilesData | undefined)?.adminFiles
+            ? mapAdminFilesToPaginatedFiles((result.data as AdminFilesData).adminFiles)
             : undefined;
           state.error = null;
         }

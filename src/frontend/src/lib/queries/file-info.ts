@@ -57,12 +57,12 @@ export function useFileInfoQuery(slug: () => string) {
           state.data = undefined;
         } else if (result.data) {
           state.isError = false;
-          const item = result.data.file_info;
+          const item = result.data.fileInfo;
           state.data = item
             ? {
                 filename: item.filename || 'file',
                 fileSize: item.size || 0,
-                numberOfFiles: item.number_of_files ?? 0
+                numberOfFiles: item.numberOfFiles ?? 0
               }
             : undefined;
         }

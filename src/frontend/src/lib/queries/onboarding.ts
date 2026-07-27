@@ -20,7 +20,7 @@ export const prefetch = async () => {
 
 function mapOnboardingState(raw: ReturnType<typeof useOnboardingQuery>): OnboardingState {
   return {
-    data: raw.data ? { onboarded: raw.data.onboarding.is_configured } : undefined,
+    data: raw.data ? { onboarded: raw.data.onboarding.isConfigured } : undefined,
     error: raw.error,
     isLoading: raw.fetching,
     stale: raw.stale

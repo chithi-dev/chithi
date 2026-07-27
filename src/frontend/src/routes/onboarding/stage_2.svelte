@@ -23,15 +23,15 @@
 
   $effect(() => {
     if (configData) {
-      const s = formatBytes(configData.total_storage_limit); storageLimitVal = s.val; storageLimitUnit = s.unit;
-      const f = formatBytes(configData.max_file_size_limit); maxFileVal = f.val; maxFileUnit = f.unit;
-      description = configData.site_description || '';
+      const s = formatBytes(configData.totalStorageLimit); storageLimitVal = s.val; storageLimitUnit = s.unit;
+      const f = formatBytes(configData.maxFileSizeLimit); maxFileVal = f.val; maxFileUnit = f.unit;
+      description = configData.siteDescription || '';
     }
   });
 
   async function handleSave() {
     isLoading = true;
-    try { await updateConfig({ total_storage_limit: bytesToNumber(storageLimitVal, storageLimitUnit), max_file_size_limit: bytesToNumber(maxFileVal, maxFileUnit), site_description: description }); toast.success('Configuration saved'); onNext(); }
+    try { await updateConfig({ totalStorageLimit: bytesToNumber(storageLimitVal, storageLimitUnit), maxFileSizeLimit: bytesToNumber(maxFileVal, maxFileUnit), siteDescription: description }); toast.success('Configuration saved'); onNext(); }
     catch (error: any) { toast.error('Failed to save config: ' + error.message); }
     finally { isLoading = false; }
   }

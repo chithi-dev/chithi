@@ -95,7 +95,7 @@
 				isDraggingOverZone ? 'text-primary/80' : 'text-muted-foreground'
 			]}
 		>
-			or click to send up to {formatFileSize(configData.data?.max_file_size_limit ?? 0)} of files with
+			or click to send up to {formatFileSize(configData.data?.maxFileSizeLimit ?? 0)} of files with
 			end-to-end encryption
 		</p>
 		<div class="flex flex-col gap-3">

@@ -5,8 +5,8 @@ import type { UserData } from '$lib/graphql/hooks.js';
 export const usersQueryKey = ['admin-users'];
 
 interface UsersResponse {
-  items: Array<{ id: string; username: string; email: string | null; created_at: string }>;
-  total_items: number;
+  items: Array<{ id: string; username: string; email: string | null; createdAt: string }>;
+  totalItems: number;
 }
 
 interface UsersData {
@@ -25,9 +25,9 @@ function mapUsersResult(users: UserData[]): UsersResponse {
       id: u.id,
       username: u.username,
       email: u.email,
-      created_at: u.created_at
+      createdAt: u.createdAt
     })),
-    total_items: users.length
+    totalItems: users.length
   };
 }
 
