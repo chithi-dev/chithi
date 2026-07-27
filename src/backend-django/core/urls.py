@@ -6,6 +6,7 @@ from django.urls import include, path
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("graphql/", include("apps.graphql.urls")),
+    path("api/files/", include("apps.files.urls")),
 ]
 
 if settings.DEBUG:

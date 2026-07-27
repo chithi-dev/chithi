@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django.core.paginator import Paginator
 from django.db.models import Sum
 from django.utils import timezone
+from django.db.models import Count, Q
 
 from apps.config.models import Config
 from apps.files.models import File
@@ -72,7 +73,6 @@ class Query:
 
     @strawberry.field
     async def instance_statistics(self) -> InstanceStatisticsType:
-        from django.db.models import BooleanField, Case, Count, Q, Sum, When, Value
 
         now = timezone.now()
         User = get_user_model()

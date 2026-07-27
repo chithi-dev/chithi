@@ -1,4 +1,3 @@
-import base64
 import strawberry
 from asgiref.sync import sync_to_async
 from strawberry.file_uploads import Upload
@@ -6,18 +5,17 @@ from strawberry.types import Info
 from uuid import uuid4
 from django.contrib.auth import authenticate, get_user_model
 from django.utils import timezone
+from django.urls import reverse
 
 from apps.config.models import Config
 from apps.files.models import File
 from apps.files.services import (
     delete_file_from_s3,
-    download_file_stream,
     upload_file_data,
 )
 from apps.graphql.auth import get_jwt_tokens
 from apps.graphql.types import (
     ConfigType,
-    FileChunk,
     FileType,
     OnboardingPOSTOut,
     TokenResponse,
@@ -131,30 +129,9 @@ class FileMutation:
             return False
 
     @strawberry.mutation
-    async def download_file_stream(
-        self,
-        file_key: str,
-    ) -> strawberry.Streamable[FileChunk]:
-        """Stream file data from S3 in chunks using @stream directive."""
-        CHUNK_SIZE = 64 * 1024  # 64KB chunks
-        stream = await download_file_stream(file_key)
-        index = 0
-        try:
-            while True:
-                data = await stream.read(CHUNK_SIZE)
-                if not data:
-                    break
-                is_last = len(data) < CHUNK_SIZE
-                yield FileChunk(
-                    data=base64.b64encode(data).decode("ascii"),
-                    index=index,
-                    is_last=is_last,
-                )
-                index += 1
-                if is_last:
-                    break
-        finally:
-            await stream.close()
+    async def download_file_stream(self, file_key: str) -> str:
+        """Return a presigned URL for direct binary download from S3."""
+        return get_presigned_download_url(file_key)
 
 
 @strawberry.type
