@@ -24,9 +24,10 @@
 | **S3 Service Layer** | DONE | `apps/files/services.py` — upload, download, delete, presigned URLs |
 | **Celery Expired Files** | DONE | Periodic task via django_celery_beat |
 | **Frontend GraphQL Client** | DONE | Apollo Client v4, codegen, generated types |
-| **Frontend TypeScript** | DONE | `npm run check` passes |
+| **Frontend TypeScript** | DONE | `npm run check` passes, 0 errors |
 | **Frontend Build** | DONE | `npm run build` succeeds |
 | **Django Migrations** | DONE | 39 migrations, SQLite + PostgreSQL compatible |
+| **Frontend camelCase Migration** | DONE | All GraphQL interfaces, query modules, and Svelte components migrated from snake_case to camelCase |
 | **shadcn-svelte Compliance** | DONE | 46 components, docs-exact patterns |
 | **WASM Parallel Verification** | DONE | 4 parallel call sites, 14/14 tests pass |
 
@@ -99,61 +100,45 @@ Strawberry-Django auto-converts Python snake_case field names to camelCase in th
 
 ---
 
-## Phase 2: Update Frontend Backend URL Configuration
+## Phase 2: Update Frontend Backend URL Configuration — ✅ DONE
 
 ### 2.1 Update default backend URL to `localhost:8002`
 
 **File**: `src/frontend/src/lib/consts/backend.ts`
 
-Change the fallback from `http://localhost:8000` to `http://localhost:8002` (Django's default port).
-
-```ts
-const environment_variable = env.PUBLIC_BACKEND_API ?? 'http://localhost:8002';
-```
-
-**Status**: TODO
+**Status**: DONE — Fallback updated from `http://localhost:8000` to `http://localhost:8002`.
 
 ### 2.2 Update GraphQL codegen schema URL
 
 **File**: `src/frontend/codegen.ts`
 
-Change from `http://localhost:8000/graphql/` to `http://localhost:8002/graphql/`.
-
-**Status**: TODO
+**Status**: DONE — Schema URL updated to `http://localhost:8002/graphql/`.
 
 ---
 
-## Phase 3: Fix Frontend Interface Mismatches
+## Phase 3: Fix Frontend Interface Mismatches — ✅ DONE
 
 ### 3.1 Fix snake_case → camelCase in interfaces
 
 **Files**: `src/frontend/src/lib/graphql/hooks.ts`
 
-Apollo Client returns camelCase data (matching the GraphQL query field names). The interfaces currently use snake_case keys (e.g., `file_info`, `total_storage_limit`). Fix to match actual GraphQL response shape:
-
-- `ConfigData.config.total_storage_limit` → `config.totalStorageLimit`
-- `OnboardingData.onboarding.is_configured` → `onboarding.isConfigured`
-- `FileInfoData.file_info` → `fileInfo` (matches query alias `fileInfo`)
-- `AdminFilesData.admin_files` → `adminFiles`
-- `LoginResult.login` → `login` (no change needed, single word)
-- `UploadFileResult.upload_file` → `uploadFile`
-- etc.
-
-**Status**: TODO
+**Status**: DONE — All GraphQL interfaces migrated to camelCase (ConfigData, OnboardingData, UserData, InstanceInfoData, InstanceStatsData, FileInfoItem, FileInfoData, AdminFilesData, all mutation result types). Mutation parameter names fixed (`expire_after` → `expiresAt`, etc.).
 
 ### 3.2 Fix query modules that access snake_case keys
 
-**Files**:
-- `src/frontend/src/lib/queries/config.ts` — accesses `raw.data.config.*`
-- `src/frontend/src/lib/queries/onboarding.ts` — accesses `raw.data.onboarding.is_configured`
-- `src/frontend/src/lib/queries/file-info.ts` — accesses `result.data.file_info`
-- `src/frontend/src/lib/queries/files.ts` — accesses `result.data.admin_files`
-- `src/frontend/src/lib/queries/instance.ts` — accesses `result.data.instance_information`
-- `src/frontend/src/lib/queries/admin_users.ts` — accesses `result.data.users`
+**Files**: All query modules updated — `config.ts`, `onboarding.ts`, `file-info.ts`, `files.ts`, `instance.ts`, `admin_users.ts`.
 
-All these need to use camelCase keys matching the GraphQL response.
+**Status**: DONE — All modules now access camelCase keys matching the GraphQL response.
 
-**Status**: TODO
+### 3.3 Fix Svelte component data access
+
+**Files**: `upload/+page.svelte`, `upload/stage_1.svelte`, `upload/stage_2.svelte`, `admin/config/+page.svelte`, all config cards, `admin/urls/+page.svelte`, `outstanding_urls_card.svelte`, `admin/users/+page.svelte`, `reverse/+page.svelte`, `informations/backend/+page.svelte`, `informations/statistics/+page.svelte`, `onboarding/stage_2.svelte`.
+
+**Status**: DONE — All components use camelCase property access. The `informations/backend` page rewritten to use `InstanceInformation` schema (backendVersion, pythonVersion, platform). The `informations/statistics` page rewritten to use `InstanceStatistics` schema (totalStorageUsed, totalFiles, activeFiles, expiredFiles, totalUsers).
+
+### 3.4 Fix `outstanding_urls_card.svelte` FileRow type
+
+**Status**: DONE — `FileRow` type updated to camelCase (`folderName`, `createdAt`, `expiresAt`, `expireAfterNDownload`, `downloadCount`). TanStack Table accessor keys updated to match (`createdAt` instead of `created_at`).
 
 ---
 
@@ -299,11 +284,13 @@ Phase 5 (E2E verification) ──┘──→ Sequential: start servers, verify 
 - [ ] GraphQL endpoint responds on port 8002
 
 ### Frontend Fixes
-- [ ] Backend URL updated to `localhost:8002`
-- [ ] Codegen URL updated
-- [ ] Interfaces use camelCase matching GraphQL response
-- [ ] Query modules access correct camelCase keys
-- [ ] `npm run check` passes
+- [x] Backend URL updated to `localhost:8002`
+- [x] Codegen URL updated
+- [x] Interfaces use camelCase matching GraphQL response
+- [x] Query modules access correct camelCase keys
+- [x] All Svelte components use camelCase data access
+- [x] Information pages rewritten to match new Django schema
+- [x] `npm run check` passes (0 errors, 2 pre-existing warnings)
 - [ ] `npm run build` succeeds
 
 ### End-to-End
@@ -327,19 +314,18 @@ Phase 5 (E2E verification) ──┘──→ Sequential: start servers, verify 
 - `src/backend-django/core/settings.py` — configured, port 8002
 - `src/backend-django/core/urls.py` — routes: /admin/, /graphql/, /files/
 
-### Frontend (Needs Fixes)
-- `src/frontend/src/lib/consts/backend.ts` — update default port
-- `src/frontend/codegen.ts` — update schema URL
-- `src/frontend/src/lib/graphql/hooks.ts` — fix snake_case interfaces
-- `src/frontend/src/lib/queries/config.ts` — fix key access
-- `src/frontend/src/lib/queries/onboarding.ts` — fix key access
-- `src/frontend/src/lib/queries/file-info.ts` — fix key access
-- `src/frontend/src/lib/queries/files.ts` — fix key access
-- `src/frontend/src/lib/queries/instance.ts` — fix key access
-- `src/frontend/src/lib/queries/admin_users.ts` — fix key access
-- `src/frontend/src/lib/functions/fetch-decrypt.ts` — migrate to presigned URL
+### Frontend (Remaining Work)
+- `src/frontend/src/lib/functions/fetch-decrypt.ts` — migrate download to presigned URL via GraphQL
 - `src/frontend/src/routes/.../view/[slug]/+page.ts` — migrate to GraphQL
 - `src/frontend/src/routes/.../download/[slug]/+page.ts` — migrate to GraphQL
+- `src/frontend/src/routes/.../upload/state.svelte.ts` — WebSocket state management (needs Django Channels)
+
+### Frontend (Completed)
+- `src/frontend/src/lib/consts/backend.ts` — ✅ port updated to 8002
+- `src/frontend/codegen.ts` — ✅ schema URL updated
+- `src/frontend/src/lib/graphql/hooks.ts` — ✅ all interfaces camelCase
+- `src/frontend/src/lib/queries/*.ts` — ✅ all query modules camelCase
+- `src/frontend/src/routes/**/+page.svelte` — ✅ all components use camelCase data access
 
 ### Unchanged (Working Correctly)
 - `src/frontend/src/lib/graphql/client.ts` — Apollo v4, relative `/graphql/` path
