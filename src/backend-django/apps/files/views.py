@@ -26,7 +26,7 @@ async def _stream_chunks(key):
 
 @require_http_methods(["GET"])
 async def download_file(request, file_id):
-    """Stream file download by UUID — GET /api/files/file/<uuid>/"""
+    """Stream file download by UUID — GET /files/file/<uuid>/"""
     try:
         file_obj = await File.objects.aget(id=file_id)
     except File.DoesNotExist:
@@ -34,24 +34,6 @@ async def download_file(request, file_id):
 
     response = StreamingHttpResponse(
         _stream_chunks(file_obj.key),
-        content_type="application/octet-stream",
-    )
-    response["Content-Disposition"] = (
-        f'attachment; filename="{file_obj.filename}"'
-    )
-    return response
-
-
-@require_http_methods(["GET"])
-async def stream_file(request, key):
-    """Stream file data from S3 as raw binary chunks by key."""
-    try:
-        file_obj = await File.objects.aget(key=key)
-    except File.DoesNotExist:
-        raise Http404("File not found")
-
-    response = StreamingHttpResponse(
-        _stream_chunks(key),
         content_type="application/octet-stream",
     )
     response["Content-Disposition"] = (

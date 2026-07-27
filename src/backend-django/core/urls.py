@@ -3,12 +3,10 @@ from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 
-from apps.files.views import download_file
-
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("graphql/", include("apps.graphql.urls")),
-    path("file/<uuid:file_id>/", download_file, name="download_file"),
+    path("files/", include("apps.files.urls")),
 ]
 
 if settings.DEBUG:
