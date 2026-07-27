@@ -28,8 +28,8 @@
 	let defaultDownloadLimitSet = $state(false);
 
 	$effect(() => {
-		if (configData.data?.default_number_of_downloads && !defaultDownloadLimitSet) {
-			numberOfDownloads = configData.data.default_number_of_downloads.toString();
+		if (configData.data?.defaultNumberOfDownloads && !defaultDownloadLimitSet) {
+			numberOfDownloads = configData.data.defaultNumberOfDownloads.toString();
 			defaultDownloadLimitSet = true;
 		}
 	});
@@ -156,8 +156,8 @@
 								</Select.Trigger>
 								<Select.Content>
 									<Select.Item value="">Use default</Select.Item>
-									{#if configData.data?.download_configs}
-										{#each configData.data.download_configs as limit}
+									{#if configData.data?.downloadConfigs}
+										{#each configData.data.downloadConfigs as limit}
 											<Select.Item value={limit.toString()}
 												>{limit} {limit === 1 ? 'download' : 'downloads'}</Select.Item
 											>

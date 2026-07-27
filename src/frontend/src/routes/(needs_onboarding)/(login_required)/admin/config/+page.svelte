@@ -21,7 +21,7 @@
 	let configData = $derived(configQuery.data);
 	let descDraft = $state('');
 	let previewMarkdown = $derived(
-		descDraft ? String(descDraft) : (configData?.site_description ?? '')
+		descDraft ? String(descDraft) : (configData?.siteDescription ?? '')
 	);
 
 	let editing = $state<
@@ -61,7 +61,7 @@
 	function startEdit(type: 'storage' | 'file') {
 		if (!configData) return;
 		const bytes =
-			type === 'storage' ? configData.total_storage_limit : configData.max_file_size_limit;
+			type === 'storage' ? configData.totalStorageLimit : configData.maxFileSizeLimit;
 		const f = formatBytes(bytes);
 		editVal = f.val;
 		editUnit = f.unit;
@@ -78,7 +78,7 @@
 
 	function openDescriptionEditor() {
 		editing = 'desc';
-		descDraft = configData?.site_description ?? '';
+		descDraft = configData?.siteDescription ?? '';
 	}
 </script>
 

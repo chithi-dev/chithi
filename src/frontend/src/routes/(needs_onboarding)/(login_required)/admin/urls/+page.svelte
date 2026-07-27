@@ -15,7 +15,7 @@
 
 	const { files, revokeFile } = useFilesQuery(() => currentPage, pageSize);
 
-	let totalItems = $derived(files.data?.total_items ?? 0);
+	let totalItems = $derived(files.data?.totalItems ?? 0);
 
 	// States
 	let isRevoking = $state(false);

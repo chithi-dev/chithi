@@ -6,16 +6,16 @@ import type { ConfigData } from '$lib/graphql/hooks.js';
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 export interface Config {
-  total_storage_limit: number;
-  max_file_size_limit: number;
-  default_expiry: number;
-  default_number_of_downloads: number;
-  site_description: string;
-  download_configs: number[];
-  time_configs: number[];
-  allowed_file_types: string[];
-  banned_file_types: string[];
-  allow_uploads: boolean;
+  totalStorageLimit: number;
+  maxFileSizeLimit: number;
+  defaultExpiry: number;
+  defaultNumberOfDownloads: number;
+  siteDescription: string;
+  downloadConfigs: number[];
+  timeConfigs: number[];
+  allowedFileTypes: string[];
+  bannedFileTypes: string[];
+  allowUploads: boolean;
 }
 
 interface ConfigState {

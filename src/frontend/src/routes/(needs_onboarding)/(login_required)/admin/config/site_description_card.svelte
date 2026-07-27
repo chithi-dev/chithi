@@ -67,7 +67,7 @@
 					<Button variant="ghost" onclick={() => (editing = null)}>Cancel</Button>
 					<Button
 						onclick={() => {
-							save({ site_description: descDraft });
+							save({ siteDescription: descDraft });
 							editing = null;
 						}}
 						disabled={descExceeds}>Save Changes</Button

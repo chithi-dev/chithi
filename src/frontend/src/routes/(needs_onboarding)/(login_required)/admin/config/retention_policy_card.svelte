@@ -32,11 +32,11 @@
 
   const addTimeItem = (key: string) => {
     const secs = secondsToNumber(tempInput.time, tempInput.timeUnit);
-    save({ [key]: [...configData[key as 'time_configs'] as number[], secs].sort((a, b) => a - b) });
+    save({ [key]: [...configData[key as 'timeConfigs'] as number[], secs].sort((a, b) => a - b) });
   };
 
   const addDlItem = (key: string) => {
-    save({ [key]: [...configData[key as 'download_configs'] as number[], tempInput.dl].sort((a, b) => a - b) });
+    save({ [key]: [...configData[key as 'downloadConfigs'] as number[], tempInput.dl].sort((a, b) => a - b) });
   };
 
   function toggleMode(mode: EditingMode) {
@@ -70,15 +70,15 @@
         <Item.Actions class="w-full md:w-auto md:min-w-75">
           <Select.Root
             type="single"
-            value={String(configData.default_expiry)}
-            onValueChange={(v) => save({ default_expiry: Number(v) })}
+            value={String(configData.defaultExpiry)}
+            onValueChange={(v) => save({ defaultExpiry: Number(v) })}
           >
             <Select.Trigger class="w-full bg-background font-mono">
-              {@const f = formatSeconds(configData.default_expiry)}
+              {@const f = formatSeconds(configData.defaultExpiry)}
               {f.val} {f.unit}
             </Select.Trigger>
             <Select.Content>
-              {#each configData.time_configs as t}
+              {#each configData.timeConfigs as t}
                 {@const f = formatSeconds(t)}
                 <Select.Item value={String(t)} label="{f.val} {f.unit}">{f.val} {f.unit}</Select.Item>
               {/each}
@@ -99,14 +99,14 @@
         <Item.Actions class="w-full md:w-auto md:min-w-75">
           <Select.Root
             type="single"
-            value={String(configData.default_number_of_downloads)}
-            onValueChange={(v) => save({ default_number_of_downloads: Number(v) })}
+            value={String(configData.defaultNumberOfDownloads)}
+            onValueChange={(v) => save({ defaultNumberOfDownloads: Number(v) })}
           >
             <Select.Trigger class="w-full bg-background font-mono">
-              {configData.default_number_of_downloads}x
+              {configData.defaultNumberOfDownloads}x
             </Select.Trigger>
             <Select.Content>
-              {#each configData.download_configs as dl}
+              {#each configData.downloadConfigs as dl}
                 <Select.Item value={String(dl)} label="{dl}x">{dl}x</Select.Item>
               {/each}
             </Select.Content>
@@ -131,14 +131,14 @@
         </div>
 
         <Item.Footer class="flex min-h-16 flex-wrap items-center justify-start gap-2 rounded-lg border bg-muted/20 p-4">
-          {#each configData.time_configs as item, i}
+          {#each configData.timeConfigs as item, i}
             <Badge variant="secondary" class="h-8 border-border bg-background px-3 text-sm font-normal hover:bg-background">
               {@const label = `${formatSeconds(item).val} ${formatSeconds(item).unit}`}
               {label}
               {#if editing === 'time'}
                 <div class="mx-2 h-3 w-px bg-border"></div>
                 <button
-                  onclick={() => save({ time_configs: configData.time_configs.filter((_, idx: number) => idx !== i) })}
+                  onclick={() => save({ timeConfigs: configData.timeConfigs.filter((_: number, idx: number) => idx !== i) })}
                   class="cursor-pointer text-muted-foreground hover:text-foreground"
                 >
                   <X class="size-3" />
@@ -157,7 +157,7 @@
                   {/each}
                 </Select.Content>
               </Select.Root>
-              <Button size="sm" class="h-8" onclick={() => addTimeItem('time_configs')}>Add</Button>
+              <Button size="sm" class="h-8" onclick={() => addTimeItem('timeConfigs')}>Add</Button>
             </div>
           {/if}
         </Item.Footer>
@@ -180,14 +180,14 @@
         </div>
 
         <Item.Footer class="flex min-h-16 flex-wrap items-center justify-start gap-2 rounded-lg border bg-muted/20 p-4">
-          {#each configData.download_configs as item, i}
+          {#each configData.downloadConfigs as item, i}
             <Badge variant="secondary" class="h-8 border-border bg-background px-3 text-sm font-normal hover:bg-background">
               {@const label = `${item}x`}
               {label}
               {#if editing === 'steps'}
                 <div class="mx-2 h-3 w-px bg-border"></div>
                 <button
-                  onclick={() => save({ download_configs: configData.download_configs.filter((_, idx: number) => idx !== i) })}
+                  onclick={() => save({ downloadConfigs: configData.downloadConfigs.filter((_: number, idx: number) => idx !== i) })}
                   class="cursor-pointer text-muted-foreground hover:text-foreground"
                 >
                   <X class="size-3" />
@@ -198,7 +198,7 @@
           {#if editing === 'steps'}
             <div in:slide class="ml-2 flex items-center gap-2 border-l pl-2">
               <Input type="number" bind:value={tempInput.dl} class="h-8 w-20 border-border bg-background" min="1" />
-              <Button size="sm" class="h-8" onclick={() => addDlItem('download_configs')}>Add</Button>
+              <Button size="sm" class="h-8" onclick={() => addDlItem('downloadConfigs')}>Add</Button>
             </div>
           {/if}
         </Item.Footer>

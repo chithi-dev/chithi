@@ -26,12 +26,12 @@
 	type FileRow = {
 		id: string;
 		filename: string;
-		folder_name?: string;
+		folderName?: string;
 		size?: number;
-		created_at?: string;
-		expires_at?: string;
-		expire_after_n_download?: number;
-		download_count?: number;
+		createdAt?: string;
+		expiresAt?: string;
+		expireAfterNDownload?: number;
+		downloadCount?: number;
 	};
 
 	let {
@@ -82,7 +82,7 @@
 			items = items.filter(
 				(f) =>
 					f.filename.toLowerCase().includes(filter) ||
-					(f.folder_name && f.folder_name.toLowerCase().includes(filter))
+					(f.folderName && f.folderName.toLowerCase().includes(filter))
 			);
 		}
 
@@ -97,10 +97,10 @@
 						cmp = (a.size ?? 0) - (b.size ?? 0);
 						break;
 					case 'created_at':
-						cmp = (a.created_at ?? '') > (b.created_at ?? '') ? 1 : -1;
+						cmp = (a.createdAt ?? '') > (b.createdAt ?? '') ? 1 : -1;
 						break;
 					case 'downloads':
-						cmp = (a.download_count ?? 0) - (b.download_count ?? 0);
+						cmp = (a.downloadCount ?? 0) - (b.downloadCount ?? 0);
 						break;
 				}
 				return sortDir === 'asc' ? cmp : -cmp;
@@ -124,13 +124,13 @@
 			cell: (ctx) => renderSnippet(sizeCellSnippet, { row: ctx.row })
 		},
 		{
-			accessorKey: 'created_at',
+			accessorKey: 'createdAt',
 			header: () => renderSnippet(activityHeaderSnippet),
 			cell: (ctx) => renderSnippet(activityCellSnippet, { row: ctx.row })
 		},
 		{
 			id: 'downloads',
-			accessorFn: (row) => row.download_count,
+			accessorFn: (row) => row.downloadCount,
 			header: () => renderSnippet(downloadsHeaderSnippet),
 			cell: (ctx) => renderSnippet(downloadsCellSnippet, { row: ctx.row })
 		},
@@ -153,7 +153,7 @@
 {#snippet filenameCellSnippet({ row }: { row: { original: FileRow } })}
 	<div class="flex items-center gap-3">
 		<div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-			{#if row.original.folder_name}
+			{#if row.original.folderName}
 				<FolderIcon class="h-4 w-4 text-primary" />
 			{:else}
 				<FileIcon class="h-4 w-4 text-primary" />
@@ -163,8 +163,8 @@
 			<span class="max-w-50 truncate lg:max-w-75" title={row.original.filename}>
 				{row.original.filename}
 			</span>
-			{#if row.original.folder_name}
-				<span class="text-xs text-muted-foreground">in {row.original.folder_name}</span>
+			{#if row.original.folderName}
+				<span class="text-xs text-muted-foreground">in {row.original.folderName}</span>
 			{/if}
 		</div>
 	</div>
@@ -206,12 +206,12 @@
 	<div class="flex flex-col gap-1 text-xs text-muted-foreground">
 		<span class="flex items-center gap-1.5" title="Created At">
 			<Clock class="h-3 w-3" />
-			{formatDate(row.original.created_at)}
+			{formatDate(row.original.createdAt)}
 		</span>
-		{#if row.original.expires_at}
+		{#if row.original.expiresAt}
 			<span class="flex items-center gap-1.5 text-orange-600/80" title="Expires At">
 				<CalendarClock class="h-3 w-3" />
-				{formatDate(row.original.expires_at)}
+				{formatDate(row.original.expiresAt)}
 			</span>
 		{/if}
 	</div>
@@ -231,12 +231,12 @@
 {/snippet}
 
 {#snippet downloadsCellSnippet({ row }: { row: { original: FileRow } })}
-	{#if row.original.download_count !== undefined}
+	{#if row.original.downloadCount !== undefined}
 		<div class="flex items-center gap-1.5 text-sm text-muted-foreground">
 			<Download class="h-3.5 w-3.5" />
-			<span>{row.original.download_count}</span>
-			{#if row.original.expire_after_n_download}
-				<span class="opacity-50">/ {row.original.expire_after_n_download}</span>
+			<span>{row.original.downloadCount}</span>
+			{#if row.original.expireAfterNDownload}
+				<span class="opacity-50">/ {row.original.expireAfterNDownload}</span>
 			{/if}
 		</div>
 	{/if}

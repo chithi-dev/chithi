@@ -27,20 +27,20 @@
 
   const sizeConfigs = $derived.by(() => {
     const configs: {
-      key: 'total_storage_limit' | 'max_file_size_limit';
+      key: 'totalStorageLimit' | 'maxFileSizeLimit';
       editKey: 'storage' | 'file';
       title: string;
       description: string;
     }[] = [
       {
-        key: 'total_storage_limit',
+        key: 'totalStorageLimit',
         editKey: 'storage',
         title: 'Storage Limit',
         description:
           'The total storage capacity allocated for this instance. Older files may be pruned if this limit is reached.',
       },
       {
-        key: 'max_file_size_limit',
+        key: 'maxFileSizeLimit',
         editKey: 'file',
         title: 'Max File Size',
         description: 'The permissible size limit for a single file upload.',
@@ -112,8 +112,8 @@
           class="flex w-full items-center justify-end gap-2 md:w-auto md:min-w-75 [&_[data-slot=switch-thumb][data-state=checked]]:translate-x-[calc(100%-2px)] [&_[data-slot=switch-thumb][data-state=unchecked]]:translate-x-0 [&_[data-slot=switch][data-state=checked]]:bg-primary [&_[data-slot=switch][data-state=unchecked]]:bg-input"
         >
           <Switch
-            checked={configData.allow_uploads}
-            onCheckedChange={(checked) => save({ allow_uploads: checked })}
+            checked={configData.allowUploads}
+            onCheckedChange={(checked) => save({ allowUploads: checked })}
           />
         </Item.Actions>
       </Item.Root>

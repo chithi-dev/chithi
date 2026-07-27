@@ -39,7 +39,7 @@
 	// Prevent popstate from overriding initial mount state
 	let hasMounted = $state(false);
 
-	const detailsMarkdown = $derived(configData.data?.site_description ?? '');
+	const detailsMarkdown = $derived(configData.data?.siteDescription ?? '');
 	let detailsHtml = $state('');
 
 	$effect(() => {
@@ -298,7 +298,7 @@
 			{#if configData.isLoading || (dev && debugLoading)}
 				<div class="col-span-1">{@render configSkeleton()}</div>
 				<div class="col-span-1">{@render rightColumnSkeleton()}</div>
-			{:else if configData.data?.allow_uploads === false}
+			{:else if configData.data?.allowUploads === false}
 				<div
 					class="col-span-1 flex min-h-100 flex-col items-center justify-center p-4 text-center lg:col-span-2 lg:p-8"
 				>

@@ -23,14 +23,14 @@
   const addAllowed = () => {
     const ext = sanitizeExt(tempInput.allowedStr);
     if (!ext) return;
-    save({ allowed_file_types: [...new Set([...(configData.allowed_file_types || []), ext])] });
+    save({ allowedFileTypes: [...new Set([...(configData.allowedFileTypes || []), ext])] });
     tempInput.allowedStr = '';
   };
 
   const addBanned = () => {
     const ext = sanitizeExt(tempInput.bannedStr);
     if (!ext) return;
-    save({ banned_file_types: [...new Set([...(configData.banned_file_types || []), ext])] });
+    save({ bannedFileTypes: [...new Set([...(configData.bannedFileTypes || []), ext])] });
     tempInput.bannedStr = '';
   };
 </script>
@@ -64,14 +64,14 @@
           </div>
         </Item.Actions>
         <Item.Footer class="flex min-h-10 flex-wrap justify-start gap-2 rounded-md border bg-muted/20 p-3">
-          {#if !configData.allowed_file_types?.length}
+          {#if !configData.allowedFileTypes?.length}
             <span class="p-1 text-xs text-muted-foreground italic">All files types are allowed.</span>
           {:else}
-            {#each configData.allowed_file_types as type}
+            {#each configData.allowedFileTypes as type}
               <Badge variant="outline" class="gap-1 border-emerald-500/20 bg-emerald-500/10 pr-1 text-emerald-600">
                 {type}
                 <button
-                  onclick={() => save({ allowed_file_types: configData.allowed_file_types.filter((t: string) => t !== type) })}
+                  onclick={() => save({ allowedFileTypes: configData.allowedFileTypes.filter((t: string) => t !== type) })}
                   class="cursor-pointer rounded-full p-0.5 hover:bg-emerald-500/20"
                 >
                   <X class="size-3" />
@@ -107,14 +107,14 @@
           </div>
         </Item.Actions>
         <Item.Footer class="flex min-h-10 flex-wrap justify-start gap-2 rounded-md border bg-muted/20 p-3">
-          {#if !configData.banned_file_types?.length}
+          {#if !configData.bannedFileTypes?.length}
             <span class="p-1 text-xs text-muted-foreground italic">No file types are banned.</span>
           {:else}
-            {#each configData.banned_file_types as type}
+            {#each configData.bannedFileTypes as type}
               <Badge variant="outline" class="gap-1 border-destructive/20 bg-destructive/10 pr-1 text-destructive">
                 {type}
                 <button
-                  onclick={() => save({ banned_file_types: configData.banned_file_types.filter((t: string) => t !== type) })}
+                  onclick={() => save({ bannedFileTypes: configData.bannedFileTypes.filter((t: string) => t !== type) })}
                   class="cursor-pointer rounded-full p-0.5 hover:bg-destructive/20"
                 >
                   <X class="size-3" />

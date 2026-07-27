@@ -72,8 +72,8 @@
 
 	$effect(() => {
 		if (configData.data && !defaultsLoaded) {
-			downloadLimit = configData.data.default_number_of_downloads?.toString() ?? downloadLimit;
-			timeLimit = configData.data.default_expiry?.toString() ?? timeLimit;
+			downloadLimit = configData.data.defaultNumberOfDownloads?.toString() ?? downloadLimit;
+			timeLimit = configData.data.defaultExpiry?.toString() ?? timeLimit;
 			defaultsLoaded = true;
 		}
 	});
@@ -81,11 +81,11 @@
 	const addFiles = (newFiles: File[]) => {
 		const newSize = newFiles.reduce((s, f) => s + f.size, 0);
 		if (
-			configData.data?.max_file_size_limit &&
-			rawTotalSize + newSize > configData.data.max_file_size_limit
+			configData.data?.maxFileSizeLimit &&
+			rawTotalSize + newSize > configData.data.maxFileSizeLimit
 		) {
 			toast.error(
-				`Total file size cannot exceed ${formatFileSize(configData.data.max_file_size_limit)}`
+				`Total file size cannot exceed ${formatFileSize(configData.data.maxFileSizeLimit)}`
 			);
 			return;
 		}
@@ -157,9 +157,9 @@
 				variables: {
 					file: encryptedBlob,
 					filename: files.length === 1 ? files[0].name : folderName,
-					expires_at: parseInt(timeLimit),
-					expire_after_n_download: viewOnce ? 1 : parseInt(downloadLimit),
-					number_of_files: files.length
+					expiresAt: parseInt(timeLimit),
+					expireAfterNDownload: viewOnce ? 1 : parseInt(downloadLimit),
+					numberOfFiles: files.length
 				}
 			});
 
@@ -168,7 +168,7 @@
 			}
 
 			uploadProgress.target = 100;
-			const data = result.data?.upload_file;
+			const data = result.data?.uploadFile;
 			const serverPath = String(data?.id ?? data?.path ?? data?.key ?? '');
 			if (!serverPath || serverPath === 'null' || serverPath === 'undefined')
 				throw new Error('Invalid server response');
@@ -334,8 +334,8 @@
 							>{downloadLimit} {fmtUnit(Number(downloadLimit), 'downloads')}</Select.Trigger
 						>
 						<Select.Content>
-							{#if configData.data?.download_configs}
-								{#each configData.data.download_configs as limit}
+							{#if configData.data?.downloadConfigs}
+								{#each configData.data.downloadConfigs as limit}
 									<Select.Item value={limit.toString()}
 										>{limit} {fmtUnit(limit, 'downloads')}</Select.Item
 									>
@@ -354,8 +354,8 @@
 							{fmtUnit(val, unit)}</Select.Trigger
 						>
 						<Select.Content>
-							{#if configData.data?.time_configs}
-								{#each configData.data.time_configs as time}
+							{#if configData.data?.timeConfigs}
+								{#each configData.data.timeConfigs as time}
 									{@const { val, unit } = formatSeconds(time)}
 									<Select.Item value={time.toString()}>{val} {fmtUnit(val, unit)}</Select.Item>
 								{/each}

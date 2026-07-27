@@ -67,23 +67,23 @@ import {
 
 export interface ConfigData {
 	config: {
-		total_storage_limit: number;
-		max_file_size_limit: number;
-		default_expiry: number;
-		default_number_of_downloads: number;
-		site_description: string;
-		download_configs: number[];
-		time_configs: number[];
-		allowed_file_types: string[];
-		banned_file_types: string[];
-		allow_uploads: boolean;
+		totalStorageLimit: number;
+		maxFileSizeLimit: number;
+		defaultExpiry: number;
+		defaultNumberOfDownloads: number;
+		siteDescription: string;
+		downloadConfigs: number[];
+		timeConfigs: number[];
+		allowedFileTypes: string[];
+		bannedFileTypes: string[];
+		allowUploads: boolean;
 	};
 }
 
 export interface OnboardingData {
 	onboarding: {
-		is_configured: boolean;
-		has_users: boolean;
+		isConfigured: boolean;
+		hasUsers: boolean;
 	};
 }
 
@@ -91,7 +91,7 @@ export interface UserData {
 	id: string;
 	username: string;
 	email: string | null;
-	created_at: string;
+	createdAt: string;
 }
 
 export interface MeData {
@@ -99,34 +99,20 @@ export interface MeData {
 }
 
 export interface InstanceInfoData {
-	instance_information: {
-		backend_version: string;
-		python_version: string;
+	instanceInformation: {
+		backendVersion: string;
+		pythonVersion: string;
 		platform: string;
-		commit: string;
-		is_release: boolean;
-		version: string;
-		fastapi_version: string;
-		redis_version: string;
-		postgres_version: string;
 	};
 }
 
 export interface InstanceStatsData {
-	instance_statistics: {
-		total_files: number;
-		active_files: number;
-		expired_files: number;
-		total_storage_used: number;
-		total_users: number;
-		total_bytes: number;
-		total_downloads: number;
-		active_urls: number;
-		active_rooms: number;
-		expiring_soon: number;
-		latest_expiry: string | null;
-		oldest_file: string | null;
-		newest_file: string | null;
+	instanceStatistics: {
+		totalFiles: number;
+		activeFiles: number;
+		expiredFiles: number;
+		totalStorageUsed: number;
+		totalUsers: number;
 	};
 }
 
@@ -135,20 +121,20 @@ export interface FileInfoItem {
 	key: string;
 	filename: string;
 	size: number;
-	number_of_files: number | null;
-	download_count: number;
-	created_at: string;
-	expires_at: string;
-	expire_after_n_download: number;
-	is_expired: boolean;
+	numberOfFiles: number | null;
+	downloadCount: number;
+	createdAt: string;
+	expiresAt: string;
+	expireAfterNDownload: number;
+	isExpired: boolean;
 }
 
 export interface FileInfoData {
-	file_info: FileInfoItem | null;
+	fileInfo: FileInfoItem | null;
 }
 
 export interface AdminFilesData {
-	admin_files: {
+	adminFiles: {
 		items: FileInfoItem[];
 		total: number;
 		page: number;
@@ -232,41 +218,41 @@ export interface LogoutResult {
 }
 
 export interface UploadFileResult {
-	upload_file: FileInfoItem;
+	uploadFile: FileInfoItem;
 }
 
 export interface CompleteOnboardingResult {
-	complete_onboarding: { access: string; refresh: string; onboarded: boolean };
+	completeOnboarding: { access: string; refresh: string; onboarded: boolean };
 }
 
 export interface DeleteFileResult {
-	delete_file: boolean;
+	deleteFile: boolean;
 }
 
 export interface CreateUserResult {
-	create_user: UserData;
+	createUser: UserData;
 }
 
 export interface UpdateUserResult {
-	update_user: UserData;
+	updateUser: UserData;
 }
 
 export interface DeleteUserResult {
-	delete_user: boolean;
+	deleteUser: boolean;
 }
 
 export interface UpdateConfigResult {
-	update_config: {
-		total_storage_limit: number;
-		max_file_size_limit: number;
-		default_expiry: number;
-		default_number_of_downloads: number;
-		site_description: string;
-		download_configs: number[];
-		time_configs: number[];
-		allowed_file_types: string[];
-		banned_file_types: string[];
-		allow_uploads: boolean;
+	updateConfig: {
+		totalStorageLimit: number;
+		maxFileSizeLimit: number;
+		defaultExpiry: number;
+		defaultNumberOfDownloads: number;
+		siteDescription: string;
+		downloadConfigs: number[];
+		timeConfigs: number[];
+		allowedFileTypes: string[];
+		bannedFileTypes: string[];
+		allowUploads: boolean;
 	};
 }
 
@@ -280,15 +266,15 @@ export async function logoutMutation() {
 
 export async function uploadFileMutation(
 	filename: string,
-	expire_after: number,
-	expire_after_n_download: number,
-	number_of_files?: number | null
+	expiresAt: number,
+	expireAfterNDownload: number,
+	numberOfFiles?: number | null
 ) {
 	return await executeMutation<UploadFileResult>(UPLOAD_FILE_MUTATION, {
 		filename,
-		expire_after,
-		expire_after_n_download,
-		number_of_files
+		expiresAt,
+		expireAfterNDownload,
+		numberOfFiles
 	});
 }
 
@@ -296,13 +282,13 @@ export async function completeOnboardingMutation(
 	username: string,
 	email: string,
 	password: string,
-	site_description: string
+	siteDescription: string
 ) {
 	return await executeMutation<CompleteOnboardingResult>(COMPLETE_ONBOARDING_MUTATION, {
 		username,
 		email,
 		password,
-		site_description
+		siteDescription
 	});
 }
 
@@ -339,12 +325,12 @@ export async function deleteUserMutation(id: string) {
 }
 
 export async function updateConfigMutation(params: {
-	total_storage_limit?: number | null;
-	max_file_size_limit?: number | null;
-	default_expiry?: number | null;
-	default_number_of_downloads?: number | null;
-	site_description?: string | null;
-	allow_uploads?: boolean | null;
+	totalStorageLimit?: number | null;
+	maxFileSizeLimit?: number | null;
+	defaultExpiry?: number | null;
+	defaultNumberOfDownloads?: number | null;
+	siteDescription?: string | null;
+	allowUploads?: boolean | null;
 }) {
 	return await executeMutation<UpdateConfigResult>(UPDATE_CONFIG_MUTATION, params);
 }
