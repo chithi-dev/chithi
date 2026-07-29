@@ -1,7 +1,8 @@
+import json
 import logging
 
 from django.conf import settings
-from django.http import Http404, StreamingHttpResponse
+from django.http import Http404, HttpResponse, JsonResponse, StreamingHttpResponse
 from django.views.decorators.http import require_http_methods
 import aioboto3
 
@@ -39,11 +40,17 @@ async def _stream_chunks(key):
 
 @require_http_methods(["GET"])
 async def download_file(request, file_id):
-    """Stream file download by UUID — GET /files/file/<uuid>/"""
+    """Stream file download by UUID — GET /files/<uuid>/"""
     try:
         file_obj = await File.objects.aget(id=file_id)
     except File.DoesNotExist:
         raise Http404("File not found")
+
+    if file_obj.is_expired:
+        return HttpResponse("File expired or download limit reached", status=410)
+
+    # Increment download count
+    await File.objects.filter(pk=file_obj.pk).aupdate(download_count=file_obj.download_count + 1)
 
     response = StreamingHttpResponse(
         _stream_chunks(file_obj.key),
@@ -52,4 +59,25 @@ async def download_file(request, file_id):
     response["Content-Disposition"] = (
         f'attachment; filename="{file_obj.filename}"'
     )
+    response["Content-Length"] = str(file_obj.size)
     return response
+
+
+@require_http_methods(["GET"])
+async def get_file_info(request, file_id):
+    """Return file metadata by UUID — GET /files/info/<uuid>/"""
+    try:
+        file_obj = await File.objects.aget(id=file_id)
+    except File.DoesNotExist:
+        raise Http404("File not found")
+
+    return JsonResponse({
+        "id": str(file_obj.id),
+        "key": file_obj.key,
+        "filename": file_obj.filename,
+        "size": file_obj.size,
+        "number_of_files": file_obj.number_of_files,
+        "download_count": file_obj.download_count,
+        "expires_at": file_obj.expires_at.isoformat(),
+        "is_expired": file_obj.is_expired,
+    })
