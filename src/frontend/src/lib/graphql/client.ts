@@ -1,4 +1,5 @@
-import { ApolloClient, HttpLink, InMemoryCache, ApolloLink } from '@apollo/client/core';
+import { ApolloClient, InMemoryCache, ApolloLink } from '@apollo/client/core';
+import UploadHttpLink from 'apollo-upload-client/UploadHttpLink.mjs';
 
 function getAuthHeaders(): Record<string, string> {
   const token = typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null;
@@ -13,14 +14,14 @@ const authLink = new ApolloLink((operation, forward) => {
   return forward(operation);
 });
 
-const httpLink = new HttpLink({
+const uploadLink = new UploadHttpLink({
   uri: '/graphql/',
   credentials: 'include',
   fetch
 });
 
 export const client = new ApolloClient({
-  link: authLink.concat(httpLink),
+  link: authLink.concat(uploadLink),
   cache: new InMemoryCache()
 });
 

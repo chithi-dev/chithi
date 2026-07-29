@@ -62,10 +62,10 @@ export class Api {
 
 	// --- Parameterized Routes ---
 	static FILE_INFO(slug: string) {
-		return this.#url(`information/${slug}`);
+		return this.#url(`files/info/${slug}`);
 	}
 	static DOWNLOAD(slug: string) {
-		return this.#url(`download/${slug}`);
+		return this.#url(`files/${slug}`);
 	}
 
 	// --- Admin Namespace ---

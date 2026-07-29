@@ -14,6 +14,7 @@ from apps.graphql.queries import Query
 
 # Enable experimental defer/stream for incremental delivery
 strawberry_config = StrawberryConfig(
+    auto_camel_case=True,
     enable_experimental_incremental_execution=True,
 )
 

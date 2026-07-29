@@ -1,15 +1,15 @@
 # Chithi Implementation Plan
 
-> **Status**: Active implementation — aligning frontend with Django GraphQL backend
-> **Date**: 2026-07-26
+> **Status**: Active implementation — wiring frontend ↔ Django GraphQL backend, fixing critical gaps
+> **Date**: 2026-07-28
 > **Branch**: `feat/jxr-other`
 >
 > Three workstreams completed previously:
-> 1. **Frontend** — Apollo Client v4, GraphQL codegen, shadcn-svelte compliance
+> 1. **Frontend** — Apollo Client v4, GraphQL codegen, shadcn-svelte compliance, camelCase migration
 > 2. **Django + Strawberry-Django Backend** — full port from FastAPI, GraphQL schema, S3, Celery
-> 3. **WASM Multi-Core** — `wasm_thread` parallelism verified, all cores utilized via Rust Rayon
+> 3. **WASM Multi-Core** — `wasm_thread` parallelism, XChaCha20-Poly1305, all cores utilized
 >
-> **Current focus**: Wire frontend ↔ Django backend together, fix schema mismatches, migrate remaining REST calls to GraphQL.
+> **Current focus**: Fix critical integration gaps, add missing mutations, wire file uploads/downloads, verify end-to-end.
 
 ---
 
@@ -27,178 +27,178 @@
 | **Frontend TypeScript** | DONE | `npm run check` passes, 0 errors |
 | **Frontend Build** | DONE | `npm run build` succeeds |
 | **Django Migrations** | DONE | 39 migrations, SQLite + PostgreSQL compatible |
-| **Frontend camelCase Migration** | DONE | All GraphQL interfaces, query modules, and Svelte components migrated from snake_case to camelCase |
+| **Frontend camelCase Migration** | DONE | All GraphQL interfaces, query modules, and Svelte components migrated |
 | **shadcn-svelte Compliance** | DONE | 46 components, docs-exact patterns |
 | **WASM Parallel Verification** | DONE | 4 parallel call sites, 14/14 tests pass |
+| **Logout Mutation** | DONE | Added `logout` mutation returning `Boolean` |
+| **Backend URL** | DONE | Updated to `localhost:8002` |
 
 ---
 
-## Phase 1: Fix Backend Bugs and Schema Gaps
+## Phase 1: Fix Critical File Upload — Add `apollo-upload-client` 🔴 BLOCKER
 
-### 1.1 Fix missing import in mutations — `get_presigned_download_url`
+### 1.1 Install and configure `apollo-upload-client`
 
-**File**: `src/backend-django/apps/graphql/mutations/__init__.py`
-
-The `download_file_stream` mutation calls `get_presigned_download_url(file_key)` but the function is not imported. Add it:
-
-```python
-from apps.files.services import (
-    delete_file_from_s3,
-    upload_file_data,
-    get_presigned_download_url,  # ADD THIS
-)
-```
-
-Also wrap in `sync_to_async` since it's an async function inside an async resolver:
-```python
-@strawberry.mutation
-async def download_file_stream(self, file_key: str) -> str:
-    return await sync_to_async(get_presigned_download_url)(file_key)
-```
-
-**Status**: TODO
-
-### 1.2 Add `logout` mutation
-
-**File**: `src/backend-django/apps/graphql/mutations/__init__.py`
-
-The frontend sends `LOGOUT_MUTATION` (`mutation Logout { logout }`) but Django has no `logout` mutation. Add a no-op logout that returns `Boolean`:
-
-```python
-@strawberry.type
-class AuthMutation:
-    # ... existing login, complete_onboarding ...
-
-    @strawberry.mutation
-    def logout(self) -> bool:
-        # Client-side token cleanup. Server-side JWT is stateless.
-        return True
-```
-
-**Status**: TODO
-
-### 1.3 Fix upload mutation field name mismatch
-
-**File**: `src/backend-django/apps/graphql/mutations/__init__.py`
-
-The frontend `UPLOAD_FILE_MUTATION` sends variables `expire_after` and `expire_after_n_download`, but the mutation resolver expects `expires_at` and `expire_after_n_download`. The frontend mutation definition maps `expire_after` → `expiresAt` in GraphQL. Django's Strawberry auto-converts `expires_at` (snake) → `expiresAt` (camel). So the GraphQL field names actually match. **However**, the frontend hook `uploadFileMutation` passes `expire_after` as the variable name, and the mutation maps it to `expiresAt`. Django expects `expires_at` which is `expiresAt` in camelCase. **This should work** — verify.
-
-**Status**: VERIFY
-
-### 1.4 Verify Strawberry camelCase conversion
-
-Strawberry-Django auto-converts Python snake_case field names to camelCase in the GraphQL schema. Verify that:
-- `total_storage_limit` → `totalStorageLimit` ✓
-- `default_expiry` → `defaultExpiry` ✓
-- `number_of_files` → `numberOfFiles` ✓
-- `download_count` → `downloadCount` ✓
-- `created_at` → `createdAt` ✓
-- `expires_at` → `expiresAt` ✓
-- `is_expired` → `isExpired` ✓
-
-**Status**: VERIFY
-
----
-
-## Phase 2: Update Frontend Backend URL Configuration — ✅ DONE
-
-### 2.1 Update default backend URL to `localhost:8002`
-
-**File**: `src/frontend/src/lib/consts/backend.ts`
-
-**Status**: DONE — Fallback updated from `http://localhost:8000` to `http://localhost:8002`.
-
-### 2.2 Update GraphQL codegen schema URL
-
-**File**: `src/frontend/codegen.ts`
-
-**Status**: DONE — Schema URL updated to `http://localhost:8002/graphql/`.
-
----
-
-## Phase 3: Fix Frontend Interface Mismatches — ✅ DONE
-
-### 3.1 Fix snake_case → camelCase in interfaces
-
-**Files**: `src/frontend/src/lib/graphql/hooks.ts`
-
-**Status**: DONE — All GraphQL interfaces migrated to camelCase (ConfigData, OnboardingData, UserData, InstanceInfoData, InstanceStatsData, FileInfoItem, FileInfoData, AdminFilesData, all mutation result types). Mutation parameter names fixed (`expire_after` → `expiresAt`, etc.).
-
-### 3.2 Fix query modules that access snake_case keys
-
-**Files**: All query modules updated — `config.ts`, `onboarding.ts`, `file-info.ts`, `files.ts`, `instance.ts`, `admin_users.ts`.
-
-**Status**: DONE — All modules now access camelCase keys matching the GraphQL response.
-
-### 3.3 Fix Svelte component data access
-
-**Files**: `upload/+page.svelte`, `upload/stage_1.svelte`, `upload/stage_2.svelte`, `admin/config/+page.svelte`, all config cards, `admin/urls/+page.svelte`, `outstanding_urls_card.svelte`, `admin/users/+page.svelte`, `reverse/+page.svelte`, `informations/backend/+page.svelte`, `informations/statistics/+page.svelte`, `onboarding/stage_2.svelte`.
-
-**Status**: DONE — All components use camelCase property access. The `informations/backend` page rewritten to use `InstanceInformation` schema (backendVersion, pythonVersion, platform). The `informations/statistics` page rewritten to use `InstanceStatistics` schema (totalStorageUsed, totalFiles, activeFiles, expiredFiles, totalUsers).
-
-### 3.4 Fix `outstanding_urls_card.svelte` FileRow type
-
-**Status**: DONE — `FileRow` type updated to camelCase (`folderName`, `createdAt`, `expiresAt`, `expireAfterNDownload`, `downloadCount`). TanStack Table accessor keys updated to match (`createdAt` instead of `created_at`).
-
----
-
-## Phase 4: Migrate Remaining REST Calls to GraphQL
-
-### 4.1 View/Download page load functions
+**Problem**: The frontend sends file uploads via GraphQL `UPLOAD_FILE_MUTATION` which uses `$file: Upload!`. The current Apollo client uses `HttpLink` which does **NOT** support GraphQL multipart file uploads. This is the #1 blocker — file uploads will fail silently or throw a serialization error.
 
 **Files**:
-- `src/frontend/src/routes/.../view/[slug]/+page.ts`
-- `src/frontend/src/routes/.../download/[slug]/+page.ts`
+- `src/frontend/package.json` — add `apollo-upload-client` dependency
+- `src/frontend/src/lib/graphql/client.ts` — replace `HttpLink` with `createUploadLink`
 
-Currently call `Api.FILE_INFO(params.slug)` via REST `fetch()`. Migrate to use the GraphQL client to fetch file info. Since these are SvelteKit `PageLoad` functions, use `fetch` to call the GraphQL endpoint directly:
+**Implementation**:
 
-```ts
-const res = await fetch('/graphql/', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    query: '{ fileInfo(key: "' + params.slug + '") { filename size numberOfFiles } }',
-  }),
-});
-const { fileInfo } = await res.json().data;
+```bash
+cd src/frontend
+npm install apollo-upload-client
 ```
 
-Or better: create a server-side GraphQL helper that reuses the query definitions.
+Then update `client.ts`:
+
+```ts
+import { ApolloClient, InMemoryCache, ApolloLink } from '@apollo/client/core';
+import { createUploadLink } from 'apollo-upload-client';
+
+function getAuthHeaders(): Record<string, string> {
+  const token = typeof localStorage !== 'undefined' ? localStorage.getItem('access_token') : null;
+  if (!token) return {};
+  return { Authorization: `Bearer ${token}` };
+}
+
+const authLink = new ApolloLink((operation, forward) => {
+  operation.setContext({
+    headers: getAuthHeaders()
+  });
+  return forward(operation);
+});
+
+const uploadLink = createUploadLink({
+  uri: '/graphql/',
+  credentials: 'include',
+});
+
+export const client = new ApolloClient({
+  link: authLink.concat(uploadLink),
+  cache: new InMemoryCache()
+});
+```
+
+**Why**: `createUploadLink` detects `Upload` type variables and serializes them as multipart/form-data per the GraphQL Multipart Request Spec. `HttpLink` sends everything as JSON and cannot handle binary file uploads.
 
 **Status**: TODO
 
-### 4.2 Reverse room REST calls
+### 1.2 Verify `strawberry-graphql` supports multipart file uploads
 
-**File**: `src/frontend/src/lib/queries/reverse.ts`
+**File**: `src/backend-django/core/settings.py`
 
-Currently uses `Api.REVERSE.ROOM_DETAIL(room_id)` via REST. The Django backend doesn't yet have reverse room models/GraphQL types. **Decision**: Keep REST for now until reverse rooms are ported to Django, or create a GraphQL-compatible endpoint.
+Strawberry-GraphQL requires `strawberry-graphql-django` with file upload support. The `UPLOAD_FILE_MUTATION` uses `Upload` type, and the Django view at `/graphql/` must handle multipart requests.
 
-**Status**: DEFER (reverse rooms not yet in Django)
+Verify the GraphQL view is configured with `multipart_uploads_enabled=True`:
 
-### 4.3 WebSocket state management
+```python
+from strawberry.django.views import AsyncGraphQLView
 
-**File**: `src/frontend/src/routes/.../upload/state.svelte.ts`
+class GraphQLView(AsyncGraphQLView):
+    # multipart_uploads_enabled is True by default in strawberry-graphql
+    pass
+```
 
-Connects to `Api.STATE_WS` (WebSocket). Django doesn't have WebSocket support yet. **Decision**: Add Django Channels or a raw ASGI WebSocket endpoint for upload state broadcasting.
+**Status**: VERIFY
 
-**Status**: TODO (after backend verification)
+### 1.3 Verify upload mutation parameter names match
 
-### 4.4 Download streaming via presigned URL
+**Frontend mutation** (`queries.ts`):
+```graphql
+mutation UploadFile($file: Upload!, $filename: String!, $expiresAt: Int!, $expireAfterNDownload: Int!, $numberOfFiles: Int)
+```
+
+**Django resolver** (`mutations/__init__.py`):
+```python
+async def upload_file(self, filename: str, file: Upload, expires_at: int, expire_after_n_download: int, number_of_files: int | None = None)
+```
+
+Strawberry auto-converts `expires_at` → `expiresAt` and `expire_after_n_download` → `expireAfterNDownload`. **This should match.**
+
+**Status**: VERIFY
+
+---
+
+## Phase 2: Fix Download Flow — Migrate to Presigned URL
+
+### 2.1 Update `fetch-decrypt.ts` to use presigned URL via GraphQL
+
+**Problem**: The frontend downloads from `Api.DOWNLOAD(slug)` which is a REST endpoint (`/download/{slug}/`). The Django backend has a `download_file_stream` GraphQL mutation that returns a presigned S3 URL. We need to migrate the download flow.
 
 **File**: `src/frontend/src/lib/functions/fetch-decrypt.ts`
 
-Currently downloads from `Api.DOWNLOAD(slug)` via REST. The Django backend has a `download_file_stream` GraphQL mutation that returns a presigned S3 URL. Migrate to:
-1. Call `downloadFileStream(fileKey: slug)` mutation to get presigned URL
-2. Fetch encrypted data from presigned URL
-3. Decrypt via WASM stream (unchanged)
+**Current flow**:
+```
+frontend → /download/{slug}/ (REST) → Django streams S3 → frontend decrypts
+```
+
+**New flow**:
+```
+frontend → downloadFileStream(fileKey: slug) (GraphQL) → returns presigned URL → frontend fetches from S3 → frontend decrypts
+```
+
+**Implementation**:
+
+```ts
+import { client } from '$lib/graphql/client.js';
+import { PasswordRequiredError } from '#errors/password';
+import { createDecryptedStream } from '#functions/streams';
+
+export interface FetchDecryptOptions { knownSize?: number; onProgress?: (percent: number) => void }
+
+export async function fetchDecryptedBlob(slug: string, key: string, password: string, opts: FetchDecryptOptions = {}): Promise<Blob> {
+  // Step 1: Get presigned URL via GraphQL
+  const { data } = await client.mutate({
+    mutation: gql`mutation DownloadFileStream($fileKey: String!) { downloadFileStream(fileKey: $fileKey) }`,
+    variables: { fileKey: slug }
+  });
+
+  const presignedUrl = data.downloadFileStream;
+
+  // Step 2: Fetch encrypted data from presigned URL
+  const res = await fetch(presignedUrl);
+  if (!res.ok) throw new Error(res.status === 404 ? 'File not found' : 'Download failed');
+  if (!res.body) throw new Error('No response body');
+
+  const total = opts.knownSize ?? parseInt(res.headers.get('content-length') ?? '0', 10);
+  const src = opts.onProgress && total > 0 ? wrapProgress(res.body, total, opts.onProgress) : res.body;
+  const stream = await createDecryptedStream(src, key, password);
+
+  const reader = stream.getReader();
+  let first: Uint8Array | undefined;
+  try {
+    const { done, value } = await reader.read();
+    if (!done) first = value;
+  } catch (e: any) {
+    if (e.name === 'OperationError') { await reader.cancel('Wrong password'); throw new PasswordRequiredError(); }
+    throw e;
+  }
+
+  const chunks: BlobPart[] = [];
+  if (first) chunks.push(first as BlobPart);
+  for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value as BlobPart); }
+  const blob = new Blob(chunks, { type: 'application/zip' });
+  if (chunks.length === 0 || blob.size < 4) throw new Error('Decryption produced no output data');
+  return blob;
+}
+```
 
 **Status**: TODO
 
+### 2.2 Remove `Api.DOWNLOAD` REST endpoint dependency
+
+After Phase 2.1, the `Api.DOWNLOAD` endpoint is no longer needed for downloads. The frontend will exclusively use the presigned URL flow. Keep the REST endpoint as a fallback for now, mark for removal after verification.
+
+**Status**: TODO (after verification)
+
 ---
 
-## Phase 5: Start Django Server and Verify End-to-End
+## Phase 3: Start Django Server and Verify End-to-End
 
-### 5.1 Start Django development server
+### 3.1 Start Django development server
 
 ```bash
 cd src/backend-django
@@ -209,7 +209,7 @@ Verify `/graphql/` endpoint responds with introspection.
 
 **Status**: TODO
 
-### 5.2 Test GraphQL queries
+### 3.2 Test GraphQL queries
 
 Hit the GraphQL endpoint with:
 - `config` query
@@ -220,7 +220,7 @@ Hit the GraphQL endpoint with:
 
 **Status**: TODO
 
-### 5.3 Start frontend dev server and verify
+### 3.3 Start frontend dev server and verify
 
 ```bash
 cd src/frontend
@@ -232,10 +232,69 @@ Verify:
 - Login works
 - Config page loads
 - Admin pages load
-- File upload flow works (encrypt → upload)
-- File download flow works (presigned URL → decrypt)
+- **File upload flow works** (encrypt → upload via apollo-upload-client)
+- **File download flow works** (presigned URL → decrypt)
 
 **Status**: TODO
+
+---
+
+## Phase 4: Migrate Page Load Functions to GraphQL
+
+### 4.1 View/Download page load functions
+
+**Files**:
+- `src/frontend/src/routes/.../view/[slug]/+page.ts`
+- `src/frontend/src/routes/.../download/[slug]/+page.ts`
+
+Currently call `Api.FILE_INFO(params.slug)` via REST `fetch()`. Migrate to use the GraphQL client.
+
+**Status**: TODO (after Phase 3 verification)
+
+### 4.2 Reverse room REST calls
+
+**File**: `src/frontend/src/lib/queries/reverse.ts`
+
+Currently uses `Api.REVERSE.ROOM_DETAIL(room_id)` via REST. Django doesn't have reverse room models yet.
+
+**Status**: DEFER (reverse rooms not yet in Django)
+
+### 4.3 WebSocket state management
+
+**File**: `src/frontend/src/routes/.../upload/state.svelte.ts`
+
+Connects to `Api.STATE_WS` (WebSocket). Django doesn't have WebSocket support yet.
+
+**Status**: DEFER (needs Django Channels)
+
+---
+
+## Phase 5: WASM Multi-Core Verification
+
+### 5.1 Verify `wasm_thread` parallelism is enabled
+
+**Files**:
+- `crates/chithi-core/Cargo.toml` — `parallel` feature is default ✓
+- `crates/wasm_bindings/Cargo.toml` — inherits default features ✓
+- `src/frontend/src/lib/wasm/chithi_wasm.ts` — calls `wasmEncryptChunksParallel` ✓
+
+The Rust `encrypt_chunks_parallel` uses `wasm_thread::scope()` to spawn parallel threads per chunk. The `parallel` feature is enabled by default in `chithi-core`.
+
+**Status**: VERIFIED
+
+### 5.2 Verify WASM is compiled with `+atomics,+simd128`
+
+**File**: `src/frontend/src/lib/wasm/chithi_wasm.ts` and build script
+
+The WASM module must be compiled with `+atomics,+simd128` for `wasm_thread` to work. Check the build script.
+
+**Status**: VERIFY
+
+### 5.3 Verify SharedArrayBuffer is available
+
+The frontend must serve with correct COOP/COEP headers for `SharedArrayBuffer` (required by `wasm_thread`). Check `svelte.config.js` for headers.
+
+**Status**: VERIFY
 
 ---
 
@@ -249,90 +308,136 @@ Add `channels` to `INSTALLED_APPS`, configure `ASGI_APPLICATION`, add WebSocket 
 
 Port the WebSocket state broadcasting from FastAPI to Django Channels, preserving Redis pub/sub for state sync.
 
-**Status**: TODO (after Phase 5 verification)
+**Status**: DEFER (after Phase 3 verification)
 
 ---
 
 ## Execution Order and Parallelization
 
 ```
-Phase 1.1 (fix import bug) ──┐
-Phase 1.2 (add logout) ──────┤──→ Parallel Agent 1: Django backend fixes
-Phase 1.3 (verify upload) ───┘
-                              │
-Phase 2.1 (update URL) ───────┤
-Phase 2.2 (update codegen) ───┤──→ Parallel Agent 2: Frontend URL + interface fixes
-Phase 3.1 (fix interfaces) ───┤
-Phase 3.2 (fix query modules)─┘
-                              │
-Phase 4.1 (page loads) ───────┤
-Phase 4.4 (download stream) ──┤──→ Parallel Agent 3: REST → GraphQL migration
-                              │
-Phase 5 (E2E verification) ──┘──→ Sequential: start servers, verify in browser
+Phase 1.1 (install apollo-upload-client) ──┐
+Phase 1.2 (verify multipart support) ──────┤──→ Agent 1: Fix file upload pipeline
+Phase 1.3 (verify param names) ────────────┘
+                                          │
+Phase 2.1 (migrate download to presigned) ─┤──→ Agent 2: Fix download pipeline
+Phase 2.2 (remove REST dependency) ────────┘
+                                          │
+Phase 3.1 (start Django) ─────────────────┤
+Phase 3.2 (test GraphQL) ─────────────────┤──→ Sequential: Start servers, verify E2E
+Phase 3.3 (start frontend + verify) ──────┘
+                                          │
+Phase 4 (migrate page loads) ─────────────┤──→ Agent 3: REST → GraphQL migration
+Phase 5 (WASM verification) ──────────────┘
 ```
 
 ---
 
 ## Verification Checklist
 
-### Django Backend Fixes
-- [ ] `get_presigned_download_url` imported in mutations
-- [ ] `logout` mutation added
-- [ ] Upload mutation field names match frontend
-- [ ] CamelCase conversion verified
-- [ ] `python manage.py check` still passes
+### File Upload Pipeline
+- [ ] `apollo-upload-client` installed
+- [ ] `createUploadLink` configured in Apollo client
+- [ ] `HttpLink` replaced with `createUploadLink`
+- [ ] Strawberry multipart file upload supported
+- [ ] Upload mutation parameter names match
+- [ ] End-to-end: select files → encrypt → upload → S3
+
+### File Download Pipeline
+- [ ] `fetch-decrypt.ts` migrated to presigned URL flow
+- [ ] `downloadFileStream` mutation returns presigned URL
+- [ ] End-to-end: fetch presigned URL → download → decrypt → save
+
+### Django Backend
+- [ ] `python manage.py check` passes
 - [ ] GraphQL endpoint responds on port 8002
+- [ ] All queries resolve correctly
+- [ ] All mutations resolve correctly
+- [ ] S3 upload/download works
 
-### Frontend Fixes
-- [x] Backend URL updated to `localhost:8002`
-- [x] Codegen URL updated
-- [x] Interfaces use camelCase matching GraphQL response
-- [x] Query modules access correct camelCase keys
-- [x] All Svelte components use camelCase data access
-- [x] Information pages rewritten to match new Django schema
-- [x] `npm run check` passes (0 errors, 2 pre-existing warnings)
+### Frontend
+- [ ] `npm run check` passes (0 errors)
 - [ ] `npm run build` succeeds
-
-### End-to-End
 - [ ] Onboarding flow works
 - [ ] Login/logout works with JWT
 - [ ] Config page loads via GraphQL
 - [ ] Admin files page loads with pagination
 - [ ] Admin users page works (CRUD)
-- [ ] File upload → encrypt → S3 upload works
-- [ ] File download → presigned URL → decrypt works
 - [ ] Instance info/stats pages work
 - [ ] Dark mode works on all pages
 - [ ] Responsive at 1920px, 768px, 375px
+
+### WASM Multi-Core
+- [ ] `parallel` feature enabled in chithi-core
+- [ ] WASM compiled with `+atomics,+simd128`
+- [ ] SharedArrayBuffer available (COOP/COEP headers)
+- [ ] Parallel encryption works in browser
+- [ ] Parallel decryption works in browser
 
 ---
 
 ## Critical Files Reference
 
 ### Django Backend (Needs Fixes)
-- `src/backend-django/apps/graphql/mutations/__init__.py` — missing import + logout mutation
+- `src/backend-django/apps/graphql/mutations/__init__.py` — upload mutation, presigned URL
 - `src/backend-django/core/settings.py` — configured, port 8002
 - `src/backend-django/core/urls.py` — routes: /admin/, /graphql/, /files/
+- `src/backend-django/apps/files/services.py` — S3 operations, presigned URLs
 
-### Frontend (Remaining Work)
-- `src/frontend/src/lib/functions/fetch-decrypt.ts` — migrate download to presigned URL via GraphQL
+### Frontend (Needs Fixes)
+- `src/frontend/package.json` — add `apollo-upload-client`
+- `src/frontend/src/lib/graphql/client.ts` — replace `HttpLink` with `createUploadLink`
+- `src/frontend/src/lib/functions/fetch-decrypt.ts` — migrate to presigned URL
 - `src/frontend/src/routes/.../view/[slug]/+page.ts` — migrate to GraphQL
 - `src/frontend/src/routes/.../download/[slug]/+page.ts` — migrate to GraphQL
-- `src/frontend/src/routes/.../upload/state.svelte.ts` — WebSocket state management (needs Django Channels)
 
 ### Frontend (Completed)
 - `src/frontend/src/lib/consts/backend.ts` — ✅ port updated to 8002
 - `src/frontend/codegen.ts` — ✅ schema URL updated
 - `src/frontend/src/lib/graphql/hooks.ts` — ✅ all interfaces camelCase
 - `src/frontend/src/lib/queries/*.ts` — ✅ all query modules camelCase
+- `src/frontend/src/lib/graphql/queries.ts` — ✅ UPLOAD_FILE_MUTATION uses `$file: Upload!`
 - `src/frontend/src/routes/**/+page.svelte` — ✅ all components use camelCase data access
 
 ### Unchanged (Working Correctly)
-- `src/frontend/src/lib/graphql/client.ts` — Apollo v4, relative `/graphql/` path
-- `src/frontend/src/lib/graphql/queries.ts` — all query/mutation definitions correct
 - `src/frontend/src/lib/workers/chithi.worker.ts` — WASM worker pool
 - `src/frontend/src/lib/wasm/chithi_wasm.ts` — WASM C ABI wrapper
 - `src/frontend/src/lib/functions/streams.ts` — encrypted stream helpers
 - `crates/chithi-core/src/chithi_cryto.rs` — parallel XChaCha20 encryption
-- `src/backend-django/apps/files/services.py` — S3 operations
 - `src/backend-django/apps/files/tasks.py` — Celery expired file cleanup
+
+---
+
+## Known Risks and Mitigations
+
+### Risk 1: `apollo-upload-client` compatibility with Apollo Client v4
+
+`apollo-upload-client` may need a specific version for Apollo Client v4. Check `package.json` for `@apollo/client` version and install a compatible `apollo-upload-client`.
+
+**Mitigation**: Use `npm install apollo-upload-client` and verify the peer dependency resolution. If incompatible, use `@apollo/client`'s built-in `FileUploadLink` (if available in v4).
+
+### Risk 2: Presigned URL CORS
+
+S3 presigned URLs may fail due to CORS if the S3 endpoint (MinIO) doesn't allow cross-origin requests from the frontend origin.
+
+**Mitigation**: Configure MinIO CORS policy to allow `GET` from `http://localhost:5173` (dev) and production origins.
+
+### Risk 3: SharedArrayBuffer requires COOP/COEP headers
+
+`wasm_thread` requires `SharedArrayBuffer` which requires `Cross-Origin-Opener-Policy: same-origin` and `Cross-Origin-Embedder-Policy: require-corp` headers.
+
+**Mitigation**: Ensure `svelte.config.js` sets these headers in the dev server and production server.
+
+### Risk 4: Large file uploads may timeout
+
+The current upload flow loads the entire encrypted blob into memory before sending. For large files, this could cause memory issues.
+
+**Mitigation**: After initial verification, consider streaming uploads via presigned URLs for large files.
+
+---
+
+## Notes
+
+- The `UPLOAD_FILE_MUTATION` already uses `$file: Upload!` in the GraphQL definition — the schema is correct, only the transport layer (`HttpLink` → `createUploadLink`) needs fixing.
+- The `download_file_stream` mutation already exists and returns a presigned URL — the frontend just needs to call it.
+- The WASM parallel encryption is already configured correctly with `wasm_thread` and the `parallel` feature enabled by default.
+- All camelCase migration is complete — frontend interfaces, query modules, and components all use camelCase matching the Strawberry-Django schema.

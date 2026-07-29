@@ -36,6 +36,17 @@ class Query:
 
     @strawberry.field
     async def file_info(self, key: str) -> FileType | None:
+        """Look up a file by its ID (UUID) or S3 key."""
+        from uuid import UUID
+
+        # Try UUID lookup first (frontend uses File.id as slug)
+        try:
+            file_id = UUID(key)
+            return await sync_to_async(File.objects.get)(id=file_id)
+        except (File.DoesNotExist, ValueError):
+            pass
+
+        # Fall back to S3 key lookup
         try:
             return await sync_to_async(File.objects.get)(key=key)
         except File.DoesNotExist:
@@ -52,15 +63,19 @@ class Query:
         qs = File.objects.all().order_by("-created_at")
         if search:
             qs = qs.filter(filename__icontains=search)
-        paginator = Paginator(qs, size)
-        page_obj = paginator.get_page(page)
-        return PaginatedFiles(
-            items=list(page_obj),
-            total=paginator.count,
-            page=page,
-            size=size,
-            pages=paginator.num_pages,
-        )
+
+        def _paginate():
+            paginator = Paginator(qs, size)
+            page_obj = paginator.get_page(page)
+            return PaginatedFiles(
+                items=list(page_obj),
+                total=paginator.count,
+                page=page,
+                size=size,
+                pages=paginator.num_pages,
+            )
+
+        return await sync_to_async(_paginate)()
 
     # ── Instance ──
     @strawberry.field
