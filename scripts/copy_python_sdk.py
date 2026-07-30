@@ -176,6 +176,16 @@ def _uv_sync() -> None:
     _ok("uv sync complete.")
 
 
+def _cleanup_vendor() -> None:
+    """Remove the vendor/ directory after uv has synced the wheel."""
+    if not _CLI_VENDOR_DIR.exists():
+        return
+
+    logger.info("Cleaning up vendor/ directory...")
+    shutil.rmtree(str(_CLI_VENDOR_DIR))
+    _ok("Vendor directory removed.")
+
+
 def _uv_add_develop() -> None:
     """Add the SDK as an editable dependency using uv add --editable."""
     if not _has_uv():
@@ -285,6 +295,7 @@ def main() -> None:
 
         _uv_add_wheel(wheel)
         _uv_sync()
+        _cleanup_vendor()
 
     if not args.no_verify:
         _verify_install()
