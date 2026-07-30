@@ -5,31 +5,34 @@ with minimal overhead. They use pre-allocated random bytes to
 avoid per-request entropy cost.
 """
 
+from __future__ import annotations
+
 import os
 import time
+from typing import Generator, Iterator
 
-from django.http import JsonResponse, StreamingHttpResponse
+from django.http import HttpRequest, JsonResponse, StreamingHttpResponse
 from django.views.decorators.http import require_http_methods
 
 # Pre-allocate random bytes in memory — reused across requests.
-_CHUNK_SIZE = 256 * 1024  # 256KB — larger chunks = fewer syscalls
-_RANDOM_BYTES = os.urandom(_CHUNK_SIZE)
+_CHUNK_SIZE: int = 256 * 1024  # 256KB — larger chunks = fewer syscalls
+_RANDOM_BYTES: bytes = os.urandom(_CHUNK_SIZE)
 
 # Maximum speedtest transfer size: 100MB
-_MAX_SIZE = 100_000_000
+_MAX_SIZE: int = 100_000_000
 
 
 @require_http_methods(["GET"])
-async def speedtest_download(request):
+async def speedtest_download(request: HttpRequest) -> StreamingHttpResponse:
     """Download speedtest — streams random bytes."""
     try:
-        size = int(request.GET.get("bytes", _MAX_SIZE))
+        size: int = int(request.GET.get("bytes", _MAX_SIZE))
     except (TypeError, ValueError):
         size = _MAX_SIZE
 
     size = max(1, min(size, _MAX_SIZE))
 
-    response = StreamingHttpResponse(
+    response: StreamingHttpResponse = StreamingHttpResponse(
         _iter_download_chunks(size),
         content_type="application/octet-stream",
     )
@@ -40,9 +43,9 @@ async def speedtest_download(request):
     return response
 
 
-def _iter_download_chunks(size: int):
+def _iter_download_chunks(size: int) -> Iterator[bytes]:
     """Yield chunks of random bytes up to *size* total."""
-    remaining = size
+    remaining: int = size
     while remaining >= _CHUNK_SIZE:
         yield _RANDOM_BYTES
         remaining -= _CHUNK_SIZE
@@ -51,12 +54,12 @@ def _iter_download_chunks(size: int):
 
 
 @require_http_methods(["POST"])
-async def speedtest_upload(request):
+async def speedtest_upload(request: HttpRequest) -> JsonResponse:
     """Upload speedtest — reads and discards the request body."""
-    bytes_received = 0
+    bytes_received: int = 0
 
     # Read from the ASGI body for maximum speed
-    body = request.body
+    body: bytes = request.body
     if body:
         bytes_received = len(body)
 
@@ -67,6 +70,6 @@ async def speedtest_upload(request):
 
 
 @require_http_methods(["GET"])
-async def speedtest_latency(request):
+async def speedtest_latency(request: HttpRequest) -> JsonResponse:
     """Latency test — returns server timestamp."""
     return JsonResponse({"timestamp": time.time()})
