@@ -7,6 +7,7 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("graphql/", include("apps.graphql.urls")),
     path("files/", include("apps.files.urls")),
+    path("speedtest/", include("apps.files.speedtest_urls")),
 ]
 
 if settings.DEBUG:
