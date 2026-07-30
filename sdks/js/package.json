@@ -16,7 +16,7 @@
         "dist/"
     ],
     "scripts": {
-        "build": "node build.mjs",
+        "build": "node --experimental-strip-types  ./scripts/build.ts",
         "typecheck": "tsc --noEmit"
     },
     "devDependencies": {

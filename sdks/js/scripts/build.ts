@@ -1,5 +1,5 @@
 import * as esbuild from 'esbuild';
-import wasmCompressPlugin from './esbuild-plugin-wasm-compress.js';
+import wasmCompressPlugin from '../plugins/esbuild-plugin-wasm-compress.js';
 
 await esbuild.build({
     entryPoints: ['src/index.ts'],
