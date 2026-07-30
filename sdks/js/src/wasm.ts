@@ -1,9 +1,9 @@
 /**
- * WASM loader — loads embedded chithi.wasm and provides memory helpers.
- * Browser-only. WASM is bundled inline via esbuild --loader:.wasm=base64.
+ * WASM loader — loads compressed chithi.wasm and provides memory helpers.
+ * Browser-only. WASM is gzipped at build time and decompressed at runtime.
  */
 
-import wasmDataUrl from '../chithi.wasm';
+import compressedWasm from '../chithi.wasm';
 
 interface WasmInstance {
     memory: WebAssembly.Memory;
@@ -14,13 +14,20 @@ type WasmFn = (...args: unknown[]) => unknown;
 
 let wasmReady: Promise<WasmInstance> | null = null;
 
+async function decompress(bytes: Uint8Array): Promise<Uint8Array> {
+    const stream = new Response(bytes).body!.pipeThrough(
+        new DecompressionStream('gzip'),
+    );
+    const response = new Response(stream);
+    return new Uint8Array(await response.arrayBuffer());
+}
+
 export async function loadWasm(): Promise<WasmInstance> {
     if (wasmReady) return wasmReady;
 
     wasmReady = (async () => {
-        const response = await fetch(wasmDataUrl);
-        const buffer = await response.arrayBuffer();
-        const { instance } = await WebAssembly.instantiate(buffer, {});
+        const wasmBytes = await decompress(compressedWasm);
+        const { instance } = await WebAssembly.instantiate(wasmBytes, {});
         return {
             memory: instance.exports.memory as WebAssembly.Memory,
             exports: instance.exports as any,

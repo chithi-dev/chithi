@@ -16,7 +16,7 @@
         "dist/"
     ],
     "scripts": {
-        "build": "esbuild src/index.ts --bundle --format=esm --platform=browser --outfile=dist/index.js --loader:.wasm=dataurl",
+        "build": "node build.mjs",
         "typecheck": "tsc --noEmit"
     },
     "devDependencies": {
