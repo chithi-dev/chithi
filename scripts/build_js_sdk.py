@@ -232,16 +232,15 @@ def _install_deps() -> None:
         logger.debug("node_modules already exists, skipping install.")
 
 
-def _bundle_wasm(wasm_file: pathlib.Path) -> None:
-    """Copy the WASM module into the JS SDK dist directory."""
-    wasm_dest = _JS_DIST_DIR / "chithi.wasm"
-    _JS_DIST_DIR.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(wasm_file, wasm_dest)
-    logger.info("Bundled WASM into JS SDK dist/ directory.")
+def _copy_wasm_for_build(wasm_file: pathlib.Path) -> None:
+    """Copy the WASM module to the JS SDK root for esbuild to find."""
+    dest = _JS_SDK_DIR / "chithi.wasm"
+    shutil.copy2(wasm_file, dest)
+    logger.info("Copied WASM to SDK root for esbuild bundling.")
 
 
 def build_js_sdk() -> None:
-    """Build the JS SDK using TypeScript compiler."""
+    """Build the JS SDK with WASM embedded via esbuild."""
     _install_deps()
 
     logger.info("Building JS SDK...")
@@ -364,11 +363,11 @@ def main() -> None:
     else:
         wasm_file = build_wasm(debug=args.debug)
 
-    # Step 3 — build JS SDK
-    build_js_sdk()
+    # Step 3 — copy WASM for esbuild
+    _copy_wasm_for_build(wasm_file)
 
-    # Step 4 — bundle WASM
-    _bundle_wasm(wasm_file)
+    # Step 4 — build JS SDK
+    build_js_sdk()
 
     # Step 5 — info
     if args.info:
