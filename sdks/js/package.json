@@ -13,11 +13,10 @@
         }
     },
     "files": [
-        "dist/",
-        "dist/chithi.wasm"
+        "dist/"
     ],
     "scripts": {
-        "build": "esbuild src/index.ts --bundle --format=esm --platform=browser --outfile=dist/index.js --external:*.wasm",
+        "build": "esbuild src/index.ts --bundle --format=esm --platform=browser --outfile=dist/index.js --loader:.wasm=dataurl",
         "typecheck": "tsc --noEmit"
     },
     "devDependencies": {
