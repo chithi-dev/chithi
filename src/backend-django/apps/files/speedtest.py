@@ -20,7 +20,7 @@ _MAX_SIZE = 100_000_000
 
 
 @require_http_methods(["GET"])
-def speedtest_download(request):
+async def speedtest_download(request):
     """Download speedtest — streams random bytes."""
     try:
         size = int(request.GET.get("bytes", _MAX_SIZE))
@@ -51,18 +51,14 @@ def _iter_download_chunks(size: int):
 
 
 @require_http_methods(["POST"])
-def speedtest_upload(request):
+async def speedtest_upload(request):
     """Upload speedtest — reads and discards the request body."""
     bytes_received = 0
 
-    # Read from the raw WSGI input stream for maximum speed
-    wsgi_input = request.environ.get("wsgi.input")
-    if wsgi_input:
-        while True:
-            chunk = wsgi_input.read(_CHUNK_SIZE)
-            if not chunk:
-                break
-            bytes_received += len(chunk)
+    # Read from the ASGI body for maximum speed
+    body = request.body
+    if body:
+        bytes_received = len(body)
 
     return JsonResponse({
         "bytes_received": bytes_received,
@@ -71,6 +67,6 @@ def speedtest_upload(request):
 
 
 @require_http_methods(["GET"])
-def speedtest_latency(request):
+async def speedtest_latency(request):
     """Latency test — returns server timestamp."""
     return JsonResponse({"timestamp": time.time()})
