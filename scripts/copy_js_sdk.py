@@ -1,15 +1,13 @@
-"""Copy the chithi-sdk JS package into the frontend node_modules.
+"""Copy the chithi-sdk JS package into src/frontend/src/vendor/ and install via npm.
 
 Usage:
-    python scripts/copy_js_sdk.py                # Copy built SDK
+    python scripts/copy_js_sdk.py                # Copy built SDK + npm install
     python scripts/copy_js_sdk.py --develop       # Symlink for live development
     python scripts/copy_js_sdk.py --build         # Build SDK + copy
 """
 
 import argparse
-import json
 import logging
-import os
 import pathlib
 import shutil
 import subprocess
@@ -24,8 +22,8 @@ _REPO_ROOT: Final = pathlib.Path(__file__).resolve().parent.parent
 _JS_SDK_DIR: Final = _REPO_ROOT / "sdks" / "js"
 _SDK_DIST_DIR: Final = _JS_SDK_DIR / "dist"
 _FRONTEND_DIR: Final = _REPO_ROOT / "src" / "frontend"
-_FRONTEND_NODE_MODULES: Final = _FRONTEND_DIR / "node_modules"
-_TARGET_DIR: Final = _FRONTEND_NODE_MODULES / "chithi-sdk"
+_FRONTEND_SRC_DIR: Final = _FRONTEND_DIR / "src"
+_VENDOR_DIR: Final = _FRONTEND_SRC_DIR / "vendor"
 
 logger = logging.getLogger("copy_js_sdk")
 
@@ -63,22 +61,6 @@ def _warn(message: str) -> None:
 # ---------------------------------------------------------------------------
 
 
-def _has_node() -> bool:
-    """Check if Node.js is available."""
-    try:
-        result = subprocess.run(
-            ["node", "--version"],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode == 0:
-            logger.debug("Node.js: %s", result.stdout.strip())
-            return True
-    except FileNotFoundError:
-        pass
-    return False
-
-
 def _has_npm() -> bool:
     """Check if npm is available."""
     try:
@@ -93,6 +75,13 @@ def _has_npm() -> bool:
     except FileNotFoundError:
         pass
     return False
+
+
+def _ensure_vendor_dir() -> None:
+    """Create the vendor/ directory if it doesn't exist."""
+    if not _VENDOR_DIR.exists():
+        logger.debug("Creating vendor directory: %s", _VENDOR_DIR)
+        _VENDOR_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _build_sdk() -> None:
@@ -122,15 +111,14 @@ def _build_sdk() -> None:
     _ok("JS SDK built successfully.")
 
 
-def _copy_sdk() -> None:
-    """Copy the built SDK dist/ into the frontend node_modules."""
+def _copy_sdk_to_vendor() -> None:
+    """Copy the built SDK dist/ into src/vendor/."""
     if not _SDK_DIST_DIR.exists():
         _error(
             f"SDK dist/ directory not found at {_SDK_DIST_DIR}.",
             hint="Run with --build to build the SDK first.",
         )
 
-    # Check what files are in dist
     dist_files = list(_SDK_DIST_DIR.iterdir())
     if not dist_files:
         _error(
@@ -140,52 +128,56 @@ def _copy_sdk() -> None:
 
     logger.debug("SDK dist contents: %s", [f.name for f in dist_files])
 
+    _ensure_vendor_dir()
+
     # Remove existing target
-    if _TARGET_DIR.exists():
-        logger.debug("Removing existing target: %s", _TARGET_DIR)
-        if _TARGET_DIR.is_symlink():
-            _TARGET_DIR.unlink()
+    target_sdk = _VENDOR_DIR / "chithi-sdk"
+    if target_sdk.exists():
+        logger.debug("Removing existing SDK: %s", target_sdk)
+        if target_sdk.is_symlink():
+            target_sdk.unlink()
         else:
-            shutil.rmtree(str(_TARGET_DIR))
+            shutil.rmtree(str(target_sdk))
 
     # Copy SDK dist/ as the package directory
-    logger.info("Copying SDK to node_modules/chithi-sdk...")
+    logger.info("Copying SDK to vendor/chithi-sdk...")
     shutil.copytree(
         str(_SDK_DIST_DIR),
-        str(_TARGET_DIR),
+        str(target_sdk),
         symlinks=False,
     )
 
     # Copy the SDK's package.json (so npm can resolve metadata)
     sdk_package = _JS_SDK_DIR / "package.json"
     if sdk_package.exists():
-        target_package = _TARGET_DIR / "package.json"
+        target_package = target_sdk / "package.json"
         if not target_package.exists():
             logger.debug("Copying SDK package.json")
             shutil.copy2(str(sdk_package), str(target_package))
 
-    _ok("SDK copied successfully.")
+    _ok("SDK copied to vendor/ successfully.")
 
 
 def _symlink_sdk() -> None:
-    """Create a symlink from node_modules to the SDK dist/ directory."""
+    """Create a symlink from vendor/ to the SDK dist/ directory."""
     if not _SDK_DIST_DIR.exists():
         _error(
             f"SDK dist/ directory not found at {_SDK_DIST_DIR}.",
             hint="Run with --build to build the SDK first.",
         )
 
-    # Remove existing target
-    if _TARGET_DIR.exists():
-        logger.debug("Removing existing target: %s", _TARGET_DIR)
-        if _TARGET_DIR.is_symlink():
-            _TARGET_DIR.unlink()
-        else:
-            shutil.rmtree(str(_TARGET_DIR))
+    _ensure_vendor_dir()
 
-    # Create symlink
-    logger.info("Symlinking SDK to node_modules/chithi-sdk...")
-    _TARGET_DIR.symlink_to(
+    target_sdk = _VENDOR_DIR / "chithi-sdk"
+    if target_sdk.exists():
+        logger.debug("Removing existing target: %s", target_sdk)
+        if target_sdk.is_symlink():
+            target_sdk.unlink()
+        else:
+            shutil.rmtree(str(target_sdk))
+
+    logger.info("Symlinking SDK to vendor/chithi-sdk...")
+    target_sdk.symlink_to(
         _SDK_DIST_DIR.resolve(),
         target_is_directory=True,
     )
@@ -193,15 +185,59 @@ def _symlink_sdk() -> None:
     _ok("SDK symlinked successfully.")
 
 
+def _npm_install() -> None:
+    """Install the vendor package into the frontend via npm install."""
+    if not _has_npm():
+        _error(
+            "npm not found.",
+            hint="Install Node.js to install the JS SDK.",
+        )
+
+    target_sdk = _VENDOR_DIR / "chithi-sdk"
+    logger.info("Installing vendor/chithi-sdk via npm install...")
+
+    cmd = [
+        "npm",
+        "install",
+        str(target_sdk),
+        "--save",
+    ]
+
+    result = subprocess.run(
+        cmd,
+        cwd=str(_FRONTEND_DIR),
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        logger.error(result.stderr)
+        _error(
+            "npm install failed.",
+            hint=f"Try: npm install {target_sdk}",
+        )
+
+    _ok("npm install complete.")
+
+
+def _cleanup_vendor() -> None:
+    """Remove the vendor/ directory after npm has installed the package."""
+    if not _VENDOR_DIR.exists():
+        return
+
+    logger.info("Cleaning up vendor/ directory...")
+    shutil.rmtree(str(_VENDOR_DIR))
+    _ok("Vendor directory removed.")
+
+
 def _verify_install() -> None:
     """Verify that chithi-sdk is importable in the frontend."""
-    if not _has_node():
-        _warn("Node.js not found — skipping verification.")
+    if not _has_npm():
+        _warn("npm not found — skipping verification.")
         return
 
     logger.info("Verifying installation...")
 
-    # Try to resolve the package
     cmd = [
         "node",
         "-e",
@@ -232,7 +268,7 @@ def _verify_install() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Copy chithi-sdk JS package into the frontend node_modules.",
+        description="Copy chithi-sdk JS package into src/vendor/ and install via npm.",
     )
     parser.add_argument(
         "--develop",
@@ -264,7 +300,10 @@ def main() -> None:
     if args.develop:
         _symlink_sdk()
     else:
-        _copy_sdk()
+        _copy_sdk_to_vendor()
+
+    _npm_install()
+    _cleanup_vendor()
 
     if not args.no_verify:
         _verify_install()
