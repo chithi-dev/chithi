@@ -1,8 +1,8 @@
-"""Copy the chithi-sdk Python wheel into cli/vendor/ and install via uv.
+"""Copy the chithi-sdk Python wheel into cli/vendor/ and install via uv add.
 
 Usage:
-    python scripts/copy_python_sdk.py               # Copy wheel + uv install
-    python scripts/copy_python_sdk.py --develop      # uv pip install -e
+    python scripts/copy_python_sdk.py               # Copy wheel + uv add
+    python scripts/copy_python_sdk.py --develop      # uv add --editable
     python scripts/copy_python_sdk.py --wheel <path> # Use specific wheel
 """
 
@@ -117,24 +117,19 @@ def _copy_wheel_to_vendor(wheel_path: pathlib.Path) -> pathlib.Path:
     return dest
 
 
-def _uv_install_wheel(wheel_path: pathlib.Path) -> None:
-    """Install the wheel using uv pip install."""
+def _uv_add_wheel(wheel_path: pathlib.Path) -> None:
+    """Add the wheel as a dependency using uv add, then sync."""
     if not _has_uv():
         _error(
             "uv not found.",
             hint="Install uv: https://docs.astral.sh/uv/getting-started/installation/",
         )
 
-    logger.info("Installing %s via uv...", wheel_path.name)
+    logger.info("Adding %s via uv add...", wheel_path.name)
 
     cmd = [
         "uv",
-        "pip",
-        "install",
-        "--force-reinstall",
-        "--no-deps",
-        "--target",
-        str(_CLI_DIR),
+        "add",
         str(wheel_path),
     ]
 
@@ -148,28 +143,53 @@ def _uv_install_wheel(wheel_path: pathlib.Path) -> None:
     if result.returncode != 0:
         logger.error(result.stderr)
         _error(
-            "uv pip install failed.",
-            hint=f"Try: uv pip install {wheel_path}",
+            "uv add failed.",
+            hint=f"Try: uv add {wheel_path}",
         )
 
-    _ok("Wheel installed via uv successfully.")
+    _ok("Wheel added via uv successfully.")
 
 
-def _uv_install_develop() -> None:
-    """Install the SDK in development mode using uv pip install -e."""
+def _uv_sync() -> None:
+    """Sync the CLI environment using uv sync."""
     if not _has_uv():
         _error(
             "uv not found.",
             hint="Install uv: https://docs.astral.sh/uv/getting-started/installation/",
         )
 
-    logger.info("Installing SDK in development mode via uv...")
+    logger.info("Syncing CLI environment via uv sync...")
+
+    cmd = ["uv", "sync"]
+
+    result = subprocess.run(
+        cmd,
+        cwd=str(_CLI_DIR),
+        capture_output=True,
+        text=True,
+    )
+
+    if result.returncode != 0:
+        logger.error(result.stderr)
+        _error("uv sync failed.", hint="Try: uv sync")
+
+    _ok("uv sync complete.")
+
+
+def _uv_add_develop() -> None:
+    """Add the SDK as an editable dependency using uv add --editable."""
+    if not _has_uv():
+        _error(
+            "uv not found.",
+            hint="Install uv: https://docs.astral.sh/uv/getting-started/installation/",
+        )
+
+    logger.info("Adding SDK in development mode via uv add --editable...")
 
     cmd = [
         "uv",
-        "pip",
-        "install",
-        "-e",
+        "add",
+        "--editable",
         str(_PYTHON_SDK_DIR),
     ]
 
@@ -183,8 +203,8 @@ def _uv_install_develop() -> None:
     if result.returncode != 0:
         logger.error(result.stderr)
         _error(
-            "uv pip install -e failed.",
-            hint=f"Try: uv pip install -e {_PYTHON_SDK_DIR}",
+            "uv add --editable failed.",
+            hint=f"Try: uv add --editable {_PYTHON_SDK_DIR}",
         )
 
     _ok("Development installation complete.")
@@ -226,12 +246,12 @@ def _verify_install() -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Copy chithi-sdk Python wheel into cli/vendor/ and install via uv.",
+        description="Copy chithi-sdk Python wheel into cli/vendor/ and install via uv add.",
     )
     parser.add_argument(
         "--develop",
         action="store_true",
-        help="Install in development mode (uv pip install -e).",
+        help="Install in development mode (uv add --editable).",
     )
     parser.add_argument(
         "--verbose", "-v",
@@ -254,7 +274,7 @@ def main() -> None:
     _setup_logging(args.verbose)
 
     if args.develop:
-        _uv_install_develop()
+        _uv_add_develop()
     else:
         if args.wheel:
             if not args.wheel.exists():
@@ -263,7 +283,8 @@ def main() -> None:
         else:
             wheel = _copy_wheel_to_vendor(_find_latest_wheel())
 
-        _uv_install_wheel(wheel)
+        _uv_add_wheel(wheel)
+        _uv_sync()
 
     if not args.no_verify:
         _verify_install()
