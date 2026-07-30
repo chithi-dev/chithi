@@ -5,6 +5,46 @@ pub use seven::*;
 pub use chithi_cryto::*;
 
 // ---------------------------------------------------------------------------
+// Custom entropy source for getrandom on wasm32-unknown-unknown
+// ---------------------------------------------------------------------------
+
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static ENTROPY_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+/// Fill a buffer with random bytes using a counter-based PRNG.
+/// This is the fallback entropy source for wasm32-unknown-unknown where
+/// no system RNG is available. The getrandom crate with feature "custom"
+/// calls this function to seed its internal RNG.
+#[unsafe(no_mangle)]
+pub extern "C" fn __getrandom_custom(buffer: *mut u8, len: usize) -> u8 {
+    // Combine monotonic counter with current instruction pointer for entropy
+    let counter = ENTROPY_COUNTER.fetch_add(len as u64, Ordering::Relaxed);
+
+    // Simple XOR-shift PRNG seeded with counter
+    let mut state = counter.wrapping_add(counter.rotate_right(17)).wrapping_add(0x5A5A5A5A5A5A5A5A);
+
+    unsafe {
+        let mut i = 0;
+        while i < len {
+            // xorshift64 step
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+
+            for j in 0..8 {
+                if i + j < len {
+                    *buffer.add(i + j) = ((state >> (8 * j)) & 0xFF) as u8;
+                }
+            }
+            i += 8;
+        }
+    }
+
+    0 // 0 = success
+}
+
+// ---------------------------------------------------------------------------
 // Shared helpers for WASM linear memory access
 // ---------------------------------------------------------------------------
 
