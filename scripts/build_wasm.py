@@ -206,7 +206,9 @@ def build_wasm(debug: bool = False) -> pathlib.Path:
 # ---------------------------------------------------------------------------
 
 
-def _copy_wasm(wasm_file: pathlib.Path, dest_dir: pathlib.Path, name: str = "chithi.wasm") -> None:
+def _copy_wasm(
+    wasm_file: pathlib.Path, dest_dir: pathlib.Path, name: str = "chithi.wasm"
+) -> None:
     """Copy the WASM file to a destination directory."""
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / name
@@ -220,6 +222,8 @@ def deploy(wasm_file: pathlib.Path) -> None:
     _copy_wasm(wasm_file, _CLI_WASM_DIR, "chithi.wasm")
     _copy_wasm(wasm_file, _PYTHON_WASM_DIR, "chithi.wasm")
     _copy_wasm(wasm_file, _JS_WASM_DIR, "chithi.wasm")
+    # Copy to JS SDK root for esbuild --loader:.wasm=dataurl
+    _copy_wasm(wasm_file, _REPO_ROOT / "sdks" / "js", "chithi.wasm")
 
 
 # ---------------------------------------------------------------------------
