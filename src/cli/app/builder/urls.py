@@ -28,7 +28,7 @@ class UrlBuilder:
         return url
 
     @classmethod
-    def resolve(cls, initial_url: str | None = None) -> "UrlBuilder":
+    def resolve(cls, initial_url: str | None = None) -> UrlBuilder:
         """Resolve URLs from input, settings, or interactive prompts."""
         url_candidate = initial_url or settings.INSTANCE_URL
 

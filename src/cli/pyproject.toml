@@ -23,16 +23,13 @@ dependencies = [
     # Types
     "types-qrcode>=8.2.0.20260518",
     "types-tqdm>=4.67.3.20260408",
+    "chithi-sdk",
 ]
 
 
 [dependency-groups]
 build = ["nuitka>=2.8.9", "zstandard>=0.25.0", "maturin>=1.0.0"]
-dev = [
-    "poethepoet>=0.39.0",
-    "pyrefly>=0.62.0",
-    "ruff>=0.15.12",
-]
+dev = ["poethepoet>=0.39.0", "pyrefly>=0.62.0", "ruff>=0.15.12"]
 
 [tool.poe.tasks]
 nuitka-build = "python build.py"
@@ -45,6 +42,9 @@ packages = ["app"]
 [tool.uv]
 package = true
 default-groups = ['build', 'dev']
+
+[tool.uv.sources]
+chithi-sdk = { path = "vendor/chithi_sdk-0.1.0-py3-none-any.whl" }
 
 
 [project.scripts]

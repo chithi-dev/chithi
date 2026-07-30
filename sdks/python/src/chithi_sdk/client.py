@@ -1,10 +1,10 @@
 """Public API — Chithi client for encrypted upload/download."""
 
-from typing import Sequence
+from collections.abc import Sequence
 
-from .engine import _ensure, _alloc, _dealloc, _write_bytes, _read_bytes, _read_u32
-from .serialize import _serialize_files, _deserialize_files
-from .types import FileEntry, EncryptedBundle, DownloadResult
+from .engine import _alloc, _dealloc, _ensure, _read_bytes, _read_u32, _write_bytes
+from .serialize import _deserialize_files, _serialize_files
+from .types import DownloadResult, EncryptedBundle, FileEntry
 
 
 class Chithi:
@@ -36,10 +36,15 @@ class Chithi:
 
         fn = inst.exports.get_function("wasm_upload")
         status = fn(
-            store, input_ptr, len(serialized),
-            pwd_ptr, len(pwd_bytes),
-            out_ptr, out_len_ptr,
-            0, 0,  # callback_fn, user_data
+            store,
+            input_ptr,
+            len(serialized),
+            pwd_ptr,
+            len(pwd_bytes),
+            out_ptr,
+            out_len_ptr,
+            0,
+            0,  # callback_fn, user_data
         )
 
         if status != 0:
@@ -86,10 +91,15 @@ class Chithi:
 
         fn = inst.exports.get_function("wasm_download")
         status = fn(
-            store, bundle_ptr, len(bundle_bytes),
-            pwd_ptr, len(pwd_bytes),
-            out_ptr, out_len_ptr,
-            0, 0,
+            store,
+            bundle_ptr,
+            len(bundle_bytes),
+            pwd_ptr,
+            len(pwd_bytes),
+            out_ptr,
+            out_len_ptr,
+            0,
+            0,
         )
 
         if status != 0:

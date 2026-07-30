@@ -2,9 +2,22 @@
  * Chithi client — encrypted upload/download via WASM.
  */
 
-import { loadWasm, alloc, dealloc, writeToWasm, readFromWasm, readU32 } from './wasm.js';
+import {
+    loadWasm,
+    alloc,
+    dealloc,
+    writeToWasm,
+    readFromWasm,
+    readU32,
+} from './wasm.js';
 import { serializeFiles, deserializeFiles } from './serialize.js';
-import type { FileEntry, UploadOptions, DownloadOptions, EncryptedBundle, DownloadResult } from './types.js';
+import type {
+    FileEntry,
+    UploadOptions,
+    DownloadOptions,
+    EncryptedBundle,
+    DownloadResult,
+} from './types.js';
 import { toUint8Array } from './types.js';
 
 type WasmFn = (...args: unknown[]) => unknown;
@@ -20,7 +33,9 @@ export class Chithi {
 
     private ensure(): void {
         if (!this._initialized) {
-            throw new Error('Chithi not initialized. Call chithi.init() first.');
+            throw new Error(
+                'Chithi not initialized. Call chithi.init() first.',
+            );
         }
     }
 
