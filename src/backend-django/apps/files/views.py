@@ -1,41 +1,16 @@
-import json
 import logging
+import mimetypes
 
-from django.conf import settings
 from django.http import Http404, HttpResponse, JsonResponse, StreamingHttpResponse
+from django.http import FileResponse
 from django.views.decorators.http import require_http_methods
-import aioboto3
 
 from apps.files.models import File
+from apps.files.services import get_storage, is_s3_backend, download_file_path
 
 logger = logging.getLogger(__name__)
 
-CHUNK_SIZE = 64 * 1024  # 64KB
-
-
-def _get_s3_resource():
-    return aioboto3.resource(
-        "s3",
-        endpoint_url=settings.AWS_S3_ENDPOINT_URL,
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-    )
-
-
-async def _stream_chunks(key):
-    """Async generator that yields raw binary chunks from S3."""
-    resource = _get_s3_resource()
-    async with resource as s3:
-        obj = await s3.Object(settings.AWS_STORAGE_BUCKET_NAME, key).get()
-        body = obj["Body"]
-        try:
-            while True:
-                chunk = await body.read(CHUNK_SIZE)
-                if not chunk:
-                    break
-                yield chunk
-        finally:
-            await body.close()
+CHUNK_SIZE = 256 * 1024  # 256KB for faster streaming
 
 
 @require_http_methods(["GET"])
@@ -50,12 +25,38 @@ async def download_file(request, file_id):
         return HttpResponse("File expired or download limit reached", status=410)
 
     # Increment download count
-    await File.objects.filter(pk=file_obj.pk).aupdate(download_count=file_obj.download_count + 1)
-
-    response = StreamingHttpResponse(
-        _stream_chunks(file_obj.key),
-        content_type="application/octet-stream",
+    await File.objects.filter(pk=file_obj.pk).aupdate(
+        download_count=file_obj.download_count + 1
     )
+
+    content_type, _ = mimetypes.guess_type(file_obj.filename)
+    content_type = content_type or "application/octet-stream"
+
+    if is_s3_backend():
+        # S3: async streaming
+        async def _stream():
+            body = await get_storage().download_stream(file_obj.key)
+            try:
+                while True:
+                    chunk = await body.read(CHUNK_SIZE)
+                    if not chunk:
+                        break
+                    yield chunk
+            finally:
+                await body.close()
+
+        response = StreamingHttpResponse(
+            _stream(),
+            content_type=content_type,
+        )
+    else:
+        # Local: FileResponse is memory-efficient and fast
+        file_path = download_file_path(file_obj.key)
+        response = FileResponse(
+            open(file_path, "rb"),
+            content_type=content_type,
+        )
+
     response["Content-Disposition"] = (
         f'attachment; filename="{file_obj.filename}"'
     )

@@ -4,461 +4,265 @@ Usage:
     python scripts/build_wasm.py          # Build and deploy
     python scripts/build_wasm.py --debug  # Debug build
     python scripts/build_wasm.py --check  # Only verify toolchain
+    python scripts/build_wasm.py --no-deploy  # Build only, skip deploy
 """
 
 import argparse
+import json
+import os
 import pathlib
+import platform
 import shutil
 import subprocess
 import sys
 
-# WASM target — use wasm32-unknown-unknown (stable) or wasm32-wasi (nightly).
-# The build script auto-detects available targets.
-WASM_TARGETS = [
-    "wasm32-wasi-preview1",   # WASI Preview 1 (nightly, best for wasmtime)
-    "wasm32-wasi",            # WASI (stable, wasmtime-compatible)
-    "wasm32-unknown-unknown", # Generic WASM (stable, browser + wasmtime)
-]
+# ---------------------------------------------------------------------------
+# Paths
+# ---------------------------------------------------------------------------
 
-# Paths relative to the repo root.
 _REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
 _CRATES_DIR = _REPO_ROOT / "crates"
 _WASM_BINDINGS = _CRATES_DIR / "wasm_bindings"
+
 _FRONTEND_WASM_DIR = _REPO_ROOT / "src" / "frontend" / "src" / "lib" / "wasm"
+_CLI_WASM_DIR = _REPO_ROOT / "src" / "cli"
 _PYTHON_WASM_DIR = _REPO_ROOT / "sdks" / "python" / "src" / "chithi_sdk"
 _JS_WASM_DIR = _REPO_ROOT / "sdks" / "js" / "dist"
 
-
-def find_cargo() -> str:
-    """Find the cargo binary, preferring the one from the current environment."""
-    return shutil.which("cargo") or "cargo"
-
-
-def build_wasm_cmd(debug: bool = False) -> list[str]:
-    """Build the WASM module using cargo +nightly (required for wasm_thread)."""
-    cargo = find_cargo()
-    target = detect_wasm_target()
-
-    cmd = [
-        cargo, "+nightly", "build", "-p", "wasm_bindings",
-        "--target", target,
-    ]
-    if not debug:
-        cmd.append("--release")
-    return cmd
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 
-def detect_wasm_target() -> str:
-    """Find the best available WASM target."""
-    cargo = find_cargo()
-    if not cargo:
-        return WASM_TARGETS[-1]  # fallback to last option
+def _is_windows() -> bool:
+    return platform.system().lower() == "windows"
 
-    try:
-        result = subprocess.run(
-            [cargo, "target", "list", "--installed"],
-            capture_output=True, text=True, check=True,
+
+def _error(message: str, hint: str | None = None) -> None:
+    """Print a styled error message and exit."""
+    print(f"\n[ERROR] {message}", file=sys.stderr)
+    if hint:
+        print(f"[HINT]  {hint}", file=sys.stderr)
+    sys.exit(1)
+
+
+def _warn(message: str) -> None:
+    print(f"[WARN]  {message}", file=sys.stderr)
+
+
+def _ok(message: str) -> None:
+    print(f"[OK]    {message}")
+
+
+def _info(message: str) -> None:
+    print(f"[INFO]  {message}")
+
+
+# ---------------------------------------------------------------------------
+# Toolchain checks
+# ---------------------------------------------------------------------------
+
+
+def _check_command(command: str, install_hint: str) -> str | None:
+    """Return the resolved path of *command*, or None if missing."""
+    path = shutil.which(command)
+    if path is None:
+        _error(
+            f"'{command}' is not available in PATH.",
+            hint=install_hint,
         )
-        installed = result.stdout
-        for target in WASM_TARGETS:
-            if target in installed:
-                print(f"[TARGET] Using {target}")
-                return target
-    except subprocess.CalledProcessError:
-        pass
-
-    print(f"[WARN] No preferred WASM target found, falling back to {WASM_TARGETS[-1]}")
-    return WASM_TARGETS[-1]
+    return path
 
 
 def check_toolchain() -> bool:
-    """Verify that a WASM target and required tools are installed."""
-    cargo = find_cargo()
-    if not cargo:
-        print("[ERROR] cargo not found in PATH. Install Rust first.")
-        return False
+    """Verify Rust, cargo, and the wasm32-unknown-unknown target are available."""
+    cargo = _check_command(
+        "cargo",
+        "Install Rust from https://rustup.rs/",
+    )
 
-    target = detect_wasm_target()
-    print(f"[OK] Toolchain ready (target: {target}).")
+    # Verify cargo actually works
+    try:
+        result = subprocess.run(
+            [cargo, "--version"],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        if result.returncode != 0:
+            _error(
+                f"cargo returned an error: {result.stderr.strip()}",
+                hint="Re-run 'rustup update' to fix your toolchain.",
+            )
+    except subprocess.TimeoutExpired:
+        _error("cargo --version timed out.", hint="Check if cargo is hanging.")
+    except FileNotFoundError:
+        _error("cargo binary disappeared after detection.", hint="Reinstall Rust.")
+
+    _info(f"Rust toolchain: {result.stdout.strip()}")
+
+    # Check wasm32-unknown-unknown target via rustup
+    rustup = shutil.which("rustup")
+    if rustup:
+        try:
+            result = subprocess.run(
+                [rustup, "target", "list", "--installed"],
+                capture_output=True,
+                text=True,
+                timeout=15,
+            )
+            if result.returncode == 0 and "wasm32-unknown-unknown" not in result.stdout:
+                _error(
+                    "The 'wasm32-unknown-unknown' target is not installed.",
+                    hint="Run: rustup target add wasm32-unknown-unknown",
+                )
+        except subprocess.TimeoutExpired:
+            _warn("Checking targets timed out, skipping target check.")
+    else:
+        _warn("rustup not found in PATH, skipping target verification.")
+
+    _ok("Toolchain is ready.")
     return True
 
 
-def build_wasm(debug: bool = False) -> pathlib.Path:
-    """Build the WASM module using cargo +nightly (required for wasm_thread)."""
-    cmd = build_wasm_cmd(debug)
+# ---------------------------------------------------------------------------
+# Build
+# ---------------------------------------------------------------------------
 
-    print(f"[BUILD] Running: {' '.join(cmd)}")
+
+def build_wasm(debug: bool = False) -> pathlib.Path:
+    """Compile the wasm_bindings crate and return the .wasm path."""
+    cargo = _check_command(
+        "cargo",
+        "Install Rust from https://rustup.rs/",
+    )
+
+    # Verify the crate exists
+    if not _WASM_BINDINGS.is_dir():
+        _error(
+            f"wasm_bindings crate directory not found at {_WASM_BINDINGS}",
+            hint="Check that 'crates/wasm_bindings' exists in the repo.",
+        )
+
+    cargo_toml = _WASM_BINDINGS / "Cargo.toml"
+    if not cargo_toml.is_file():
+        _error(
+            f"Cargo.toml not found at {cargo_toml}",
+            hint="The wasm_bindings crate is missing its manifest.",
+        )
+
+    profile = "debug" if debug else "release"
+    cmd = [
+        cargo,
+        "build",
+        "-p",
+        "wasm_bindings",
+        "--target",
+        "wasm32-unknown-unknown",
+        "--target-dir",
+        str(_REPO_ROOT / "target"),
+    ]
+    if not debug:
+        cmd.append("--release")
+
+    _info(f"Building: {' '.join(cmd)}")
 
     try:
-        subprocess.run(cmd, check=True, cwd=str(_REPO_ROOT))
+        result = subprocess.run(
+            cmd,
+            cwd=str(_REPO_ROOT),
+            check=True,
+        )
     except subprocess.CalledProcessError as e:
-        print(f"[ERROR] WASM build failed with exit code {e.returncode}")
-        sys.exit(e.returncode)
+        _error(
+            f"WASM build failed with exit code {e.returncode}.",
+            hint="Check Rust compilation errors above. Try 'cargo check -p wasm_bindings --target wasm32-unknown-unknown' for a faster diagnostic.",
+        )
+    except FileNotFoundError:
+        _error("cargo disappeared after detection.", hint="Reinstall Rust.")
 
-    # Find the .wasm file
-    profile = "debug" if debug else "release"
-    wasm_dir = _REPO_ROOT / "target" / target / profile
+    # Locate the .wasm output
+    wasm_dir = _REPO_ROOT / "target" / "wasm32-unknown-unknown" / profile
     wasm_file = wasm_dir / "wasm_bindings.wasm"
 
     if not wasm_file.exists():
-        # Try without the target-specific path
-        alt_file = _REPO_ROOT / "target" / profile / "wasm_bindings.wasm"
-        if alt_file.exists():
-            wasm_file = alt_file
-        else:
-            print(f"[ERROR] WASM output not found at {wasm_file}")
-            if wasm_dir.exists():
-                for f in wasm_dir.iterdir():
-                    if f.suffix == ".wasm":
-                        print(f"  Found: {f}")
-            sys.exit(1)
+        # Scan for any .wasm in the target directory
+        if wasm_dir.exists():
+            found = list(wasm_dir.glob("*.wasm"))
+            if found:
+                _warn(f"Expected wasm_bindings.wasm, found: {[f.name for f in found]}")
+        _error(
+            f"WASM output not found at {wasm_file}",
+            hint="Check the build output above for compilation errors.",
+        )
 
     size_kb = wasm_file.stat().st_size / 1024
-    print(f"[OK] Built WASM: {wasm_file.name} ({size_kb:.1f} KB)")
+    _ok(f"Built wasm_bindings.wasm ({size_kb:.1f} KB)")
     return wasm_file
 
 
-def deploy_to_frontend(wasm_file: pathlib.Path) -> None:
-    """Copy the WASM module to the frontend's lib/wasm directory."""
-    _FRONTEND_WASM_DIR.mkdir(parents=True, exist_ok=True)
-    dest = _FRONTEND_WASM_DIR / "chithi.wasm"
+# ---------------------------------------------------------------------------
+# Deploy
+# ---------------------------------------------------------------------------
+
+
+def _copy_wasm(wasm_file: pathlib.Path, dest_dir: pathlib.Path, name: str = "chithi.wasm") -> None:
+    """Copy the WASM file to a destination directory."""
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / name
     shutil.copy2(wasm_file, dest)
-    print(f"[DEPLOY] Frontend:  {dest}")
-
-    # Also copy the old wasm-bindgen-style names for compatibility
-    # The frontend's chithi_wasm.ts imports from './wasm_bindings.js'
-    # We generate a thin JS wrapper that loads the raw .wasm
-    _generate_frontend_wrapper()
+    _info(f"Deployed to {dest}")
 
 
-def _generate_frontend_wrapper() -> None:
-    """Generate the wasm_bindings.js/.d.ts that the frontend expects."""
-    # The frontend imports from './wasm_bindings.js' — generate a loader
-    # that instantiates the raw WASM and exposes the C ABI functions.
-    wrapper_js = '''\
-/**
- * Auto-generated WASM loader — loads chithi.wasm (C ABI, no wasm-bindgen).
- * Generated by scripts/build_wasm.py — do not edit manually.
- *
- * Provides stub imports for wasm-bindgen functions required by sevenz-rust2.
- */
-
-let wasm = null;
-let ready = null;
-
-const sharedMemory = new WebAssembly.SharedMemory({ initial: 256 });
-const externrefTable = new WebAssembly.Table({ initial: 0, element: "anyfunc" });
-
-const wbgStubs = {
-    __wbindgen_placeholder__(): {},
-    __wbindgen_object_drop_ref() {},
-    __wbindgen_describe() {},
-    __wbindgen_describe_cast() {},
-    __wbindgen_throw() {},
-    __wbindgen_string_get() {},
-    __wbg_call_e3b662382210db98() {},
-    __wbg_getRandomValues_cc7f052a444bb2ce(target, offset, count) {
-        const arr = new Uint8Array(target.buffer || sharedMemory.buffer);
-        const vals = crypto.getRandomValues(new Uint8Array(count));
-        arr.set(vals, offset);
-    },
-    __wbg_new_from_slice_77cdfb7977362f3c() { return 0; },
-    __wbg_new_with_length_e6785c33c8e4cce8() { return 0; },
-    __wbg_slice_ecaaa67ec7cf96c1() { return 0; },
-    __wbg_length_1f0964f4a5e2c6d8() { return 0; },
-    __wbg_prototype_set_call_4770620bbe4688a0() {},
-    __wbg_set_4d7dd76f3dae2926() {},
-};
-
-const imports = {
-    env: {
-        memory: sharedMemory,
-        table: externrefTable,
-        __getrandom_custom(output, len) {
-            const buf = new Uint8Array(sharedMemory.buffer).subarray(output, output + len);
-            crypto.getRandomValues(buf);
-        },
-    },
-    __wbindgen_placeholder__: wbgStubs,
-    __wbindgen_externref_xform__: {
-        __wbindgen_externref_table_get() { return 0; },
-        __wbindgen_externref_table_set() {},
-        __wbindgen_externref_table_set_null() {},
-    },
-};
-
-export async function init() {
-    if (ready) return ready;
-    ready = (async () => {
-        const path = new URL("chithi.wasm", import.meta.url).href;
-        if (typeof window === "undefined") {
-            const fs = await import("fs");
-            const { fileURLToPath } = await import("url");
-            const { dirname, join } = await import("path");
-            const baseDir = dirname(fileURLToPath(import.meta.url));
-            const wasmPath = join(baseDir, "chithi.wasm");
-            const bytes = fs.readFileSync(wasmPath);
-            wasm = await WebAssembly.instantiate(bytes, imports);
-        } else {
-            wasm = await WebAssembly.instantiateStreaming(fetch(path), imports);
-        }
-        const exports = wasm.instance.exports;
-        for (const name of Object.keys(wasm.instance.exports)) {
-            globalThis[`__chithi_${name}`] = exports[name];
-        }
-    })();
-    return ready;
-}
-
-export function getMemory() {
-    return wasm ? wasm.instance.exports.memory : null;
-}
-
-export function getInstance() {
-    return wasm ? wasm.instance : null;
-}
-
-export default init;
-'''
-
-    wrapper_dts = '''\
-/**
- * Auto-generated type declarations for the WASM loader.
- * Generated by scripts/build_wasm.py — do not edit manually.
- */
-
-export interface InitInput {
-    /** Path to the WASM file. */
-    path?: string;
-}
-
-export function init(input?: InitInput): Promise<void>;
-export function getMemory(): WebAssembly.Memory | null;
-export function getInstance(): WebAssembly.Instance | null;
-
-// C ABI exports — called via the raw instance
-export function compress_7z(
-    inputPtr: Uint8Array,
-    inputLen: number,
-    passwordPtr: Uint8Array,
-    passwordLen: number,
-    outPtr: number,
-    outLenPtr: number,
-): number;
-
-export function decompress_7z(
-    dataPtr: Uint8Array,
-    dataLen: number,
-    passwordPtr: Uint8Array,
-    passwordLen: number,
-    outPtr: number,
-    outLenPtr: number,
-): number;
-
-export function validate_7z(dataPtr: Uint8Array, dataLen: number): number;
-
-export function wasm_derive_key(
-    passwordPtr: Uint8Array,
-    passwordLen: number,
-    saltPtr: Uint8Array,
-    saltLen: number,
-    outPtr: number,
-): number;
-
-export function wasm_argon2_derive(
-    passwordPtr: Uint8Array,
-    passwordLen: number,
-    saltPtr: Uint8Array,
-    saltLen: number,
-    iterations: number,
-    memoryCostKib: number,
-    hashLength: number,
-    outPtr: number,
-): number;
-
-export function wasm_encrypt_chunk(
-    dataPtr: Uint8Array,
-    dataLen: number,
-    keyPtr: Uint8Array,
-    noncePtr: Uint8Array,
-    outPtr: number,
-    outLenPtr: number,
-): number;
-
-export function wasm_decrypt_chunk(
-    dataPtr: Uint8Array,
-    dataLen: number,
-    keyPtr: Uint8Array,
-    noncePtr: Uint8Array,
-    outPtr: number,
-    outLenPtr: number,
-): number;
-
-export function wasm_get_chunk_nonce(
-    baseIvPtr: Uint8Array,
-    chunkIndex: number,
-    outPtr: number,
-): number;
-
-export function wasm_encrypt_chunks_parallel(
-    inputPtr: Uint8Array,
-    inputLen: number,
-    keyPtr: Uint8Array,
-    baseIvPtr: Uint8Array,
-    outPtr: number,
-    outLenPtr: number,
-    callbackFn: number,
-    userData: number,
-): number;
-
-export function wasm_decrypt_chunks_parallel(
-    inputPtr: Uint8Array,
-    inputLen: number,
-    keyPtr: Uint8Array,
-    baseIvPtr: Uint8Array,
-    outPtr: number,
-    outLenPtr: number,
-    callbackFn: number,
-    userData: number,
-): number;
-
-export function wasm_encrypt_all(
-    inputPtr: Uint8Array,
-    inputLen: number,
-    keyPtr: Uint8Array,
-    outPtr: number,
-    outLenPtr: number,
-): number;
-
-export function wasm_decrypt_all(
-    inputPtr: Uint8Array,
-    inputLen: number,
-    keyPtr: Uint8Array,
-    outPtr: number,
-    outLenPtr: number,
-): number;
-
-export function upload(
-    inputPtr: Uint8Array,
-    inputLen: number,
-    passwordPtr: Uint8Array,
-    passwordLen: number,
-    outPtr: number,
-    outLenPtr: number,
-    callbackFn: number,
-    userData: number,
-): number;
-
-export function download(
-    bundlePtr: Uint8Array,
-    bundleLen: number,
-    passwordPtr: Uint8Array,
-    passwordLen: number,
-    outPtr: number,
-    outLenPtr: number,
-    callbackFn: number,
-    userData: number,
-): number;
-
-export function uploadData(
-    dataPtr: Uint8Array,
-    dataLen: number,
-    passwordPtr: Uint8Array,
-    passwordLen: number,
-    outPtr: number,
-    outLenPtr: number,
-    callbackFn: number,
-    userData: number,
-): number;
-
-export function downloadData(
-    bundleJsonPtr: Uint8Array,
-    bundleJsonLen: number,
-    passwordPtr: Uint8Array,
-    passwordLen: number,
-    outPtr: number,
-    outLenPtr: number,
-    callbackFn: number,
-    userData: number,
-): number;
-
-export class WasmKeychain {
-    constructor();
-    free(): void;
-    encryptMetadata(metadata: string): Uint8Array;
-    decryptMetadata(data: Uint8Array): string;
-    exportAuthKey(): Uint8Array;
-    static fromPassword(password: string): WasmKeychain;
-    generateSecret(): string;
-    ikm(): Uint8Array;
-    salt(): Uint8Array;
-    setPassword(password: string): void;
-    sign(data: Uint8Array): Uint8Array;
-    verify(data: Uint8Array, signature: Uint8Array): boolean;
-}
-
-export function wasm_generate_secret(): string;
-export function wasm_generate_ikm(): Uint8Array;
-
-export default init;
-'''
-
-    js_wrapper_path = _FRONTEND_WASM_DIR / "wasm_bindings.js"
-    dts_wrapper_path = _FRONTEND_WASM_DIR / "wasm_bindings.d.ts"
-
-    js_wrapper_path.write_text(wrapper_js, encoding="utf-8")
-    dts_wrapper_path.write_text(wrapper_dts, encoding="utf-8")
-    print(f"[GEN]   Frontend wrapper: wasm_bindings.js + wasm_bindings.d.ts")
+def deploy(wasm_file: pathlib.Path) -> None:
+    """Copy the WASM module to all consumer directories."""
+    _copy_wasm(wasm_file, _FRONTEND_WASM_DIR, "chithi.wasm")
+    _copy_wasm(wasm_file, _CLI_WASM_DIR, "chithi.wasm")
+    _copy_wasm(wasm_file, _PYTHON_WASM_DIR, "chithi.wasm")
+    _copy_wasm(wasm_file, _JS_WASM_DIR, "chithi.wasm")
 
 
-def deploy_to_python(wasm_file: pathlib.Path) -> None:
-    """Copy the WASM module to the Python SDK package."""
-    _PYTHON_WASM_DIR.mkdir(parents=True, exist_ok=True)
-    dest = _PYTHON_WASM_DIR / "chithi.wasm"
-    shutil.copy2(wasm_file, dest)
-    print(f"[DEPLOY] Python:    {dest}")
-
-
-def deploy_to_js(wasm_file: pathlib.Path) -> None:
-    """Copy the WASM module to the JS SDK dist directory."""
-    _JS_WASM_DIR.mkdir(parents=True, exist_ok=True)
-    dest = _JS_WASM_DIR / "chithi.wasm"
-    shutil.copy2(wasm_file, dest)
-    print(f"[DEPLOY] JS:        {dest}")
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 
 
 def main() -> None:
-    import pathlib
-
-    parser = argparse.ArgumentParser(description="Build chithi WASM module")
-    parser.add_argument("--debug", action="store_true", help="Build in debug mode")
-    parser.add_argument("--check", action="store_true", help="Only check toolchain")
-    parser.add_argument("--no-deploy", action="store_true", help="Build only, don't deploy")
+    parser = argparse.ArgumentParser(
+        description="Build the chithi WASM module and deploy to consumers.",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Build in debug mode (faster, larger binary).",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Only verify the toolchain and exit.",
+    )
+    parser.add_argument(
+        "--no-deploy",
+        action="store_true",
+        help="Build only, do not copy the .wasm to consumers.",
+    )
     args = parser.parse_args()
 
-    # Step 1: Check toolchain
-    if not check_toolchain():
-        if args.check:
-            sys.exit(1)
-        print("[WARN] Continuing without toolchain verification...")
-
+    # Step 1 — toolchain
+    check_toolchain()
     if args.check:
-        print("[OK] Check passed.")
         return
 
-    # Step 2: Build WASM
+    # Step 2 — build
     wasm_file = build_wasm(debug=args.debug)
 
+    # Step 3 — deploy
     if args.no_deploy:
-        print("[SKIP] Deployment skipped (--no-deploy).")
+        _info("Skipping deployment (--no-deploy).")
         return
 
-    # Step 3: Deploy
-    deploy_to_frontend(wasm_file)
-    deploy_to_python(wasm_file)
-    deploy_to_js(wasm_file)
-
-    print("\n[DONE] WASM build and deployment complete.")
+    deploy(wasm_file)
+    _ok("WASM build and deployment complete.")
 
 
 if __name__ == "__main__":

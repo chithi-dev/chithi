@@ -10,7 +10,7 @@ from django.urls import reverse
 from apps.config.models import Config
 from apps.files.models import File
 from apps.files.services import (
-    delete_file_from_s3,
+    delete_file_from_storage,
     upload_file_data,
     get_presigned_download_url,
 )
@@ -128,7 +128,7 @@ class FileMutation:
     async def delete_file(self, file_id: strawberry.ID) -> bool:
         try:
             file_obj = await sync_to_async(File.objects.get)(id=file_id)
-            await delete_file_from_s3(file_obj.key)
+            await delete_file_from_storage(file_obj.key)
             await sync_to_async(file_obj.delete)()
             return True
         except File.DoesNotExist:
