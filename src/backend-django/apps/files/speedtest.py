@@ -8,7 +8,7 @@ avoid per-request entropy cost.
 import os
 import time
 
-from django.http import HttpResponse, JsonResponse
+from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.http import require_http_methods
 
 # Pre-allocate random bytes in memory — reused across requests.
@@ -29,7 +29,7 @@ def speedtest_download(request):
 
     size = max(1, min(size, _MAX_SIZE))
 
-    response = HttpResponse(
+    response = StreamingHttpResponse(
         _iter_download_chunks(size),
         content_type="application/octet-stream",
     )
