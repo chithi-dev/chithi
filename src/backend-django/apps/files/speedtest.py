@@ -5,11 +5,9 @@ with minimal overhead. They use pre-allocated random bytes to
 avoid per-request entropy cost.
 """
 
-from __future__ import annotations
-
 import os
 import time
-from typing import Generator, Iterator
+from typing import Iterator
 
 from django.http import HttpRequest, JsonResponse, StreamingHttpResponse
 from django.views.decorators.http import require_http_methods
