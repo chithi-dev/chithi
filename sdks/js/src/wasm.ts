@@ -1,6 +1,6 @@
 /**
  * WASM loader — loads compressed chithi.wasm and provides memory helpers.
- * Browser-only. WASM is gzipped at build time and decompressed at runtime.
+ * Browser-only. WASM is brotli-compressed at build time and decompressed at runtime.
  */
 
 import compressedWasm from '../chithi.wasm';
@@ -16,7 +16,7 @@ let wasmReady: Promise<WasmInstance> | null = null;
 
 async function decompress(bytes: Uint8Array): Promise<Uint8Array> {
     const stream = new Response(bytes).body!.pipeThrough(
-        new DecompressionStream('gzip'),
+        new DecompressionStream('brotli'),
     );
     const response = new Response(stream);
     return new Uint8Array(await response.arrayBuffer());
