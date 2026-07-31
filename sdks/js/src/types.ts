@@ -23,9 +23,7 @@ export interface DownloadResult {
     files: FileEntry[];
 }
 
-export function toUint8Array(
-    input: Uint8Array | ArrayBuffer | number[],
-): Uint8Array {
+export function toUint8Array(input: Uint8Array | ArrayBuffer | number[]): Uint8Array {
     if (input instanceof Uint8Array) return input;
     if (input instanceof ArrayBuffer) return new Uint8Array(input);
     if (Array.isArray(input)) return new Uint8Array(input);
