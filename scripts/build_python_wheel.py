@@ -11,8 +11,9 @@ import shutil
 import subprocess
 import sys
 
-_PYTHON_BINDING_DIR = __file__.resolve().parent.parent / "sdks" / "python"
-_CLI_DIR = __file__.resolve().parent.parent / "src" / "cli"
+_SCRIPTS_DIR = pathlib.Path(__file__).resolve().parent
+_PYTHON_BINDING_DIR = _SCRIPTS_DIR.parent / "sdks" / "python"
+_CLI_DIR = _SCRIPTS_DIR.parent / "src" / "cli"
 
 
 def find_python() -> str:
@@ -22,8 +23,7 @@ def find_python() -> str:
 
 def build_wasm_first() -> None:
     """Ensure the WASM module is built before building the wheel."""
-    scripts_dir = __file__.resolve().parent
-    build_wasm = scripts_dir / "build_wasm.py"
+    build_wasm = _SCRIPTS_DIR / "build_wasm.py"
 
     if build_wasm.exists():
         print("[WASM] Building WASM module first...")
