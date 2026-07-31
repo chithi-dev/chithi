@@ -18,6 +18,7 @@ dependencies = [
     "python-multipart>=0.0.18",
     "aioboto3>=15.5.0",
     "graphql-core==3.3.0rc0",
+    "dj-database-url>=3.1.2",
 ]
 
 [dependency-groups]
