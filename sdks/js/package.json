@@ -20,6 +20,7 @@
         "typecheck": "tsc --noEmit"
     },
     "devDependencies": {
+        "@types/node": "^26.1.2",
         "typescript": "^7"
     },
     "engines": {
