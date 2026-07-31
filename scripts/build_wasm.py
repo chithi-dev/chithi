@@ -165,6 +165,10 @@ def build_wasm(debug: bool = False) -> pathlib.Path:
     if not debug:
         cmd.append("--release")
 
+    # Enable WASM GC support
+    env = os.environ.copy()
+    env["RUSTFLAGS"] = "-Ctarget-feature=+reference-types,+gc"
+
     _info(f"Building: {' '.join(cmd)}")
 
     try:
@@ -172,6 +176,7 @@ def build_wasm(debug: bool = False) -> pathlib.Path:
             cmd,
             cwd=str(_REPO_ROOT),
             check=True,
+            env=env,
         )
     except subprocess.CalledProcessError as e:
         _error(
