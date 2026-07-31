@@ -2,9 +2,22 @@
  * Chithi client — encrypted upload/download via WASM.
  */
 
-import { loadWasm, alloc, dealloc, writeToWasm, readFromWasm, readU32 } from './wasm';
+import {
+    loadWasm,
+    alloc,
+    dealloc,
+    writeToWasm,
+    readFromWasm,
+    readU32,
+} from './wasm';
 import { serializeFiles, deserializeFiles } from './serialize';
-import type { FileEntry, UploadOptions, DownloadOptions, EncryptedBundle, DownloadResult } from './types';
+import type {
+    FileEntry,
+    UploadOptions,
+    DownloadOptions,
+    EncryptedBundle,
+    DownloadResult,
+} from './types';
 import { toUint8Array } from './types';
 
 type WasmFn = (...args: unknown[]) => unknown;
@@ -19,13 +32,22 @@ export class Chithi {
     }
 
     #ensure(): void {
-        if (!this.#init) throw new Error('Chithi not initialized. Call chithi.init() first.');
+        if (!this.#init)
+            throw new Error(
+                'Chithi not initialized. Call chithi.init() first.',
+            );
     }
 
-    async upload(files: FileEntry[], options: UploadOptions): Promise<EncryptedBundle> {
+    async upload(
+        files: FileEntry[],
+        options: UploadOptions,
+    ): Promise<EncryptedBundle> {
         this.#ensure();
         const w = await loadWasm();
-        const normalized = files.map(f => ({ name: f.name, data: toUint8Array(f.data) }));
+        const normalized = files.map((f) => ({
+            name: f.name,
+            data: toUint8Array(f.data),
+        }));
         const serialized = serializeFiles(normalized);
         const pwd = new TextEncoder().encode(options.password);
 
@@ -38,8 +60,14 @@ export class Chithi {
         writeToWasm(w, pwdPtr, pwd);
 
         const status = (w.exports.wasm_upload as WasmFn)(
-            inputPtr, serialized.length, pwdPtr, pwd.length,
-            outPtr, outLenPtr, 0, 0,
+            inputPtr,
+            serialized.length,
+            pwdPtr,
+            pwd.length,
+            outPtr,
+            outLenPtr,
+            0,
+            0,
         ) as number;
 
         if (status !== 0) {
@@ -61,7 +89,10 @@ export class Chithi {
         return { bytes: bundle };
     }
 
-    async download(bundle: EncryptedBundle | Uint8Array, options: DownloadOptions): Promise<DownloadResult> {
+    async download(
+        bundle: EncryptedBundle | Uint8Array,
+        options: DownloadOptions,
+    ): Promise<DownloadResult> {
         this.#ensure();
         const w = await loadWasm();
         const bytes = 'bytes' in bundle ? bundle.bytes : bundle;
@@ -76,8 +107,14 @@ export class Chithi {
         writeToWasm(w, pwdPtr, pwd);
 
         const status = (w.exports.wasm_download as WasmFn)(
-            bundlePtr, bytes.length, pwdPtr, pwd.length,
-            outPtr, outLenPtr, 0, 0,
+            bundlePtr,
+            bytes.length,
+            pwdPtr,
+            pwd.length,
+            outPtr,
+            outLenPtr,
+            0,
+            0,
         ) as number;
 
         if (status !== 0) {
