@@ -20,7 +20,7 @@
         "typecheck": "tsc --noEmit"
     },
     "devDependencies": {
-        "typescript": "^5"
+        "typescript": "^7"
     },
     "engines": {
         "node": ">=18"
