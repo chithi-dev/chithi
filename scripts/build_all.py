@@ -8,10 +8,11 @@ Usage:
 """
 
 import argparse
+import pathlib
 import subprocess
 import sys
 
-_SCRIPTS_DIR = __file__.resolve().parent
+_SCRIPTS_DIR = pathlib.Path(__file__).resolve().parent
 
 
 def run(script: str, *args: str) -> None:
