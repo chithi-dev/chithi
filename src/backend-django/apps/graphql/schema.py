@@ -9,14 +9,30 @@ from apps.graphql.mutations import (
     FileMutation,
     UserMutation,
 )
-from apps.graphql.queries import Query
-
+from apps.graphql.queries import (
+    ConfigQuery,
+    FileQuery,
+    InstanceQuery,
+    OnboardingQuery,
+    UserQuery,
+)
 
 # Enable experimental defer/stream for incremental delivery
 strawberry_config = StrawberryConfig(
     auto_camel_case=True,
     enable_experimental_incremental_execution=True,
 )
+
+
+@strawberry.type
+class Query(
+    ConfigQuery,
+    FileQuery,
+    InstanceQuery,
+    OnboardingQuery,
+    UserQuery,
+):
+    pass
 
 
 @strawberry.type
