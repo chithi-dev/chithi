@@ -10,20 +10,20 @@ import { toUint8Array } from './types';
 type WasmFn = (...args: unknown[]) => unknown;
 
 export class Chithi {
-    private _init: Promise<void> | null = null;
+    #init: Promise<void> | null = null;
 
     init(): Promise<void> {
-        if (this._init) return this._init;
-        this._init = loadWasm().then(() => {});
-        return this._init;
+        if (this.#init) return this.#init;
+        this.#init = loadWasm().then(() => {});
+        return this.#init;
     }
 
-    private ensure(): void {
-        if (!this._init) throw new Error('Chithi not initialized. Call chithi.init() first.');
+    #ensure(): void {
+        if (!this.#init) throw new Error('Chithi not initialized. Call chithi.init() first.');
     }
 
     async upload(files: FileEntry[], options: UploadOptions): Promise<EncryptedBundle> {
-        this.ensure();
+        this.#ensure();
         const w = await loadWasm();
         const normalized = files.map(f => ({ name: f.name, data: toUint8Array(f.data) }));
         const serialized = serializeFiles(normalized);
@@ -62,7 +62,7 @@ export class Chithi {
     }
 
     async download(bundle: EncryptedBundle | Uint8Array, options: DownloadOptions): Promise<DownloadResult> {
-        this.ensure();
+        this.#ensure();
         const w = await loadWasm();
         const bytes = 'bytes' in bundle ? bundle.bytes : bundle;
         const pwd = new TextEncoder().encode(options.password);
