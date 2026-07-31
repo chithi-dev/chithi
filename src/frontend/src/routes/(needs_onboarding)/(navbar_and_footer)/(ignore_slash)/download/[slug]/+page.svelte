@@ -16,12 +16,21 @@
   import CompleteSvg from '$lib/svgs/complete.svelte';
   import { cubicOut } from 'svelte/easing';
   import { Tween } from 'svelte/motion';
-  import { useFileInfoQuery } from '#queries/file-info';
+  import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+  import { FileInfoDocument, type FileInfoQuery } from '$lib/graphql/generated/graphql.js';
 
   const key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
   const slug = $derived(page.params.slug);
   let phase = $state<'ready' | 'downloading' | 'needs_password' | 'completed' | 'error'>('ready');
-  const { fileInfo } = useFileInfoQuery(() => slug ?? '');
+  const fileInfoState = createQueryStore<FileInfoQuery>(FileInfoDocument, { slug: slug ?? '' });
+  const fileInfo = $derived({
+    isPending: fileInfoState.fetching,
+    isError: !!fileInfoState.error,
+    error: fileInfoState.error ? new Error(fileInfoState.error) : undefined,
+    data: fileInfoState.data?.fileInfo
+      ? { filename: fileInfoState.data.fileInfo.filename || 'file', fileSize: fileInfoState.data.fileInfo.size || 0, numberOfFiles: fileInfoState.data.fileInfo.numberOfFiles ?? 0 }
+      : undefined
+  });
   const hasKey = $derived(Boolean(key && slug));
   const status = $derived(hasKey && fileInfo.isPending ? 'checking' : hasKey && fileInfo.isError ? 'error' : phase);
   const errorMsg = $derived(fileInfo.error?.message ?? 'An error occurred');

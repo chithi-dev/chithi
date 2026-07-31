@@ -1,7 +1,7 @@
 import { strip_trailing_slash } from '#functions/urls';
 import { env } from '$env/dynamic/public';
 
-const environment_variable = env.PUBLIC_BACKEND_API ?? 'http://localhost:8002';
+const environment_variable = env.PUBLIC_BACKEND_API ?? 'http://localhost:8000';
 const normalized_env = strip_trailing_slash(environment_variable);
 
 /**

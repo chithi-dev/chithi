@@ -10,16 +10,14 @@
   import { untrack } from 'svelte';
   import { toast } from 'svelte-sonner';
   import { QueryClient } from '@tanstack/svelte-query';
-  import { queryKey as authQueryKey } from '#queries/auth';
 
   let showPassword = $state(false);
   let { data, next_url }: { data: { form: SuperValidated<Infer<FormSchema>> }; next_url: string } = $props();
-  const queryClient = new QueryClient();
 
   const form = superForm(untrack(() => data.form), {
     validators: zod4Client(schema),
     onUpdated: async ({ form }) => {
-      if (form.valid) { queryClient.invalidateQueries({ queryKey: [authQueryKey], exact: true, refetchType: 'all' }); window.location.href = next_url; }
+      if (form.valid) { window.location.href = next_url; }
       else { const errors = form.errors._errors; toast.error(errors?.[0] || 'Please check your credentials.'); }
     }
   });

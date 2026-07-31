@@ -7,7 +7,8 @@
 	import * as Empty from '$lib/components/ui/empty/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Kbd, KbdGroup } from '$lib/components/ui/kbd/index.js';
-	import { useConfigQuery } from '#queries/config';
+	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { ConfigDocument, type ConfigQuery } from '$lib/graphql/generated/graphql.js';
 	import { Plus, ArrowLeft, X, FileIcon, Eye, EyeOff, Trash2, Upload } from '@lucide/svelte';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { formatFileSize } from '#functions/bytes';
@@ -18,7 +19,7 @@
 	import { v7 as uuidv7 } from 'uuid';
 	import { Progress } from '$lib/components/ui/progress/index.js';
 	import { client } from '$lib/graphql/client.js';
-	import { UPLOAD_FILE_MUTATION } from '$lib/graphql/queries.js';
+	import { UploadFileDocument } from '$lib/graphql/generated/graphql.js';
 	import { addHistoryEntry } from '$lib/database';
 	import { toast } from 'svelte-sonner';
 	import { cubicOut } from 'svelte/easing';
@@ -42,7 +43,7 @@
 		onZoneDragLeave: (e: DragEvent) => void;
 	} = $props();
 
-	const { config: configData } = useConfigQuery();
+	const configData = createQueryStore<ConfigQuery>(ConfigDocument);
 	let fileInput = $state<HTMLInputElement>();
 	let downloadLimit = $state('1');
 	let timeLimit = $state('86400');
@@ -71,9 +72,9 @@
 	});
 
 	$effect(() => {
-		if (configData.data && !defaultsLoaded) {
-			downloadLimit = configData.data.defaultNumberOfDownloads?.toString() ?? downloadLimit;
-			timeLimit = configData.data.defaultExpiry?.toString() ?? timeLimit;
+		if (configData.data?.config && !defaultsLoaded) {
+			downloadLimit = configData.data.config.defaultNumberOfDownloads?.toString() ?? downloadLimit;
+			timeLimit = configData.data.config.defaultExpiry?.toString() ?? timeLimit;
 			defaultsLoaded = true;
 		}
 	});
@@ -81,11 +82,11 @@
 	const addFiles = (newFiles: File[]) => {
 		const newSize = newFiles.reduce((s, f) => s + f.size, 0);
 		if (
-			configData.data?.maxFileSizeLimit &&
-			rawTotalSize + newSize > configData.data.maxFileSizeLimit
+			configData.data?.config?.maxFileSizeLimit &&
+			rawTotalSize + newSize > configData.data.config.maxFileSizeLimit
 		) {
 			toast.error(
-				`Total file size cannot exceed ${formatFileSize(configData.data.maxFileSizeLimit)}`
+				`Total file size cannot exceed ${formatFileSize(configData.data.config.maxFileSizeLimit)}`
 			);
 			return;
 		}
@@ -153,7 +154,7 @@
 			encryptionProgress.target = 100;
 
 			const result = await client.mutate<any>({
-				mutation: UPLOAD_FILE_MUTATION,
+				mutation: UploadFileDocument,
 				variables: {
 					file: encryptedBlob,
 					filename: files.length === 1 ? files[0].name : folderName,
@@ -334,8 +335,8 @@
 							>{downloadLimit} {fmtUnit(Number(downloadLimit), 'downloads')}</Select.Trigger
 						>
 						<Select.Content>
-							{#if configData.data?.downloadConfigs}
-								{#each configData.data.downloadConfigs as limit}
+							{#if configData.data?.config?.downloadConfigs}
+								{#each configData.data.config.downloadConfigs as limit}
 									<Select.Item value={limit.toString()}
 										>{limit} {fmtUnit(limit, 'downloads')}</Select.Item
 									>
@@ -354,8 +355,8 @@
 							{fmtUnit(val, unit)}</Select.Trigger
 						>
 						<Select.Content>
-							{#if configData.data?.timeConfigs}
-								{#each configData.data.timeConfigs as time}
+							{#if configData.data?.config?.timeConfigs}
+								{#each configData.data.config.timeConfigs as time}
 									{@const { val, unit } = formatSeconds(time)}
 									<Select.Item value={time.toString()}>{val} {fmtUnit(val, unit)}</Select.Item>
 								{/each}

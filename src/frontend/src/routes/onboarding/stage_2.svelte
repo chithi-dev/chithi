@@ -7,13 +7,16 @@
   import type { Props } from './types';
   import { Settings, Check } from '@lucide/svelte';
   import { Spinner } from '$lib/components/ui/spinner/index.js';
-  import { useConfigQuery } from '#queries/config';
   import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '#functions/bytes';
   import { toast } from 'svelte-sonner';
+  import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+  import { ConfigDocument, UpdateConfigDocument } from '$lib/graphql/generated/graphql.js';
+  import type { ConfigQuery, UpdateConfigMutation } from '$lib/graphql/generated/graphql.js';
+  import { client } from '$lib/graphql/client.js';
 
   let { onNext }: Props = $props();
-  const { config: configQuery, updateConfig } = useConfigQuery();
-  let configData = $derived(configQuery.data);
+  const configQuery = createQueryStore<ConfigQuery>(ConfigDocument);
+  let configData = $derived(configQuery.data?.config);
   let isLoading = $state(false);
   let storageLimitVal = $state(0);
   let storageLimitUnit = $state<ByteUnit>('GB');
@@ -31,8 +34,19 @@
 
   async function handleSave() {
     isLoading = true;
-    try { await updateConfig({ totalStorageLimit: bytesToNumber(storageLimitVal, storageLimitUnit), maxFileSizeLimit: bytesToNumber(maxFileVal, maxFileUnit), siteDescription: description }); toast.success('Configuration saved'); onNext(); }
-    catch (error: any) { toast.error('Failed to save config: ' + error.message); }
+    try {
+      const result = await client.mutate<UpdateConfigMutation>({
+        mutation: UpdateConfigDocument,
+        variables: {
+          totalStorageLimit: bytesToNumber(storageLimitVal, storageLimitUnit),
+          maxFileSizeLimit: bytesToNumber(maxFileVal, maxFileUnit),
+          siteDescription: description
+        }
+      });
+      if (result.error) throw new Error(result.error.message);
+      toast.success('Configuration saved');
+      onNext();
+    } catch (error: any) { toast.error('Failed to save config: ' + error.message); }
     finally { isLoading = false; }
   }
 </script>

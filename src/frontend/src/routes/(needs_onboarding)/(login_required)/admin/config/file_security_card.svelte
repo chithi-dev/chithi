@@ -6,7 +6,7 @@
   import { Badge } from '$lib/components/ui/badge/index.js';
   import { X } from '@lucide/svelte';
   import { sanitizeExt } from '#functions/sanitize';
-  import type { Config } from '#queries/config';
+  import type { ConfigQuery } from '$lib/graphql/generated/graphql.js';
 
   let {
     configData,
@@ -14,7 +14,7 @@
     tempInput = $bindable(),
     save
   }: {
-    configData: Config;
+    configData: ConfigQuery['config'];
     editing: 'storage' | 'file' | 'desc' | 'time' | 'allowed' | 'banned' | 'steps' | null;
     tempInput: { allowedStr: string; bannedStr: string };
     save: (payload: any) => Promise<void>;

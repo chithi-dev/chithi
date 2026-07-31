@@ -3,13 +3,13 @@
 	import { SiPython } from '@icons-pack/svelte-simple-icons';
 	import { Server, ShieldCheck, CircleAlert, Monitor } from '@lucide/svelte';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
-	import { useInstanceInformationQuery } from '$lib/queries/instance';
+	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { InstanceInformationDocument, type InstanceInformationQuery } from '$lib/graphql/generated/graphql.js';
 	import { client } from '$lib/graphql/client.js';
-	import { INSTANCE_INFO_QUERY } from '$lib/graphql/queries.js';
 	import InfoCard from '../components/InfoCard.svelte';
 
-	const { info: instanceQuery } = useInstanceInformationQuery();
-	const info = $derived(instanceQuery.data);
+	const instanceQuery = createQueryStore<InstanceInformationQuery>(InstanceInformationDocument);
+	const info = $derived(instanceQuery.data?.instanceInformation);
 
 	const infoRows = $derived([
 		{ Icon: SiPython, label: 'Python Runtime', value: info?.pythonVersion },
@@ -18,15 +18,15 @@
 	]);
 </script>
 
-{#if instanceQuery.isLoading}
+{#if instanceQuery.fetching}
 	<div class="flex h-64 items-center justify-center">
 		<Spinner class="size-8 text-muted-foreground" />
 	</div>
-{:else if instanceQuery.error !== null}
+{:else if instanceQuery.error}
 	<div class="flex flex-col items-center justify-center gap-4 py-12 text-destructive">
 		<CircleAlert class="h-12 w-12" />
 		<p class="font-medium">Failed to load backend information</p>
-		<Button variant="outline" onclick={() => client.query({ query: INSTANCE_INFO_QUERY })}>Retry</Button>
+		<Button variant="outline" onclick={() => client.query({ query: InstanceInformationDocument })}>Retry</Button>
 	</div>
 {:else if info}
 	<InfoCard

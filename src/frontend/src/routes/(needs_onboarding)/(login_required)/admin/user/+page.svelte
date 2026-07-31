@@ -1,14 +1,17 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card/index.js';
 	import { H2, Mutated } from '$lib/components/ui/typography/index.js';
-	import { useAuth } from '#queries/auth';
+	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { MeDocument, UpdateUserDocument } from '$lib/graphql/generated/graphql.js';
+	import type { MeQuery, UpdateUserMutation } from '$lib/graphql/generated/graphql.js';
+	import { client } from '$lib/graphql/client.js';
 	import { kebab_to_initials } from '#functions/string-conversion';
 	import { make_libravatar_url } from '#functions/libravatar';
 
 	const { default: ProfileFieldsGroup } = await import('./profile_fields_group.svelte');
 	const { default: ProfileSubmitSection } = await import('./profile_submit_section.svelte');
 
-	const { user, updateUser } = useAuth();
+	const meQuery = createQueryStore<MeQuery>(MeDocument);
 
 	let username = $state('');
 	let email = $state('');
@@ -53,9 +56,9 @@
 	});
 
 	$effect(() => {
-		if (user.data) {
-			username = user.data.username;
-			email = user.data.email || '';
+		if (meQuery.data?.me) {
+			username = meQuery.data.me.username;
+			email = meQuery.data.me.email || '';
 		}
 	});
 
@@ -66,10 +69,17 @@
 		success = null;
 
 		try {
-			await updateUser({
-				username,
-				email: email ? email : null
+			const currentUser = meQuery.data?.me;
+			if (!currentUser) throw new Error('No authenticated user');
+			const result = await client.mutate<UpdateUserMutation>({
+				mutation: UpdateUserDocument,
+				variables: {
+					userId: currentUser.id,
+					username,
+					email: email ? email : null
+				}
 			});
+			if (result.error) throw new Error(result.error.message);
 			success = 'Profile updated successfully';
 			// Clear success message after 3 seconds
 			setTimeout(() => {

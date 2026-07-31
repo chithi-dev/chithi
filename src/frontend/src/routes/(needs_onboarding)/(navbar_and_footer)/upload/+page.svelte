@@ -1,6 +1,7 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card/index.js';
-	import { useConfigQuery } from '#queries/config';
+	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { ConfigDocument, type ConfigQuery } from '$lib/graphql/generated/graphql.js';
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
 	import { toast } from 'svelte-sonner';
@@ -20,7 +21,7 @@
 	const { default: UploadShowcase } = await import('./upload_showcase.svelte');
 	const { default: RecentUpload } = await import('./recent_upload.svelte');
 
-	const { config: configData } = useConfigQuery();
+	const configData = createQueryStore<ConfigQuery>(ConfigDocument);
 	let stage = $state<UploadStage>(UploadStage.Stage_1);
 	let dragActive = $state(false);
 	let dragOverCard = $state(false);
@@ -38,7 +39,7 @@
 	// Prevent popstate from overriding initial mount state
 	let hasMounted = $state(false);
 
-	const detailsMarkdown = $derived(configData.data?.siteDescription ?? '');
+	const detailsMarkdown = $derived(configData.data?.config?.siteDescription ?? '');
 	let detailsHtml = $state('');
 
 	$effect(() => {
@@ -294,10 +295,10 @@
 	<div class="absolute top-4 right-4 z-20"><RecentUpload /></div>
 	<Card.Content class="p-6">
 		<div class="grid min-h-150 grid-cols-1 gap-8 lg:grid-cols-2">
-			{#if configData.isLoading || (dev && debugLoading)}
+			{#if configData.fetching || (dev && debugLoading)}
 				<div class="col-span-1">{@render configSkeleton()}</div>
 				<div class="col-span-1">{@render rightColumnSkeleton()}</div>
-			{:else if configData.data?.allowUploads === false}
+			{:else if configData.data?.config?.allowUploads === false}
 				<div
 					class="col-span-1 flex min-h-100 flex-col items-center justify-center p-4 text-center lg:col-span-2 lg:p-8"
 				>

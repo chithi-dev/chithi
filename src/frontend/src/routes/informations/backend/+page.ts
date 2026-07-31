@@ -1,6 +1,7 @@
-import { prefetchInstanceInformation } from '$lib/queries/instance';
 import { buildInfoPage } from '../page-loader';
 import type { PageLoad } from './$types';
+import { client } from '$lib/graphql/client.js';
+import { InstanceInformationDocument } from '$lib/graphql/generated/graphql.js';
 
 export const load: PageLoad = async ({ fetch, parent, url }) => {
 	const { prefetch, response } = buildInfoPage(
@@ -12,8 +13,7 @@ export const load: PageLoad = async ({ fetch, parent, url }) => {
 			ogLabel: 'BACKEND INFRASTRUCTURE'
 		},
 		async () => {
-			const { queryClient } = await parent();
-			await prefetchInstanceInformation();
+			await client.query({ query: InstanceInformationDocument });
 		}
 	);
 

@@ -7,7 +7,7 @@
   import { Switch } from '$lib/components/ui/switch/index.js';
   import { slide } from 'svelte/transition';
   import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '#functions/bytes';
-  import type { Config } from '#queries/config';
+  import type { ConfigQuery } from '$lib/graphql/generated/graphql.js';
 
   let {
     configData,
@@ -17,7 +17,7 @@
     startEdit,
     save
   }: {
-    configData: Config;
+    configData: ConfigQuery['config'];
     editing: 'storage' | 'file' | 'desc' | 'time' | 'allowed' | 'banned' | 'steps' | null;
     editVal: number;
     editUnit: ByteUnit;
