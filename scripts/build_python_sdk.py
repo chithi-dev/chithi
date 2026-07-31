@@ -197,9 +197,10 @@ def _bundle_wasm(wasm_file: pathlib.Path, dist_dir: pathlib.Path) -> pathlib.Pat
     if not pyproject.exists():
         _error(f"pyproject.toml not found at {pyproject}")
 
-    # Copy WASM into the SDK source tree
+    # Use already-deployed WASM (avoids cargo output lock on Windows)
     wasm_dest = _SDK_SRC_DIR / "chithi.wasm"
-    shutil.copy2(wasm_file, wasm_dest)
+    if not wasm_dest.exists():
+        shutil.copy2(wasm_file, wasm_dest)
     logger.info("Bundled WASM into SDK source tree.")
 
     # Build the wheel
