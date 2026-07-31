@@ -45,7 +45,7 @@
 
 		<div class="grid gap-4 sm:grid-cols-2">
 			<a href="/upload/" class="no-underline">
-				<Card.Root class="h-full cursor-pointer transition-shadow hover:shadow-md">
+				<Card.Root class="h-full cursor-pointer transition-shadow hover:shadow-md" tabindex="0">
 					<Card.Header class="flex flex-col items-center text-center">
 						<Upload class="mb-2 h-8 w-8 text-primary" />
 						<Card.Title>Upload</Card.Title>
@@ -57,7 +57,7 @@
 			</a>
 
 			<a href="/reverse/" class="no-underline">
-				<Card.Root class="h-full cursor-pointer transition-shadow hover:shadow-md">
+				<Card.Root class="h-full cursor-pointer transition-shadow hover:shadow-md" tabindex="0">
 					<Card.Header class="flex flex-col items-center text-center">
 						<ArrowLeftRight class="mb-2 h-8 w-8 text-primary" />
 						<Card.Title>Reverse Share</Card.Title>
@@ -69,7 +69,7 @@
 			</a>
 
 			<a href="/speedtest/" class="no-underline sm:col-span-2">
-				<Card.Root class="h-full cursor-pointer transition-shadow hover:shadow-md">
+				<Card.Root class="h-full cursor-pointer transition-shadow hover:shadow-md" tabindex="0">
 					<Card.Header class="flex flex-col items-center text-center">
 						<Gauge class="mb-2 h-8 w-8 text-primary" />
 						<Card.Title>Speed Test</Card.Title>

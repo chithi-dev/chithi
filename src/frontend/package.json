@@ -18,11 +18,10 @@
 	},
 	"dependencies": {
 		"@apollo/client": "^4.2.8",
+		"@internationalized/date": "^3.12.2",
 		"apollo-upload-client": "^19.0.0",
 		"embla-carousel-svelte": "^8.6.0",
-		"graphql": "^17.0.2",
-		"takumi-js": "^1.0.15",
-		"urql": "^5.0.3"
+		"takumi-js": "^1.0.15"
 	},
 	"devDependencies": {
 		"@codemirror/commands": "^6.10.3",
@@ -43,7 +42,6 @@
 		"@graphql-codegen/typescript-operations": "^6.1.2",
 		"@graphql-codegen/typescript-resolvers": "^6.1.0",
 		"@icons-pack/svelte-simple-icons": "^7.2.0",
-		"@internationalized/date": "^3.12.1",
 		"@jsquash/avif": "^2.1.1",
 		"@jsquash/jxl": "^1.3.0",
 		"@jsquash/oxipng": "^2.3.0",
@@ -60,7 +58,6 @@
 		"@tanstack/svelte-query": "^6.1.25",
 		"@tanstack/svelte-query-devtools": "^6.1.25",
 		"@tanstack/table-core": "^8.21.3",
-		"@testing-library/svelte": "^5.3.1",
 		"@types/caniuse-lite": "^1.0.5",
 		"@types/d3": "^7.4.3",
 		"@types/node": "^25.6.0",
@@ -80,8 +77,8 @@
 		"eslint-plugin-svelte": "^3.17.1",
 		"formsnap": "^2.0.1",
 		"globals": "^17.5.0",
+		"graphql": "^17.0.2",
 		"graphql-tag-pluck": "^0.8.7",
-		"hash-wasm": "^4.12.0",
 		"layerchart": "^2.0.0-next.48",
 		"mode-watcher": "^1.1.0",
 		"nprogress": "^0.2.0",
@@ -120,7 +117,6 @@
 		"vite-plugin-top-level-await": "^1.6.0",
 		"vite-plugin-wasm": "^3.6.0",
 		"vitest": "^4.1.4",
-		"wabt": "^1.0.39",
 		"zod": "^4.3.6"
 	},
 	"allowScripts": {

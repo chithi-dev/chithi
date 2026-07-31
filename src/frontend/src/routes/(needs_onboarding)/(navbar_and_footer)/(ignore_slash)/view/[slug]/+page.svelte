@@ -84,7 +84,6 @@
         if (match) openEntry(match);
       }
     } catch (e: any) {
-      console.error(e);
       if (e instanceof PasswordRequiredError) {
         phase = 'needs_password';
         toast.info('Password required for decryption');
