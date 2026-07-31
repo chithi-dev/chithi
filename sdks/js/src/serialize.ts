@@ -2,91 +2,73 @@
  * Serialization helpers for WASM C ABI wire format.
  */
 
-// ============================================================================
-// File array serialization
-// [num_files: u32 BE][name0_len: u32 BE][name0][data0_len: u32 BE][data0]...
-// ============================================================================
-
-export function serializeFiles(
-    files: { name: string; data: Uint8Array }[],
-): Uint8Array {
-    const encoder = new TextEncoder();
-    let total = 4;
-    for (const f of files) {
-        const nameBytes = encoder.encode(f.name);
-        total += 4 + nameBytes.length + 4 + f.data.length;
-    }
-    const result = new Uint8Array(total);
-    const view = new DataView(result.buffer);
-    view.setUint32(0, files.length);
-    let offset = 4;
-    for (const f of files) {
-        const nameBytes = encoder.encode(f.name);
-        view.setUint32(offset, nameBytes.length);
-        offset += 4;
-        result.set(nameBytes, offset);
-        offset += nameBytes.length;
-        view.setUint32(offset, f.data.length);
-        offset += 4;
-        result.set(f.data, offset);
-        offset += f.data.length;
-    }
-    return result;
+function writeU32BE(view: DataView, offset: number, value: number): number {
+    view.setUint32(offset, value);
+    return offset + 4;
 }
 
-export function deserializeFiles(
-    data: Uint8Array,
-): { name: string; data: Uint8Array }[] {
+function readU32BE(view: DataView, offset: number): [number, number] {
+    return [view.getUint32(offset), offset + 4];
+}
+
+// ============================================================================
+// File array: [num: u32][nameLen: u32][name][dataLen: u32][data]...
+// ============================================================================
+
+export function serializeFiles(files: { name: string; data: Uint8Array }[]): Uint8Array {
+    const enc = new TextEncoder();
+    const total = 4 + files.reduce((n, f) => n + 4 + enc.encode(f.name).length + 4 + f.data.length, 0);
+    const buf = new Uint8Array(total);
+    const view = new DataView(buf.buffer);
+    let off = writeU32BE(view, 0, files.length);
+
+    for (const f of files) {
+        const nb = enc.encode(f.name);
+        off = writeU32BE(view, off, nb.length);
+        buf.set(nb, off); off += nb.length;
+        off = writeU32BE(view, off, f.data.length);
+        buf.set(f.data, off); off += f.data.length;
+    }
+    return buf;
+}
+
+export function deserializeFiles(data: Uint8Array): { name: string; data: Uint8Array }[] {
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-    const decoder = new TextDecoder();
-    let num = view.getUint32(0);
-    let offset = 4;
-    const results: { name: string; data: Uint8Array }[] = [];
-    for (let i = 0; i < num; i++) {
-        const nameLen = view.getUint32(offset);
-        offset += 4;
-        const name = decoder.decode(data.slice(offset, offset + nameLen));
-        offset += nameLen;
-        const dataLen = view.getUint32(offset);
-        offset += 4;
-        const fileData = data.slice(offset, offset + dataLen);
-        offset += dataLen;
-        results.push({ name, data: fileData });
-    }
-    return results;
+    const dec = new TextDecoder();
+    let [num, off] = readU32BE(view, 0);
+    return Array.from({ length: num }, () => {
+        let [nl, o] = readU32BE(view, off);
+        const name = dec.decode(data.slice(o, o + nl));
+        off = o + nl;
+        let [dl, o2] = readU32BE(view, off);
+        off = o2 + dl;
+        return { name, data: data.slice(o2, off) };
+    });
 }
 
 // ============================================================================
-// Chunk array serialization
-// [num_chunks: u32 BE][chunk0_len: u32 BE][chunk0]...
+// Chunk array: [num: u32][len: u32][chunk]...
 // ============================================================================
 
 export function serializeChunks(chunks: Uint8Array[]): Uint8Array {
-    let total = 4;
-    for (const c of chunks) total += 4 + c.length;
-    const result = new Uint8Array(total);
-    const view = new DataView(result.buffer);
-    view.setUint32(0, chunks.length);
-    let offset = 4;
+    const total = 4 + chunks.reduce((n, c) => n + 4 + c.length, 0);
+    const buf = new Uint8Array(total);
+    const view = new DataView(buf.buffer);
+    let off = writeU32BE(view, 0, chunks.length);
+
     for (const c of chunks) {
-        view.setUint32(offset, c.length);
-        offset += 4;
-        result.set(c, offset);
-        offset += c.length;
+        off = writeU32BE(view, off, c.length);
+        buf.set(c, off); off += c.length;
     }
-    return result;
+    return buf;
 }
 
 export function deserializeChunks(data: Uint8Array): Uint8Array[] {
     const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-    const num = view.getUint32(0);
-    let offset = 4;
-    const results: Uint8Array[] = [];
-    for (let i = 0; i < num; i++) {
-        const len = view.getUint32(offset);
-        offset += 4;
-        results.push(data.slice(offset, offset + len));
-        offset += len;
-    }
-    return results;
+    let [num, off] = readU32BE(view, 0);
+    return Array.from({ length: num }, () => {
+        let [len, o] = readU32BE(view, off);
+        off = o + len;
+        return data.slice(o, off);
+    });
 }

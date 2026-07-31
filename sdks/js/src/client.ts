@@ -2,138 +2,100 @@
  * Chithi client — encrypted upload/download via WASM.
  */
 
-import {
-    loadWasm,
-    alloc,
-    dealloc,
-    writeToWasm,
-    readFromWasm,
-    readU32,
-} from './wasm';
+import { loadWasm, alloc, dealloc, writeToWasm, readFromWasm, readU32 } from './wasm';
 import { serializeFiles, deserializeFiles } from './serialize';
-import type {
-    FileEntry,
-    UploadOptions,
-    DownloadOptions,
-    EncryptedBundle,
-    DownloadResult,
-} from './types';
+import type { FileEntry, UploadOptions, DownloadOptions, EncryptedBundle, DownloadResult } from './types';
 import { toUint8Array } from './types';
 
 type WasmFn = (...args: unknown[]) => unknown;
 
 export class Chithi {
-    private _initialized = false;
+    private _init: Promise<void> | null = null;
 
-    async init(): Promise<void> {
-        if (this._initialized) return;
-        await loadWasm();
-        this._initialized = true;
+    init(): Promise<void> {
+        if (this._init) return this._init;
+        this._init = loadWasm().then(() => {});
+        return this._init;
     }
 
     private ensure(): void {
-        if (!this._initialized) {
-            throw new Error(
-                'Chithi not initialized. Call chithi.init() first.',
-            );
-        }
+        if (!this._init) throw new Error('Chithi not initialized. Call chithi.init() first.');
     }
 
-    async upload(
-        files: FileEntry[],
-        options: UploadOptions,
-    ): Promise<EncryptedBundle> {
+    async upload(files: FileEntry[], options: UploadOptions): Promise<EncryptedBundle> {
         this.ensure();
-        const wasm = await loadWasm();
-        const normalized = files.map((f) => ({
-            name: f.name,
-            data: toUint8Array(f.data),
-        }));
+        const w = await loadWasm();
+        const normalized = files.map(f => ({ name: f.name, data: toUint8Array(f.data) }));
         const serialized = serializeFiles(normalized);
-        const pwdBytes = new TextEncoder().encode(options.password);
+        const pwd = new TextEncoder().encode(options.password);
 
-        const inputPtr = alloc(wasm, serialized.length);
-        const pwdPtr = alloc(wasm, pwdBytes.length);
-        const outPtr = alloc(wasm, serialized.length * 4);
-        const outLenPtr = alloc(wasm, 4);
+        const inputPtr = alloc(w, serialized.length);
+        const pwdPtr = alloc(w, pwd.length);
+        const outPtr = alloc(w, serialized.length * 4);
+        const outLenPtr = alloc(w, 4);
 
-        writeToWasm(wasm, inputPtr, serialized);
-        writeToWasm(wasm, pwdPtr, pwdBytes);
+        writeToWasm(w, inputPtr, serialized);
+        writeToWasm(w, pwdPtr, pwd);
 
-        const status = (wasm.exports.wasm_upload as WasmFn)(
-            inputPtr,
-            serialized.length,
-            pwdPtr,
-            pwdBytes.length,
-            outPtr,
-            outLenPtr,
-            0,
-            0,
+        const status = (w.exports.wasm_upload as WasmFn)(
+            inputPtr, serialized.length, pwdPtr, pwd.length,
+            outPtr, outLenPtr, 0, 0,
         ) as number;
 
         if (status !== 0) {
-            dealloc(wasm, inputPtr, serialized.length);
-            dealloc(wasm, pwdPtr, pwdBytes.length);
-            dealloc(wasm, outPtr, serialized.length * 4);
-            dealloc(wasm, outLenPtr, 4);
+            dealloc(w, inputPtr, serialized.length);
+            dealloc(w, pwdPtr, pwd.length);
+            dealloc(w, outPtr, serialized.length * 4);
+            dealloc(w, outLenPtr, 4);
             throw new Error(`Upload failed with status ${status}`);
         }
 
-        const outLen = readU32(wasm, outLenPtr);
-        const bundle = readFromWasm(wasm, outPtr, outLen);
+        const outLen = readU32(w, outLenPtr);
+        const bundle = readFromWasm(w, outPtr, outLen);
 
-        dealloc(wasm, inputPtr, serialized.length);
-        dealloc(wasm, pwdPtr, pwdBytes.length);
-        dealloc(wasm, outPtr, outLen);
-        dealloc(wasm, outLenPtr, 4);
+        dealloc(w, inputPtr, serialized.length);
+        dealloc(w, pwdPtr, pwd.length);
+        dealloc(w, outPtr, outLen);
+        dealloc(w, outLenPtr, 4);
 
         return { bytes: bundle };
     }
 
-    async download(
-        bundle: EncryptedBundle | Uint8Array,
-        options: DownloadOptions,
-    ): Promise<DownloadResult> {
+    async download(bundle: EncryptedBundle | Uint8Array, options: DownloadOptions): Promise<DownloadResult> {
         this.ensure();
-        const wasm = await loadWasm();
+        const w = await loadWasm();
         const bytes = 'bytes' in bundle ? bundle.bytes : bundle;
-        const pwdBytes = new TextEncoder().encode(options.password);
+        const pwd = new TextEncoder().encode(options.password);
 
-        const bundlePtr = alloc(wasm, bytes.length);
-        const pwdPtr = alloc(wasm, pwdBytes.length);
-        const outPtr = alloc(wasm, bytes.length * 2);
-        const outLenPtr = alloc(wasm, 4);
+        const bundlePtr = alloc(w, bytes.length);
+        const pwdPtr = alloc(w, pwd.length);
+        const outPtr = alloc(w, bytes.length * 2);
+        const outLenPtr = alloc(w, 4);
 
-        writeToWasm(wasm, bundlePtr, bytes);
-        writeToWasm(wasm, pwdPtr, pwdBytes);
+        writeToWasm(w, bundlePtr, bytes);
+        writeToWasm(w, pwdPtr, pwd);
 
-        const status = (wasm.exports.wasm_download as WasmFn)(
-            bundlePtr,
-            bytes.length,
-            pwdPtr,
-            pwdBytes.length,
-            outPtr,
-            outLenPtr,
-            0,
-            0,
+        const status = (w.exports.wasm_download as WasmFn)(
+            bundlePtr, bytes.length, pwdPtr, pwd.length,
+            outPtr, outLenPtr, 0, 0,
         ) as number;
 
         if (status !== 0) {
-            dealloc(wasm, bundlePtr, bytes.length);
-            dealloc(wasm, pwdPtr, pwdBytes.length);
-            dealloc(wasm, outPtr, bytes.length * 2);
-            dealloc(wasm, outLenPtr, 4);
+            dealloc(w, bundlePtr, bytes.length);
+            dealloc(w, pwdPtr, pwd.length);
+            dealloc(w, outPtr, bytes.length * 2);
+            dealloc(w, outLenPtr, 4);
             throw new Error(`Download failed with status ${status}`);
         }
 
-        const outLen = readU32(wasm, outLenPtr);
-        const resultData = readFromWasm(wasm, outPtr, outLen);
+        const outLen = readU32(w, outLenPtr);
+        const resultData = readFromWasm(w, outPtr, outLen);
         const files = deserializeFiles(resultData);
 
-        dealloc(wasm, bundlePtr, bytes.length);
-        dealloc(wasm, pwdPtr, pwdBytes.length);
-        dealloc(wasm, outPtr, outLen);
-        dealloc(wasm, outLenPtr, 4);
+        dealloc(w, bundlePtr, bytes.length);
+        dealloc(w, pwdPtr, pwd.length);
+        dealloc(w, outPtr, outLen);
+        dealloc(w, outLenPtr, 4);
 
         return { files };
     }
