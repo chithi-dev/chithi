@@ -239,6 +239,20 @@ def _copy_wasm_for_build(wasm_file: pathlib.Path) -> None:
     logger.info("Copied WASM to SDK root for esbuild bundling.")
 
 
+def _clean_wasm_after_build() -> None:
+    """Remove chithi.wasm from the JS SDK root after bundling.
+
+    The WASM is already baked into dist/index.js as compressed hex,
+    so the raw .wasm file is no longer needed.
+    """
+    leftover = _JS_SDK_DIR / "chithi.wasm"
+    if leftover.exists():
+        leftover.unlink()
+        logger.info("Removed chithi.wasm from SDK root (already baked into bundle).")
+    else:
+        logger.debug("No chithi.wasm to clean up.")
+
+
 def build_js_sdk() -> None:
     """Build the JS SDK with WASM embedded via esbuild."""
     _install_deps()
@@ -269,6 +283,8 @@ def build_js_sdk() -> None:
         logger.debug("Compiled %d .js files and %d .d.ts files.", len(js_files), len(dts_files))
     else:
         _error("dist/ directory not found after build.")
+
+    _clean_wasm_after_build()
 
     _ok("JS SDK build complete.")
 
