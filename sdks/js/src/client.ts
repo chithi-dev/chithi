@@ -9,16 +9,16 @@ import {
     writeToWasm,
     readFromWasm,
     readU32,
-} from './wasm.js';
-import { serializeFiles, deserializeFiles } from './serialize.js';
+} from './wasm';
+import { serializeFiles, deserializeFiles } from './serialize';
 import type {
     FileEntry,
     UploadOptions,
     DownloadOptions,
     EncryptedBundle,
     DownloadResult,
-} from './types.js';
-import { toUint8Array } from './types.js';
+} from './types';
+import { toUint8Array } from './types';
 
 type WasmFn = (...args: unknown[]) => unknown;
 

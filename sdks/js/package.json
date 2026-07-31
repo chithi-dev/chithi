@@ -21,6 +21,7 @@
     },
     "devDependencies": {
         "esbuild": "^0.25.0",
+        "rimraf": "^6.0.0",
         "typescript": "^5"
     },
     "engines": {
