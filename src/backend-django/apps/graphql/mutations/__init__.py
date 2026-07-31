@@ -112,13 +112,34 @@ class FileMutation:
         expire_after_n_download: int,
         number_of_files: int | None = None,
     ) -> FileType:
+        config = await sync_to_async(Config.load)()
+
+        # Check if uploads are allowed
+        if not config.allow_uploads:
+            raise ValueError("File uploads are currently disabled.")
+
+        # Read file data and validate size
         file_data = await file.read()
+        file_size = len(file_data)
+
+        if file_size > config.max_file_size_limit:
+            raise ValueError(
+                f"File size {file_size} exceeds the maximum allowed size "
+                f"{config.max_file_size_limit}."
+            )
+
+        if expires_at > config.default_expiry:
+            raise ValueError(
+                f"Expiry duration {expires_at}s exceeds the maximum allowed "
+                f"{config.default_expiry}s."
+            )
+
         key = str(uuid4())
         await upload_file_data(key=key, data=file_data)
         return await sync_to_async(File.objects.create)(
             key=key,
             filename=filename,
-            size=len(file_data),
+            size=file_size,
             expires_at=timezone.now() + timezone.timedelta(seconds=expires_at),
             expire_after_n_download=expire_after_n_download,
             number_of_files=number_of_files,

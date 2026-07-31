@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 
 import dj_database_url
-from celery.schedules import crontab
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -22,7 +21,6 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django_celery_beat",
     "corsheaders",
     "apps.users",
     "apps.files",
@@ -86,10 +84,8 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.Argon2PasswordHasher"]
 
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "UTC"
-CELERY_TIMEZONE = TIME_ZONE
 USE_I18N = True
 USE_TZ = True
-CELERY_ENABLE_UTC = not USE_TZ
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -105,26 +101,34 @@ AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME", "")
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "users.User"
 
-CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
-CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_TASK_SERIALIZER = "json"
-CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
-
-CELERY_BEAT_SCHEDULE = {
-    "delete-expired-files-every-hour": {
-        "task": "apps.files.tasks.delete_expired_files",
-        "schedule": crontab(minute=0),
-        "args": (),
+# Django Tasks framework — uses ImmediateBackend by default (runs tasks
+# synchronously in the same thread). In production, configure a proper
+# backend via the TASKS setting or use a management command for periodic jobs.
+TASKS = {
+    "default": {
+        "BACKEND": "django.tasks.backends.immediate.ImmediateBackend"
+        if DEBUG
+        else os.environ.get(
+            "DJANGO_TASKS_BACKEND",
+            "django.tasks.backends.database.DatabaseBackend",
+        ),
     },
 }
 
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.redis.RedisCache",
-        "LOCATION": os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0"),
+# Cache — use locmem for local dev, Redis in production
+if os.environ.get("CELERY_BROKER_URL"):
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": os.environ.get("CELERY_BROKER_URL"),
+        }
     }
-}
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    }
 
 LOGGING = {
     "version": 1,
