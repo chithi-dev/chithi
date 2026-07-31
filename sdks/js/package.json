@@ -3,17 +3,19 @@
     "version": "0.1.0",
     "description": "Chithi SDK — encrypted file upload/download via WASM C ABI (browser only)",
     "type": "module",
-    "main": "./dist/index.js",
-    "module": "./dist/index.js",
+    "main": "./dist/index.min.js",
+    "module": "./dist/index.min.js",
     "types": "./dist/index.d.ts",
     "exports": {
         ".": {
-            "import": "./dist/index.js",
+            "import": "./dist/index.min.js",
             "types": "./dist/index.d.ts"
         }
     },
     "files": [
-        "dist/"
+        "dist/index.min.js",
+        "dist/index.min.js.map",
+        "dist/index.d.ts"
     ],
     "scripts": {
         "build": "node --experimental-strip-types  ./scripts/build.ts",
