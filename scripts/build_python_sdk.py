@@ -147,11 +147,16 @@ def build_wasm(debug: bool = False) -> pathlib.Path:
 
     logger.info("Building WASM: %s", " ".join(cmd[1:4]))
 
+    # Enable WASM GC support
+    env = os.environ.copy()
+    env["RUSTFLAGS"] = "-Ctarget-feature=+reference-types,+gc"
+
     result = subprocess.run(
         cmd,
         cwd=str(_REPO_ROOT),
         capture_output=True,
         text=True,
+        env=env,
     )
 
     if result.returncode != 0:
