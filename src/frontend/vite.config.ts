@@ -33,6 +33,10 @@ export default defineConfig({
 		format: 'es'
 	},
 
+	optimizeDeps: {
+		exclude: ['./src/lib/wasm/wasm_bindings.js'],
+	},
+
 	build: {
 		sourcemap: true,
 		// minify: 'terser',
