@@ -1,6 +1,6 @@
 import { Api } from '#consts/backend';
 import { command, getRequestEvent } from '$app/server';
-import { LOGIN_MUTATION, LOGOUT_MUTATION } from '$lib/graphql/queries.js';
+import { LoginDocument, LogoutDocument } from '$lib/graphql/generated/graphql.js';
 import { user_store } from '$lib/store/user.svelte';
 import { z } from 'zod';
 
@@ -20,7 +20,7 @@ export const login = command(loginSchema, async ({ username, password }) => {
 			'Content-Type': 'application/json'
 		},
 		body: JSON.stringify({
-			query: LOGIN_MUTATION,
+			query: LoginDocument,
 			variables: { username, password }
 		})
 	});
@@ -61,7 +61,7 @@ export const logout = command(async () => {
 				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify({
-				query: LOGOUT_MUTATION
+				query: LogoutDocument
 			})
 		});
 	} catch {

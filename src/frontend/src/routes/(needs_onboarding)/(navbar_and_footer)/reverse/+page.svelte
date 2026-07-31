@@ -10,7 +10,8 @@
 	import { Upload, Download, ArrowLeft } from '@lucide/svelte';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { Api } from '#consts/backend';
-	import { useConfigQuery } from '#queries/config';
+	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { ConfigDocument, type ConfigQuery } from '$lib/graphql/generated/graphql.js';
 	import { base64url } from '#functions/encryption';
 	import { H1, P } from '$lib/components/ui/typography/index.js';
 
@@ -24,12 +25,12 @@
 	let joinId = $state('');
 	let isCreating = $state(false);
 
-	const { config: configData } = useConfigQuery();
+	const configData = createQueryStore<ConfigQuery>(ConfigDocument);
 	let defaultDownloadLimitSet = $state(false);
 
 	$effect(() => {
-		if (configData.data?.defaultNumberOfDownloads && !defaultDownloadLimitSet) {
-			numberOfDownloads = configData.data.defaultNumberOfDownloads.toString();
+		if (configData.data?.config?.defaultNumberOfDownloads && !defaultDownloadLimitSet) {
+			numberOfDownloads = configData.data.config.defaultNumberOfDownloads.toString();
 			defaultDownloadLimitSet = true;
 		}
 	});
@@ -156,8 +157,8 @@
 								</Select.Trigger>
 								<Select.Content>
 									<Select.Item value="">Use default</Select.Item>
-									{#if configData.data?.downloadConfigs}
-										{#each configData.data.downloadConfigs as limit}
+									{#if configData.data?.config?.downloadConfigs}
+										{#each configData.data.config.downloadConfigs as limit}
 											<Select.Item value={limit.toString()}
 												>{limit} {limit === 1 ? 'download' : 'downloads'}</Select.Item
 											>

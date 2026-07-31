@@ -3,7 +3,8 @@
 	import { Plus } from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
 	import { dropFiles } from '#functions/file-tree';
-	import { useConfigQuery } from '#queries/config';
+	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { ConfigDocument, type ConfigQuery } from '$lib/graphql/generated/graphql.js';
 
 	let {
 		onFilesSelected,
@@ -17,7 +18,7 @@
 		onZoneDragLeave: (e: DragEvent) => void;
 	} = $props();
 
-	const { config: configData } = useConfigQuery();
+	const configData = createQueryStore<ConfigQuery>(ConfigDocument);
 	let fileInput = $state<HTMLInputElement>();
 	let folderInput = $state<HTMLInputElement>();
 
@@ -95,7 +96,7 @@
 				isDraggingOverZone ? 'text-primary/80' : 'text-muted-foreground'
 			]}
 		>
-			or click to send up to {formatFileSize(configData.data?.maxFileSizeLimit ?? 0)} of files with
+			or click to send up to {formatFileSize(configData.data?.config?.maxFileSizeLimit ?? 0)} of files with
 			end-to-end encryption
 		</p>
 		<div class="flex flex-col gap-3">

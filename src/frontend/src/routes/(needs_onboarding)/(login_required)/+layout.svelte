@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { useAuth } from '#queries/auth';
 	import { page } from '$app/state';
 	import * as Empty from '$lib/components/ui/empty/index.js';
 	import { Lock } from '@lucide/svelte';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { user_store } from '$lib/store/user.svelte';
+	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { MeDocument } from '$lib/graphql/generated/graphql.js';
+	import type { MeQuery } from '$lib/graphql/generated/graphql.js';
 
-	const { user: userData } = useAuth();
+	const meQuery = createQueryStore<MeQuery>(MeDocument);
 	const { children } = $props();
 
 	$effect(() => {
@@ -17,12 +19,11 @@
 	});
 </script>
 
-{#if userData.isLoading && user_store.is_authenticated !== false}
+{#if meQuery.fetching && user_store.is_authenticated !== false}
 	<div class="flex min-h-svh w-full flex-1 items-center justify-center p-4">
-		<!-- You could add a spinner here if you want -->
 		<div class="animate-pulse text-muted-foreground">Checking authentication...</div>
 	</div>
-{:else if (userData.data === null || userData.data === undefined)}
+{:else if (meQuery.data?.me === null || meQuery.data?.me === undefined)}
 	<div class="flex min-h-svh w-full flex-1 items-center justify-center p-4">
 		<Empty.Root>
 			<Empty.Header class="text-center">

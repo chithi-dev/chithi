@@ -24,12 +24,21 @@
   import { validateZipBlob } from '#functions/zip-validate';
   import * as ContextMenu from '$lib/components/ui/context-menu/index.js';
   import * as HoverCard from '$lib/components/ui/hover-card/index.js';
-  import { useFileInfoQuery } from '#queries/file-info';
+  import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+  import { FileInfoDocument, type FileInfoQuery } from '$lib/graphql/generated/graphql.js';
 
   const key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
   const slug = $derived(page.params.slug);
   const fileParam = $derived(page.url.searchParams.get('file'));
-  const { fileInfo } = useFileInfoQuery(() => slug ?? '');
+  const fileInfoState = createQueryStore<FileInfoQuery>(FileInfoDocument, { slug: slug ?? '' });
+  const fileInfo = $derived({
+    isPending: fileInfoState.fetching,
+    isError: !!fileInfoState.error,
+    error: fileInfoState.error ? new Error(fileInfoState.error) : undefined,
+    data: fileInfoState.data?.fileInfo
+      ? { filename: fileInfoState.data.fileInfo.filename || 'file', fileSize: fileInfoState.data.fileInfo.size || 0, numberOfFiles: fileInfoState.data.fileInfo.numberOfFiles ?? 0 }
+      : undefined
+  });
   const hasKey = $derived(Boolean(key && slug));
   let phase = $state<'ready' | 'needs_password' | 'downloading' | 'unzipping' | 'listing' | 'error'>('ready');
   const status = $derived(

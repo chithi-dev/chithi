@@ -5,9 +5,13 @@
   import * as Field from '$lib/components/ui/field/index.js';
   import { User, ArrowRight, Mail, Lock } from '@lucide/svelte';
   import { Spinner } from '$lib/components/ui/spinner/index.js';
-  import { useOnboarding } from '#queries/onboarding';
-  import { useAuth } from '#queries/auth';
   import { toast } from 'svelte-sonner';
+  import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+  import { OnboardingDocument, CompleteOnboardingDocument } from '$lib/graphql/generated/graphql.js';
+  import type { OnboardingQuery, CompleteOnboardingMutation } from '$lib/graphql/generated/graphql.js';
+  import { client } from '$lib/graphql/client.js';
+  import { login as loginRemote } from '$lib/remote/auth.remote';
+  import { user_store } from '$lib/store/user.svelte';
   import type { Props } from './types';
 
   let { onNext }: Props = $props();
@@ -15,8 +19,7 @@
   let username = $state('');
   let email = $state('');
   let password = $state('');
-  const { completeOnboarding } = useOnboarding();
-  const { login } = useAuth();
+  createQueryStore<OnboardingQuery>(OnboardingDocument);
   const valid = $derived(username && email && password);
 
   async function handleSubmit(e: SubmitEvent) {
@@ -24,9 +27,14 @@
     if (!valid) return;
     isLoading = true;
     try {
-      await completeOnboarding({ username, email, password });
+      const result = await client.mutate<CompleteOnboardingMutation>({
+        mutation: CompleteOnboardingDocument,
+        variables: { username, email, password, siteDescription: '' }
+      });
+      if (result.error) throw new Error(result.error.message);
       toast.success('Admin account created successfully');
-      await login(username, password);
+      await loginRemote({ username, password });
+      user_store.authenticate();
       toast.success('Logged in successfully');
       onNext();
     } catch (error: any) { toast.error(error.message || 'Something went wrong'); }

@@ -8,7 +8,7 @@
   import { X } from '@lucide/svelte';
   import { slide } from 'svelte/transition';
   import { formatSeconds, secondsToNumber, T_UNITS, type TimeUnit } from '#functions/times';
-  import type { Config } from '#queries/config';
+  import type { ConfigQuery } from '$lib/graphql/generated/graphql.js';
 
   type EditingMode = 'storage' | 'file' | 'desc' | 'time' | 'allowed' | 'banned' | 'steps' | null;
 
@@ -18,7 +18,7 @@
     tempInput = $bindable(),
     save
   }: {
-    configData: Config;
+    configData: ConfigQuery['config'];
     editing: EditingMode;
     tempInput: {
       dl: number;

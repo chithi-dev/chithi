@@ -11,14 +11,17 @@
 		ShieldCheck
 	} from '@lucide/svelte';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
-	import { useInstanceStatisticsQuery } from '$lib/queries/instance';
 	import { client } from '$lib/graphql/client.js';
-	import { INSTANCE_STATS_QUERY } from '$lib/graphql/queries.js';
+	import { InstanceStatisticsDocument } from '$lib/graphql/generated/graphql.js';
+	import type { InstanceStatisticsQuery } from '$lib/graphql/generated/graphql.js';
 	import { formatFileSize } from '$lib/functions/bytes';
 	import InfoCard from '../components/InfoCard.svelte';
 
-	const { stats: statsQuery } = useInstanceStatisticsQuery();
-	const stats = $derived(statsQuery.data);
+	let statsData = $state<InstanceStatisticsQuery['instanceStatistics'] | undefined>(undefined);
+	let statsLoading = $state(true);
+	let statsError = $state<Error | null>(null);
+
+	const stats = $derived(statsData);
 
 	const statRows = $derived([
 		{ Icon: HardDrive, label: 'Total Storage', value: formatFileSize(stats?.totalStorageUsed ?? 0), cls: 'text-xl font-bold text-foreground' },
@@ -27,17 +30,37 @@
 		{ Icon: XCircle, label: 'Expired Files', value: (stats?.expiredFiles ?? 0).toLocaleString(), cls: 'text-xl font-bold text-foreground' },
 		{ Icon: Users, label: 'Total Users', value: (stats?.totalUsers ?? 0).toLocaleString(), cls: 'text-xl font-bold text-foreground' },
 	]);
+
+	$effect(() => {
+		const observable = client.watchQuery<InstanceStatisticsQuery>({ query: InstanceStatisticsDocument });
+		const subscription = observable.subscribe({
+			next(result) {
+				statsLoading = result.loading;
+				if (result.error) {
+					statsError = new Error(result.error.message);
+				} else if (result.data) {
+					statsData = result.data.instanceStatistics;
+					statsError = null;
+				}
+			},
+			error(err) {
+				statsLoading = false;
+				statsError = err instanceof Error ? err : new Error(String(err));
+			}
+		});
+		return () => subscription.unsubscribe();
+	});
 </script>
 
-{#if statsQuery.isLoading}
+{#if statsLoading}
 	<div class="flex h-64 items-center justify-center">
 		<Spinner class="size-8 text-muted-foreground" />
 	</div>
-{:else if statsQuery.error !== null}
+{:else if statsError !== null}
 	<div class="flex flex-col items-center justify-center gap-4 py-12 text-destructive">
 		<CircleAlert class="h-12 w-12" />
 		<p class="font-medium">Failed to load instance statistics</p>
-		<Button variant="outline" onclick={() => client.query({ query: INSTANCE_STATS_QUERY })}>Retry</Button>
+		<Button variant="outline" onclick={() => client.query({ query: InstanceStatisticsDocument })}>Retry</Button>
 	</div>
 {:else if stats}
 	<InfoCard

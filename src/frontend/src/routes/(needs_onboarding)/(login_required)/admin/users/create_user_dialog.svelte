@@ -16,7 +16,9 @@
 	import * as Form from '$lib/components/ui/form/index.js';
 	import { Input } from '$lib/components/ui/input/index.js';
 	import { Button } from '$lib/components/ui/button/index.js';
-	import { useUsersQuery } from '#queries/admin_users';
+	import { client } from '$lib/graphql/client.js';
+	import { CreateUserDocument } from '$lib/graphql/generated/graphql.js';
+	import type { CreateUserMutation } from '$lib/graphql/generated/graphql.js';
 	import { toast } from 'svelte-sonner';
 	import { superForm, defaults } from 'sveltekit-superforms';
 	import { zod4, zod4Client } from 'sveltekit-superforms/adapters';
@@ -25,19 +27,21 @@
 
 	let { open = $bindable(false) } = $props<{ open: boolean }>();
 
-	const { createUser } = useUsersQuery(() => 1, 20);
-
 	const form = superForm(defaults(zod4(schema)), {
 		SPA: true,
 		validators: zod4Client(schema),
 		onUpdate: async ({ form: f }) => {
 			if (f.valid) {
 				try {
-					await createUser({
-						username: f.data.username,
-						email: f.data.email || null,
-						password: f.data.password
+					const result = await client.mutate<CreateUserMutation>({
+						mutation: CreateUserDocument,
+						variables: {
+							username: f.data.username,
+							password: f.data.password,
+							email: f.data.email || undefined
+						}
 					});
+					if (result.error) throw new Error(result.error.message);
 					toast.success('User created successfully.');
 					open = false;
 					form.reset();

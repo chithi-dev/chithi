@@ -14,7 +14,8 @@
 	import { toggleMode } from 'mode-watcher';
 	import * as Avatar from '$lib/components/ui/avatar/index.js';
 	import * as Dropdown from '$lib/components/ui/dropdown-menu/index.js';
-	import { useAuth } from '#queries/auth';
+	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { MeDocument, type MeQuery } from '$lib/graphql/generated/graphql.js';
 	import { Label } from '$lib/components/ui/label/index.js';
 	import { kebab_to_initials } from '#functions/string-conversion';
 	import { make_libravatar_url } from '#functions/libravatar';
@@ -27,11 +28,11 @@
 	import CommandPalette from '$lib/components/CommandPalette.svelte';
 	import type { Component } from 'svelte';
 
-	const { user: userData } = useAuth();
+	const userData = createQueryStore<MeQuery>(MeDocument);
 	const { children } = $props();
-	const initials = $derived(kebab_to_initials(userData.data?.username ?? ''));
+	const initials = $derived(kebab_to_initials(userData.data?.me?.username ?? ''));
 	let flagForRestart = $state(false);
-	const hashedAvatar = $derived(await make_libravatar_url(userData.data?.email ?? ''));
+	const hashedAvatar = $derived(await make_libravatar_url(userData.data?.me?.email ?? ''));
 	const samePageNav = (e: Event) => {
 		if ((e.currentTarget as HTMLAnchorElement).href === page.url.href)
 			flagForRestart = !flagForRestart;
@@ -147,14 +148,14 @@
 			<h1 class="text-2xl font-bold md:text-xl">Chithi</h1></a
 		>
 		<div class="flex items-center gap-2">
-			{#if userData.data}
+			{#if userData.data?.me}
 				<Dropdown.Root>
 					<Dropdown.Trigger
 						><div class="my-0.5">
 							<Avatar.Root
 								>{#if hashedAvatar}<Avatar.Image
 										src={hashedAvatar}
-										alt="@{userData.data.username}"
+										alt="@{userData.data.me!.username}"
 									/>{/if}<Avatar.Fallback>{initials}</Avatar.Fallback></Avatar.Root
 							>
 						</div></Dropdown.Trigger

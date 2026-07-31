@@ -3,7 +3,9 @@
 	import { H2, Mutated, InlineCode } from '$lib/components/ui/typography/index.js';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
-	import { useConfigQuery } from '#queries/config';
+	import { createQueryStore, executeMutation } from '$lib/graphql/use-query.svelte.js';
+	import { client } from '$lib/graphql/client.js';
+	import { ConfigDocument, type ConfigQuery, UpdateConfigDocument } from '$lib/graphql/generated/graphql.js';
 	import { formatBytes, type ByteUnit } from '#functions/bytes';
 	import { type TimeUnit } from '#functions/times';
 	import * as Tabs from '$lib/components/ui/tabs/index.js';
@@ -14,11 +16,20 @@
 	const { default: FileSecurityCard } = await import('./file_security_card.svelte');
 	const { default: SiteDescriptionCard } = await import('./site_description_card.svelte');
 
-	const { config: configQuery, updateConfig } = useConfigQuery();
+	const configQuery = createQueryStore<ConfigQuery>(ConfigDocument);
+
+	async function updateConfig(payload: any) {
+		try {
+			await executeMutation(UpdateConfigDocument, payload);
+			await client.query({ query: ConfigDocument });
+		} catch (error) {
+			console.error('Save failed:', error);
+		}
+	}
 
 	let activeTab = $state('storage');
 
-	let configData = $derived(configQuery.data);
+	let configData = $derived(configQuery.data?.config);
 	let descDraft = $state('');
 	let previewMarkdown = $derived(
 		descDraft ? String(descDraft) : (configData?.siteDescription ?? '')
@@ -92,7 +103,7 @@
 </div>
 
 <div class="space-y-6">
-	{#if configQuery.isFetching}
+	{#if configQuery.fetching}
 		<div
 			in:fade
 			class="fixed top-24 right-10 z-50 flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase shadow-sm backdrop-blur-sm"
@@ -101,7 +112,7 @@
 		</div>
 	{/if}
 
-	{#if configQuery.isLoading}
+	{#if configQuery.fetching}
 		<ConfigLoadingSkeleton />
 	{:else if configData}
 		<Tabs.Root bind:value={activeTab} class="space-y-4">

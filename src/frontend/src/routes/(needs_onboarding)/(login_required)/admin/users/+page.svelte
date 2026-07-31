@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { H2, Mutated } from '$lib/components/ui/typography/index.js';
-	import { useAuth } from '#queries/auth';
-	import { useUsersQuery } from '#queries/admin_users';
+	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { MeDocument, UsersDocument, CreateUserDocument, DeleteUserDocument } from '$lib/graphql/generated/graphql.js';
+	import type { MeQuery, UsersQuery, CreateUserMutation, DeleteUserMutation } from '$lib/graphql/generated/graphql.js';
+	import { client } from '$lib/graphql/client.js';
 	import * as Table from '$lib/components/ui/table/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
 	import * as Pagination from '$lib/components/ui/pagination/index.js';
@@ -23,15 +25,16 @@
 	let currentPage = $state(1);
 	const pageSize = 20;
 
-	const { user: currentUser } = useAuth();
-	const { users } = useUsersQuery(() => currentPage, pageSize);
+	const meQuery = createQueryStore<MeQuery>(MeDocument);
+	const usersQuery = createQueryStore<UsersQuery>(UsersDocument);
 
 	let isCreateDialogOpen = $state(false);
 	let isDeleteDialogOpen = $state(false);
 	let userToDelete = $state<string | null>(null);
 	let globalFilter = $state('');
 
-	let totalItems = $derived(users.data?.totalItems ?? 0);
+	let usersList = $derived(usersQuery.data?.users ?? []);
+	let totalItems = $derived(usersList.length);
 
 	// Sort state
 	let sortDir = $state<'asc' | 'desc' | null>(null);
@@ -39,7 +42,7 @@
 
 	// Apply client-side sorting and filtering to current page data
 	const processedUsers = $derived.by(() => {
-		let items: UserRow[] = users.data?.items ?? [];
+		let items: UserRow[] = usersList.map(u => ({ id: u.id, username: u.username, email: u.email }));
 
 		// Filter
 		if (globalFilter) {
@@ -90,7 +93,7 @@
 	}
 
 	function requestDelete(userId: string) {
-		if (userId === currentUser.data?.id) {
+		if (userId === meQuery.data?.me.id) {
 			toast.error('Cannot delete yourself.');
 			return;
 		}
@@ -156,7 +159,7 @@
 	<Button
 		variant="ghost"
 		size="icon"
-		disabled={row.original.id === currentUser.data?.id}
+		disabled={row.original.id === meQuery.data?.me.id}
 		onclick={() => requestDelete(row.original.id)}
 	>
 		<Trash2 class="h-4 w-4 cursor-pointer text-destructive" />
@@ -212,7 +215,7 @@
 				{/each}
 			</Table.Header>
 			<Table.Body>
-				{#if users.isLoading}
+				{#if usersQuery.fetching}
 					<Table.Row>
 						<Table.Cell colspan={columns.length} class="py-8 text-center text-muted-foreground">
 							Loading users...

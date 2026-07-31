@@ -1,25 +1,27 @@
 <script lang="ts">
   import { fly, fade } from 'svelte/transition';
   import { goto } from '$app/navigation';
-  import { useOnboarding } from '#queries/onboarding';
   import * as Card from '$lib/components/ui/card/index.js';
   import { Check } from '@lucide/svelte';
   import { Button } from '$lib/components/ui/button/index.js';
   import { Skeleton } from '$lib/components/ui/skeleton/index.js';
   import FancyGrid from '$lib/components/FancyGrid.svelte';
   import { OnboardingStep } from './enums';
+  import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+  import { OnboardingDocument } from '$lib/graphql/generated/graphql.js';
+  import type { OnboardingQuery } from '$lib/graphql/generated/graphql.js';
   const { default: Step1 } = await import('./stage_1.svelte');
   const { default: Step2 } = await import('./stage_2.svelte');
-  const { status } = useOnboarding();
+  const onboardingQuery = createQueryStore<OnboardingQuery>(OnboardingDocument);
   let step = $state<OnboardingStep | null>(null);
-  $effect(() => { if (!status.isLoading && step === null && !status.data?.onboarded) step = OnboardingStep.Stage_1; });
+  $effect(() => { if (!onboardingQuery.fetching && step === null && !onboardingQuery.data?.onboarding.isConfigured) step = OnboardingStep.Stage_1; });
   function nextStep() { if (step === OnboardingStep.Stage_1) step = OnboardingStep.Stage_2; else goto('/'); }
 </script>
 
 <div class="relative flex min-h-svh items-center justify-center overflow-hidden bg-background p-4 transition-colors duration-500">
   <FancyGrid />
   <div class:max-w-xl={step === OnboardingStep.Stage_2} class="z-10 w-full max-w-100 transition-all duration-500">
-    {#if status.isLoading && step === null}
+    {#if onboardingQuery.fetching && step === null}
       <div class="mx-auto w-full max-w-md">
         <Card.Root class="relative overflow-hidden border-border/60 bg-card/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl">
           <div class="absolute left-0 top-0 h-px w-full bg-linear-to-r from-transparent via-primary/40 to-transparent"></div>
@@ -30,7 +32,7 @@
           <Card.Content><div class="grid gap-4"><Skeleton class="h-4 w-full" /><Skeleton class="h-4 w-3/4" /><Skeleton class="h-12 w-full rounded-md" /></div></Card.Content>
         </Card.Root>
       </div>
-    {:else if status.data?.onboarded && step === null}
+    {:else if onboardingQuery.data?.onboarding.isConfigured && step === null}
       <div in:fade class="mx-auto w-full max-w-md">
         <Card.Root class="relative overflow-hidden border-border/60 bg-card/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl">
           <div class="absolute left-0 top-0 h-px w-full bg-linear-to-r from-transparent via-primary/40 to-transparent"></div>

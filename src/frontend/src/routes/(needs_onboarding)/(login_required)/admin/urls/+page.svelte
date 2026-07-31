@@ -3,7 +3,9 @@
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Pagination from '$lib/components/ui/pagination/index.js';
 	import { H2, Mutated, InlineCode } from '$lib/components/ui/typography/index.js';
-	import { useFilesQuery } from '#queries/files';
+	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { AdminFilesDocument, type AdminFilesQuery, DeleteFileDocument } from '$lib/graphql/generated/graphql.js';
+	import { executeMutation } from '$lib/graphql/use-query.svelte.js';
 	import { formatDate } from '$lib/functions/dates';
 	import { toast } from 'svelte-sonner';
 	import { page } from '$app/state';
@@ -13,7 +15,28 @@
 	let currentPage = $state(1);
 	const pageSize = 20;
 
-	const { files, revokeFile } = useFilesQuery(() => currentPage, pageSize);
+	const filesState = createQueryStore<AdminFilesQuery>(AdminFilesDocument, { page: currentPage, size: pageSize });
+	const files = $derived({
+		data: filesState.data?.adminFiles ? {
+			items: filesState.data.adminFiles.items.map(item => ({
+				id: item.id, filename: item.filename, size: item.size,
+				createdAt: item.createdAt, expiresAt: item.expiresAt,
+				expireAfterNDownload: item.expireAfterNDownload, downloadCount: item.downloadCount
+			})),
+			totalItems: filesState.data.adminFiles.total,
+			startIndex: ((filesState.data.adminFiles.page ?? 1) - 1) * (filesState.data.adminFiles.size ?? 20) + 1,
+			endIndex: Math.min((filesState.data.adminFiles.page ?? 1) * (filesState.data.adminFiles.size ?? 20), filesState.data.adminFiles.total),
+			totalPages: filesState.data.adminFiles.pages,
+			currentPage: filesState.data.adminFiles.page,
+			currentPageSize: filesState.data.adminFiles.size
+		} : undefined,
+		error: filesState.error,
+		isLoading: filesState.fetching
+	});
+
+	async function revokeFile(id: string) {
+		await executeMutation(DeleteFileDocument, { fileId: id });
+	}
 
 	let totalItems = $derived(files.data?.totalItems ?? 0);
 
