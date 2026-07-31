@@ -4,7 +4,7 @@
  * @module chithi-sdk
  */
 
-export { Chithi, createChithi } from './client.js';
+export { Chithi, createChithi } from './client';
 export {
     loadWasm,
     alloc,
@@ -12,18 +12,18 @@ export {
     writeToWasm,
     readFromWasm,
     readU32,
-} from './wasm.js';
+} from './wasm';
 export {
     serializeFiles,
     deserializeFiles,
     serializeChunks,
     deserializeChunks,
-} from './serialize.js';
+} from './serialize';
 export type {
     FileEntry,
     UploadOptions,
     DownloadOptions,
     EncryptedBundle,
     DownloadResult,
-} from './types.js';
-export { toUint8Array } from './types.js';
+} from './types';
+export { toUint8Array } from './types';
