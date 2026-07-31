@@ -42,7 +42,6 @@
       toast.success('Download complete');
       if (password) toast.info('Note: The downloaded zip file is also encrypted with your password.');
     } catch (e: any) {
-      console.error(e);
       if (e instanceof PasswordRequiredError) {
         phase = 'needs_password';
         toast.info('Password required for decryption');

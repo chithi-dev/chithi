@@ -8,7 +8,6 @@
 	import { markdown_to_html } from '$lib/markdown/markdown';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import { fly, fade } from 'svelte/transition';
-	import { onMount } from 'svelte';
 	import { CloudOff } from '@lucide/svelte';
 	import { UploadStage, isWhichUploadStage } from './enums';
 	import { clipboardFiles, hasFileItems } from '#functions/file-tree';
@@ -175,7 +174,7 @@
 		stage = isWhichUploadStage(e.state?.stage) ? e.state.stage : UploadStage.Stage_1;
 	};
 
-	onMount(() => {
+	$effect.pre(() => {
 		queueMicrotask(() => {
 			resetState('replace');
 			hasMounted = true;

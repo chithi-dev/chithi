@@ -5,6 +5,7 @@
   import { Spinner } from '$lib/components/ui/spinner/index.js';
   import { page } from '$app/state';
   import { fetchDecryptedBlob } from '$lib/functions/fetch-decrypt';
+  import { toast } from 'svelte-sonner';
   import { PasswordRequiredError } from '#errors/password';
   import { BlobWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
   import { detectMimeFromBlob } from '#functions/mime';
@@ -47,9 +48,15 @@
         status = 'viewing';
       } finally { await reader.close(); }
     } catch (e: any) {
-      console.error(e);
-      if (e instanceof PasswordRequiredError) status = 'needs_password';
-      else { status = 'error'; errorMsg = e.message?.includes('missing end marker') ? 'The archive appears truncated or corrupted on the server.' : (e.message || 'Something went wrong'); }
+      if (e instanceof PasswordRequiredError) {
+        status = 'needs_password';
+      } else {
+        status = 'error';
+        errorMsg = e.message?.includes('missing end marker')
+          ? 'The archive appears truncated or corrupted on the server.'
+          : (e.message || 'Something went wrong');
+        toast.error(errorMsg);
+      }
     }
   }
 

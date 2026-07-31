@@ -97,7 +97,7 @@
 		{#if landingView === 'main'}
 			<div class="grid gap-4 sm:grid-cols-2">
 				<Card.Root
-					class="cursor-pointer transition-shadow hover:shadow-md"
+					class="cursor-pointer transition-shadow hover:shadow-md" tabindex="0"
 					onclick={() => (landingView = 'create')}
 				>
 					<Card.Header>
@@ -112,7 +112,7 @@
 				</Card.Root>
 
 				<Card.Root
-					class="cursor-pointer transition-shadow hover:shadow-md"
+					class="cursor-pointer transition-shadow hover:shadow-md" tabindex="0"
 					onclick={() => (landingView = 'join')}
 				>
 					<Card.Header>

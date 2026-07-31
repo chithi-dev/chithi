@@ -17,7 +17,7 @@ const meQueryState = {
 
 const observable = client.watchQuery<MeData>({ query: ME_QUERY });
 
-observable.subscribe({
+const subscription = observable.subscribe({
   next(result) {
     meQueryState.fetching = result.loading || (!result.data && !result.error);
     meQueryState.error = result.error?.message ?? null;
@@ -36,6 +36,13 @@ observable.subscribe({
     meQueryState.error = err.message;
   }
 });
+
+// Cleanup on page unload (SPA navigation handles this via SvelteKit hooks)
+if (browser && typeof window !== 'undefined') {
+  window.addEventListener('beforeunload', () => {
+    subscription.unsubscribe();
+  });
+}
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
