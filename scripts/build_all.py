@@ -15,7 +15,7 @@ _SCRIPTS_DIR = __file__.resolve().parent
 
 
 def run(script: str, *args: str) -> None:
-    """Run a build script."""
+    """Run a build script via subprocess."""
     cmd = [sys.executable, str(_SCRIPTS_DIR / script), *args]
     print(f"\n{'=' * 60}")
     print(f"[RUN] {' '.join(cmd[3:])}")
@@ -40,15 +40,21 @@ def main() -> None:
         run("build_wasm.py", "--check")
         return
 
-    if not args.python_only:
-        wasm_args = ["--debug"] if args.debug else []
-        run("build_wasm.py", *wasm_args)
+    debug = ["--debug"] if args.debug else []
 
-    if not args.wasm_only:
-        python_args = []
-        if args.develop:
-            python_args.append("--develop")
-        run("build_python_wheel.py", *python_args)
+    # Step 1 — build WASM once
+    if not args.python_only:
+        run("build_wasm.py", *debug)
+
+    if args.wasm_only:
+        print("\n[DONE] WASM build complete.")
+        return
+
+    # Step 2 — build Python SDK (reuse WASM)
+    run("build_python_sdk.py", *debug, "--no-wasm")
+
+    # Step 3 — build JS SDK (reuse WASM)
+    run("build_js_sdk.py", *debug, "--no-wasm")
 
     print("\n[DONE] Full build complete.")
 
