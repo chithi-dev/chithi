@@ -1,9 +1,7 @@
 /**
- * WASM loader — loads compressed chithi.wasm and provides memory helpers.
- * Browser-only. WASM is brotli-compressed at build time and decompressed at runtime.
+ * WASM loader — loads chithi.wasm and provides memory helpers.
+ * Browser-only. WASM is loaded at runtime from the shipped .wasm file.
  */
-
-import compressedWasm from '../chithi.wasm';
 
 interface WasmInstance {
     memory: WebAssembly.Memory;
@@ -14,19 +12,13 @@ type WasmFn = (...args: unknown[]) => unknown;
 
 let wasmReady: Promise<WasmInstance> | null = null;
 
-async function decompress(bytes: Uint8Array): Promise<Uint8Array> {
-    const stream = new Response(bytes).body!.pipeThrough(
-        new DecompressionStream('brotli'),
-    );
-    const response = new Response(stream);
-    return new Uint8Array(await response.arrayBuffer());
-}
-
 export async function loadWasm(): Promise<WasmInstance> {
     if (wasmReady) return wasmReady;
 
     wasmReady = (async () => {
-        const wasmBytes = await decompress(compressedWasm);
+        const url = new URL('./chithi.wasm', import.meta.url).href;
+        const response = await fetch(url);
+        const wasmBytes = new Uint8Array(await response.arrayBuffer());
         const { instance } = await WebAssembly.instantiate(wasmBytes, {});
         return {
             memory: instance.exports.memory as WebAssembly.Memory,

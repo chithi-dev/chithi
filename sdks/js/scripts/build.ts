@@ -1,16 +1,19 @@
-import * as esbuild from 'esbuild';
-import { rimraf } from 'rimraf';
-import wasmCompressPlugin from '../plugins/esbuild-plugin-wasm-compress.js';
+import { execSync } from 'node:child_process';
+import { cpSync, rmSync } from 'node:fs';
+import { resolve } from 'node:path';
 
-await rimraf('dist');
+const root = resolve(import.meta.dirname, '..');
 
-await esbuild.build({
-    entryPoints: ['src/index.ts'],
-    bundle: true,
-    minify: true,
-    sourcemap: true,
-    format: 'esm',
-    platform: 'browser',
-    outfile: 'dist/index.min.js',
-    plugins: [wasmCompressPlugin],
-});
+// Clean dist/
+rmSync('dist', { recursive: true, force: true });
+
+// Compile TypeScript
+execSync(`tsc --project ${root}/tsconfig.json`, { stdio: 'inherit' });
+
+// Copy WASM to dist/
+const wasmSrc = resolve(root, 'chithi.wasm');
+try {
+    cpSync(wasmSrc, 'dist/chithi.wasm');
+} catch {
+    console.warn('Warning: chithi.wasm not found — skip copy (dev mode).');
+}
