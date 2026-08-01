@@ -7,7 +7,7 @@
   import { fetchDecryptedBlob } from '$lib/functions/fetch-decrypt';
   import { toast } from 'svelte-sonner';
   import { PasswordRequiredError } from '#errors/password';
-  import { BlobWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
+
   import { detectMimeFromBlob } from '#functions/mime';
   import { createViewableText } from '$lib/functions/viewer';
   import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
@@ -29,24 +29,12 @@
     try {
       const blob = await fetchDecryptedBlob(slug, key, password, {});
       await validateZipBlob(blob);
-      const data = new Uint8Array(await blob.arrayBuffer());
-      const reader = new ZipReader(new Uint8ArrayReader(data));
-      try {
-        const entries = await reader.getEntries();
-        const files = entries.filter((e) => !e.directory);
-        if (!files.length) throw new Error('Archive is empty');
-        if (files.length > 1) throw new Error('View Once only supports a single file.');
-        const entry = files[0];
-        if (!entry.getData) throw new Error('Cannot read file from archive');
-        entryFilename = entry.filename.split('/').pop() || 'file';
-        const rawBlob = await entry.getData(new BlobWriter('application/octet-stream'), { password });
-        const mime = await detectMimeFromBlob(rawBlob);
-        const viewBlob = mime ? rawBlob.slice(0, rawBlob.size, mime) : rawBlob;
-        const text = await createViewableText(viewBlob, mime);
-        contentText = text ?? null;
-        contentUrl = text === null ? URL.createObjectURL(viewBlob) : null;
-        status = 'viewing';
-      } finally { await reader.close(); }
+      const mime = await detectMimeFromBlob(blob);
+      const viewBlob = mime ? blob.slice(0, blob.size, mime) : blob;
+      const text = await createViewableText(viewBlob, mime);
+      contentText = text ?? null;
+      contentUrl = text === null ? URL.createObjectURL(viewBlob) : null;
+      status = 'viewing';
     } catch (e: any) {
       if (e instanceof PasswordRequiredError) {
         status = 'needs_password';

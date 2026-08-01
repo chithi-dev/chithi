@@ -11,6 +11,7 @@ from apps.files.services import (
     upload_file_data,
     get_presigned_download_url,
 )
+from apps.graphql.consumers import broadcast_state
 from apps.graphql.types import FileType
 
 
@@ -49,7 +50,7 @@ class FileMutation:
 
         key = str(uuid4())
         await upload_file_data(key=key, data=file_data)
-        return await sync_to_async(File.objects.create)(
+        file_obj = await sync_to_async(File.objects.create)(
             key=key,
             filename=filename,
             size=file_size,
@@ -57,16 +58,18 @@ class FileMutation:
             expire_after_n_download=expire_after_n_download,
             number_of_files=number_of_files,
         )
+        await broadcast_state()
+        return file_obj
 
-    @strawberry.mutation
-    async def delete_file(self, file_id: strawberry.ID) -> bool:
-        try:
-            file_obj = await sync_to_async(File.objects.get)(id=file_id)
-            await delete_file_from_storage(file_obj.key)
-            await sync_to_async(file_obj.delete)()
-            return True
-        except File.DoesNotExist:
-            return False
+async def delete_file(self, file_id: strawberry.ID) -> bool:
+    try:
+        file_obj = await sync_to_async(File.objects.get)(id=file_id)
+        await delete_file_from_storage(file_obj.key)
+        await sync_to_async(file_obj.delete)()
+        await broadcast_state()
+        return True
+    except File.DoesNotExist:
+        return False
 
     @strawberry.mutation
     async def download_file_stream(self, file_key: str) -> str:

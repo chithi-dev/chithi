@@ -3,8 +3,7 @@
   import { Button } from '$lib/components/ui/button/index.js';
   import { Input } from '$lib/components/ui/input/index.js';
   import * as InputGroup from '$lib/components/ui/input-group/index.js';
-  import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
-  import { FileText, CircleAlert, Download, KeyRound, Eye, File, Folder, ExternalLink, Image as ImageIcon, FileCode, FolderOpen, FilePlay, FileHeadphone } from '@lucide/svelte';
+  import { FileText, CircleAlert, Download, KeyRound, Eye } from '@lucide/svelte';
   import { Spinner } from '$lib/components/ui/spinner/index.js';
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
@@ -16,14 +15,12 @@
   import { Progress } from '$lib/components/ui/progress/index.js';
   import { cubicOut } from 'svelte/easing';
   import { Tween } from 'svelte/motion';
-  import { ZipReader, BlobReader, BlobWriter, type Entry } from '@zip.js/zip.js';
+
   import { detectMimeFromBlob } from '#functions/mime';
   import { createViewableText } from '$lib/functions/viewer';
   import FileViewerOverlay from '$lib/components/FileViewerOverlay.svelte';
   import { autoDownload } from '$lib/functions/browser-download';
   import { validateZipBlob } from '#functions/zip-validate';
-  import * as ContextMenu from '$lib/components/ui/context-menu/index.js';
-  import * as HoverCard from '$lib/components/ui/hover-card/index.js';
   import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
   import { FileInfoDocument, type FileInfoQuery } from '$lib/graphql/generated/graphql.js';
 
@@ -51,7 +48,6 @@
   const fileSize = $derived(fileInfo.data?.fileSize ?? 0);
   let password = $state('');
   let prog = $state(new Tween(0, { duration: 500, easing: cubicOut }));
-  let zipEntries = $state<Entry[]>([]);
   let decryptedBlob = $state<Blob | null>(null);
   let viewingFile = $state<{ text: string | null; url: string | null; filename: string } | null>(null);
 
@@ -74,7 +70,7 @@
     goto(url.toString(), { replaceState: true, keepFocus: true, noScroll: true });
   }
 
-  async function fetchAndUnzip() {
+  async function fetchAndDecrypt() {
     if (!key || !slug) return;
     const prev = phase;
     phase = 'downloading';
@@ -83,15 +79,8 @@
       const blob = await fetchDecryptedBlob(slug, key, password, { knownSize: fileSize, onProgress: (p) => prog.target = p });
       decryptedBlob = blob;
       await validateZipBlob(blob);
-      phase = 'unzipping';
-      const reader = new ZipReader(new BlobReader(blob));
-      zipEntries = await reader.getEntries();
       phase = 'listing';
-      toast.success('Files extracted successfully');
-      if (fileParam) {
-        const match = zipEntries.find((e) => e.filename === fileParam);
-        if (match) openEntry(match);
-      }
+      toast.success('File decrypted successfully');
     } catch (e: any) {
       if (e instanceof PasswordRequiredError) {
         phase = 'needs_password';
@@ -115,20 +104,19 @@
     }
   }
 
-  async function openEntry(entry: Entry) {
-    if (entry.directory || !entry.getData) return;
-    const rawBlob = await entry.getData(new BlobWriter('application/octet-stream'), { password });
-    const detectedMime = await detectMimeFromBlob(rawBlob);
-    const viewBlob = detectedMime ? rawBlob.slice(0, rawBlob.size, detectedMime) : rawBlob;
+  async function openDecryptedFile() {
+    if (!decryptedBlob) return;
+    const detectedMime = await detectMimeFromBlob(decryptedBlob);
+    const viewBlob = detectedMime ? decryptedBlob.slice(0, decryptedBlob.size, detectedMime) : decryptedBlob;
     const text = await createViewableText(viewBlob, detectedMime);
     if (text !== null) {
-      viewingFile = { text, url: null, filename: entry.filename };
-      setFileParam(entry.filename);
+      viewingFile = { text, url: null, filename };
+      setFileParam(filename);
       return;
     }
     const url = URL.createObjectURL(viewBlob);
-    viewingFile = { text: null, url, filename: entry.filename };
-    setFileParam(entry.filename);
+    viewingFile = { text: null, url, filename };
+    setFileParam(filename);
   }
 
   function closeViewer() {
@@ -142,14 +130,6 @@
     const url = new URL(page.url);
     url.searchParams.set('file', viewingFile.filename);
     navigator.clipboard.writeText(url.toString());
-  }
-
-  async function saveEntry(entry: Entry) {
-    if (entry.directory || !entry.getData) return;
-    const blob = await entry.getData(new BlobWriter(), { password });
-    const url = URL.createObjectURL(blob);
-    autoDownload(url, entry.filename.split('/').pop() || 'file');
-    URL.revokeObjectURL(url);
   }
 
   function downloadOriginal() {
@@ -202,9 +182,9 @@
             {#if status === 'needs_password'}
               <div class="mx-auto flex w-full max-w-sm flex-col items-center gap-2 py-8">
                 <InputGroup.Root class="w-full">
-                  <Input type="password" placeholder="Password" bind:value={password} onkeydown={(e) => e.key === 'Enter' && fetchAndUnzip()} />
+                  <Input type="password" placeholder="Password" bind:value={password} onkeydown={(e) => e.key === 'Enter' && fetchAndDecrypt()} />
                   <InputGroup.Button>
-                    <Button onclick={fetchAndUnzip}>Unlock</Button>
+                    <Button onclick={fetchAndDecrypt}>Unlock</Button>
                   </InputGroup.Button>
                 </InputGroup.Root>
                 <p class="text-xs text-muted-foreground">Enter password to decrypt the archive.</p>
@@ -239,7 +219,7 @@
                     </div>
                   </div>
                 {:else}
-                  <Button class="w-full" size="lg" onclick={fetchAndUnzip}><Eye class="mr-2 h-4 w-4" />View Contents</Button>
+                  <Button class="w-full" size="lg" onclick={fetchAndDecrypt}><Eye class="mr-2 h-4 w-4" />Decrypt</Button>
                 {/if}
               </Card.Footer>
             {/if}
@@ -266,68 +246,19 @@
             />
           </div>
         {:else}
-          <div class="w-full" in:fade={{ duration: 300 }}>
-            <div class="mb-4 flex items-center justify-between">
-              <div>
-                  <h2 class="text-xl font-bold">Contents of {filename}</h2>
-                  <p class="text-sm text-muted-foreground">{zipEntries.length} items found</p>
-                </div>
-              <Button variant="outline" onclick={downloadOriginal}><Download class="mr-2 h-4 w-4" />Download Original</Button>
+          <div class="w-full max-w-lg" in:fade={{ duration: 300 }}>
+            <div class="mb-6 flex items-center gap-4 rounded-lg border bg-background/50 p-4">
+              <div class="rounded bg-primary/10 p-2 text-primary">
+                <FileText class="h-6 w-6" />
+              </div>
+              <div class="flex-1 overflow-hidden">
+                <p class="truncate font-medium">{filename}</p>
+                <p class="text-xs text-muted-foreground">{formatFileSize(fileSize)}</p>
+              </div>
             </div>
-            <div class="rounded-md border">
-              <ScrollArea class="h-125">
-                <div class="p-2">
-                  {#each zipEntries as entry}
-                    <ContextMenu.Root>
-                      <ContextMenu.Trigger>
-                        <div class="group flex w-full items-center gap-3 rounded-md p-2 transition-colors hover:bg-muted/50">
-                          <button class="flex flex-1 cursor-pointer items-center gap-3 overflow-hidden border-0 bg-transparent p-0 text-left" onclick={() => openEntry(entry)}>
-                            {#if entry.directory}
-                              <Folder class="h-5 w-5 shrink-0 text-primary" />
-                            {:else}
-                              {@const Icon = fileIcon(entry.filename)}
-                              <Icon class="h-5 w-5 shrink-0 text-primary" />
-                            {/if}
-                            <HoverCard.Root>
-                              <HoverCard.Trigger class="cursor-default">
-                                <div class="flex-1 overflow-hidden">
-                                  <p class="truncate text-sm font-medium">{entry.filename}</p>
-                                  {#if !entry.directory}
-                                    <p class="text-xs text-muted-foreground">{formatFileSize(entry.uncompressedSize)}</p>
-                                  {/if}
-                                </div>
-                              </HoverCard.Trigger>
-                              <HoverCard.Content class="w-80">
-                                <div class="space-y-2">
-                                  <p class="text-sm font-medium">{entry.filename}</p>
-                                  {#if !entry.directory}
-                                    <p class="text-xs text-muted-foreground">Size: {formatFileSize(entry.uncompressedSize)}</p>
-                                  {:else}
-                                    <p class="text-xs text-muted-foreground">Directory</p>
-                                  {/if}
-                                </div>
-                              </HoverCard.Content>
-                            </HoverCard.Root>
-                          </button>
-                          {#if !entry.directory}
-                            <div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                              <Button variant="ghost" size="icon" class="h-8 w-8" title="View File" onclick={() => openEntry(entry)}><ExternalLink class="h-4 w-4" /></Button>
-                              <Button variant="ghost" size="icon" class="h-8 w-8" title="Save File" onclick={() => saveEntry(entry)}><Download class="h-4 w-4" /></Button>
-                            </div>
-                          {/if}
-                        </div>
-                      </ContextMenu.Trigger>
-                      <ContextMenu.Content class="w-48">
-                        {#if !entry.directory}
-                          <ContextMenu.Item onclick={() => openEntry(entry)}>View</ContextMenu.Item>
-                          <ContextMenu.Item onclick={() => saveEntry(entry)}>Save</ContextMenu.Item>
-                        {/if}
-                      </ContextMenu.Content>
-                    </ContextMenu.Root>
-                  {/each}
-                  {#if zipEntries.length === 0}<div class="p-8 text-center text-muted-foreground">No files found in this archive.</div>{/if}
-                </div>
-              </ScrollArea>
+            <div class="flex flex-col gap-3">
+              <Button class="w-full" size="lg" onclick={openDecryptedFile}><Eye class="mr-2 h-4 w-4" />View File</Button>
+              <Button variant="outline" class="w-full" onclick={downloadOriginal}><Download class="mr-2 h-4 w-4" />Download Original</Button>
             </div>
           </div>
         {/if}
