@@ -239,10 +239,10 @@ def _install_deps() -> None:
 
 
 def _copy_wasm_for_build(wasm_file: pathlib.Path) -> None:
-    """Copy the WASM module to the JS SDK root for esbuild to find."""
+    """Copy the WASM module to the JS SDK root for the build step."""
     dest = _JS_SDK_DIR / "chithi.wasm"
     shutil.copy2(wasm_file, dest)
-    logger.info("Copied WASM to SDK root for esbuild bundling.")
+    logger.info("Copied WASM to SDK root for bundling.")
 
 
 def _clean_wasm_after_build() -> None:
@@ -260,7 +260,7 @@ def _clean_wasm_after_build() -> None:
 
 
 def build_js_sdk() -> None:
-    """Build the JS SDK with WASM embedded via esbuild."""
+    """Build the JS SDK with WASM."""
     _install_deps()
 
     logger.info("Building JS SDK...")
@@ -387,7 +387,7 @@ def main() -> None:
     else:
         wasm_file = build_wasm(debug=args.debug)
 
-    # Step 3 — copy WASM for esbuild
+    # Step 3 — copy WASM for build
     _copy_wasm_for_build(wasm_file)
 
     # Step 4 — build JS SDK
