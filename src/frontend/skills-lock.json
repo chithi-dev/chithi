@@ -1,0 +1,11 @@
+{
+	"version": 1,
+	"skills": {
+		"apollo-client": {
+			"source": "apollographql/skills",
+			"sourceType": "github",
+			"skillPath": "skills/apollo-client/SKILL.md",
+			"computedHash": "8ed0af80d00a7a41ce838a39979e18dfe66193a9a5c2b5ac66e70bec1f6a16a1"
+		}
+	}
+}
