@@ -24,7 +24,7 @@
 			class="absolute -right-24 -bottom-24 h-125 w-125 rounded-full bg-orange-500/10 blur-[120px] dark:bg-orange-500/10"
 		></div>
 		<div
-			class="absolute inset-0 bg-[var(--grid-gradient)] mask-[radial-gradient(ellipse_at_center,black,transparent_90%)] bg-size-[40px_40px]"
+			class="absolute inset-0 bg-(--grid-gradient) mask-(radial-gradient(ellipse_at_center,black,transparent_90%)) bg-size-(40px_40px)"
 		></div>
 	</div>
 
