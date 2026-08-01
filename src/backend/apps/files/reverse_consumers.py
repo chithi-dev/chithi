@@ -161,16 +161,35 @@ class ReverseRoomConsumer(AsyncWebsocketConsumer):
 
         # Stream file chunks to the requester
         try:
-            storage = await get_storage()
-            body = await storage.download_stream(room_file.key)
-            try:
-                while True:
-                    chunk = await body.read(CHUNK_SIZE)
-                    if not chunk:
-                        break
-                    await self.send(bytes(chunk))
-            finally:
-                await body.close()
+            from apps.files.services import (
+                get_storage,
+                is_s3_backend,
+                download_file_data,
+                LocalStorageBackend,
+            )
+
+            storage = get_storage()
+
+            if isinstance(storage, LocalStorageBackend):
+                # Local backend: read file in chunks and send
+                file_path = storage.download_file_path(room_file.key)
+                with open(file_path, "rb") as f:
+                    while True:
+                        chunk = f.read(CHUNK_SIZE)
+                        if not chunk:
+                            break
+                        await self.send(chunk)
+            else:
+                # S3 backend: use async streaming
+                body = await storage.download_stream(room_file.key)
+                try:
+                    while True:
+                        chunk = await body.read(CHUNK_SIZE)
+                        if not chunk:
+                            break
+                        await self.send(bytes(chunk))
+                finally:
+                    await body.close()
 
             # Signal file end
             await self.channel_layer.group_send(group_name, {
