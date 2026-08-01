@@ -1,7 +1,6 @@
 import { WORKER_CONCURRENCY } from '#consts/concurrency';
 import { HKDF_IV_STR, HKDF_SALT_STR } from '#consts/encryption';
 import ChithiWorker from '#workers/chithi.worker?worker';
-import { ZipWriter } from '@zip.js/zip.js';
 import { CHUNK_SIZE, argon2Derive, base64url, base64urlToBytes, deriveEncryptionKey, xorBytes } from './encryption';
 import { wasmEncryptChunk, wasmDecryptChunk, wasmGetChunkNonce, ensureInitialized } from '#wasm/chithi_wasm';
 
@@ -89,30 +88,6 @@ async function proc(ctx: WCtx, idx: number, chunk: Uint8Array, keyRaw: Uint8Arra
   } catch (err) { fail(ctx, err as Error); }
 }
 
-async function writeZip(zip: ZipWriter<any>, writable: WritableStream<Uint8Array>, files: File[], password?: string, signal?: AbortSignal) {
-  try {
-    for (const file of files) {
-      let name = (file as any).relativePath || file.name;
-      name = makeUnique(name);
-      try {
-        await zip.add(name, file.stream(), { password, encryptionStrength: password?.length ? 3 : undefined, level: 9, signal });
-      } catch (err: any) {
-        const msg = String(err?.message || err || '');
-        if (msg.includes('exists')) {
-          await zip.add(makeUnique(name), file.stream(), { password, encryptionStrength: password?.length ? 3 : undefined, level: 9, signal });
-        } else throw err;
-      }
-    }
-    await zip.close();
-  } catch (e) { console.error('Error creating zip:', e); writable.abort(e).catch(() => {}); }
-}
-
-export async function createZipStream(files: File[], password?: string, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
-  const { readable, writable } = new TransformStream();
-  const zip = new ZipWriter(writable, { bufferedWrite: true, useCompressionStream: true });
-  writeZip(zip, writable, files, password, signal);
-  return readable;
-}
 
 export async function createEncryptedStream(
   inputStream: ReadableStream<Uint8Array>, password?: string, origSize?: number,

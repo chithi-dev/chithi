@@ -16,6 +16,7 @@ from apps.graphql.queries import (
     OnboardingQuery,
     UserQuery,
 )
+from apps.graphql.subscriptions import Subscription
 
 # Enable experimental defer/stream for incremental delivery
 strawberry_config = StrawberryConfig(
@@ -48,6 +49,7 @@ class Mutation(
 schema = strawberry.Schema(
     query=Query,
     mutation=Mutation,
+    subscription=Subscription,
     config=strawberry_config,
     scalar_overrides={UploadedFile: UploadDefinition},
 )

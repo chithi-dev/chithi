@@ -8,13 +8,18 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = os.environ.get("SECRET_KEY", "django-insecure-change-this-in-production-please")
+SECRET_KEY = os.environ.get(
+    "SECRET_KEY", "django-insecure-change-this-in-production-please"
+)
 DEBUG = os.environ.get("DEBUG", "True").lower() == "true"
 ALLOWED_HOSTS = ["*"]
 APPEND_SLASH = True
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
 
 INSTALLED_APPS = [
+    "daphne",
+    "channels",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -60,6 +65,25 @@ TEMPLATES = [
 
 ASGI_APPLICATION = "core.asgi.application"
 
+# Channels — Redis in production (shared across cluster), in-memory in dev
+CHANNEL_LAYERS: dict = {
+    "default": {
+        "BACKEND": (
+            "channels_redis.core.RedisChannelLayer"
+            if os.environ.get("CELERY_BROKER_URL")
+            else "channels.layers.InMemoryChannelLayer"
+        ),
+        "CONFIG": {
+            "capacity": 150
+            if os.environ.get("CELERY_BROKER_URL")
+            else None,  # cap messages in Redis layer
+            "expiry": 10,  # expire idle messages after 10s
+        }
+        if os.environ.get("CELERY_BROKER_URL")
+        else {},
+    },
+}
+
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
     "sqlite:///db.sqlite3",
@@ -74,7 +98,9 @@ DATABASES = {
 }
 
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
@@ -135,7 +161,11 @@ LOGGING = {
     "disable_existing_loggers": False,
     "handlers": {"console": {"class": "logging.StreamHandler"}},
     "loggers": {
-        "django.request": {"handlers": ["console"], "level": "ERROR", "propagate": True},
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": True,
+        },
     },
 }
 

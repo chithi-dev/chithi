@@ -8,6 +8,7 @@ urlpatterns = [
     path("graphql/", include("apps.graphql.urls")),
     path("files/", include("apps.files.urls")),
     path("speedtest/", include("apps.files.speedtest_urls")),
+    path("reverse/", include("apps.files.reverse_urls")),
 ]
 
 if settings.DEBUG:
