@@ -227,7 +227,7 @@ def deploy(wasm_file: pathlib.Path) -> None:
     _copy_wasm(wasm_file, _CLI_WASM_DIR, "chithi.wasm")
     _copy_wasm(wasm_file, _PYTHON_WASM_DIR, "chithi.wasm")
     _copy_wasm(wasm_file, _JS_WASM_DIR, "chithi.wasm")
-    # Copy to JS SDK root for esbuild --loader:.wasm=dataurl
+    # Copy to JS SDK root for direct import
     _copy_wasm(wasm_file, _REPO_ROOT / "sdks" / "js", "chithi.wasm")
 
 
