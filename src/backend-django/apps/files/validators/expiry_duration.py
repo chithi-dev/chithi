@@ -1,9 +1,0 @@
-from django.core.exceptions import ValidationError
-
-from apps.config.models import Config
-
-
-def validate_expiry_duration(value: int) -> None:
-    config = Config.load()
-    if config.time_configs and value not in config.time_configs:
-        raise ValidationError("Expiry duration is not in the allowed configurations.")
