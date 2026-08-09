@@ -18,10 +18,8 @@ from apps.graphql.queries import (
 )
 from apps.graphql.subscriptions import Subscription
 
-# Enable experimental defer/stream for incremental delivery
 strawberry_config = StrawberryConfig(
     auto_camel_case=True,
-    enable_experimental_incremental_execution=True,
 )
 
 
