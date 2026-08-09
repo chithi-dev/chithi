@@ -1,3 +1,5 @@
+import asyncio
+
 import strawberry
 
 from apps.graphql.consumers import AppStateType, _compute_state_standalone
