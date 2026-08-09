@@ -6,11 +6,7 @@ from django.utils import timezone
 
 from apps.config.models import Config
 from apps.files.models import File
-from apps.files.services import (
-    delete_file_from_storage,
-    upload_file_data,
-    get_presigned_download_url,
-)
+from apps.files.services import delete_file_from_storage, upload_file_data
 from apps.graphql.consumers import broadcast_state
 from apps.graphql.types import FileType
 
@@ -61,17 +57,13 @@ class FileMutation:
         await broadcast_state()
         return file_obj
 
-async def delete_file(self, file_id: strawberry.ID) -> bool:
-    try:
-        file_obj = await sync_to_async(File.objects.get)(id=file_id)
-        await delete_file_from_storage(file_obj.key)
-        await sync_to_async(file_obj.delete)()
-        await broadcast_state()
-        return True
-    except File.DoesNotExist:
-        return False
-
     @strawberry.mutation
-    async def download_file_stream(self, file_key: str) -> str:
-        """Return a presigned URL for direct binary download from S3."""
-        return await get_presigned_download_url(file_key)
+    async def delete_file(self, file_id: strawberry.ID) -> bool:
+        try:
+            file_obj = await sync_to_async(File.objects.get)(id=file_id)
+            await delete_file_from_storage(file_obj.key)
+            await sync_to_async(file_obj.delete)()
+            await broadcast_state()
+            return True
+        except File.DoesNotExist:
+            return False

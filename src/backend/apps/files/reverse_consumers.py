@@ -161,12 +161,7 @@ class ReverseRoomConsumer(AsyncWebsocketConsumer):
 
         # Stream file chunks to the requester
         try:
-            from apps.files.services import (
-                get_storage,
-                is_s3_backend,
-                download_file_data,
-                LocalStorageBackend,
-            )
+            from apps.files.services import get_storage, LocalStorageBackend
 
             storage = get_storage()
 

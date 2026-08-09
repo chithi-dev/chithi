@@ -32,6 +32,9 @@
 | **WASM Parallel Verification** | DONE | 4 parallel call sites, 14/14 tests pass |
 | **Logout Mutation** | DONE | Added `logout` mutation returning `Boolean` |
 | **Backend URL** | DONE | Updated to `localhost:8002` |
+| **File Mutation Bugs** | DONE | Fixed `delete_file` outside class, removed presigned URL mutation, cleaned imports |
+| **Subscriptions asyncio** | DONE | Added missing `import asyncio` |
+| **Backend Serves Files** | CONFIRMED | `views.py` streams files directly (no presigned URLs), users never access S3 directly |
 
 ---
 
@@ -122,77 +125,25 @@ Strawberry auto-converts `expires_at` → `expiresAt` and `expire_after_n_downlo
 
 ---
 
-## Phase 2: Fix Download Flow — Migrate to Presigned URL
+## Phase 2: File Download — Backend Serves Files Directly (No Presigned URLs)
 
-### 2.1 Update `fetch-decrypt.ts` to use presigned URL via GraphQL
+### 2.1 Confirm download flow
 
-**Problem**: The frontend downloads from `Api.DOWNLOAD(slug)` which is a REST endpoint (`/download/{slug}/`). The Django backend has a `download_file_stream` GraphQL mutation that returns a presigned S3 URL. We need to migrate the download flow.
+**Decision**: Users never access S3 directly. The backend serves all files, exactly like FastAPI did.
 
-**File**: `src/frontend/src/lib/functions/fetch-decrypt.ts`
+**File**: `src/backend/apps/files/views.py` — `download_file` view already exists and correctly:
+- Streams files from both local storage and S3 backends
+- Enforces atomic expiry/download-count checks via F() expressions
+- Increments download count only after successful stream completion
+- Returns `StreamingHttpResponse` for S3, `FileResponse` for local storage
 
-**Current flow**:
-```
-frontend → /download/{slug}/ (REST) → Django streams S3 → frontend decrypts
-```
+**File**: `src/backend/apps/files/urls.py` — URL pattern `path("<uuid:file_id>/", download_file)` already wired
 
-**New flow**:
-```
-frontend → downloadFileStream(fileKey: slug) (GraphQL) → returns presigned URL → frontend fetches from S3 → frontend decrypts
-```
+**File**: `src/frontend/src/lib/functions/fetch-decrypt.ts` — already calls `Api.DOWNLOAD(slug)` which hits `/files/<uuid>/` — **correct, no change needed**
 
-**Implementation**:
+**Removed**: `download_file_stream` mutation that returned presigned URLs — deleted from `file.py`
 
-```ts
-import { client } from '$lib/graphql/client.js';
-import { PasswordRequiredError } from '#errors/password';
-import { createDecryptedStream } from '#functions/streams';
-
-export interface FetchDecryptOptions { knownSize?: number; onProgress?: (percent: number) => void }
-
-export async function fetchDecryptedBlob(slug: string, key: string, password: string, opts: FetchDecryptOptions = {}): Promise<Blob> {
-  // Step 1: Get presigned URL via GraphQL
-  const { data } = await client.mutate({
-    mutation: gql`mutation DownloadFileStream($fileKey: String!) { downloadFileStream(fileKey: $fileKey) }`,
-    variables: { fileKey: slug }
-  });
-
-  const presignedUrl = data.downloadFileStream;
-
-  // Step 2: Fetch encrypted data from presigned URL
-  const res = await fetch(presignedUrl);
-  if (!res.ok) throw new Error(res.status === 404 ? 'File not found' : 'Download failed');
-  if (!res.body) throw new Error('No response body');
-
-  const total = opts.knownSize ?? parseInt(res.headers.get('content-length') ?? '0', 10);
-  const src = opts.onProgress && total > 0 ? wrapProgress(res.body, total, opts.onProgress) : res.body;
-  const stream = await createDecryptedStream(src, key, password);
-
-  const reader = stream.getReader();
-  let first: Uint8Array | undefined;
-  try {
-    const { done, value } = await reader.read();
-    if (!done) first = value;
-  } catch (e: any) {
-    if (e.name === 'OperationError') { await reader.cancel('Wrong password'); throw new PasswordRequiredError(); }
-    throw e;
-  }
-
-  const chunks: BlobPart[] = [];
-  if (first) chunks.push(first as BlobPart);
-  for (;;) { const { done, value } = await reader.read(); if (done) break; chunks.push(value as BlobPart); }
-  const blob = new Blob(chunks, { type: 'application/zip' });
-  if (chunks.length === 0 || blob.size < 4) throw new Error('Decryption produced no output data');
-  return blob;
-}
-```
-
-**Status**: TODO
-
-### 2.2 Remove `Api.DOWNLOAD` REST endpoint dependency
-
-After Phase 2.1, the `Api.DOWNLOAD` endpoint is no longer needed for downloads. The frontend will exclusively use the presigned URL flow. Keep the REST endpoint as a fallback for now, mark for removal after verification.
-
-**Status**: TODO (after verification)
+**Status**: DONE — confirmed correct architecture
 
 ---
 
@@ -343,9 +294,9 @@ Phase 5 (WASM verification) ──────────────┘
 - [ ] End-to-end: select files → encrypt → upload → S3
 
 ### File Download Pipeline
-- [ ] `fetch-decrypt.ts` migrated to presigned URL flow
-- [ ] `downloadFileStream` mutation returns presigned URL
-- [ ] End-to-end: fetch presigned URL → download → decrypt → save
+- [ ] `download_file` view streams files through backend (no presigned URLs)
+- [ ] `fetch-decrypt.ts` calls `Api.DOWNLOAD(slug)` → backend serves encrypted data
+- [ ] End-to-end: backend serves file → frontend decrypts → save
 
 ### Django Backend
 - [ ] `python manage.py check` passes
@@ -415,11 +366,11 @@ Phase 5 (WASM verification) ──────────────┘
 
 **Mitigation**: Use `npm install apollo-upload-client` and verify the peer dependency resolution. If incompatible, use `@apollo/client`'s built-in `FileUploadLink` (if available in v4).
 
-### Risk 2: Presigned URL CORS
+### Risk 2: Large file streaming memory
 
-S3 presigned URLs may fail due to CORS if the S3 endpoint (MinIO) doesn't allow cross-origin requests from the frontend origin.
+S3 streaming downloads buffer chunks in memory. For very large files, this could be slow.
 
-**Mitigation**: Configure MinIO CORS policy to allow `GET` from `http://localhost:5173` (dev) and production origins.
+**Mitigation**: The `download_file` view uses `StreamingHttpResponse` which streams chunk-by-chunk. After initial verification, consider range requests for resumable downloads.
 
 ### Risk 3: SharedArrayBuffer requires COOP/COEP headers
 
@@ -438,6 +389,6 @@ The current upload flow loads the entire encrypted blob into memory before sendi
 ## Notes
 
 - The `UPLOAD_FILE_MUTATION` already uses `$file: Upload!` in the GraphQL definition — the schema is correct, only the transport layer (`HttpLink` → `createUploadLink`) needs fixing.
-- The `download_file_stream` mutation already exists and returns a presigned URL — the frontend just needs to call it.
+- The `download_file_stream` mutation that returned presigned URLs has been removed — the backend serves all files directly through `views.py`, users never access S3 directly.
 - The WASM parallel encryption is already configured correctly with `wasm_thread` and the `parallel` feature enabled by default.
 - All camelCase migration is complete — frontend interfaces, query modules, and components all use camelCase matching the Strawberry-Django schema.
