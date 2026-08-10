@@ -1,9 +1,14 @@
 """Storage service — supports both local filesystem and S3-compatible backends.
 
+All backends implement the same async streaming interface so the download view
+streams data regardless of where the file lives.
+
 If S3 settings are configured in Django settings, files are stored on S3.
 Otherwise files are stored on the local filesystem under MEDIA_ROOT.
 """
 
+import abc
+import asyncio
 import io
 import logging
 import os
@@ -33,11 +38,61 @@ def is_s3_backend() -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Local storage backend
+# Abstract storage backend
 # ---------------------------------------------------------------------------
 
 
-class LocalStorageBackend:
+class StorageBackend(abc.ABC):
+    """Abstract base class for storage backends.
+
+    Every backend must implement ``download_stream`` so the download view can
+    stream file data without knowing where the file lives.
+    """
+
+    @abc.abstractmethod
+    async def upload(self, key: str, data: bytes) -> None:
+        """Upload bytes to storage."""
+
+    @abc.abstractmethod
+    async def upload_stream(self, key: str, stream: io.BytesIO, size: int) -> None:
+        """Upload a stream to storage."""
+
+    @abc.abstractmethod
+    async def download(self, key: str) -> bytes:
+        """Download file from storage and return bytes."""
+
+    @abc.abstractmethod
+    async def download_stream(self, key: str) -> "asyncio.StreamReader | AsyncBodyStream":
+        """Return an async-readable stream for chunked download.
+
+        The returned object must support ``await obj.read(chunk_size)`` yielding
+        ``bytes`` and returning empty bytes on EOF, plus ``await obj.close()``.
+        """
+
+    @abc.abstractmethod
+    async def delete(self, key: str) -> bool:
+        """Delete a file from storage."""
+
+    @abc.abstractmethod
+    async def exists(self, key: str) -> bool:
+        """Check if a file exists in storage."""
+
+    # Presigned URLs default to None (not supported by all backends).
+    async def presigned_upload_url(self, key: str, expires_in: int = 3600) -> str | None:
+        return None
+
+    async def presigned_download_url(self, key: str, expires_in: int = 3600) -> str | None:
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Local storage backend
+# ---------------------------------------------------------------------------
+
+_LOCAL_CHUNK_SIZE = 256 * 1024  # 256 KB
+
+
+class LocalStorageBackend(StorageBackend):
     """Store files on the local filesystem under MEDIA_ROOT."""
 
     def __init__(self) -> None:
@@ -59,12 +114,12 @@ class LocalStorageBackend:
         path = self.root / key
         return path.read_bytes()
 
-    def download_file_path(self, key: str) -> Path:
-        """Return the path for direct file serving via FileResponse."""
+    async def download_stream(self, key: str) -> _LocalAsyncFile:
+        """Open the local file for async chunked reading."""
         path = self.root / key
         if not path.exists():
             raise FileNotFoundError(f"File not found: {key}")
-        return path
+        return _LocalAsyncFile(path)
 
     async def delete(self, key: str) -> bool:
         path = self.root / key
@@ -76,11 +131,24 @@ class LocalStorageBackend:
     async def exists(self, key: str) -> bool:
         return (self.root / key).exists()
 
-    async def presigned_upload_url(self, key: str, expires_in: int = 3600) -> str | None:
-        return None
 
-    async def presigned_download_url(self, key: str, expires_in: int = 3600) -> str | None:
-        return None
+class _LocalAsyncFile:
+    """Thin wrapper around a local file to provide an async ``read``/``close`` interface
+    matching the S3 body-stream contract used by the download view."""
+
+    def __init__(self, path: Path) -> None:
+        self._path = path
+        self._fh: object = None  # opened file handle
+
+    async def read(self, size: int = -1) -> bytes:
+        if self._fh is None:
+            self._fh = open(self._path, "rb")
+        return self._fh.read(size) if size > 0 else self._fh.read()
+
+    async def close(self) -> None:
+        if self._fh:
+            self._fh.close()
+            self._fh = None
 
 
 # ---------------------------------------------------------------------------
@@ -88,7 +156,7 @@ class LocalStorageBackend:
 # ---------------------------------------------------------------------------
 
 
-class S3StorageBackend:
+class S3StorageBackend(StorageBackend):
     """Store files on an S3-compatible backend."""
 
     def __init__(self) -> None:
@@ -177,10 +245,10 @@ class S3StorageBackend:
 # Singleton — pick the right backend at import time
 # ---------------------------------------------------------------------------
 
-_storage: LocalStorageBackend | S3StorageBackend | None = None
+_storage: StorageBackend | None = None
 
 
-def get_storage() -> LocalStorageBackend | S3StorageBackend:
+def get_storage() -> StorageBackend:
     """Return the configured storage backend singleton."""
     global _storage
     if _storage is None:
@@ -214,22 +282,25 @@ async def download_file_data(key: str) -> bytes:
 
 
 async def download_file_stream(key: str):
-    """Download file from storage and return the response stream."""
-    storage = get_storage()
-    if isinstance(storage, LocalStorageBackend):
-        raise NotImplementedError(
-            "Local storage does not support async streaming. "
-            "Use download_file_path() instead."
-        )
-    return await storage.download_stream(key)
+    """Download file from storage and return the response stream.
+
+    Works for both local and S3 backends.
+    """
+    return await get_storage().download_stream(key)
 
 
 def download_file_path(key: str) -> Path:
-    """Get the local file path for direct serving (local backend only)."""
+    """Get the local file path (local backend only).
+
+    Raises ``NotImplementedError`` when the active backend is S3.
+    """
     storage = get_storage()
     if not isinstance(storage, LocalStorageBackend):
         raise NotImplementedError("S3 backend does not support direct file paths.")
-    return storage.download_file_path(key)
+    path = storage.root / key
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {key}")
+    return path
 
 
 async def delete_file_from_storage(key: str) -> bool:
