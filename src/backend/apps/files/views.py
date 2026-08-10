@@ -4,16 +4,16 @@ import mimetypes
 from asgiref.sync import sync_to_async
 from django.db.models import F
 from django.http import Http404, HttpResponse, JsonResponse
-from django.http import StreamingHttpResponse, FileResponse
+from django.http import StreamingHttpResponse
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from apps.files.models import File
-from apps.files.services import get_storage, is_s3_backend, download_file_path
+from apps.files.services import download_file_stream
 
 logger = logging.getLogger(__name__)
 
-CHUNK_SIZE = 256 * 1024  # 256KB for faster streaming
+CHUNK_SIZE = 256 * 1024  # 256 KB for faster streaming
 
 
 def _increment_download_count(file_id: str) -> None:
@@ -26,6 +26,8 @@ def _increment_download_count(file_id: str) -> None:
 @require_http_methods(["GET"])
 async def download_file(request, file_id):
     """Stream file download by UUID — GET /files/<uuid>/
+
+    Always streams data regardless of the storage backend (local disk or S3).
 
     Atomic expiry enforcement:
     - Uses F() expressions so expiry is evaluated at the database level,
@@ -42,7 +44,6 @@ async def download_file(request, file_id):
     now = timezone.now()
 
     # Atomic expiry check: reject if already expired by time or download count.
-    # Uses F() expressions so the database evaluates the condition atomically.
     if not await File.objects.filter(
         id=file_obj.id,
         expires_at__gt=now,
@@ -53,37 +54,25 @@ async def download_file(request, file_id):
     content_type, _ = mimetypes.guess_type(file_obj.filename)
     content_type = content_type or "application/octet-stream"
 
-    if is_s3_backend():
-        # S3: async streaming with download count increment on completion
-        async def _stream():
-            body = await get_storage().download_stream(file_obj.key)
-            try:
-                while True:
-                    chunk = await body.read(CHUNK_SIZE)
-                    if not chunk:
-                        break
-                    yield chunk
-            finally:
-                await body.close()
+    # Single streaming path — works for both local and S3 backends.
+    async def _stream():
+        body = await download_file_stream(file_obj.key)
+        try:
+            while True:
+                chunk = await body.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+                yield chunk
+        finally:
+            await body.close()
 
-            # All chunks streamed — increment download count
-            await sync_to_async(_increment_download_count)(file_id)
+        # All chunks streamed — increment download count
+        await sync_to_async(_increment_download_count)(file_id)
 
-        response = StreamingHttpResponse(
-            _stream(),
-            content_type=content_type,
-        )
-    else:
-        # Local: FileResponse is memory-efficient and fast
-        file_path = download_file_path(file_obj.key)
-        response = FileResponse(
-            open(file_path, "rb"),
-            content_type=content_type,
-        )
-        # Increment download count after the response is fully sent
-        response.add_post_render_callback(
-            lambda r: _increment_download_count(file_id)
-        )
+    response = StreamingHttpResponse(
+        _stream(),
+        content_type=content_type,
+    )
 
     response["Content-Disposition"] = (
         f'attachment; filename="{file_obj.filename}"'
