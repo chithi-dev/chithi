@@ -26,9 +26,9 @@ def get_jwt_tokens(user) -> tuple[str, str]:
 
 def get_user_from_jwt_token(token_string: str):
     """Resolve a user from a JWT token string."""
+    User = get_user_model()
     try:
         payload = jwt.decode(token_string, settings.SECRET_KEY, algorithms=["HS512"])
-        User = get_user_model()
         return User.objects.get(id=payload["user_id"])
     except (jwt.PyJWTError, User.DoesNotExist):
         return None
