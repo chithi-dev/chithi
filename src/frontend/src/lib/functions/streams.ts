@@ -1,3 +1,4 @@
+import { zip } from 'fflate';
 import { WORKER_CONCURRENCY } from '#consts/concurrency';
 import { HKDF_IV_STR, HKDF_SALT_STR } from '#consts/encryption';
 import ChithiWorker from '#workers/chithi.worker?worker';
@@ -88,6 +89,35 @@ async function proc(ctx: WCtx, idx: number, chunk: Uint8Array, keyRaw: Uint8Arra
   } catch (err) { fail(ctx, err as Error); }
 }
 
+
+export async function createZipStream(
+	files: File[],
+	_password?: string
+): Promise<ReadableStream<Uint8Array>> {
+	// Read all file content and deduplicate names
+	const entries: Record<string, Uint8Array> = {};
+	for (const file of files) {
+		const uniqueName = makeUnique(file.name);
+		entries[uniqueName] = new Uint8Array(await file.arrayBuffer());
+	}
+
+	return new Promise((resolve, reject) => {
+		zip(entries, { level: 6 }, (error: Error | null, data: Uint8Array | undefined) => {
+			if (error) {
+				reject(error);
+				return;
+			}
+			resolve(
+				new ReadableStream({
+					start(controller) {
+						controller.enqueue(data);
+						controller.close();
+					},
+				})
+			);
+		});
+	});
+}
 
 export async function createEncryptedStream(
   inputStream: ReadableStream<Uint8Array>, password?: string, origSize?: number,
