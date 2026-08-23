@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "tailwind-4-docs": {
+      "source": "Lombiq/Tailwind-Agent-Skills",
+      "sourceType": "github",
+      "skillPath": "skills/tailwind-4-docs/SKILL.md",
+      "computedHash": "4900f575f24641b1af459cda37cbb8438ecf3f8f1a63148384197cb730895093"
+    }
+  }
+}

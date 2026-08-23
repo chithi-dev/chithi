@@ -1,0 +1,22 @@
+[package]
+name = "chithi-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+sevenz-rust2 = { workspace = true }
+wasm_thread = { workspace = true, optional = true }
+argon2 = { workspace = true }
+sha2 = { workspace = true }
+ed25519 = { workspace = true }
+hkdf = { workspace = true }
+rand = { workspace = true }
+base64 = { workspace = true }
+chacha20poly1305 = { workspace = true }
+ed25519-dalek = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[features]
+default = ["parallel"]
+parallel = ["dep:wasm_thread"]

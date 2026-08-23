@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { THEMES, type ChartConfig } from './chart-utils.js';
 
-	let { id, config }: { id: string; config: ChartConfig } = $props();
+	const { id, config }: { id: string; config: ChartConfig } = $props();
 
 	const colorConfig = $derived(
 		config ? Object.entries(config).filter(([, config]) => config.theme || config.color) : null

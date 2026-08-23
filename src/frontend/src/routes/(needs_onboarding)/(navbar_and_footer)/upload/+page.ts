@@ -1,11 +1,12 @@
-import { prefetch } from '#queries/config';
+import { client } from '$lib/graphql/client.js';
+import { ConfigDocument } from '$lib/graphql/generated/graphql.js';
 import { definePageMetaTags } from 'svelte-meta-tags';
 import type { PageLoad } from './$types';
 
 export const load: PageLoad = async ({ parent, fetch, url }) => {
 	const { queryClient } = await parent();
 
-	prefetch({ queryClient: queryClient, fetch });
+	await client.query({ query: ConfigDocument });
 
 	const ogUrl = new URL('/og/upload', url.origin);
 

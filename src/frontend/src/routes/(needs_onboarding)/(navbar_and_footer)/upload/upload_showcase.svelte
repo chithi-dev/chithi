@@ -1,15 +1,13 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { Tween } from 'svelte/motion';
 	import { cubicOut } from 'svelte/easing';
 	import { formatFileSize } from '#functions/bytes';
 	import { subscribeAppState, appState } from './state.svelte';
 	import { HardDrive, Wifi, WifiOff } from '@lucide/svelte';
-	import { Progress } from '$lib/components/ui/progress';
-	import * as Tooltip from '$lib/components/ui/tooltip/index';
-	import { cn } from '$lib/utils';
+	import { Progress } from '$lib/components/ui/progress/index.js';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 
-	let { localUploadSize = 0 }: { localUploadSize: number } = $props();
+	const { localUploadSize = 0 }: { localUploadSize: number } = $props();
 
 	// Distinct Tailwind colors for each active upload segment
 	const SEGMENT_COLORS = [
@@ -23,71 +21,58 @@
 		'bg-pink-500'
 	];
 
-	const SEGMENT_LEGEND_COLORS = [
-		'bg-sky-400',
-		'bg-violet-400',
-		'bg-amber-400',
-		'bg-rose-400',
-		'bg-emerald-400',
-		'bg-orange-400',
-		'bg-teal-400',
-		'bg-pink-400'
-	];
+	const SEGMENT_LEGEND_COLORS = SEGMENT_COLORS.map((c) => c.replace('-500', '-400'));
 
 	// Minimum visible width (%) for any segment so tiny uploads are still perceptible
 	const MIN_SEGMENT_PCT = 0.6;
 
 	const tweenOpts = { duration: 600, easing: cubicOut };
 
-	// Split uploads into finished and active (in-progress)
-	let finishedUploads = $derived(appState.current.active_uploads.filter((u) => u.done));
-	let activeUploads = $derived(appState.current.active_uploads.filter((u) => !u.done));
+	// Split uploads into finished and active
+	const finishedUploads = $derived(appState.current.active_uploads.filter((u) => u.done));
+	const activeUploads = $derived(appState.current.active_uploads.filter((u) => !u.done));
 
-	let finishedBytes = $derived(finishedUploads.reduce((s, u) => s + u.uploaded_bytes, 0));
-	let activeBytes = $derived(activeUploads.reduce((s, u) => s + u.uploaded_bytes, 0));
-	let allInflightBytes = $derived(finishedBytes + activeBytes);
+	const finishedBytes = $derived(finishedUploads.reduce((s, u) => s + u.uploaded_bytes, 0));
+	const activeBytes = $derived(activeUploads.reduce((s, u) => s + u.uploaded_bytes, 0));
+	const allInflightBytes = $derived(finishedBytes + activeBytes);
 
-	let remaining = $derived.by(() => {
-		const st = appState.current;
-		if (!st.total_available_space) return 0;
-		return Math.max(
-			0,
-			st.total_available_space - st.total_space_used - allInflightBytes - localUploadSize
-		);
-	});
+	const remaining = $derived(
+		appState.current.total_available_space
+			? Math.max(0, appState.current.total_available_space - appState.current.total_space_used - allInflightBytes - localUploadSize)
+			: 0
+	);
 
 	// capacity = remaining free space + all in-flight bytes + local prediction
-	let capacity = $derived(remaining + allInflightBytes + localUploadSize);
+	const capacity = $derived(remaining + allInflightBytes + localUploadSize);
 
 	// Total bar fill (finished + active + local) as a percentage
-	let totalConsumptionPct = $derived.by(() => {
-		if (capacity <= 0) return 0;
-		return Math.min(100, ((allInflightBytes + localUploadSize) / capacity) * 100);
-	});
+	const totalConsumptionPct = $derived(
+		capacity > 0 ? Math.min(100, ((allInflightBytes + localUploadSize) / capacity) * 100) : 0
+	);
 
 	// Finished uploads: single tween for the combined segment on the left
-	let finishedPct = new Tween(0, tweenOpts);
+	const finishedPct = new Tween(0, tweenOpts);
 
 	// Local upload prediction: single tween for the "Your upload" segment
-	let localPct = new Tween(0, tweenOpts);
+	const localPct = new Tween(0, tweenOpts);
 
 	// Active uploads: one tween per in-progress upload
 	let uploadPcts = $state<Tween<number>[]>([]);
 
+	// Repeated offset calculations extracted to $derived
+	const finishedOffset = $derived(
+		finishedPct.current > 0 ? Math.max(finishedPct.current, MIN_SEGMENT_PCT) : 0
+	);
+	const activeSegmentsWidth = $derived(
+		uploadPcts.reduce((s, t) => s + Math.max(t.current, MIN_SEGMENT_PCT), 0)
+	);
+
 	$effect(() => {
-		if (capacity > 0) {
-			finishedPct.target = (finishedBytes / capacity) * 100;
-		} else {
-			finishedPct.target = 0;
-		}
+		finishedPct.target = capacity > 0 ? (finishedBytes / capacity) * 100 : 0;
 	});
 
 	$effect(() => {
-		if (capacity > 0 && localUploadSize > 0) {
-			localPct.target = (localUploadSize / capacity) * 100;
-		} else {
-			localPct.target = 0;
-		}
+		localPct.target = capacity > 0 && localUploadSize > 0 ? (localUploadSize / capacity) * 100 : 0;
 	});
 
 	$effect(() => {
@@ -106,10 +91,10 @@
 		}
 	});
 
-	onMount(() => {
-		const unsub = subscribeAppState();
-		return unsub;
-	});
+	$effect(() => {
+    const unsub = subscribeAppState();
+    return unsub;
+  });
 </script>
 
 <div class="mx-auto mt-6 w-full max-w-5xl">
@@ -203,9 +188,7 @@
 
 					<!-- Active uploads segments -->
 					{#each uploadPcts as pct, i}
-						{@const offset =
-							(finishedPct.current > 0 ? Math.max(finishedPct.current, MIN_SEGMENT_PCT) : 0) +
-							uploadPcts.slice(0, i).reduce((s, t) => s + Math.max(t.current, MIN_SEGMENT_PCT), 0)}
+						{@const offset = finishedOffset + uploadPcts.slice(0, i).reduce((s, t) => s + Math.max(t.current, MIN_SEGMENT_PCT), 0)}
 						<Tooltip.Root>
 							<Tooltip.Trigger
 								class="absolute inset-y-0 z-10 cursor-default"
@@ -240,11 +223,9 @@
 
 					<!-- Local upload prediction segment -->
 					{#if localPct.current > 0}
-						{@const localOffset =
-							(finishedPct.current > 0 ? Math.max(finishedPct.current, MIN_SEGMENT_PCT) : 0) +
-							uploadPcts.reduce((s, t) => s + Math.max(t.current, MIN_SEGMENT_PCT), 0)}
-						<Tooltip.Root>
-							<Tooltip.Trigger
+						{@const localOffset = finishedOffset + activeSegmentsWidth}
+							<Tooltip.Root>
+								<Tooltip.Trigger
 								class="absolute inset-y-0 z-10 cursor-default"
 								style="left: {localOffset}%; width: {Math.max(localPct.current, MIN_SEGMENT_PCT)}%"
 							>
@@ -253,7 +234,7 @@
 									style="animation-duration: 1.5s;
 										background-image: repeating-linear-gradient(
 											-45deg, transparent, transparent 3px,
-											rgba(255,255,255,0.2) 3px, rgba(255,255,255,0.2) 6px
+											color-mix(in oklch, var(--foreground) 20%, transparent) 3px, color-mix(in oklch, var(--foreground) 20%, transparent) 6px
 										)"
 								></div>
 							</Tooltip.Trigger>
@@ -269,28 +250,21 @@
 
 					<!-- Diagonal stripe overlay on active uploads -->
 					{#if uploadPcts.length > 0}
-						{@const activeStartPct =
-							finishedPct.current > 0 ? Math.max(finishedPct.current, MIN_SEGMENT_PCT) : 0}
-						{@const activeWidthPct = uploadPcts.reduce(
-							(s, t) => s + Math.max(t.current, MIN_SEGMENT_PCT),
-							0
-						)}
+						{@const activeStartPct = finishedOffset}
+						{@const activeWidthPct = activeSegmentsWidth}
 						<div
 							class="pointer-events-none absolute inset-y-0 opacity-15"
 							style="left: {activeStartPct}%; width: {activeWidthPct}%;
 								background-image: repeating-linear-gradient(
 									45deg, transparent, transparent 4px,
-									rgba(255,255,255,0.4) 4px, rgba(255,255,255,0.4) 8px
+									color-mix(in oklch, var(--foreground) 40%, transparent) 4px, color-mix(in oklch, var(--foreground) 40%, transparent) 8px
 								)"
 						></div>
 					{/if}
 
 					<!-- Remaining space tooltip  -->
 					{#if appState.current.total_available_space}
-						{@const filledPct =
-							(finishedPct.current > 0 ? Math.max(finishedPct.current, MIN_SEGMENT_PCT) : 0) +
-							uploadPcts.reduce((s, t) => s + Math.max(t.current, MIN_SEGMENT_PCT), 0) +
-							(localPct.current > 0 ? Math.max(localPct.current, MIN_SEGMENT_PCT) : 0)}
+						{@const filledPct = finishedOffset + activeSegmentsWidth + (localPct.current > 0 ? Math.max(localPct.current, MIN_SEGMENT_PCT) : 0)}
 						{#if filledPct < 100}
 							<Tooltip.Root>
 								<Tooltip.Trigger

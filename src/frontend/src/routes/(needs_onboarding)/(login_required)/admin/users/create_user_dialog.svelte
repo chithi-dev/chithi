@@ -12,19 +12,20 @@
 </script>
 
 <script lang="ts">
-	import * as Dialog from '$lib/components/ui/dialog';
-	import * as Form from '$lib/components/ui/form/index';
-	import { Input } from '$lib/components/ui/input';
-	import { Button } from '$lib/components/ui/button';
-	import { useUsersQuery } from '#queries/admin_users';
+	import * as Dialog from '$lib/components/ui/dialog/index.js';
+	import * as Form from '$lib/components/ui/form/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { client } from '$lib/graphql/client.js';
+	import { CreateUserDocument } from '$lib/graphql/generated/graphql.js';
+	import type { CreateUserMutation } from '$lib/graphql/generated/graphql.js';
 	import { toast } from 'svelte-sonner';
 	import { superForm, defaults } from 'sveltekit-superforms';
 	import { zod4, zod4Client } from 'sveltekit-superforms/adapters';
-	import { User, Mail, Lock, LoaderCircle, UserPlus, Eye, EyeOff } from '@lucide/svelte';
+	import { User, Mail, Lock, UserPlus, Eye, EyeOff } from '@lucide/svelte';
+	import { Spinner } from '$lib/components/ui/spinner/index.js';
 
 	let { open = $bindable(false) } = $props<{ open: boolean }>();
-
-	const { createUser } = useUsersQuery(() => 1, 20);
 
 	const form = superForm(defaults(zod4(schema)), {
 		SPA: true,
@@ -32,11 +33,15 @@
 		onUpdate: async ({ form: f }) => {
 			if (f.valid) {
 				try {
-					await createUser({
-						username: f.data.username,
-						email: f.data.email || null,
-						password: f.data.password
+					const result = await client.mutate<CreateUserMutation>({
+						mutation: CreateUserDocument,
+						variables: {
+							username: f.data.username,
+							password: f.data.password,
+							email: f.data.email || undefined
+						}
 					});
+					if (result.error) throw new Error(result.error.message);
 					toast.success('User created successfully.');
 					open = false;
 					form.reset();
@@ -177,7 +182,7 @@
 					class="h-11 px-8 font-semibold shadow-lg shadow-primary/20 transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-70"
 				>
 					{#if $submitting}
-						<LoaderCircle class="mr-2 size-4 animate-spin" />
+						<Spinner />
 						Creating...
 					{:else}
 						Create User

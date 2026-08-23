@@ -1,48 +1,71 @@
-import qrcode
-from qrcode.constants import ERROR_CORRECT_L
-from qrcode.exceptions import DataOverflowError
+from io import BytesIO
+
+from PIL import Image
+from qrcode import QRCode
+from qrcode.image.svg import SvgPathFillImage
 from rich.console import Console
+from rich.segment import Segment
+from rich.style import Style
 
 
-def print_compact_qr(url: str, console: Console = Console()) -> None:
-    """
-    Renders a URL as the smallest possible QR code (Version 1, 21x21)
-    using Unicode half-blocks (▄/▀/█) to minimize terminal height.
-    """
-    qr = qrcode.QRCode(
-        version=1,
-        error_correction=ERROR_CORRECT_L,
-        box_size=1,
-        border=0,
-    )
+def _qr_svg(url: str) -> bytes:
+    """Generate a QR code SVG using the qrcode library."""
+    qr = QRCode(error_correction=2)  # H
     qr.add_data(url)
+    img = qr.make_image(image_factory=SvgPathFillImage)
+    return img.to_string()
 
-    try:
-        # Force Version 1 (21x21)
-        qr.make(fit=False)
-    except DataOverflowError:
-        # Fallback if the URL is too long for Version 1
-        qr.version = None
-        qr.make(fit=True)
 
-    matrix = qr.get_matrix()
+def _qr_png(url: str) -> bytes:
+    """Render QR code SVG to PNG via resvg at module-level resolution."""
+    from resvg_py import svg_to_bytes
 
-    # We iterate 2 rows at a time because one terminal line = 2 vertical pixels
-    for y in range(0, len(matrix), 2):
-        line = ""
-        for x in range(len(matrix[0])):
-            upper = matrix[y][x]
-            lower = matrix[y + 1][x] if (y + 1) < len(matrix) else False
+    qr = QRCode(error_correction=2)
+    qr.add_data(url)
+    qr.make()
+    size = qr.modules_count + 8
 
-            # Map combinations to half-block characters
-            if upper and lower:
-                line += " "  # Both black
-            elif upper and not lower:
-                line += "▄"  # Top black, bottom white
-            elif not upper and lower:
-                line += "▀"  # Top white, bottom black
-            else:
-                line += "█"  # Both white
+    svg_data = _qr_svg(url).decode()
+    svg_data = svg_data.replace("mm", "")  # resvg rejects mm with explicit px
+    return svg_to_bytes(svg_string=svg_data, width=size, height=size)
 
-        # Use white on black to ensure contrast in most terminals
-        console.print(line, style="white on black", highlight=False)
+
+class _SegmentRenderable:
+    """Wrap a list of Segments so Console.print can render them."""
+
+    def __init__(self, segments: list[Segment]) -> None:
+        self.segments = segments
+
+    def __rich_console__(self, console: Console, options):
+        return iter(self.segments)
+
+
+def print_branded_qr(url: str, console: Console = Console()) -> None:
+    """Render QR code to terminal.
+
+    Uses resvg to rasterize the QR SVG, then prints each pixel as a
+    full-block cell so the QR stays compact and readable.
+    """
+    png_data = _qr_png(url)
+    img = Image.open(BytesIO(png_data)).convert("RGBA")
+    w, h = img.size
+
+    DARK_BG = Style(bgcolor="#000000")
+    LIGHT_BG = Style(bgcolor="#ffffff")
+
+    for y in range(h):
+        row: list[Segment] = []
+        for x in range(w):
+            r, g, b, _a = img.getpixel((x, y))  # type: ignore[assignment]
+            brightness = (r + g + b) / 3
+            style = LIGHT_BG if brightness > 128 else DARK_BG
+            row.append(Segment(" ", style))
+        row.append(Segment("\n"))
+        console.print(_SegmentRenderable(row))
+
+
+def export_qr_svg(url: str, path: str) -> None:
+    """Export QR code as SVG file."""
+    svg_data = _qr_svg(url)
+    with open(path, "wb") as f:
+        f.write(svg_data)

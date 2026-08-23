@@ -33,6 +33,10 @@ export default defineConfig({
 		format: 'es'
 	},
 
+	optimizeDeps: {
+		exclude: ['./src/lib/wasm/wasm_bindings.js'],
+	},
+
 	build: {
 		sourcemap: true,
 		// minify: 'terser',
@@ -62,7 +66,7 @@ export default defineConfig({
 						instances: [{ browser: 'chromium', headless: true }]
 					},
 
-					include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
+					include: ['src/**/*.svelte.{test,spec}.{js,ts}', 'src/**/*.client.{test,spec}.{js,ts}'],
 					exclude: ['src/lib/server/**']
 				}
 			},
@@ -74,7 +78,10 @@ export default defineConfig({
 					name: 'server',
 					environment: 'node',
 					include: ['src/**/*.{test,spec}.{js,ts}'],
-					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
+					exclude: [
+						'src/**/*.svelte.{test,spec}.{js,ts}',
+						'src/**/*.client.{test,spec}.{js,ts}',
+					]
 				}
 			}
 		]

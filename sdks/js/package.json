@@ -1,0 +1,29 @@
+{
+    "name": "chithi-sdk",
+    "version": "0.1.0",
+    "description": "Chithi SDK — encrypted file upload/download via WASM C ABI (browser only)",
+    "type": "module",
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "import": "./dist/index.js",
+            "types": "./dist/index.d.ts"
+        }
+    },
+    "files": [
+        "dist/"
+    ],
+    "scripts": {
+        "build": "node --experimental-strip-types  ./scripts/build.ts",
+        "typecheck": "tsc --noEmit"
+    },
+    "devDependencies": {
+        "@types/node": "^26.1.2",
+        "typescript": "^7"
+    },
+    "engines": {
+        "node": ">=18"
+    }
+}

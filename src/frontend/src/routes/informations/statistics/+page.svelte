@@ -1,185 +1,98 @@
 <script lang="ts">
-	import * as Card from '$lib/components/ui/card';
-	import { Button } from '$lib/components/ui/button';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import {
 		HardDrive,
 		Files,
-		CloudDownload,
-		Link as LinkIcon,
-		Share2,
-		Clock,
-		CalendarClock,
-		LoaderCircle,
+		CheckCircle,
+		XCircle,
+		Users,
 		CircleAlert,
 		TrendingUp,
 		ShieldCheck
 	} from '@lucide/svelte';
-	import { useInstanceStatisticsQuery } from '$lib/queries/instance';
+	import { Spinner } from '$lib/components/ui/spinner/index.js';
+	import { client } from '$lib/graphql/client.js';
+	import { InstanceStatisticsDocument } from '$lib/graphql/generated/graphql.js';
+	import type { InstanceStatisticsQuery } from '$lib/graphql/generated/graphql.js';
 	import { formatFileSize } from '$lib/functions/bytes';
+	import InfoCard from '../components/InfoCard.svelte';
 
-	const statsQuery = useInstanceStatisticsQuery();
+	let statsData = $state<InstanceStatisticsQuery['instanceStatistics'] | undefined>(undefined);
+	let statsLoading = $state(true);
+	let statsError = $state<Error | null>(null);
 
-	const stats = $derived(statsQuery.data);
+	const stats = $derived(statsData);
 
-	const formatDate = (timestamp: number) => {
-		return new Intl.DateTimeFormat('en-US', {
-			dateStyle: 'long',
-			timeStyle: 'short'
-		}).format(new Date(timestamp * 1000));
-	};
+	const statRows = $derived([
+		{ Icon: HardDrive, label: 'Total Storage', value: formatFileSize(stats?.totalStorageUsed ?? 0), cls: 'text-xl font-bold text-foreground' },
+		{ Icon: Files, label: 'Total Files', value: (stats?.totalFiles ?? 0).toLocaleString(), cls: 'text-xl font-bold text-foreground' },
+		{ Icon: CheckCircle, label: 'Active Files', value: (stats?.activeFiles ?? 0).toLocaleString(), cls: 'text-xl font-bold text-foreground' },
+		{ Icon: XCircle, label: 'Expired Files', value: (stats?.expiredFiles ?? 0).toLocaleString(), cls: 'text-xl font-bold text-foreground' },
+		{ Icon: Users, label: 'Total Users', value: (stats?.totalUsers ?? 0).toLocaleString(), cls: 'text-xl font-bold text-foreground' },
+	]);
+
+	$effect(() => {
+		const observable = client.watchQuery<InstanceStatisticsQuery>({ query: InstanceStatisticsDocument });
+		const subscription = observable.subscribe({
+			next(result) {
+				statsLoading = result.loading;
+				if (result.error) {
+					statsError = new Error(result.error.message);
+				} else if (result.data) {
+					statsData = result.data.instanceStatistics;
+					statsError = null;
+				}
+			},
+			error(err) {
+				statsLoading = false;
+				statsError = err instanceof Error ? err : new Error(String(err));
+			}
+		});
+		return () => subscription.unsubscribe();
+	});
 </script>
 
-{#if statsQuery.isLoading}
+{#if statsLoading}
 	<div class="flex h-64 items-center justify-center">
-		<LoaderCircle class="h-8 w-8 animate-spin text-muted-foreground" />
+		<Spinner class="size-8 text-muted-foreground" />
 	</div>
-{:else if statsQuery.isError}
+{:else if statsError !== null}
 	<div class="flex flex-col items-center justify-center gap-4 py-12 text-destructive">
 		<CircleAlert class="h-12 w-12" />
 		<p class="font-medium">Failed to load instance statistics</p>
-		<Button variant="outline" onclick={() => statsQuery.refetch()}>Retry</Button>
+		<Button variant="outline" onclick={() => client.query({ query: InstanceStatisticsDocument })}>Retry</Button>
 	</div>
 {:else if stats}
-	<Card.Root
-		class="relative overflow-hidden border border-border/60 bg-card/75 shadow-[0_12px_40px_rgb(0,0,0,0.06)] backdrop-blur-2xl"
+	<InfoCard
+		headerIcon={TrendingUp}
+		title="Instance Statistics"
+		description="Overview of storage and usage metrics."
+		watermarkIcon={TrendingUp}
 	>
-		<div
-			class="absolute top-0 left-0 h-px w-full bg-linear-to-r from-transparent via-primary/50 to-transparent"
-		></div>
-
-		<Card.Header class="space-y-2 pb-2">
-			<Card.Title class="flex items-center gap-2.5 text-xl font-semibold tracking-tight">
-				<div
-					class="flex h-8 w-8 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary"
-				>
-					<TrendingUp class="h-4 w-4" />
+		{#snippet body()}
+			{#each statRows as row (row.label)}
+				<div class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40">
+					<div class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
+						<row.Icon size={12} />
+						{row.label}
+					</div>
+					<p class={row.cls}>{row.value}</p>
 				</div>
-				Instance Statistics
-			</Card.Title>
-			<Card.Description>Overview of storage and usage metrics.</Card.Description>
-		</Card.Header>
+			{/each}
 
-		<Card.Content class="grid gap-4 sm:grid-cols-2">
-			<!-- Total Storage -->
-			<div
-				class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40"
-			>
-				<div
-					class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
-				>
-					<HardDrive size={12} />
-					Total Storage
-				</div>
-				<p class="text-xl font-bold text-foreground">{formatFileSize(stats.total_bytes)}</p>
-			</div>
-
-			<!-- Total Files -->
-			<div
-				class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40"
-			>
-				<div
-					class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
-				>
-					<Files size={12} />
-					Total Files
-				</div>
-				<p class="text-xl font-bold text-foreground">{stats.total_files.toLocaleString()}</p>
-			</div>
-
-			<!-- Total Downloads -->
-			<div
-				class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40"
-			>
-				<div
-					class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
-				>
-					<CloudDownload size={12} />
-					Total Downloads
-				</div>
-				<p class="text-xl font-bold text-foreground">{stats.total_downloads.toLocaleString()}</p>
-			</div>
-
-			<!-- Active URLs -->
-			<div
-				class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40"
-			>
-				<div
-					class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
-				>
-					<LinkIcon size={12} />
-					Active URLs
-				</div>
-				<p class="text-xl font-bold text-foreground">{stats.active_urls.toLocaleString()}</p>
-			</div>
-
-			<!-- Active Rooms -->
-			<div
-				class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40"
-			>
-				<div
-					class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
-				>
-					<Share2 size={12} />
-					Active Rooms
-				</div>
-				<p class="text-xl font-bold text-foreground">{stats.active_rooms.toLocaleString()}</p>
-			</div>
-
-			<!-- Expiring Soon -->
-			<div
-				class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40"
-			>
-				<div
-					class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
-				>
-					<Clock size={12} />
-					Expiring Soon
-				</div>
-				<p class="text-xl font-bold text-foreground">{stats.expiring_soon.toLocaleString()}</p>
-				<p class="text-[10px] text-muted-foreground">Within next 24 hours</p>
-			</div>
-
-			<!-- Latest Expiry -->
-			<div
-				class="flex flex-col gap-2 rounded-xl border border-border/60 bg-background/60 p-4 transition-colors hover:bg-muted/40"
-			>
-				<div
-					class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
-				>
-					<CalendarClock size={12} />
-					Latest Expiry
-				</div>
-				<p class="text-sm font-semibold text-foreground">
-					{stats.latest_expiry ? formatDate(stats.latest_expiry) : 'N/A'}
-				</p>
-			</div>
-
-			<!-- Summary Card -->
-			<div
-				class="group relative col-span-full flex flex-col gap-1 overflow-hidden rounded-xl border border-border/60 bg-background/60 p-4"
-			>
+			<div class="group relative col-span-full flex flex-col gap-1 overflow-hidden rounded-xl border border-border/60 bg-background/60 p-4">
 				<div class="flex items-center justify-between gap-3">
-					<div
-						class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase"
-					>
+					<div class="flex items-center gap-2 text-[10px] font-semibold tracking-[0.2em] text-muted-foreground uppercase">
 						<ShieldCheck class="h-3 w-3" />
 						Data Integrity
 					</div>
 				</div>
 				<div class="mt-2 text-sm text-muted-foreground">
-					This instance is currently managing <span class="font-semibold text-foreground"
-						>{stats.active_urls}</span
-					>
-					active links with a combined size of
-					<span class="font-semibold text-foreground">{formatFileSize(stats.total_bytes)}</span>.
-				</div>
-
-				<div
-					class="pointer-events-none absolute -right-6 -bottom-6 opacity-[0.04] transition-opacity group-hover:opacity-[0.07]"
-				>
-					<TrendingUp class="h-24 w-24" />
+					This instance is currently managing <span class="font-semibold text-foreground">{stats?.activeFiles ?? 0}</span>
+					active files with a combined size of
+					<span class="font-semibold text-foreground">{formatFileSize(stats?.totalStorageUsed ?? 0)}</span>.
 				</div>
 			</div>
-		</Card.Content>
-	</Card.Root>
+		{/snippet}
+	</InfoCard>
 {/if}

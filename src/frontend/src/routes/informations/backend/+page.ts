@@ -1,45 +1,22 @@
-import { prefetchInstanceInformation } from '$lib/queries/instance';
-import { definePageMetaTags } from 'svelte-meta-tags';
+import { buildInfoPage } from '../page-loader';
 import type { PageLoad } from './$types';
+import { client } from '$lib/graphql/client.js';
+import { InstanceInformationDocument } from '$lib/graphql/generated/graphql.js';
 
 export const load: PageLoad = async ({ fetch, parent, url }) => {
-	const ogUrl = new URL('/og/info', url.origin);
-	ogUrl.searchParams.set('label', 'BACKEND INFRASTRUCTURE');
-	ogUrl.searchParams.set('title', 'Chithi Backend');
-	ogUrl.searchParams.set(
-		'description',
-		'Runtime environment, service versions, and architectural metadata.'
-	);
-
-	const pageTags = definePageMetaTags({
-		title: 'Backend Information',
-		description: 'Detailed information about the Chithi backend instance.',
-		openGraph: {
-			title: 'Backend Information',
-			description: 'Detailed information about the Chithi backend instance.',
-			images: [
-				{
-					url: ogUrl.toString(),
-					width: 1200,
-					height: 630,
-					alt: 'Backend Information'
-				}
-			]
-		}
-	});
-
-	const { queryClient } = await parent();
-	await prefetchInstanceInformation({
-		queryClient: queryClient,
-		fetch
-	});
-
-	return {
-		...pageTags,
-		header: {
+	const { prefetch, response } = buildInfoPage(
+		url,
+		{
 			subtitle: 'BACKEND INFRASTRUCTURE',
 			title: 'Chithi Backend',
-			description: 'Runtime environment, service versions, and architectural metadata.'
+			description: 'Runtime environment, service versions, and architectural metadata.',
+			ogLabel: 'BACKEND INFRASTRUCTURE'
+		},
+		async () => {
+			await client.query({ query: InstanceInformationDocument });
 		}
-	};
+	);
+
+	await prefetch?.();
+	return response;
 };

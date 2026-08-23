@@ -1,103 +1,54 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import { Plus } from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
-	import { useConfigQuery } from '#queries/config';
+	import { dropFiles } from '#functions/file-tree';
+	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { ConfigDocument, type ConfigQuery } from '$lib/graphql/generated/graphql.js';
 
-	interface Props {
-		onFilesSelected: (files: File[]) => void;
+	let {
+		onFilesSelected,
+		isDraggingOverZone,
+		onZoneDragEnter,
+		onZoneDragLeave
+	}: {
+		onFilesSelected: (files: File[], folderName?: string) => void;
 		isDraggingOverZone: boolean;
 		onZoneDragEnter: (e: DragEvent) => void;
 		onZoneDragLeave: (e: DragEvent) => void;
-	}
+	} = $props();
 
-	let { onFilesSelected, isDraggingOverZone, onZoneDragEnter, onZoneDragLeave }: Props = $props();
-
-	const { config: configData } = useConfigQuery();
-
-	let fileInputInitial = $state<HTMLInputElement>();
-
-	const traverseFileTree = async (item: any, path = ''): Promise<File[]> => {
-		try {
-			if (item.isFile) {
-				return new Promise((resolve) => {
-					item.file(
-						(file: File) => {
-							if (path) {
-								(file as any).relativePath = path + file.name;
-							}
-							resolve([file]);
-						},
-						(err: Error) => {
-							console.error('Error reading file:', err);
-							resolve([]);
-						}
-					);
-				});
-			} else if (item.isDirectory) {
-				const dirReader = item.createReader();
-				const entries: any[] = [];
-
-				const readEntries = async () => {
-					try {
-						const result = await new Promise<any[]>((resolve, reject) => {
-							dirReader.readEntries(resolve, reject);
-						});
-
-						if (result.length > 0) {
-							entries.push(...result);
-							await readEntries();
-						}
-					} catch (err) {
-						console.error('Error reading directory:', err);
-					}
-				};
-
-				await readEntries();
-
-				const fileArrays = await Promise.all(
-					entries.map((entry) => traverseFileTree(entry, path + item.name + '/'))
-				);
-				return fileArrays.flat();
-			}
-		} catch (err) {
-			console.error('Error traversing item:', err);
-		}
-		return [];
-	};
+	const configData = createQueryStore<ConfigQuery>(ConfigDocument);
+	let fileInput = $state<HTMLInputElement>();
+	let folderInput = $state<HTMLInputElement>();
 
 	const handleZoneDrop = async (e: DragEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
-
-		const items = e.dataTransfer?.items;
-		if (items) {
-			const promises: Promise<File[]>[] = [];
-			for (let i = 0; i < items.length; i++) {
-				const item = items[i];
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
-				if (entry) {
-					promises.push(traverseFileTree(entry));
-				} else if (item.kind === 'file') {
-					const file = item.getAsFile();
-					if (file) promises.push(Promise.resolve([file]));
-				}
-			}
-			const fileArrays = await Promise.all(promises);
-			const newFiles = fileArrays.flat();
-			if (newFiles.length > 0) {
-				onFilesSelected(newFiles);
-			}
-		} else if (e.dataTransfer?.files) {
+		if (e.dataTransfer?.files?.length) {
 			onFilesSelected(Array.from(e.dataTransfer.files));
+			return;
+		}
+		if (e.dataTransfer?.items) {
+			const { files, folderName } = await dropFiles(e.dataTransfer.items);
+			if (files.length > 0) onFilesSelected(files, folderName);
 		}
 	};
 
-	const handleFileSelect = (e: Event) => {
+	const selectFiles = (e: Event) => {
+		const target = e.target as HTMLInputElement;
+		if (target.files) onFilesSelected(Array.from(target.files));
+		target.value = '';
+	};
+
+	const selectFolder = (e: Event) => {
 		const target = e.target as HTMLInputElement;
 		if (target.files) {
-			onFilesSelected(Array.from(target.files));
+			const fileArray = Array.from(target.files);
+			const firstFile = fileArray[0] as File & { webkitRelativePath?: string };
+			const relativePath = firstFile.webkitRelativePath;
+			const folderName = relativePath ? relativePath.split('/')[0] : undefined;
+			onFilesSelected(fileArray, folderName);
 		}
 		target.value = '';
 	};
@@ -109,11 +60,11 @@
 		isDraggingOverZone && 'scale-[1.02] shadow-xl'
 	]}
 	ondrop={handleZoneDrop}
-	onclick={() => fileInputInitial?.click()}
+	onclick={() => fileInput?.click()}
 	onkeydown={(e) => {
 		if (e.key === 'Enter' || e.key === ' ') {
 			e.preventDefault();
-			fileInputInitial?.click();
+			fileInput?.click();
 		}
 	}}
 	ondragenter={onZoneDragEnter}
@@ -122,9 +73,7 @@
 	role="button"
 	aria-label="File drop area - click or drop files to upload"
 >
-	<!-- Main content container -->
 	<div class="relative z-10 flex flex-col items-center justify-center p-12">
-		<!-- Plus icon in circle -->
 		<div
 			class={[
 				'mb-6 flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary transition-all duration-200',
@@ -133,8 +82,6 @@
 		>
 			<Plus class="h-8 w-8 text-primary transition-transform duration-200" />
 		</div>
-
-		<!-- Text content -->
 		<h2
 			class={[
 				'mb-2 text-xl font-medium transition-colors duration-200',
@@ -149,38 +96,48 @@
 				isDraggingOverZone ? 'text-primary/80' : 'text-muted-foreground'
 			]}
 		>
-			or click to send up to {formatFileSize(configData.data?.max_file_size_limit ?? 0)} of files with
+			or click to send up to {formatFileSize(configData.data?.config?.maxFileSizeLimit ?? 0)} of files with
 			end-to-end encryption
 		</p>
-
-		<!-- Button -->
-		<Button
-			variant="default"
-			size="lg"
-			class={[
-				'cursor-pointer px-8 py-6 text-lg transition-all duration-200 md:px-6 md:py-4 md:text-base',
-				isDraggingOverZone && 'scale-105 shadow-lg'
-			]}
-			onclick={(e) => {
-				e.stopPropagation();
-				fileInputInitial?.click();
-			}}
-		>
-			Select files to upload
-		</Button>
-
-		<!-- Hidden file input -->
+		<div class="flex flex-col gap-3">
+			<Button
+				size="lg"
+				class={[
+					'px-8 py-6 text-lg transition-all duration-200 md:px-6 md:py-4 md:text-base',
+					isDraggingOverZone && 'scale-105 shadow-lg'
+				]}
+				onclick={(e) => {
+					e.stopPropagation();
+					fileInput?.click();
+				}}>Select files to upload</Button
+			>
+			<Button
+				variant="outline"
+				size="lg"
+				class="px-8 py-6 text-lg transition-all duration-200 md:px-6 md:py-4 md:text-base"
+				onclick={(e) => {
+					e.stopPropagation();
+					folderInput?.click();
+				}}>Select folder to upload</Button
+			>
+		</div>
 		<input
-			bind:this={fileInputInitial}
+			bind:this={fileInput}
 			type="file"
 			id="file-input-initial"
 			class="hidden"
 			multiple
-			onchange={handleFileSelect}
+			onchange={selectFiles}
+		/>
+		<input
+			bind:this={folderInput}
+			type="file"
+			id="file-input-folder"
+			class="hidden"
+			{...{ webkitdirectory: '', directory: '' } as Partial<Record<string, string>>}
+			onchange={selectFolder}
 		/>
 	</div>
-
-	<!-- Border elements -->
 	<svg class="pointer-events-none absolute inset-0 h-full w-full rounded-lg">
 		<rect
 			width="100%"

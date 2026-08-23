@@ -1,33 +1,34 @@
 <script lang="ts">
-	import { Card, CardContent } from '$lib/components/ui/card';
-	import { useConfigQuery } from '#queries/config';
-	import { Skeleton } from '$lib/components/ui/skeleton';
-	import { ScrollArea } from '$lib/components/ui/scroll-area';
+	import * as Card from '$lib/components/ui/card/index.js';
+	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { ConfigDocument, type ConfigQuery } from '$lib/graphql/generated/graphql.js';
+	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
+	import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
 	import { toast } from 'svelte-sonner';
 	import { dev } from '$app/environment';
 	import { markdown_to_html } from '$lib/markdown/markdown';
-	import { Button } from '$lib/components/ui/button';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import { fly, fade } from 'svelte/transition';
-	import { onMount } from 'svelte';
 	import { CloudOff } from '@lucide/svelte';
 	import { UploadStage, isWhichUploadStage } from './enums';
+	import { clipboardFiles, hasFileItems } from '#functions/file-tree';
+	import * as Accordion from '$lib/components/ui/accordion/index.js';
 
 	// Stages
 	const { default: Stage1 } = await import('./stage_1.svelte');
 	const { default: Stage2 } = await import('./stage_2.svelte');
 	const { default: Stage3 } = await import('./stage_3.svelte');
-
-	// Modals
 	const { default: UploadShowcase } = await import('./upload_showcase.svelte');
 	const { default: RecentUpload } = await import('./recent_upload.svelte');
 
-	const { config: configData } = useConfigQuery();
+	const configData = createQueryStore<ConfigQuery>(ConfigDocument);
 	let stage = $state<UploadStage>(UploadStage.Stage_1);
 	let dragActive = $state(false);
 	let dragOverCard = $state(false);
 	let dragOverZone = $state(false);
 	let dragCounter = $state(0);
 	let files = $state<File[]>([]);
+	let initialFolderName = $state<string | undefined>(undefined);
 	let debugLoading = $state(false);
 	let uploadResult = $state<{
 		finalLink: string;
@@ -38,7 +39,7 @@
 	// Prevent popstate from overriding initial mount state
 	let hasMounted = $state(false);
 
-	const detailsMarkdown = $derived(configData.data?.site_description ?? '');
+	const detailsMarkdown = $derived(configData.data?.config?.siteDescription ?? '');
 	let detailsHtml = $state('');
 
 	$effect(() => {
@@ -118,84 +119,17 @@
 		dragOverZone = false;
 	};
 
-	const traverseFileTree = async (item: any, path = ''): Promise<File[]> => {
-		try {
-			if (item.isFile) {
-				return new Promise((resolve) => {
-					item.file(
-						(file: File) => {
-							if (path) {
-								(file as any).relativePath = path + file.name;
-							}
-							resolve([file]);
-						},
-						(err: Error) => {
-							console.error('Error reading file:', err);
-							resolve([]);
-						}
-					);
-				});
-			} else if (item.isDirectory) {
-				const dirReader = item.createReader();
-				const entries: any[] = [];
-				const readEntries = async () => {
-					try {
-						const result = await new Promise<any[]>((resolve, reject) => {
-							dirReader.readEntries(resolve, reject);
-						});
-						if (result.length > 0) {
-							entries.push(...result);
-							await readEntries();
-						}
-					} catch (err) {
-						console.error('Error reading directory:', err);
-					}
-				};
-				await readEntries();
-				const fileArrays = await Promise.all(
-					entries.map((entry) => traverseFileTree(entry, path + item.name + '/'))
-				);
-				return fileArrays.flat();
-			}
-		} catch (err) {
-			console.error('Error traversing item:', err);
-		}
-		return [];
-	};
-
 	const handlePaste = async (e: ClipboardEvent) => {
 		if (stage === UploadStage.Stage_3) return;
 		const items = e.clipboardData?.items;
-		if (!items) return;
-		let hasFiles = false;
-		for (let i = 0; i < items.length; i++) {
-			if (items[i].kind === 'file') {
-				hasFiles = true;
-				break;
-			}
-		}
-		if (!hasFiles) return;
+		if (!items || !hasFileItems(items)) return;
 		e.preventDefault();
-		const promises: Array<Promise<Array<File>>> = new Array();
-		for (let i = 0; i < items.length; i++) {
-			const item = items[i];
-			if (item.kind !== 'file') continue;
-			const entry = (item as any).webkitGetAsEntry ? (item as any).webkitGetAsEntry() : null;
-			if (entry) {
-				promises.push(traverseFileTree(entry));
-			} else {
-				const file = item.getAsFile();
-				if (file) promises.push(Promise.resolve([file]));
-			}
-		}
-		const fileArrays = await Promise.all(promises);
-		const newFiles = fileArrays.flat();
-		if (newFiles.length > 0) {
-			onFilesSelected(newFiles);
-		}
+		const newFiles = await clipboardFiles(items);
+		if (newFiles.length > 0) onFilesSelected(newFiles);
 	};
 
-	const onFilesSelected = (newFiles: File[]) => {
+	const onFilesSelected = (newFiles: File[], folderName?: string) => {
+		if (folderName) initialFolderName = folderName;
 		files = [...files, ...newFiles];
 		dragCounter = 0;
 		dragActive = false;
@@ -232,19 +166,16 @@
 		}
 	};
 
-	const onReset = () => {
-		resetState('push');
+	const onBack = () => {
+		stage = UploadStage.Stage_1;
 	};
 
 	const handlePopState = (e: PopStateEvent) => {
-		// Ignore popstate until after initial microtask flush completes
 		if (!hasMounted) return;
 		stage = isWhichUploadStage(e.state?.stage) ? e.state.stage : UploadStage.Stage_1;
 	};
 
-	onMount(() => {
-		// Queue reset & mount guard in the microtask queue
-		// Runs immediately after current call stack, before next macrotask/repaint
+	$effect.pre(() => {
 		queueMicrotask(() => {
 			resetState('replace');
 			hasMounted = true;
@@ -265,20 +196,36 @@
 
 {#snippet encryptionInfo()}
 	<div class="flex h-full w-full flex-col justify-center p-4 lg:p-8">
-		<h2 class="mb-4 text-2xl font-bold md:mb-2 md:text-xl lg:mb-6 lg:text-3xl">
-			End-to-End Encryption
-		</h2>
-		<p class="mb-6 text-muted-foreground md:mb-4 md:text-sm lg:mb-8 lg:text-lg lg:leading-relaxed">
-			Your files are encrypted in your browser before they are ever uploaded. This means only you
-			and the people you share the link with can access them. We cannot see your files.
-		</p>
-		<div class="rounded-xl border border-border bg-muted/50 p-4 md:p-3 lg:p-5">
-			<h3 class="mb-2 font-semibold">How it works</h3>
-			<p class="text-sm text-muted-foreground">
-				A unique key is generated for each upload. This key is used to encrypt your files and is
-				included in the share link after the '#' symbol. The server never receives this key.
-			</p>
-		</div>
+		<h2 class="mb-4 text-2xl font-bold md:mb-2 md:text-xl lg:mb-6 lg:text-3xl">Security</h2>
+		<Accordion.Root type="single" class="space-y-3">
+			<Accordion.Item value="encryption">
+				<Accordion.Trigger>End-to-End Encryption</Accordion.Trigger>
+				<Accordion.Content>
+					<p class="text-sm text-muted-foreground">
+						Your files are encrypted in your browser before they are ever uploaded. This means only
+						you and the people you share the link with can access them. We cannot see your files.
+					</p>
+				</Accordion.Content>
+			</Accordion.Item>
+			<Accordion.Item value="how-it-works">
+				<Accordion.Trigger>How it works</Accordion.Trigger>
+				<Accordion.Content>
+					<p class="text-sm text-muted-foreground">
+						A unique key is generated for each upload. This key is used to encrypt your files and is
+						included in the share link after the '#' symbol. The server never receives this key.
+					</p>
+				</Accordion.Content>
+			</Accordion.Item>
+			<Accordion.Item value="key-storage">
+				<Accordion.Trigger>Key storage</Accordion.Trigger>
+				<Accordion.Content>
+					<p class="text-sm text-muted-foreground">
+						The encryption key lives only in your browser and the share URL fragment. Losing the
+						link means losing access — store it securely.
+					</p>
+				</Accordion.Content>
+			</Accordion.Item>
+		</Accordion.Root>
 	</div>
 {/snippet}
 
@@ -314,23 +261,18 @@
 			>
 				<Skeleton class="mb-4 h-8 w-1/2" />
 				<div class="space-y-2">
-					<Skeleton class="h-4 w-full" />
-					<Skeleton class="h-4 w-full" />
-					<Skeleton class="h-4 w-2/4" />
-					<br />
-					<Skeleton class="h-4 w-full" />
-					<Skeleton class="h-4 w-2/3" />
-
-					<br />
-					<Skeleton class="h-4 w-full" />
-					<Skeleton class="h-4 w-1/3" />
+					<Skeleton class="h-4 w-full" /><Skeleton class="h-4 w-full" /><Skeleton
+						class="h-4 w-2/4"
+					/><br />
+					<Skeleton class="h-4 w-full" /><Skeleton class="h-4 w-2/3" /><br />
+					<Skeleton class="h-4 w-full" /><Skeleton class="h-4 w-1/3" />
 				</div>
 			</div>
 		</ScrollArea>
 	</div>
 {/snippet}
 
-<Card
+<Card.Root
 	class={[
 		'relative z-10 mx-auto w-full max-w-5xl border-border bg-card transition-all duration-200',
 		dragActive && 'shadow-[0_0_20px_-10px_var(--primary)]',
@@ -350,19 +292,13 @@
 	ondragenter={handleCardDragEnter}
 	ondragleave={handleCardDragLeave}
 >
-	<div class="absolute top-4 right-4 z-20">
-		<RecentUpload />
-	</div>
-	<CardContent class="p-6">
+	<div class="absolute top-4 right-4 z-20"><RecentUpload /></div>
+	<Card.Content class="p-6">
 		<div class="grid min-h-150 grid-cols-1 gap-8 lg:grid-cols-2">
-			{#if configData.isLoading || (dev && debugLoading)}
-				<div class="col-span-1">
-					{@render configSkeleton()}
-				</div>
-				<div class="col-span-1">
-					{@render rightColumnSkeleton()}
-				</div>
-			{:else if configData.data?.allow_uploads === false}
+			{#if configData.fetching || (dev && debugLoading)}
+				<div class="col-span-1">{@render configSkeleton()}</div>
+				<div class="col-span-1">{@render rightColumnSkeleton()}</div>
+			{:else if configData.data?.config?.allowUploads === false}
 				<div
 					class="col-span-1 flex min-h-100 flex-col items-center justify-center p-4 text-center lg:col-span-2 lg:p-8"
 				>
@@ -401,28 +337,26 @@
 						bind:files
 						onFilesUpdated={(newFiles) => (files = newFiles)}
 						{onUploadComplete}
-						onBack={() => (stage = UploadStage.Stage_1)}
+						{onBack}
 						isDraggingOverZone={dragOverZone}
 						onZoneDragEnter={handleZoneDragEnter}
 						onZoneDragLeave={handleZoneDragLeave}
 					/>
 				</div>
-				<div in:fade>
-					{@render encryptionInfo()}
-				</div>
+				<div in:fade>{@render encryptionInfo()}</div>
 			{:else if stage === UploadStage.Stage_3 && uploadResult}
 				<div class="col-span-1 lg:col-span-2" in:fly={{ y: 20, duration: 400 }}>
 					<Stage3
 						finalLink={uploadResult.finalLink}
 						viewOnceLink={uploadResult.viewOnceLink}
 						isViewOnce={uploadResult.isViewOnce}
-						{onReset}
+						onReset={() => resetState('push')}
 					/>
 				</div>
 			{/if}
 		</div>
-	</CardContent>
-</Card>
+	</Card.Content>
+</Card.Root>
 
 <UploadShowcase
 	localUploadSize={stage === UploadStage.Stage_2 ? files.reduce((s, f) => s + f.size, 0) : 0}

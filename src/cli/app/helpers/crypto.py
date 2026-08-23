@@ -1,167 +1,114 @@
-import base64
-import hashlib
-import os
-import struct
-from pathlib import Path
-from typing import Tuple
+from app.chithi_core_bridge import chithi_core
+from app.chithi_exceptions import ChithiError, CryptoError, ValidationError
+from app.chithi_types import EncryptedBundle
 
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
-from tqdm import tqdm
-
-from app.constants.crypto import (
-    AES_KEY_STR,
-    CHUNK_SIZE,
-    ENC_CHUNK_SIZE,
-    HKDF_IV_STR,
-    HKDF_SALT_STR,
-)
+__all__ = [
+    "encrypt_files",
+    "decrypt_bundle",
+    "encrypt_data",
+    "decrypt_data",
+    "ChithiError",
+    "CryptoError",
+    "ValidationError",
+    "EncryptedBundle",
+]
 
 
-def generate_ikm() -> bytes:
-    """Generate a random 32-byte IKM."""
-    return os.urandom(32)
+def encrypt_files(files: list[tuple[str, bytes]], *, password: str) -> EncryptedBundle:
+    """Compress and encrypt files into an encrypted bundle.
+
+    Pipeline:
+    1. Files are compressed into a 7z archive (LZMA2)
+    2. Archive is split into 32KB chunks
+    3. Each chunk is encrypted with AES-256-GCM (parallel across all cores)
+    4. Bundle is signed with Ed25519
+
+    Args:
+        files: List of (filename, data) tuples.
+        password: Encryption password.
+
+    Returns:
+        EncryptedBundle containing the encrypted data and crypto metadata.
+    """
+    if not password:
+        raise ValidationError("Password must not be empty")
+    if not files:
+        raise ValidationError("At least one file is required")
+
+    try:
+        bundle_bytes = chithi_core.upload(files, password)
+    except ValueError as e:
+        raise ChithiError(str(e)) from e
+
+    return EncryptedBundle(bytes(bundle_bytes))
 
 
-def ikm_to_base64url(ikm: bytes) -> str:
-    """Encode IKM as URL-safe base64 without padding."""
-    return base64.urlsafe_b64encode(ikm).rstrip(b"=").decode("ascii")
+def decrypt_bundle(
+    bundle: EncryptedBundle | bytes, *, password: str
+) -> list[tuple[str, bytes]]:
+    """Decrypt and decompress an encrypted bundle.
+
+    Pipeline:
+    1. Verify Ed25519 signature
+    2. Derive encryption key from password (Argon2id + HKDF)
+    3. Decrypt chunks with AES-256-GCM (parallel across all cores)
+    4. Decompress 7z archive (LZMA2)
+
+    Args:
+        bundle: Encrypted bundle from encrypt_files() or raw bytes.
+        password: The same password used during encryption.
+
+    Returns:
+        List of (filename, data) tuples matching the original files.
+    """
+    if not password:
+        raise ValidationError("Password must not be empty")
+
+    raw_bytes: bytes = bundle.raw if isinstance(bundle, EncryptedBundle) else bytes(bundle)
+
+    try:
+        raw_files = chithi_core.download(raw_bytes, password)
+    except ValueError as e:
+        raise CryptoError(f"Decryption failed: {e}") from e
+
+    return [(name, bytes(data)) for name, data in raw_files]
 
 
-def base64url_to_ikm(s: str) -> bytes:
-    """Decode URL-safe base64 into IKM bytes."""
-    s += "=" * (-len(s) % 4)
-    return base64.urlsafe_b64decode(s)
+def encrypt_data(data: bytes, *, password: str) -> bytes:
+    """Encrypt raw data without compression.
+
+    Args:
+        data: Raw bytes to encrypt.
+        password: Encryption password.
+
+    Returns:
+        JSON-serialized encrypted bundle as bytes.
+    """
+    if not data:
+        raise ValidationError("Data must not be empty")
+    if not password:
+        raise ValidationError("Password must not be empty")
+
+    try:
+        return bytes(chithi_core.upload_data(data, password))
+    except ValueError as e:
+        raise ChithiError(str(e)) from e
 
 
-def encrypt(src: Path, dst: Path, ikm: bytes, password: str | None = None) -> Path:
-    """Encrypt file using AES-256-GCM streaming."""
-    aes_key, base_iv = _derive_secrets(ikm, password)
-    aes = AESGCM(aes_key)
+def decrypt_data(bundle_json: bytes, *, password: str) -> bytes:
+    """Decrypt raw data (no decompression).
 
-    file_size = src.stat().st_size
-    chunk_idx = 0
+    Args:
+        bundle_json: JSON-serialized bundle from encrypt_data().
+        password: The same password used during encrypt_data().
 
-    with (
-        open(src, "rb") as fin,
-        open(dst, "wb") as fout,
-        tqdm(
-            total=file_size,
-            unit="B",
-            unit_scale=True,
-            desc="Encrypting",
-            leave=False,
-        ) as pbar,
-    ):
-        while True:
-            block = fin.read(CHUNK_SIZE)
-            if not block:
-                break
+    Returns:
+        Decrypted raw bytes.
+    """
+    if not password:
+        raise ValidationError("Password must not be empty")
 
-            iv = _get_chunk_iv(base_iv, chunk_idx)
-            ct = aes.encrypt(iv, block, None)
-            fout.write(ct)
-
-            chunk_idx += 1
-            pbar.update(len(block))
-
-    return dst
-
-
-def decrypt(src: Path, dst: Path, ikm: bytes, password: str | None = None) -> Path:
-    """Decrypt file using AES-256-GCM streaming."""
-    aes_key, base_iv = _derive_secrets(ikm, password)
-    aes = AESGCM(aes_key)
-
-    file_size = src.stat().st_size
-    chunk_idx = 0
-
-    with (
-        open(src, "rb") as fin,
-        open(dst, "wb") as fout,
-        tqdm(
-            total=file_size,
-            unit="B",
-            unit_scale=True,
-            desc="Decrypting",
-            leave=False,
-        ) as pbar,
-    ):
-        while True:
-            ct = fin.read(ENC_CHUNK_SIZE)
-            if not ct:
-                break
-
-            iv = _get_chunk_iv(base_iv, chunk_idx)
-            pt = aes.decrypt(iv, ct, None)
-            fout.write(pt)
-
-            chunk_idx += 1
-            pbar.update(len(ct))
-
-    return dst
-
-
-def _derive_secrets(ikm: bytes, password: str | None) -> Tuple[bytes, bytes]:
-    """Derive AES key and IV from IKM + Password."""
-    # Salt
-    derived_salt = hashlib.sha256(ikm + HKDF_SALT_STR).digest()
-
-    # Mix Password
-    final_ikm = ikm
-    if password:
-        salt_bytes = derived_salt[:16]
-        pb = _argon2(
-            password.encode(),
-            salt_bytes,
-            iterations=32,
-            memory=16_384,
-        )
-        # XOR
-        length = max(len(ikm), len(pb))
-        a = ikm.ljust(length, b"\x00")
-        b = pb.ljust(length, b"\x00")
-        final_ikm = bytes(x ^ y for x, y in zip(a, b))
-
-    # HKDF Salt & Base IV
-    hkdf_salt = hashlib.sha256(final_ikm + AES_KEY_STR).digest()[:16]
-    base_iv = hashlib.sha256(final_ikm + HKDF_IV_STR).digest()[:12]
-
-    #  AES Key
-    aes_key = _argon2(
-        final_ikm,
-        hkdf_salt,
-        iterations=8,
-        memory=64 * 1024,
-    )
-
-    return aes_key, base_iv
-
-
-def _argon2(password: bytes, salt: bytes, iterations: int, memory: int) -> bytes:
-    """Run Argon2id with provided parameters."""
-    kdf = Argon2id(
-        salt=salt,
-        length=32,
-        iterations=iterations,
-        lanes=1,
-        memory_cost=memory,
-    )
-    return kdf.derive(password)
-
-
-def _get_chunk_iv(base_iv: bytes, index: int) -> bytes:
-    """Derive a per-chunk IV by XORing the index into the base IV."""
-    iv = bytearray(base_iv)
-    existing = struct.unpack_from("!I", iv, 8)[0]
-    struct.pack_into("!I", iv, 8, existing ^ index)
-    return bytes(iv)
-
-
-def xor_nonce(base: bytes, counter: int) -> bytes:
-    """XOR *counter* into the last 4 bytes of *base* to derive a per-block nonce."""
-    b = bytearray(base)
-    c_bytes = struct.pack("!I", counter)
-    for i in range(4):
-        b[-(4 - i)] ^= c_bytes[i]
-    return bytes(b)
+    try:
+        return bytes(chithi_core.download_data(bundle_json, password))
+    except ValueError as e:
+        raise CryptoError(f"Decryption failed: {e}") from e

@@ -1,52 +1,53 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
-	import { Input } from '$lib/components/ui/input';
-	import { Label } from '$lib/components/ui/label';
-	import * as Card from '$lib/components/ui/card';
-	import * as Select from '$lib/components/ui/select';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import * as Card from '$lib/components/ui/card/index.js';
+	import * as Field from '$lib/components/ui/field/index.js';
+	import * as Select from '$lib/components/ui/select/index.js';
 	import type { Props } from './types';
-	import { Settings, Check, LoaderCircle } from '@lucide/svelte';
-	import { useConfigQuery } from '#queries/config';
+	import { Settings, Check } from '@lucide/svelte';
+	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';
+	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { ConfigDocument, UpdateConfigDocument } from '$lib/graphql/generated/graphql.js';
+	import type { ConfigQuery, UpdateConfigMutation } from '$lib/graphql/generated/graphql.js';
+	import { client } from '$lib/graphql/client.js';
 
 	let { onNext }: Props = $props();
-
-	const { config: configQuery, update_config } = useConfigQuery();
-
-	let configData = $derived(configQuery.data);
+	const configQuery = createQueryStore<ConfigQuery>(ConfigDocument);
+	let configData = $derived(configQuery.data?.config);
 	let isLoading = $state(false);
-
-	// Temp state for form
 	let storageLimitVal = $state(0);
 	let storageLimitUnit = $state<ByteUnit>('GB');
 	let maxFileVal = $state(0);
 	let maxFileUnit = $state<ByteUnit>('MB');
 	let description = $state('');
 
-	// Initialize form when data loads
 	$effect(() => {
 		if (configData) {
-			const s = formatBytes(configData.total_storage_limit);
+			const s = formatBytes(configData.totalStorageLimit);
 			storageLimitVal = s.val;
 			storageLimitUnit = s.unit;
-
-			const f = formatBytes(configData.max_file_size_limit);
+			const f = formatBytes(configData.maxFileSizeLimit);
 			maxFileVal = f.val;
 			maxFileUnit = f.unit;
-
-			description = configData.site_description || '';
+			description = configData.siteDescription || '';
 		}
 	});
 
 	async function handleSave() {
 		isLoading = true;
 		try {
-			await update_config({
-				total_storage_limit: bytesToNumber(storageLimitVal, storageLimitUnit),
-				max_file_size_limit: bytesToNumber(maxFileVal, maxFileUnit),
-				site_description: description
+			const result = await client.mutate<UpdateConfigMutation>({
+				mutation: UpdateConfigDocument,
+				variables: {
+					totalStorageLimit: bytesToNumber(storageLimitVal, storageLimitUnit),
+					maxFileSizeLimit: bytesToNumber(maxFileVal, maxFileUnit),
+					siteDescription: description
+				}
 			});
+			if (result.error) throw new Error(result.error.message);
 			toast.success('Configuration saved');
 			onNext();
 		} catch (error: any) {
@@ -58,121 +59,102 @@
 </script>
 
 <Card.Root
-	class="relative overflow-hidden border-slate-200/60 bg-white/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl dark:border-zinc-800/50 dark:bg-zinc-900/50"
+	class="relative overflow-hidden border-border/60 bg-card/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl"
 >
 	<div
-		class="absolute top-0 left-0 h-px w-full bg-linear-to-r from-transparent via-primary/40 to-transparent"
+		class="absolute left-0 top-0 h-px w-full bg-linear-to-r from-transparent via-primary/40 to-transparent"
 	></div>
-
 	<Card.Header class="space-y-3 pt-10 pb-6 text-center">
 		<div
-			class="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl border border-indigo-100 bg-indigo-50 text-indigo-600 shadow-sm ring-1 ring-indigo-200 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-400 dark:ring-indigo-500/20"
+			class="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20"
 		>
 			<Settings class="size-8" />
 		</div>
 		<div class="space-y-1">
-			<Card.Title class="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white"
+			<Card.Title class="text-2xl font-semibold tracking-tight text-foreground"
 				>Quick Configuration</Card.Title
+			><Card.Description class="text-sm text-muted-foreground"
+				>Set up your instance basics. You can change these later.</Card.Description
 			>
-			<Card.Description class="text-sm text-slate-500 dark:text-zinc-400">
-				Set up your instance basics. You can change these later.
-			</Card.Description>
 		</div>
 	</Card.Header>
-
 	<Card.Content>
-		{#if configQuery.isLoading}
+		{#if configQuery.fetching}
 			<div class="flex h-60 items-center justify-center">
-				<LoaderCircle class="size-8 animate-spin text-primary" />
+				<Spinner class="size-8 text-primary" />
 			</div>
 		{:else}
 			<div class="grid gap-6">
-				<!-- Storage Limit -->
-				<div class="grid gap-3">
-					<Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400"
-						>Total Storage Limit</Label
+				<Field.Field class="grid gap-3">
+					<Field.Label class="ml-1 text-sm font-medium text-foreground"
+						>Total Storage Limit</Field.Label
 					>
-					<div class="flex gap-2">
-						<Input
-							type="number"
-							bind:value={storageLimitVal}
-							min="0"
-							step="0.01"
-							class="bg-white/50 dark:bg-zinc-950/50"
-						/>
-						<Select.Root type="single" bind:value={storageLimitUnit}>
-							<Select.Trigger class="w-24 bg-white/50 dark:bg-zinc-950/50"
-								>{storageLimitUnit}</Select.Trigger
+					<Field.Content>
+						<div class="flex gap-2">
+							<Input
+								type="number"
+								bind:value={storageLimitVal}
+								min="0"
+								step="0.01"
+								class="bg-background/50"
+							/><Select.Root type="single" bind:value={storageLimitUnit}
+								><Select.Trigger class="w-24 bg-background/50">{storageLimitUnit}</Select.Trigger
+								><Select.Content
+									>{#each Object.keys(B_VALS) as u}<Select.Item value={u} label={u}>{u}</Select.Item
+										>{/each}</Select.Content
+								></Select.Root
 							>
-							<Select.Content>
-								{#each Object.keys(B_VALS) as u}
-									<Select.Item value={u} label={u}>{u}</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
-					</div>
-					<p class="px-1 text-xs text-slate-500 dark:text-zinc-500">
-						Total capacity for your Chithi instance.
-					</p>
-				</div>
-
-				<!-- Max File Size -->
-				<div class="grid gap-3">
-					<Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400"
-						>Max File Size</Label
+						</div>
+					</Field.Content>
+					<Field.Description class="px-1 text-xs text-muted-foreground"
+						>Total capacity for your Chithi instance.</Field.Description
 					>
-					<div class="flex gap-2">
-						<Input
-							type="number"
-							bind:value={maxFileVal}
-							min="0"
-							step="0.01"
-							class="bg-white/50 dark:bg-zinc-950/50"
-						/>
-						<Select.Root type="single" bind:value={maxFileUnit}>
-							<Select.Trigger class="w-24 bg-white/50 dark:bg-zinc-950/50"
-								>{maxFileUnit}</Select.Trigger
+				</Field.Field>
+				<Field.Field class="grid gap-3">
+					<Field.Label class="ml-1 text-sm font-medium text-foreground">Max File Size</Field.Label>
+					<Field.Content>
+						<div class="flex gap-2">
+							<Input
+								type="number"
+								bind:value={maxFileVal}
+								min="0"
+								step="0.01"
+								class="bg-background/50"
+							/><Select.Root type="single" bind:value={maxFileUnit}
+								><Select.Trigger class="w-24 bg-background/50">{maxFileUnit}</Select.Trigger
+								><Select.Content
+									>{#each Object.keys(B_VALS) as u}<Select.Item value={u} label={u}>{u}</Select.Item
+										>{/each}</Select.Content
+								></Select.Root
 							>
-							<Select.Content>
-								{#each Object.keys(B_VALS) as u}
-									<Select.Item value={u} label={u}>{u}</Select.Item>
-								{/each}
-							</Select.Content>
-						</Select.Root>
-					</div>
-					<p class="px-1 text-xs text-slate-500 dark:text-zinc-500">
-						Maximum size for a single upload.
-					</p>
-				</div>
-
-				<!-- Site Description -->
-				<div class="grid gap-3">
-					<Label class="ml-1 text-sm font-medium text-slate-700 dark:text-zinc-400"
-						>Site Description</Label
+						</div>
+					</Field.Content>
+					<Field.Description class="px-1 text-xs text-muted-foreground"
+						>Maximum size for a single upload.</Field.Description
 					>
-					<Input
-						bind:value={description}
-						placeholder="Welcome to my simplified file sharing..."
-						class="bg-white/50 dark:bg-zinc-950/50"
-					/>
-					<p class="px-1 text-xs text-slate-500 dark:text-zinc-500">
-						Displayed on the home page. Supports Markdown.
-					</p>
-				</div>
-
+				</Field.Field>
+				<Field.Field class="grid gap-3">
+					<Field.Label class="ml-1 text-sm font-medium text-foreground"
+						>Site Description</Field.Label
+					>
+					<Field.Content>
+						<Input
+							bind:value={description}
+							placeholder="Welcome to my simplified file sharing..."
+							class="bg-background/50"
+						/>
+					</Field.Content>
+					<Field.Description class="px-1 text-xs text-muted-foreground"
+						>Displayed on the home page. Supports Markdown.</Field.Description
+					>
+				</Field.Field>
 				<Button
 					type="button"
 					onclick={handleSave}
 					disabled={isLoading}
 					class="mt-2 h-12 w-full font-semibold shadow-lg shadow-indigo-500/20 transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-70"
 				>
-					{#if isLoading}
-						<LoaderCircle class="mr-2 size-5 animate-spin" />
-						Saving...
-					{:else}
-						Finish Setup
-						<Check class="ml-2 size-5" />
-					{/if}
+					{#if isLoading}<Spinner />Saving...{:else}Finish Setup<Check class="ml-2 size-5" />{/if}
 				</Button>
 			</div>
 		{/if}

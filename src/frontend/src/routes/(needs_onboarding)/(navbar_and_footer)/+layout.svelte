@@ -10,39 +10,37 @@
 		Gauge,
 		Info
 	} from '@lucide/svelte';
-	import Button from '$lib/components/ui/button/button.svelte';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import { toggleMode } from 'mode-watcher';
-	import * as Avatar from '$lib/components/ui/avatar';
-	import * as Dropdown from '$lib/components/ui/dropdown-menu';
-	import { useAuth } from '#queries/auth';
-	import { Label } from '$lib/components/ui/label';
+	import * as Avatar from '$lib/components/ui/avatar/index.js';
+	import * as Dropdown from '$lib/components/ui/dropdown-menu/index.js';
+	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { MeDocument, type MeQuery } from '$lib/graphql/generated/graphql.js';
+	import { Label } from '$lib/components/ui/label/index.js';
 	import { kebab_to_initials } from '#functions/string-conversion';
 	import { make_libravatar_url } from '#functions/libravatar';
 	import { page } from '$app/state';
-	import * as Tooltip from '$lib/components/ui/tooltip';
+	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import favicon from '$lib/assets/logo.svg';
 	import { PUBLIC_INSTANCE_URL } from '#consts/urls';
 	import { env } from '$env/dynamic/public';
 	import { SiGithub, SiUpptime } from '@icons-pack/svelte-simple-icons';
+	import CommandPalette from '$lib/components/CommandPalette.svelte';
 	import type { Component } from 'svelte';
-	const { user: userData } = useAuth();
 
-	let { children } = $props();
-
-	let initials = $derived(kebab_to_initials(userData.data?.username ?? ''));
-
+	const userData = createQueryStore<MeQuery>(MeDocument);
+	const { children } = $props();
+	const initials = $derived(kebab_to_initials(userData.data?.me?.username ?? ''));
 	let flagForRestart = $state(false);
-
-	let hashedAvatar = $derived(await make_libravatar_url(userData.data?.email ?? ''));
-
-	function programmedNavigation(event: Event) {
-		const anchorElement = event.currentTarget as HTMLAnchorElement;
-		const href = anchorElement.getAttribute('href');
-		if (href === page.url.pathname) {
-			// Switch between true and false
+	const hashedAvatar = $derived(await make_libravatar_url(userData.data?.me?.email ?? ''));
+	const samePageNav = (e: Event) => {
+		if ((e.currentTarget as HTMLAnchorElement).href === page.url.href)
 			flagForRestart = !flagForRestart;
-		}
-	}
+	};
+	const themeIcon = 'h-[1.2rem] w-[1.2rem] transition-all';
+	const sunClass = `${themeIcon} scale-100 rotate-0 dark:scale-0 dark:-rotate-90`;
+	const moonClass = `${themeIcon} absolute scale-0 rotate-90 dark:scale-100 dark:rotate-0`;
+
 	type LinkItem = {
 		name: string;
 		href: string;
@@ -52,59 +50,18 @@
 	};
 
 	const adminLinks = [
-		{
-			href: '/admin/config',
-			name: 'Config',
-			icon: SlidersVertical,
-			order: 2
-		},
-		{
-			href: '/admin/user',
-			name: 'Customize User',
-			icon: UserCog,
-			order: 1
-		},
-
-		{
-			href: '/admin/urls',
-			name: 'Outstanding URLs',
-			icon: Link,
-			order: 3
-		}
+		{ href: '/admin/user', name: 'Customize User', icon: UserCog, order: 1 },
+		{ href: '/admin/config', name: 'Config', icon: SlidersVertical, order: 2 },
+		{ href: '/admin/urls', name: 'Outstanding URLs', icon: Link, order: 3 }
 	];
 	const baseRightFooterLinks: LinkItem[] = [
-		{
-			href: 'https://docs.chithi.dev',
-			name: 'Documentation',
-			icon: BookOpenText,
-			order: 3
-		},
-		{
-			href: PUBLIC_INSTANCE_URL,
-			name: 'Public Instances',
-			icon: SiUpptime,
-			order: 2
-		},
-		{
-			href: 'https://github.com/chithi-dev/chithi',
-			name: 'Source',
-			icon: SiGithub,
-			order: 1
-		}
+		{ href: 'https://github.com/chithi-dev/chithi', name: 'Source', icon: SiGithub, order: 1 },
+		{ href: PUBLIC_INSTANCE_URL, name: 'Public Instances', icon: SiUpptime, order: 2 },
+		{ href: 'https://docs.chithi.dev', name: 'Documentation', icon: BookOpenText, order: 3 }
 	];
 	const leftFooterLinks: LinkItem[] = [
-		{
-			href: '/speedtest',
-			name: 'Speedtest',
-			icon: Gauge,
-			order: 1
-		},
-		{
-			href: '/informations',
-			name: 'Information about the instance',
-			icon: Info,
-			order: 2
-		}
+		{ href: '/speedtest', name: 'Speedtest', icon: Gauge, order: 1 },
+		{ href: '/informations', name: 'Information about the instance', icon: Info, order: 2 }
 	];
 
 	const donationPlatforms = [
@@ -130,63 +87,50 @@
 		}
 	];
 
-	const seenRightFooterLinks = new Set(baseRightFooterLinks.map((link) => link.href));
-	let donationOrder = baseRightFooterLinks.length;
+	const seen = new Set(baseRightFooterLinks.map((l) => l.href));
+	let order = baseRightFooterLinks.length;
 	const donationLinks: LinkItem[] = [];
-
-	for (const platform of donationPlatforms) {
-		const href = (env as Record<string, string | undefined>)[platform.key];
-		if (!href || seenRightFooterLinks.has(href)) continue;
-
-		seenRightFooterLinks.add(href);
-		donationOrder += 1;
-		donationLinks.push({
-			href,
-			name: platform.name,
-			icon: Link,
-			order: donationOrder,
-			iconLoader: platform.iconLoader
-		});
+	for (const p of donationPlatforms) {
+		const href = (env as Record<string, string | undefined>)[p.key];
+		if (!href || seen.has(href)) continue;
+		seen.add(href);
+		order++;
+		donationLinks.push({ href, name: p.name, icon: Link, order, iconLoader: p.iconLoader });
 	}
 
 	let rightFooterLinks: LinkItem[] = $state([...baseRightFooterLinks, ...donationLinks]);
-
-	const donationIconPromises = new Map<string, Promise<void>>();
+	const iconPromises = new Map<string, Promise<void>>();
 
 	$effect.pre(() => {
 		for (const link of rightFooterLinks) {
-			if (!link.iconLoader || donationIconPromises.has(link.href)) continue;
-
+			if (!link.iconLoader || iconPromises.has(link.href)) continue;
 			const promise = link
 				.iconLoader()
 				.then((mod) => {
-					rightFooterLinks = rightFooterLinks.map((item) =>
-						item.href === link.href ? { ...item, icon: mod.default } : item
+					rightFooterLinks = rightFooterLinks.map((i) =>
+						i.href === link.href ? { ...i, icon: mod.default } : i
 					);
 				})
 				.catch(() => undefined);
-
-			donationIconPromises.set(link.href, promise);
+			iconPromises.set(link.href, promise);
 		}
 	});
 </script>
 
-{#snippet footerLink(footer_item: LinkItem)}
-	<div style="order:{footer_item.order}">
+{#snippet footerLink(item: LinkItem)}
+	<div style="order:{item.order}">
 		<Tooltip.Provider delayDuration={100}>
 			<Tooltip.Root>
-				<Tooltip.Trigger>
-					<Button
+				<Tooltip.Trigger
+					><Button
 						variant="ghost"
 						size="icon"
-						aria-label={footer_item.name}
+						aria-label={item.name}
 						class="transition-colors hover:text-foreground"
-						href={footer_item.href}
-					>
-						<footer_item.icon />
-					</Button>
-				</Tooltip.Trigger>
-				<Tooltip.Content>{footer_item.name}</Tooltip.Content>
+						href={item.href}><item.icon /></Button
+					></Tooltip.Trigger
+				>
+				<Tooltip.Content>{item.name}</Tooltip.Content>
 			</Tooltip.Root>
 		</Tooltip.Provider>
 	</div>
@@ -195,71 +139,59 @@
 <div
 	class="relative flex min-h-svh min-w-screen flex-col overflow-hidden bg-background text-foreground"
 >
-	<!-- Top Bar -->
-	<header
+		<CommandPalette />
+		<header
 		class="sticky top-0 z-50 flex items-center justify-between bg-transparent p-4 backdrop-blur-md transition-colors duration-500"
 	>
-		<a href="/" class="flex items-center gap-2" onclick={programmedNavigation}>
-			<img src={favicon} alt="logo" class="h-6 w-6" />
-			<h1 class="text-2xl font-bold md:text-xl">Chithi</h1>
-		</a>
-
+		<a href="/" class="flex items-center gap-2" onclick={samePageNav}
+			><img src={favicon} alt="logo" class="h-6 w-6" />
+			<h1 class="text-2xl font-bold md:text-xl">Chithi</h1></a
+		>
 		<div class="flex items-center gap-2">
-			{#if userData.data}
+			{#if userData.data?.me}
 				<Dropdown.Root>
-					<Dropdown.Trigger>
-						<div class="my-0.5">
-							<Avatar.Root>
-								{#if hashedAvatar}
-									<Avatar.Image src={hashedAvatar} alt="@{userData.data.username}" />
-								{/if}
-								<Avatar.Fallback>{initials}</Avatar.Fallback>
-							</Avatar.Root>
-						</div>
-					</Dropdown.Trigger>
-
+					<Dropdown.Trigger
+						><div class="my-0.5">
+							<Avatar.Root
+								>{#if hashedAvatar}<Avatar.Image
+										src={hashedAvatar}
+										alt="@{userData.data.me!.username}"
+									/>{/if}<Avatar.Fallback>{initials}</Avatar.Fallback></Avatar.Root
+							>
+						</div></Dropdown.Trigger
+					>
 					<Dropdown.Content align="end" sideOffset={4} class="w-48">
 						<Dropdown.Item onSelect={(e) => e.preventDefault()}>
 							<div class="flex w-full items-center justify-between gap-2">
-								<Label class="cursor-pointer" onclick={toggleMode}>Theme</Label>
-
-								<Button onclick={toggleMode} variant="outline" size="icon" class="relative">
-									<SunIcon
-										class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
-									/>
-									<MoonIcon
-										class="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0"
-									/>
-									<span class="sr-only">Toggle theme</span>
-								</Button>
+								<Label class="cursor-pointer" onclick={toggleMode}>Theme</Label><Button
+									onclick={toggleMode}
+									variant="outline"
+									size="icon"
+									class="relative"
+									><SunIcon class={sunClass} /><MoonIcon class={moonClass} /><span class="sr-only"
+										>Toggle theme</span
+									></Button
+								>
 							</div>
 						</Dropdown.Item>
-
 						<Dropdown.Separator />
 						<Dropdown.Sub>
 							<Dropdown.SubTrigger>Admin</Dropdown.SubTrigger>
 							<Dropdown.SubContent>
-								{#each adminLinks as item}
-									<Dropdown.Item>
-										<a
+								{#each adminLinks as item}<Dropdown.Item
+										><a
 											href={item.href}
 											class="flex w-full items-center gap-2"
-											style="order:{item.order}"
-										>
-											<item.icon />
-											{item.name}
-										</a>
-									</Dropdown.Item>
-								{/each}
-								<!-- <Dropdown.Separator /> -->
+											style="order:{item.order}"><item.icon />{item.name}</a
+										></Dropdown.Item
+									>{/each}
 							</Dropdown.SubContent>
 						</Dropdown.Sub>
-						<Dropdown.Item class="mt-1 flex items-center gap-2" variant="destructive">
-							<a href="/logout?next={page.url.pathname}" class="flex w-full items-center gap-2">
-								<LogOut class="h-4 w-4" />
-								Logout
-							</a>
-						</Dropdown.Item>
+						<Dropdown.Item class="mt-1 flex items-center gap-2" variant="destructive"
+							><a href="/logout?next={page.url.pathname}" class="flex w-full items-center gap-2"
+								><LogOut class="h-4 w-4" />Logout</a
+							></Dropdown.Item
+						>
 					</Dropdown.Content>
 				</Dropdown.Root>
 			{:else}
@@ -271,29 +203,20 @@
 						e.preventDefault();
 						toggleMode();
 					}}
+					><SunIcon class={sunClass} /><MoonIcon class={moonClass} /><span class="sr-only"
+						>Toggle theme</span
+					></Button
 				>
-					<SunIcon
-						class="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
-					/>
-					<MoonIcon
-						class="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0"
-					/>
-					<span class="sr-only">Toggle theme</span>
-				</Button>
 			{/if}
 		</div>
 	</header>
-
-	<!-- Main Content -->
-	{#key flagForRestart}
-		<main class="relative flex flex-1 items-center justify-center overflow-hidden p-4">
+	{#key flagForRestart}<main
+			class="relative flex flex-1 items-center justify-center overflow-hidden p-4"
+		>
 			<div class="relative z-10 w-full max-w-5xl shadow-[0_0_15px_-12px_var(--primary)]">
 				{@render children()}
 			</div>
-		</main>
-	{/key}
-
-	<!-- Footer -->
+		</main>{/key}
 	<footer class="bg-transparent p-4 backdrop-blur-md transition-colors duration-500">
 		<div class="mx-auto w-full">
 			<nav class="flex flex-row items-center justify-between text-sm text-muted-foreground">

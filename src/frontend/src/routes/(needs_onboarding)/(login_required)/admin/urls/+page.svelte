@@ -1,8 +1,12 @@
 <script lang="ts">
-	import * as Dialog from '$lib/components/ui/dialog';
-	import { Button } from '$lib/components/ui/button';
-	import * as Pagination from '$lib/components/ui/pagination';
-	import { useFilesQuery } from '#queries/files';
+	import * as AlertDialog from '$lib/components/ui/alert-dialog/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import * as Pagination from '$lib/components/ui/pagination/index.js';
+	import { H2, Mutated, InlineCode } from '$lib/components/ui/typography/index.js';
+	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { AdminFilesDocument, type AdminFilesQuery, DeleteFileDocument } from '$lib/graphql/generated/graphql.js';
+	import { executeMutation } from '$lib/graphql/use-query.svelte.js';
+	import { formatDate } from '$lib/functions/dates';
 	import { toast } from 'svelte-sonner';
 	import { page } from '$app/state';
 
@@ -11,9 +15,30 @@
 	let currentPage = $state(1);
 	const pageSize = 20;
 
-	const { files, revokeFile } = useFilesQuery(() => currentPage, pageSize);
+	const filesState = createQueryStore<AdminFilesQuery>(AdminFilesDocument, { page: currentPage, size: pageSize });
+	const files = $derived({
+		data: filesState.data?.adminFiles ? {
+			items: filesState.data.adminFiles.items.map(item => ({
+				id: item.id, filename: item.filename, size: item.size,
+				createdAt: item.createdAt, expiresAt: item.expiresAt,
+				expireAfterNDownload: item.expireAfterNDownload, downloadCount: item.downloadCount
+			})),
+			totalItems: filesState.data.adminFiles.total,
+			startIndex: ((filesState.data.adminFiles.page ?? 1) - 1) * (filesState.data.adminFiles.size ?? 20) + 1,
+			endIndex: Math.min((filesState.data.adminFiles.page ?? 1) * (filesState.data.adminFiles.size ?? 20), filesState.data.adminFiles.total),
+			totalPages: filesState.data.adminFiles.pages,
+			currentPage: filesState.data.adminFiles.page,
+			currentPageSize: filesState.data.adminFiles.size
+		} : undefined,
+		error: filesState.error,
+		isLoading: filesState.fetching
+	});
 
-	let totalItems = $derived(files.data?.total_items ?? 0);
+	async function revokeFile(id: string) {
+		await executeMutation(DeleteFileDocument, { fileId: id });
+	}
+
+	let totalItems = $derived(files.data?.totalItems ?? 0);
 
 	// States
 	let isRevoking = $state(false);
@@ -39,23 +64,14 @@
 			isRevoking = false;
 		}
 	}
-
-	function formatDate(dateStr?: string) {
-		if (!dateStr) return 'N/A';
-		const date = new Date(dateStr).toLocaleString(undefined, {
-			dateStyle: 'medium',
-			timeStyle: 'short'
-		});
-		return date;
-	}
 </script>
 
 <div class="flex items-center justify-between space-y-2 pb-6">
 	<div>
-		<h2 class="text-3xl font-bold tracking-tight">Settings</h2>
-		<p class="text-muted-foreground">
-			Manage your <code>{page.url.origin}</code> chithi instance's uploads.
-		</p>
+		<H2>URLs</H2>
+		<Mutated>
+			Manage your <InlineCode>{page.url.origin}</InlineCode> chithi instance's uploads.
+		</Mutated>
 	</div>
 </div>
 
@@ -90,15 +106,15 @@
 		</Pagination.Root>
 	</div>
 
-	<Dialog.Root bind:open={isRevokeDialogOpen}>
-		<Dialog.Content>
-			<Dialog.Header>
-				<Dialog.Title>Revoke URL</Dialog.Title>
-				<Dialog.Description>
+	<AlertDialog.Root open={isRevokeDialogOpen}>
+		<AlertDialog.Content>
+			<AlertDialog.Header>
+				<AlertDialog.Title>Revoke URL</AlertDialog.Title>
+				<AlertDialog.Description>
 					Are you sure you want to revoke this URL? This cannot be undone.
-				</Dialog.Description>
-			</Dialog.Header>
-			<Dialog.Footer>
+				</AlertDialog.Description>
+			</AlertDialog.Header>
+			<AlertDialog.Footer>
 				<Button variant="outline" onclick={() => (isRevokeDialogOpen = false)} disabled={isRevoking}
 					>Cancel</Button
 				>
@@ -109,7 +125,7 @@
 						Revoke
 					{/if}
 				</Button>
-			</Dialog.Footer>
-		</Dialog.Content>
-	</Dialog.Root>
+			</AlertDialog.Footer>
+		</AlertDialog.Content>
+	</AlertDialog.Root>
 </div>

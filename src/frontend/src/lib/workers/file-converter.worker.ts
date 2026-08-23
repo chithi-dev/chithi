@@ -6,23 +6,23 @@ import decodeHeic, { init as initHeic } from '@discourse/heic/decode';
 import decodeJxr, { init as initJxr } from '@discourse/jxr/decode';
 // #endregion
 // #region jsquash imports
+import decodeWebp, { init as initWebp } from '@discourse/webp/decode';
+import encodeWebp, { init as initWebpEncode } from '@discourse/webp/encode';
 import decodeJxl, { init as initJxl } from '@jsquash/jxl/decode';
 import optimisePng, { init as initOxipng } from '@jsquash/oxipng/optimise';
 import encodePng, { init as initPng } from '@jsquash/png/encode';
 import decodeQoi, { init as initQoi } from '@jsquash/qoi/decode';
-import decodeWebp, { init as initWebp } from '@jsquash/webp/decode';
-import encodeWebp, { init as initWebpEncode } from '@jsquash/webp/encode';
 // #endregion
 
 // Vite will resolve these WASM URLs at build time.
 import gifWasmUrl from '@discourse/gif/codec/pkg/squoosh_gif_bg.wasm?url';
 import heicWasmUrl from '@discourse/heic/codec/dec/heic_dec.wasm?url';
 import jxrWasmUrl from '@discourse/jxr/codec/dec/jxr_dec.wasm?url';
+import webpWasmUrl from '@discourse/webp/codec/dec/webp_dec.wasm?url';
 import jxlWasmUrl from '@jsquash/jxl/codec/dec/jxl_dec.wasm?url';
 import oxipngWasmUrl from '@jsquash/oxipng/codec/pkg-parallel/squoosh_oxipng_bg.wasm?url';
 import pngWasmUrl from '@jsquash/png/codec/pkg/squoosh_png_bg.wasm?url';
 import qoiWasmUrl from '@jsquash/qoi/codec/dec/qoi_dec.wasm?url';
-import webpWasmUrl from '@jsquash/webp/codec/dec/webp_dec.wasm?url';
 import resvgWasmUrl from '@resvg/resvg-wasm/index_bg.wasm?url';
 
 let gifInitialized = false;

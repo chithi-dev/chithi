@@ -8,6 +8,13 @@ node_modules
 /.svelte-kit
 /build
 
+# WASM build artifacts (built from crates/wasm_bindings/)
+src/lib/wasm/*.wasm
+src/lib/wasm/*.js
+src/lib/wasm/*.d.ts
+src/lib/wasm/*.bg.*
+!src/lib/wasm/chithi_wasm.ts
+
 # OS
 .DS_Store
 Thumbs.db

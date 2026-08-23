@@ -1,42 +1,40 @@
 [project]
 name = "cli"
 version = "0.1.0"
-description = "Add your description here"
+description = "Chithi CLI - Upload & download encrypted files"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     # CLI
-    "async-typer>=0.1.10",
-    # Http Client
+    "async-typer>=0.2.1",
+    # HTTP Client
     "httpx2[brotli,http2,zstd]>=2.2.0",
-    # Encryption (AES-256-GCM + Argon2id KDF)
-    "cryptography==46.0.3",
-    # ZIP with WinZip AES-256 support (matches web front-end)
-    "pyzipper>=0.3.6",
     # Progress bars
     "tqdm>=4.67.0",
     # Env handling
     "pydantic-settings>=2.12.0",
     # Console Lib
     "rich>=14.3.2",
+    "rich-pixels>=3.0.1",
+    # QR Code
     "qrcode>=8.2",
+    # Image Converter
+    "resvg_py>=0.3.2",
     # Types
+    "types-qrcode>=8.2.0.20260518",
     "types-tqdm>=4.67.3.20260408",
-    "types-qrcode>=8.2.0.20260408",
+    "chithi-sdk",
 ]
 
 
 [dependency-groups]
-build = ["nuitka>=2.8.9", "zstandard>=0.25.0"]
-dev = [
-    "poethepoet>=0.39.0",
-    "pyrefly>=0.62.0",
-    "ruff>=0.15.12",
-]
+build = ["nuitka>=2.8.9", "zstandard>=0.25.0", "maturin>=1.0.0"]
+dev = ["poethepoet>=0.39.0", "pyrefly>=0.62.0", "ruff>=0.15.12"]
 
 [tool.poe.tasks]
 nuitka-build = "python build.py"
 nuitka-debug = "python build.py debug"
+build-native = "maturin develop --manifest-path ../../core/Cargo.toml"
 
 [tool.setuptools]
 packages = ["app"]
@@ -45,18 +43,21 @@ packages = ["app"]
 package = true
 default-groups = ['build', 'dev']
 
+[tool.uv.sources]
+chithi-sdk = { path = "vendor/chithi_sdk-0.1.0-py3-none-any.whl" }
+
 
 [project.scripts]
 chithi = "app.__main__:main"
 
 [tool.ruff.lint]
-extend-select = ["I"] 
+extend-select = ["I"]
 
 [tool.ruff.format]
-skip-magic-trailing-comma = false  # Avoids conflict with isort.split-on-trailing-comma
+skip-magic-trailing-comma = false
 
 [tool.ruff.lint.isort]
-split-on-trailing-comma = true  # Keep this aligned with format.skip-magic-trailing-comma
+split-on-trailing-comma = true
 combine-as-imports = true
 
 [tool.pyrefly]

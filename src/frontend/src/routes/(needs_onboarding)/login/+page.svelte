@@ -1,12 +1,5 @@
 <script lang="ts">
-	import {
-		Card,
-		CardContent,
-		CardDescription,
-		CardFooter,
-		CardHeader,
-		CardTitle
-	} from '$lib/components/ui/card';
+	import * as Card from '$lib/components/ui/card/index.js';
 	import { page } from '$app/state';
 	import { ShieldCheck, ChevronLeft } from '@lucide/svelte';
 	import { fly } from 'svelte/transition';
@@ -24,7 +17,7 @@
 		return url;
 	});
 
-	let { data } = $props();
+	const { data } = $props();
 </script>
 
 <div
@@ -41,34 +34,32 @@
 	</a>
 
 	<div in:fly={{ y: 20, duration: 800 }} class="z-10 w-full max-w-100">
-		<Card
+		<Card.Root
 			class="relative overflow-hidden border-border/60 bg-card/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl"
 		>
-			<div
-				class="absolute top-0 left-0 h-px w-full bg-linear-to-r from-transparent via-primary/40 to-transparent"
-			></div>
+			<div class="absolute left-0 top-0 h-px w-full bg-linear-to-r from-transparent via-primary/40 to-transparent"></div>
 
-			<CardHeader class="space-y-3 pt-10 pb-8 text-center">
+			<Card.Header class="space-y-3 pt-10 pb-8 text-center">
 				<div
 					class="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-primary shadow-sm ring-1 ring-primary/20"
 				>
 					<ShieldCheck class="size-8" />
 				</div>
 				<div class="space-y-1">
-					<CardTitle class="text-2xl font-semibold tracking-tight text-foreground"
-						>Admin Portal</CardTitle
+					<Card.Title class="text-2xl font-semibold tracking-tight text-foreground"
+						>Admin Portal</Card.Title
 					>
-					<CardDescription class="text-sm text-muted-foreground">
+					<Card.Description class="text-sm text-muted-foreground">
 						Enter your credentials to continue
-					</CardDescription>
+					</Card.Description>
 				</div>
-			</CardHeader>
+			</Card.Header>
 
-			<CardContent>
+			<Card.Content>
 				<LoginForm {data} next_url={nextUrl} />
-			</CardContent>
+			</Card.Content>
 
-			<CardFooter
+			<Card.Footer
 				class="flex items-center justify-center border-t border-border/50 bg-muted/50 py-6"
 			>
 				<p class="text-sm text-muted-foreground">
@@ -80,7 +71,9 @@
 						Create an account
 					</a>
 				</p>
-			</CardFooter>
-		</Card>
+			</Card.Footer>
+		</Card.Root>
 	</div>
 </div>
+
+

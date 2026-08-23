@@ -1,8 +1,8 @@
 <script lang="ts">
-	import * as Item from '$lib/components/ui/item';
-	import { Input } from '$lib/components/ui/input';
-	import * as Avatar from '$lib/components/ui/avatar';
-	import { Skeleton } from '$lib/components/ui/skeleton';
+	import * as Item from '$lib/components/ui/item/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import * as Avatar from '$lib/components/ui/avatar/index.js';
+	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 
 	let {
 		username = $bindable(),

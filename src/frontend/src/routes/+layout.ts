@@ -1,4 +1,3 @@
-import { prefetch as prefetchAuth } from '#queries/auth';
 import { user_store } from '$lib/store/user.svelte';
 import { QueryClient } from '@tanstack/svelte-query';
 import { defineBaseMetaTags } from 'svelte-meta-tags';
@@ -16,7 +15,7 @@ export const load: LayoutLoad = async ({ data, url, fetch }) => {
 	});
 
 	if (data.token) {
-		await prefetchAuth({ queryClient, fetch });
+		// Auth state is managed by the ME query in the layout component.
 	} else {
 		user_store.unauthenticate();
 	}

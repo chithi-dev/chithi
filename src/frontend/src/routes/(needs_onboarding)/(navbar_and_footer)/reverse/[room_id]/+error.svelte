@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Button } from '$lib/components/ui/button';
+	import { Button } from '$lib/components/ui/button/index.js';
 	import { ArrowLeft, CircleAlert } from '@lucide/svelte';
 	import { goto } from '$app/navigation';
 </script>

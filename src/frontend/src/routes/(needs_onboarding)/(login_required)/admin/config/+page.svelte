@@ -1,10 +1,14 @@
 <script lang="ts">
-	import { LoaderCircle } from '@lucide/svelte';
+	import { Spinner } from '$lib/components/ui/spinner/index.js';
+	import { H2, Mutated, InlineCode } from '$lib/components/ui/typography/index.js';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
-	import { useConfigQuery } from '#queries/config';
+	import { createQueryStore, executeMutation } from '$lib/graphql/use-query.svelte.js';
+	import { client } from '$lib/graphql/client.js';
+	import { ConfigDocument, type ConfigQuery, UpdateConfigDocument } from '$lib/graphql/generated/graphql.js';
 	import { formatBytes, type ByteUnit } from '#functions/bytes';
 	import { type TimeUnit } from '#functions/times';
+	import * as Tabs from '$lib/components/ui/tabs/index.js';
 	import ConfigLoadingSkeleton from './config_loading_skeleton.svelte';
 
 	const { default: StorageFilesCard } = await import('./storage_file_card.svelte');
@@ -12,12 +16,23 @@
 	const { default: FileSecurityCard } = await import('./file_security_card.svelte');
 	const { default: SiteDescriptionCard } = await import('./site_description_card.svelte');
 
-	const { config: configQuery, update_config } = useConfigQuery();
+	const configQuery = createQueryStore<ConfigQuery>(ConfigDocument);
 
-	let configData = $derived(configQuery.data);
+	async function updateConfig(payload: any) {
+		try {
+			await executeMutation(UpdateConfigDocument, payload);
+			await client.query({ query: ConfigDocument });
+		} catch (error) {
+			console.error('Save failed:', error);
+		}
+	}
+
+	let activeTab = $state('storage');
+
+	let configData = $derived(configQuery.data?.config);
 	let descDraft = $state('');
 	let previewMarkdown = $derived(
-		descDraft ? String(descDraft) : (configData?.site_description ?? '')
+		descDraft ? String(descDraft) : (configData?.siteDescription ?? '')
 	);
 
 	let editing = $state<
@@ -57,7 +72,7 @@
 	function startEdit(type: 'storage' | 'file') {
 		if (!configData) return;
 		const bytes =
-			type === 'storage' ? configData.total_storage_limit : configData.max_file_size_limit;
+			type === 'storage' ? configData.totalStorageLimit : configData.maxFileSizeLimit;
 		const f = formatBytes(bytes);
 		editVal = f.val;
 		editUnit = f.unit;
@@ -66,7 +81,7 @@
 
 	async function save(payload: any) {
 		try {
-			await update_config(payload);
+			await updateConfig(payload);
 		} catch (error) {
 			console.error('Save failed:', error);
 		}
@@ -74,44 +89,60 @@
 
 	function openDescriptionEditor() {
 		editing = 'desc';
-		descDraft = configData?.site_description ?? '';
+		descDraft = configData?.siteDescription ?? '';
 	}
 </script>
 
 <div class="flex items-center justify-between space-y-2 pb-6">
 	<div>
-		<h2 class="text-3xl font-bold tracking-tight">Settings</h2>
-		<p class="text-muted-foreground">
-			Manage your <code>{page.url.origin}</code> chithi instance.
-		</p>
+		<H2>Settings</H2>
+		<Mutated>
+			Manage your <InlineCode>{page.url.origin}</InlineCode> chithi instance.
+		</Mutated>
 	</div>
 </div>
 
 <div class="space-y-6">
-	{#if configQuery.isFetching}
+	{#if configQuery.fetching}
 		<div
 			in:fade
 			class="fixed top-24 right-10 z-50 flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase shadow-sm backdrop-blur-sm"
 		>
-			<LoaderCircle class="size-3.5 animate-spin" /> Syncing
+			<Spinner class="size-3.5" /> Syncing
 		</div>
 	{/if}
 
-	{#if configQuery.isLoading}
+	{#if configQuery.fetching}
 		<ConfigLoadingSkeleton />
 	{:else if configData}
-		<StorageFilesCard {configData} bind:editing bind:editVal bind:editUnit {startEdit} {save} />
-		<RetentionPolicyCard {configData} bind:editing bind:tempInput {save} />
-		<FileSecurityCard {configData} bind:editing bind:tempInput {save} />
-		<SiteDescriptionCard
-			bind:editing
-			bind:descDraft
-			{previewMarkdown}
-			{descWordCount}
-			{descExceeds}
-			wordLimit={LIMITS.site_description.words}
-			{save}
-			openEditor={openDescriptionEditor}
-		/>
+		<Tabs.Root bind:value={activeTab} class="space-y-4">
+			<Tabs.List class="flex gap-2">
+				<Tabs.Trigger value="storage">Storage</Tabs.Trigger>
+				<Tabs.Trigger value="retention">Retention</Tabs.Trigger>
+				<Tabs.Trigger value="security">Security</Tabs.Trigger>
+				<Tabs.Trigger value="description">Description</Tabs.Trigger>
+			</Tabs.List>
+			<Tabs.Content value="storage">
+				<StorageFilesCard {configData} bind:editing bind:editVal bind:editUnit {startEdit} {save} />
+			</Tabs.Content>
+			<Tabs.Content value="retention">
+				<RetentionPolicyCard {configData} bind:editing bind:tempInput {save} />
+			</Tabs.Content>
+			<Tabs.Content value="security">
+				<FileSecurityCard {configData} bind:editing bind:tempInput {save} />
+			</Tabs.Content>
+			<Tabs.Content value="description">
+				<SiteDescriptionCard
+					bind:editing
+					bind:descDraft
+					{previewMarkdown}
+					{descWordCount}
+					{descExceeds}
+					wordLimit={LIMITS.site_description.words}
+					{save}
+					openEditor={openDescriptionEditor}
+				/>
+			</Tabs.Content>
+		</Tabs.Root>
 	{/if}
 </div>
