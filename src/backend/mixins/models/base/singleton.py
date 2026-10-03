@@ -9,7 +9,13 @@ class SingletonModel[T: SingletonModel](models.Model):
         abstract = True
 
     def save(self, *args, **kwargs) -> None:
-        if not self.pk and self.__class__.objects.exists():
+        # Reject insertion if any row already exists. Equality on the new
+        # row's PK is fine (e.g. ``Config.load()`` re-uses pk=1) — what
+        # we forbid is a *second* row from being inserted.
+        existing = self.__class__.objects.all()
+        if self.pk is not None:
+            existing = existing.exclude(pk=self.pk)
+        if existing.exists():
             raise ValidationError(
                 f"Only one instance of {self.__class__.__name__} is allowed."
             )

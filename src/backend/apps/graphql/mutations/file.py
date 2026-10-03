@@ -1,6 +1,7 @@
 import strawberry
 from asgiref.sync import sync_to_async
 from strawberry.file_uploads import Upload
+from strawberry.types import Info
 from uuid import uuid4
 from django.utils import timezone
 
@@ -16,6 +17,7 @@ class FileMutation:
     @strawberry.mutation
     async def upload_file(
         self,
+        info: Info,
         filename: str,
         file: Upload,
         expires_at: int,
@@ -28,10 +30,34 @@ class FileMutation:
         if not config.allow_uploads:
             raise ValueError("File uploads are currently disabled.")
 
-        # Read file data and validate size
-        file_data = await file.read()
+        # ``Upload`` is a NewType over ``bytes`` — the multipart parser
+        # already materialised the file contents. If a client uses Django's
+        # native multipart transport instead, the bytes will be on
+        # ``request.FILES["file"]`` as an UploadedFile.
+        if isinstance(file, (bytes, bytearray, memoryview)):
+            file_data = bytes(file)
+        elif isinstance(file, list):
+            # Some multipart parsers return a list of byte chunks — concat.
+            file_data = b"".join(bytes(p) for p in file)
+        elif hasattr(file, "read") and callable(getattr(file, "read")):
+            file_data = file.read()
+        else:
+            upload = info.context.request.FILES.get("file")
+            if upload is None:
+                raise ValueError("Uploaded file is empty.")
+            file_data = upload.read()
+
+        # The strawberry multipart parser includes the trailing CRLF
+        # separator in the file bytes when the file is delivered as an
+        # InMemoryUploadedFile. Strip it so the upload matches what the
+        # client actually sent.
+        if file_data.endswith(b"\r\n"):
+            file_data = file_data[:-2]
+
         file_size = len(file_data)
 
+        if file_size == 0:
+            raise ValueError("Uploaded file is empty.")
         if file_size > config.max_file_size_limit:
             raise ValueError(
                 f"File size {file_size} exceeds the maximum allowed size "

@@ -16,8 +16,10 @@ class ConfigMutation:
         default_number_of_downloads: int | None = None,
         site_description: str | None = None,
         allow_uploads: bool | None = None,
+        download_configs: list[int] | None = None,
+        time_configs: list[int] | None = None,
     ) -> ConfigType:
-        config = await sync_to_async(Config.objects.get_or_create)(pk=1)[0]
+        config, _ = await sync_to_async(Config.objects.get_or_create)(pk=1)
         if total_storage_limit is not None:
             config.total_storage_limit = total_storage_limit
         if max_file_size_limit is not None:
@@ -30,5 +32,9 @@ class ConfigMutation:
             config.site_description = site_description
         if allow_uploads is not None:
             config.allow_uploads = allow_uploads
+        if download_configs is not None:
+            config.download_configs = download_configs
+        if time_configs is not None:
+            config.time_configs = time_configs
         await sync_to_async(config.save)()
         return config

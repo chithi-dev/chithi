@@ -35,17 +35,22 @@ class ReverseRoomConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         room_id = self.scope["url_route"]["kwargs"].get("room_id")
         if not room_id:
+            await self.accept()
             await self.close(code=4001)
             return
 
         try:
             self.room = await Room.objects.aget(id=room_id)
         except Room.DoesNotExist:
+            # Accept the handshake so the test framework can see the
+            # JSON error frame, then close with the right code.
+            await self.accept()
             await self._send_json({"type": "error", "detail": "Room not found"})
             await self.close(code=4004)
             return
 
         if self.room.is_expired:
+            await self.accept()
             await self._send_json({"type": "room_destroyed"})
             await self.close(code=4010)
             return
@@ -165,11 +170,23 @@ class ReverseRoomConsumer(AsyncWebsocketConsumer):
 
             body = await download_file_stream(room_file.key)
             try:
+                chunks_sent = 0
+                bytes_sent = 0
                 while True:
                     chunk = await body.read(CHUNK_SIZE)
                     if not chunk:
                         break
-                    await self.send(bytes(chunk))
+                    # ``send(bytes_data=...)`` so the chunk is sent as a
+                    # binary WebSocket frame; otherwise the consumer would
+                    # fall into the ``text_data`` branch and treat bytes
+                    # as a UTF-8 string.
+                    await self.send(bytes_data=bytes(chunk))
+                    chunks_sent += 1
+                    bytes_sent += len(chunk)
+                logger.debug(
+                    "_stream_file: sent %d chunks (%d bytes) for %s",
+                    chunks_sent, bytes_sent, file_key,
+                )
             finally:
                 await body.close()
 
