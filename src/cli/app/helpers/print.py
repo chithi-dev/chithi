@@ -43,11 +43,15 @@ class _SegmentRenderable:
 def print_branded_qr(url: str, console: Console = Console()) -> None:
     """Render QR code to terminal.
 
-    Uses resvg to rasterize the QR SVG, then prints each pixel as a
-    full-block cell so the QR stays compact and readable.
+    Rasterises the QR SVG then downsamples 2× before printing, so each
+    terminal cell covers a 2×2 pixel block — roughly half the terminal size.
     """
     png_data = _qr_png(url)
     img = Image.open(BytesIO(png_data)).convert("RGBA")
+    w, h = img.size
+
+    # Downsample 2× to keep the terminal QR compact.
+    img = img.resize((w // 2, h // 2), Image.LANCZOS)
     w, h = img.size
 
     DARK_BG = Style(bgcolor="#000000")
