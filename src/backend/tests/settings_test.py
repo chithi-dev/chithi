@@ -16,7 +16,7 @@ import tempfile
 from pathlib import Path
 
 from core.settings import *  # noqa: F401,F403
-from core.settings import CACHES, CHANNEL_LAYERS, DATABASES, MEDIA_ROOT, PASSWORD_HASHERS, SECRET_KEY, TASKS
+from core.settings import CACHES, DATABASES, MEDIA_ROOT, PASSWORD_HASHERS, SECRET_KEY, TASKS
 
 _TEST_DIR = Path(tempfile.mkdtemp(prefix="chithi-tests-"))
 
@@ -37,13 +37,6 @@ PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 TASKS = {
     "default": {
         "BACKEND": "django.tasks.backends.immediate.ImmediateBackend",
-    }
-}
-
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels.layers.InMemoryChannelLayer",
-        "CONFIG": {},
     }
 }
 

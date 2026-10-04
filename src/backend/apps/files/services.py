@@ -1,323 +1,165 @@
-"""Storage service — supports both local filesystem and S3-compatible backends.
+"""Storage service — S3-compatible object storage with chunked upload.
 
-All backends implement the same async streaming interface so the download view
-streams data regardless of where the file lives.
+Architecture (per project requirements):
+- **Upload**: the frontend splits the encrypted payload into 50 MB chunks and
+  uploads each chunk through a GraphQL mutation. Django streams each chunk to
+  S3 as a separate object under ``{file_key}/chunk-{index}``.
+- **Download**: the frontend fetches each chunk **directly from S3** using
+  presigned URLs (S3 sits behind Cloudflare), then reassembles and decrypts.
+  Django is not in the download hot path.
 
-If S3 settings are configured in Django settings, files are stored on S3.
-Otherwise files are stored on the local filesystem under MEDIA_ROOT.
+If S3 is not configured, a local-filesystem fallback keeps the same object-key
+layout so the rest of the app (and the frontend chunk contract) is unchanged.
 """
 
-import abc
-import asyncio
 import io
 import logging
 import os
 from pathlib import Path
 
 from django.conf import settings
-from django.utils.deconstruct import deconstructible
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# S3 detection
-# ---------------------------------------------------------------------------
+# 50 MB chunk size — the unit of upload/download. Must match the frontend.
+CHUNK_SIZE_BYTES = 50 * 1024 * 1024
 
 
-def _has_s3_settings() -> bool:
-    """Return True if S3 settings are explicitly configured."""
-    access_key = getattr(settings, "AWS_ACCESS_KEY_ID", None)
-    secret_key = getattr(settings, "AWS_SECRET_ACCESS_KEY", None)
-    bucket = getattr(settings, "AWS_STORAGE_BUCKET_NAME", None)
-    return bool(access_key and secret_key and bucket)
+def chunk_key(file_key: str, index: int) -> str:
+    """S3 object key for a single chunk of a file."""
+    return f"{file_key}/chunk-{index}"
 
 
 def is_s3_backend() -> bool:
-    """Return True if the active storage backend is S3."""
-    return _has_s3_settings()
+    """True if S3 credentials + bucket are configured."""
+    return bool(
+        getattr(settings, "AWS_ACCESS_KEY_ID", "")
+        and getattr(settings, "AWS_SECRET_ACCESS_KEY", "")
+        and getattr(settings, "AWS_STORAGE_BUCKET_NAME", "")
+    )
 
 
 # ---------------------------------------------------------------------------
-# Abstract storage backend
+# S3 client (lazy — aioboto3 only imported when S3 is actually used)
 # ---------------------------------------------------------------------------
 
 
-class StorageBackend(abc.ABC):
-    """Abstract base class for storage backends.
+def _s3_resource():
+    import aioboto3
 
-    Every backend must implement ``download_stream`` so the download view can
-    stream file data without knowing where the file lives.
-    """
+    return aioboto3.resource(
+        "s3",
+        endpoint_url=getattr(settings, "AWS_S3_ENDPOINT_URL", None) or None,
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,  # type: ignore[attr-defined]
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,  # type: ignore[attr-defined]
+    )
 
-    @abc.abstractmethod
-    async def upload(self, key: str, data: bytes) -> None:
-        """Upload bytes to storage."""
 
-    @abc.abstractmethod
-    async def upload_stream(self, key: str, stream: io.BytesIO, size: int) -> None:
-        """Upload a stream to storage."""
+def _s3_client():
+    import aioboto3
 
-    @abc.abstractmethod
-    async def download(self, key: str) -> bytes:
-        """Download file from storage and return bytes."""
-
-    @abc.abstractmethod
-    async def download_stream(self, key: str) -> "asyncio.StreamReader | AsyncBodyStream":
-        """Return an async-readable stream for chunked download.
-
-        The returned object must support ``await obj.read(chunk_size)`` yielding
-        ``bytes`` and returning empty bytes on EOF, plus ``await obj.close()``.
-        """
-
-    @abc.abstractmethod
-    async def delete(self, key: str) -> bool:
-        """Delete a file from storage."""
-
-    @abc.abstractmethod
-    async def exists(self, key: str) -> bool:
-        """Check if a file exists in storage."""
-
-    # Presigned URLs default to None (not supported by all backends).
-    async def presigned_upload_url(self, key: str, expires_in: int = 3600) -> str | None:
-        return None
-
-    async def presigned_download_url(self, key: str, expires_in: int = 3600) -> str | None:
-        return None
+    return aioboto3.client(
+        "s3",
+        endpoint_url=getattr(settings, "AWS_S3_ENDPOINT_URL", None) or None,
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,  # type: ignore[attr-defined]
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,  # type: ignore[attr-defined]
+    )
 
 
 # ---------------------------------------------------------------------------
-# Local storage backend
+# Local-filesystem fallback (same object-key layout)
 # ---------------------------------------------------------------------------
 
-_LOCAL_CHUNK_SIZE = 256 * 1024  # 256 KB
 
-
-class LocalStorageBackend(StorageBackend):
-    """Store files on the local filesystem under MEDIA_ROOT."""
+class _LocalStore:
+    """Local-filesystem stand-in for S3, used when S3 is not configured."""
 
     def __init__(self) -> None:
         self.root = Path(settings.MEDIA_ROOT)
         self.root.mkdir(parents=True, exist_ok=True)
 
-    async def upload(self, key: str, data: bytes) -> None:
-        path = self.root / key
+    def _path(self, key: str) -> Path:
+        return self.root / key
+
+    async def put(self, key: str, data: bytes) -> None:
+        path = self._path(key)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
 
-    async def upload_stream(self, key: str, stream: io.BytesIO, size: int) -> None:
-        path = self.root / key
-        path.parent.mkdir(parents=True, exist_ok=True)
-        stream.seek(0)
-        path.write_bytes(stream.read(size))
+    async def presigned_get_url(self, key: str, expires_in: int) -> str:
+        # No real URL for local files; the download view serves them.
+        return f"/files/{key}/"
 
-    async def download(self, key: str) -> bytes:
-        path = self.root / key
-        return path.read_bytes()
-
-    async def download_stream(self, key: str) -> _LocalAsyncFile:
-        """Open the local file for async chunked reading."""
-        path = self.root / key
-        if not path.exists():
-            raise FileNotFoundError(f"File not found: {key}")
-        return _LocalAsyncFile(path)
-
-    async def delete(self, key: str) -> bool:
-        path = self.root / key
-        if path.exists():
-            path.unlink()
-            return True
-        return False
-
-    async def exists(self, key: str) -> bool:
-        return (self.root / key).exists()
-
-
-class _LocalAsyncFile:
-    """Thin wrapper around a local file to provide an async ``read``/``close`` interface
-    matching the S3 body-stream contract used by the download view."""
-
-    def __init__(self, path: Path) -> None:
-        self._path = path
-        self._fh: object = None  # opened file handle
-
-    async def read(self, size: int = -1) -> bytes:
-        if self._fh is None:
-            self._fh = open(self._path, "rb")
-        return self._fh.read(size) if size > 0 else self._fh.read()
-
-    async def close(self) -> None:
-        if self._fh:
-            self._fh.close()
-            self._fh = None
+    async def delete_prefix(self, prefix: str) -> None:
+        base = self._path(prefix)
+        if base.is_dir():
+            for child in sorted(base.rglob("*"), reverse=True):
+                if child.is_file():
+                    child.unlink()
+            base.rmdir()
 
 
 # ---------------------------------------------------------------------------
-# S3 storage backend (lazy import — aioboto3 only needed if S3 is configured)
+# Public storage API
 # ---------------------------------------------------------------------------
 
 
-class S3StorageBackend(StorageBackend):
-    """Store files on an S3-compatible backend."""
-
-    def __init__(self) -> None:
-        import aioboto3  # noqa: F811 — lazy import
-
-        self._aioboto3 = aioboto3
-        self._bucket = settings.AWS_STORAGE_BUCKET_NAME  # type: ignore[attr-defined]
-
-    def _resource(self):
-        return self._aioboto3.resource(
-            "s3",
-            endpoint_url=getattr(settings, "AWS_S3_ENDPOINT_URL", None),
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,  # type: ignore[attr-defined]
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,  # type: ignore[attr-defined]
-        )
-
-    def _client(self):
-        return self._aioboto3.client(
-            "s3",
-            endpoint_url=getattr(settings, "AWS_S3_ENDPOINT_URL", None),
-            aws_access_key_id=settings.AWS_ACCESS_KEY_ID,  # type: ignore[attr-defined]
-            aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,  # type: ignore[attr-defined]
-        )
-
-    async def upload(self, key: str, data: bytes) -> None:
-        res = self._resource()
+async def upload_chunk(file_key: str, index: int, data: bytes) -> None:
+    """Upload a single chunk (<= 50 MB) to storage."""
+    key = chunk_key(file_key, index)
+    if is_s3_backend():
+        res = _s3_resource()
         async with res as s3:
-            await s3.Object(self._bucket, key).put(Body=data)
+            await s3.Object(settings.AWS_STORAGE_BUCKET_NAME, key).put(Body=data)  # type: ignore[attr-defined]
+    else:
+        await _LocalStore().put(key, data)
+    logger.debug("Uploaded chunk %s/%d (%d bytes)", file_key, index, len(data))
 
-    async def upload_stream(self, key: str, stream: io.BytesIO, size: int) -> None:
-        res = self._resource()
-        async with res as s3:
-            await s3.Object(self._bucket, key).put(Body=stream, ContentLength=size)
 
-    async def download(self, key: str) -> bytes:
-        res = self._resource()
-        async with res as s3:
-            obj = await s3.Object(self._bucket, key).get()
-            body = obj["Body"]
-            data = await body.read()
-            await body.close()
-            return data
-
-    async def download_stream(self, key: str):
-        """Return an async body stream for streaming responses."""
-        res = self._resource()
-        async with res as s3:
-            obj = await s3.Object(self._bucket, key).get()
-            return obj["Body"]
-
-    async def delete(self, key: str) -> bool:
-        res = self._resource()
-        async with res as s3:
-            await s3.Object(self._bucket, key).delete()
-            return True
-
-    async def exists(self, key: str) -> bool:
-        res = self._resource()
-        async with res as s3:
-            try:
-                await s3.Object(self._bucket, key).load()
-                return True
-            except Exception:
-                return False
-
-    async def presigned_upload_url(self, key: str, expires_in: int = 3600) -> str:
-        res = self._resource()
-        async with res as s3:
-            return await s3.meta.client.generate_presigned_url(
-                "put_object",
-                Params={"Bucket": self._bucket, "Key": key},
-                ExpiresIn=expires_in,
-            )
-
-    async def presigned_download_url(self, key: str, expires_in: int = 3600) -> str:
-        res = self._resource()
-        async with res as s3:
-            return await s3.meta.client.generate_presigned_url(
+async def presigned_chunk_url(file_key: str, index: int, expires_in: int = 3600) -> str:
+    """Return a URL the frontend can use to fetch one chunk directly."""
+    key = chunk_key(file_key, index)
+    if is_s3_backend():
+        client = _s3_client()
+        async with client as s3:
+            return await s3.generate_presigned_url(
                 "get_object",
-                Params={"Bucket": self._bucket, "Key": key},
+                Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": key},  # type: ignore[attr-defined]
                 ExpiresIn=expires_in,
             )
+    return await _LocalStore().presigned_get_url(key, expires_in)
 
 
-# ---------------------------------------------------------------------------
-# Singleton — pick the right backend at import time
-# ---------------------------------------------------------------------------
-
-_storage: StorageBackend | None = None
-
-
-def get_storage() -> StorageBackend:
-    """Return the configured storage backend singleton."""
-    global _storage
-    if _storage is None:
-        if _has_s3_settings():
-            _storage = S3StorageBackend()
-            logger.info("Storage backend: S3 (bucket=%s)", settings.AWS_STORAGE_BUCKET_NAME)  # type: ignore[attr-defined]
-        else:
-            _storage = LocalStorageBackend()
-            logger.info("Storage backend: local (root=%s)", settings.MEDIA_ROOT)
-    return _storage
-
-
-# ---------------------------------------------------------------------------
-# Convenience wrappers — forward to the active backend
-# ---------------------------------------------------------------------------
+async def delete_file_chunks(file_key: str) -> None:
+    """Delete every chunk of a file from storage."""
+    if is_s3_backend():
+        res = _s3_resource()
+        async with res as s3:
+            client = s3.meta.client
+            prefix = f"{file_key}/"
+            # List all chunks then delete in a single batch (max 1000 keys).
+            resp = await client.list_objects_v2(
+                Bucket=settings.AWS_STORAGE_BUCKET_NAME, Prefix=prefix  # type: ignore[attr-defined]
+            )
+            contents = resp.get("Contents", [])
+            if contents:
+                await client.delete_objects(
+                    Bucket=settings.AWS_STORAGE_BUCKET_NAME,  # type: ignore[attr-defined]
+                    Delete={"Objects": [{"Key": obj["Key"]} for obj in contents]},
+                )
+    else:
+        await _LocalStore().delete_prefix(f"{file_key}/")
 
 
-async def upload_file_data(key: str, data: bytes) -> None:
-    """Upload bytes to the configured storage backend."""
-    await get_storage().upload(key, data)
-
-
-async def upload_file_stream(key: str, stream: io.BytesIO, size: int) -> None:
-    """Upload a stream to the configured storage backend."""
-    await get_storage().upload_stream(key, stream, size)
-
-
-async def download_file_data(key: str) -> bytes:
-    """Download file from storage and return bytes."""
-    return await get_storage().download(key)
-
-
-async def download_file_stream(key: str):
-    """Download file from storage and return the response stream.
-
-    Works for both local and S3 backends.
-    """
-    return await get_storage().download_stream(key)
-
-
-def download_file_path(key: str) -> Path:
-    """Get the local file path (local backend only).
-
-    Raises ``NotImplementedError`` when the active backend is S3.
-    """
-    storage = get_storage()
-    if not isinstance(storage, LocalStorageBackend):
-        raise NotImplementedError("S3 backend does not support direct file paths.")
-    path = storage.root / key
-    if not path.exists():
-        raise FileNotFoundError(f"File not found: {key}")
-    return path
-
-
-async def delete_file_from_storage(key: str) -> bool:
-    """Delete a file from storage."""
-    return await get_storage().delete(key)
-
-
-async def file_exists_in_storage(key: str) -> bool:
-    """Check if a file exists in storage."""
-    return await get_storage().exists(key)
-
-
-async def get_presigned_upload_url(key: str, expires_in: int = 3600) -> str | None:
-    """Generate a presigned URL for uploading (S3 only)."""
-    return await get_storage().presigned_upload_url(key, expires_in)
-
-
-async def get_presigned_download_url(key: str, expires_in: int = 3600) -> str | None:
-    """Generate a presigned URL for downloading (S3 only)."""
-    return await get_storage().presigned_download_url(key, expires_in)
+async def file_chunks_exist(file_key: str, count: int) -> bool:
+    """Check that all expected chunks are present in storage."""
+    if is_s3_backend():
+        res = _s3_resource()
+        async with res as s3:
+            for i in range(count):
+                obj = s3.Object(settings.AWS_STORAGE_BUCKET_NAME, chunk_key(file_key, i))  # type: ignore[attr-defined]
+                if not await obj.metadata():
+                    return False
+            return True
+    store = _LocalStore()
+    return all(store._path(chunk_key(file_key, i)).exists() for i in range(count))

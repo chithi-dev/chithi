@@ -7,14 +7,13 @@ JWT middleware → CSRF-exempt AsyncGraphQLView → Strawberry schema → resolv
 
 import asyncio
 from datetime import timedelta
-from unittest.mock import patch
 from uuid import uuid4
 
 from django.utils import timezone
 
 from apps.config.models import Config
 from apps.files.models import File
-from apps.files.services import file_exists_in_storage
+from apps.files.services import file_chunks_exist
 from apps.graphql.auth import get_jwt_tokens
 from apps.users.models import User
 
@@ -35,14 +34,6 @@ class SchemaIntrospectionTests(IntegrationTestCase):
         data = resp.assert_no_errors()
         self.assertEqual(data["__schema"]["queryType"]["name"], "Query")
         self.assertEqual(data["__schema"]["mutationType"]["name"], "Mutation")
-
-    async def test_subscription_type_present(self):
-        resp = await self.gql.post(
-            "{ __schema { subscriptionType { name fields { name } } } }"
-        )
-        data = resp.assert_no_errors()
-        names = [f["name"] for f in data["__schema"]["subscriptionType"]["fields"]]
-        self.assertIn("remainingStorage", names)
 
     async def test_auto_camel_case_active(self):
         resp = await self.gql.post(f"{{ config {{ {CONFIG_FIELDS} }} }}")
@@ -212,7 +203,7 @@ class JwtMiddlewareTests(IntegrationTestCase):
 
     async def test_middleware_ignores_non_graphql_paths(self):
         f = await self._q(make_file)
-        resp = await self.gql.client.get(f"/files/{f.id}/")
+        resp = await self.gql.client.get(f"/files/info/{f.id}/")
         self.assertEqual(resp.status_code, 200)
 
 
@@ -354,88 +345,149 @@ class FileQueryTests(IntegrationTestCase):
 
 
 class FileMutationTests(IntegrationTestCase):
-    UPLOAD_MUTATION = """
-        mutation UploadFile($file: Upload!, $filename: String!, $expiresAt: Int!,
-                            $expireAfterNDownload: Int!, $numberOfFiles: Int) {
-            uploadFile(file: $file, filename: $filename, expiresAt: $expiresAt,
-                       expireAfterNDownload: $expireAfterNDownload,
-                       numberOfFiles: $numberOfFiles) {
-                id key filename size numberOfFiles downloadCount expiresAt
+    REGISTER_MUTATION = """
+        mutation RegisterFile($filename: String!, $totalSize: Int!,
+                              $chunkCount: Int!, $expiresAt: Int!,
+                              $expireAfterNDownload: Int!, $numberOfFiles: Int) {
+            registerFile(filename: $filename, totalSize: $totalSize,
+                         chunkCount: $chunkCount, expiresAt: $expiresAt,
+                         expireAfterNDownload: $expireAfterNDownload,
+                         numberOfFiles: $numberOfFiles) {
+                id key filename size chunkCount numberOfFiles downloadCount expiresAt
             }
         }
     """
 
-    async def _upload(self, *, variables=None, content=b"A" * 1024):
+    async def _register(self, *, filename="bundle.enc", total_size=1024,
+                        chunk_count=1, expires_at=3600, expire_after=3,
+                        number_of_files=7, **overrides):
         vars_ = {
-            "filename": "bundle.enc",
-            "expiresAt": 3600,
-            "expireAfterNDownload": 3,
-            "numberOfFiles": 7,
+            "filename": filename,
+            "totalSize": total_size,
+            "chunkCount": chunk_count,
+            "expiresAt": expires_at,
+            "expireAfterNDownload": expire_after,
+            "numberOfFiles": number_of_files,
         }
-        vars_.update(variables or {})
+        vars_.update(overrides)
+        return await self.gql.post(self.REGISTER_MUTATION, vars_)
+
+    async def _upload_chunk(self, file_key, chunk_index, data, is_last=True):
+        mutation = """
+            mutation UploadChunk($fileKey: String!, $chunkIndex: Int!,
+                                 $chunk: Upload!, $isLast: Boolean!) {
+                uploadFileChunk(fileKey: $fileKey, chunkIndex: $chunkIndex,
+                                chunk: $chunk, isLast: $isLast)
+            }
+        """
         return await self.gql.post_multipart(
-            self.UPLOAD_MUTATION, vars_, {"file": ("bundle.enc", content)}
+            mutation,
+            {"fileKey": file_key, "chunkIndex": chunk_index, "isLast": is_last},
+            {"chunk": (f"chunk-{chunk_index}.part", data)},
         )
 
-    async def test_upload_stores_bytes_and_db_row(self):
-        payload = b"A" * 1024
-        resp = await self._upload(content=payload)
-        uploaded = resp.assert_no_errors()["uploadFile"]
-        self.assertEqual(uploaded["filename"], "bundle.enc")
-        self.assertEqual(uploaded["size"], 1024)
-        self.assertEqual(uploaded["numberOfFiles"], 7)
-        row = await self._q(File.objects.get, id=uploaded["id"])
-        self.assertEqual(row.size, 1024)
-        self.assertTrue(await self._q(file_exists_in_storage, row.key))
-        self.assertEqual(row.expire_after_n_download, 3)
+    async def test_register_and_upload_chunk_roundtrip(self):
+        resp = await self._register(filename="bundle.enc", total_size=1024,
+                                    chunk_count=1, number_of_files=7)
+        registered = resp.assert_no_errors()["registerFile"]
+        self.assertEqual(registered["filename"], "bundle.enc")
+        self.assertEqual(registered["size"], 1024)
+        self.assertEqual(registered["chunkCount"], 1)
 
-    async def test_upload_rejects_when_disabled(self):
+        payload = b"A" * 1024
+        chunk_resp = await self._upload_chunk(registered["key"], 0, payload)
+        self.assertTrue(chunk_resp.assert_no_errors()["uploadFileChunk"])
+
+        row = await self._q(File.objects.get, id=registered["id"])
+        self.assertEqual(row.size, 1024)
+        self.assertEqual(row.expire_after_n_download, 3)
+        self.assertTrue(await self._q(file_chunks_exist, row.key, 1))
+
+    async def test_register_rejects_when_disabled(self):
         await self._q(make_config, allow_uploads=False)
-        resp = await self._upload(variables={"filename": "x.bin"})
+        resp = await self._register(filename="x.bin")
         self.assertIsNotNone(resp.errors)
         self.assertIn("disabled", resp.errors[0]["message"].lower())
         self.assertEqual(await self._q(File.objects.count), 0)
 
-    async def test_upload_rejects_oversize(self):
+    async def test_register_rejects_oversize(self):
         await self._q(make_config, max_file_size_limit=8)
-        resp = await self._upload(
-            variables={"filename": "big.bin"}, content=b"123456789"
-        )
+        resp = await self._register(filename="big.bin", total_size=9)
         self.assertIsNotNone(resp.errors)
         self.assertIn("exceeds", resp.errors[0]["message"])
         self.assertEqual(await self._q(File.objects.count), 0)
 
-    async def test_upload_exactly_at_size_limit_succeeds(self):
+    async def test_register_exactly_at_size_limit_succeeds(self):
         await self._q(make_config, max_file_size_limit=8)
-        resp = await self._upload(
-            variables={"filename": "edge.bin"}, content=b"12345678"
-        )
+        resp = await self._register(filename="edge.bin", total_size=8)
         self.assertIsNone(resp.errors)
 
-    async def test_upload_rejects_over_max_expiry(self):
+    async def test_register_rejects_over_max_expiry(self):
         await self._q(make_config, default_expiry=100)
-        resp = await self._upload(
-            variables={"filename": "late.bin", "expiresAt": 101}, content=b"d"
-        )
+        resp = await self._register(filename="late.bin", expires_at=101)
         self.assertIsNotNone(resp.errors)
         self.assertIn("expiry duration", resp.errors[0]["message"].lower())
 
-    async def test_delete_file_removes_row_and_blob(self):
+    async def test_register_rejects_zero_chunks(self):
+        resp = await self._register(chunk_count=0)
+        self.assertIsNotNone(resp.errors)
+
+    async def test_complete_upload_verifies_chunks(self):
+        resp = await self._register(filename="multi.enc", total_size=2048,
+                                    chunk_count=2)
+        registered = resp.assert_no_errors()["registerFile"]
+        await self._upload_chunk(registered["key"], 0, b"x" * 1024, is_last=False)
+        await self._upload_chunk(registered["key"], 1, b"y" * 1024, is_last=True)
+
+        done = await self.gql.post(
+            f'mutation {{ completeUpload(fileId: "{registered["id"]}") }}'
+        )
+        self.assertTrue(done.assert_no_errors()["completeUpload"])
+
+    async def test_complete_upload_fails_when_chunks_missing(self):
+        resp = await self._register(filename="incomplete.enc", total_size=2048,
+                                    chunk_count=3)
+        registered = resp.assert_no_errors()["registerFile"]
+        await self._upload_chunk(registered["key"], 0, b"only-first")
+
+        done = await self.gql.post(
+            f'mutation {{ completeUpload(fileId: "{registered["id"]}") }}'
+        )
+        self.assertIsNotNone(done.errors)
+
+    async def test_chunk_url_returns_presigned_url(self):
+        resp = await self._register(filename="urls.enc", total_size=1024,
+                                    chunk_count=1)
+        registered = resp.assert_no_errors()["registerFile"]
+        await self._upload_chunk(registered["key"], 0, b"url-data")
+
+        url_resp = await self.gql.post(
+            f'mutation {{ chunkUrl(fileId: "{registered["id"]}", chunkIndex: 0) }}'
+        )
+        url = url_resp.assert_no_errors()["chunkUrl"]
+        self.assertIsInstance(url, str)
+        self.assertTrue(len(url) > 0)
+
+    async def test_chunk_url_rejects_out_of_range(self):
+        resp = await self._register(filename="range.enc", total_size=1024,
+                                    chunk_count=1)
+        registered = resp.assert_no_errors()["registerFile"]
+        url_resp = await self.gql.post(
+            f'mutation {{ chunkUrl(fileId: "{registered["id"]}", chunkIndex: 5) }}'
+        )
+        self.assertIsNotNone(url_resp.errors)
+
+    async def test_delete_file_removes_row_and_chunks(self):
         f = await self._q(make_file, filename="deleteme.enc")
         key = f.key
-        self.assertTrue(await self._q(file_exists_in_storage, key))
+        self.assertTrue(await self._q(file_chunks_exist, key, 1))
         resp = await self.gql.post(f'mutation {{ deleteFile(fileId: "{f.id}") }}')
         self.assertTrue(resp.assert_no_errors()["deleteFile"])
         self.assertFalse(await self._q(File.objects.filter(id=f.id).exists))
-        self.assertFalse(await self._q(file_exists_in_storage, key))
+        self.assertFalse(await self._q(file_chunks_exist, key, 1))
 
     async def test_delete_missing_file_returns_false(self):
         resp = await self.gql.post(
             f'mutation {{ deleteFile(fileId: "{uuid4()}") }}'
         )
         self.assertFalse(resp.assert_no_errors()["deleteFile"])
-
-    async def test_upload_broadcasts_state(self):
-        with patch("apps.graphql.mutations.file.broadcast_state") as mock_b:
-            await self._upload(variables={"filename": "ping.bin"})
-        mock_b.assert_awaited()

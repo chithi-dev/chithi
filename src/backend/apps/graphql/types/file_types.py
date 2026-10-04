@@ -19,6 +19,7 @@ class FileType:
     expires_at: datetime
     expire_after_n_download: int
     is_expired: bool
+    chunk_count: int
 
 
 @strawberry.type

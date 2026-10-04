@@ -1,14 +1,14 @@
 """django.tasks integration — the expired-file cleanup task.
 
 Exercises the raw function and the ImmediateBackend enqueue path against the
-real ORM + storage backend.
+real ORM + chunked storage backend.
 """
 
 import asyncio
 from unittest.mock import patch
 
 from apps.files.models import File
-from apps.files.services import file_exists_in_storage
+from apps.files.services import file_chunks_exist
 from apps.files.tasks import delete_expired_files
 
 from .base import IntegrationTestCase, make_file
@@ -27,8 +27,8 @@ class DeleteExpiredFilesTests(IntegrationTestCase):
         self.assertEqual(count, 1)
         self.assertTrue(File.objects.filter(id=live.id).exists())
         self.assertFalse(File.objects.filter(id=dead.id).exists())
-        self.assertFalse(self._file_exists(dead.key))
-        self.assertTrue(self._file_exists(live.key))
+        self.assertFalse(self._chunks_exist(dead.key))
+        self.assertTrue(self._chunks_exist(live.key))
 
     def test_noop_when_nothing_expired(self):
         make_file()
@@ -37,8 +37,6 @@ class DeleteExpiredFilesTests(IntegrationTestCase):
     def test_enqueue_runs_inline_via_immediate_backend(self):
         dead = make_file(expires_in=-1)
         result = delete_expired_files.enqueue()
-        # ImmediateBackend executes synchronously; the result object exposes
-        # the return value once resolved.
         self.assertIsNotNone(result)
         self.assertFalse(File.objects.filter(id=dead.id).exists())
 
@@ -48,14 +46,12 @@ class DeleteExpiredFilesTests(IntegrationTestCase):
         async def boom(key):
             raise RuntimeError("s3 exploded")
 
-        with patch("apps.files.tasks.delete_file_from_storage", boom):
+        with patch("apps.files.tasks.delete_file_chunks", boom):
             count = asyncio.run(delete_expired_files.func())
 
         self.assertEqual(count, 1)
         self.assertFalse(File.objects.filter(id=dead.id).exists())
 
     @staticmethod
-    def _file_exists(key):
-        # Run on its own event loop to avoid conflict with the Channels
-        # in-memory layer when the suite is run together.
-        return asyncio.run(file_exists_in_storage(key))
+    def _chunks_exist(key):
+        return asyncio.run(file_chunks_exist(key, 1))

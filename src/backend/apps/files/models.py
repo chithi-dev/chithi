@@ -17,6 +17,7 @@ class File(UUIDPrimaryKeyMixin, CreatedAtMixin):
     download_count = models.BigIntegerField(default=0)
     size = models.BigIntegerField(validators=[validate_max_file_size])
     number_of_files = models.IntegerField(null=True, blank=True)
+    chunk_count = models.PositiveIntegerField(default=1)
 
     @property
     def is_expired(self) -> bool:

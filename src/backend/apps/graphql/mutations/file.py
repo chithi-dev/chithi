@@ -1,68 +1,99 @@
+import asyncio
+from uuid import uuid4
+
 import strawberry
 from asgiref.sync import sync_to_async
 from strawberry.file_uploads import Upload
 from strawberry.types import Info
-from uuid import uuid4
 from django.utils import timezone
 
 from apps.config.models import Config
 from apps.files.models import File
-from apps.files.services import delete_file_from_storage, upload_file_data
-from apps.graphql.consumers import broadcast_state
+from apps.files import services
 from apps.graphql.types import FileType
+
+# Re-export the chunk size so the frontend contract is documented in one place.
+CHUNK_SIZE = services.CHUNK_SIZE_BYTES
 
 
 @strawberry.type
 class FileMutation:
     @strawberry.mutation
-    async def upload_file(
+    async def upload_file_chunk(
+        self,
+        info: Info,
+        file_key: str,
+        chunk_index: int,
+        chunk: Upload,
+        is_last: bool,
+    ) -> bool:
+        """Upload a single chunk (<= 50 MB) of an encrypted file.
+
+        The frontend splits the encrypted payload into 50 MB chunks and calls
+        this mutation once per chunk. Chunks are stored as separate S3 objects
+        under ``{file_key}/chunk-{index}``.
+
+        ``is_last`` marks the final chunk; when it arrives and the file record
+        already exists, no extra work is needed (the File row is created by the
+        first ``register_file`` call before chunks start).
+        """
+        config = await sync_to_async(Config.load)()
+        if not config.allow_uploads:
+            raise ValueError("File uploads are currently disabled.")
+
+        await sync_to_async(File.objects.get)(key=file_key)
+
+        # Materialise the chunk bytes from the Upload.
+        if isinstance(chunk, (bytes, bytearray, memoryview)):
+            data = bytes(chunk)
+        elif isinstance(chunk, list):
+            data = b"".join(bytes(p) for p in chunk)
+        elif hasattr(chunk, "read") and callable(getattr(chunk, "read")):
+            data = chunk.read()
+        else:
+            upload = info.context.request.FILES.get("chunk")
+            if upload is None:
+                raise ValueError("Uploaded chunk is empty.")
+            data = upload.read()
+
+        if data.endswith(b"\r\n"):
+            data = data[:-2]
+
+        if not data:
+            raise ValueError("Uploaded chunk is empty.")
+
+        await services.upload_chunk(file_key, chunk_index, data)
+        return True
+
+    @strawberry.mutation
+    async def register_file(
         self,
         info: Info,
         filename: str,
-        file: Upload,
+        total_size: int,
+        chunk_count: int,
         expires_at: int,
         expire_after_n_download: int,
         number_of_files: int | None = None,
     ) -> FileType:
-        config = await sync_to_async(Config.load)()
+        """Register a new file before uploading its chunks.
 
-        # Check if uploads are allowed
+        Returns the file record (including its UUID key) so the frontend knows
+        where to upload chunks and how many it must send.
+        """
+        config = await sync_to_async(Config.load)()
         if not config.allow_uploads:
             raise ValueError("File uploads are currently disabled.")
 
-        # ``Upload`` is a NewType over ``bytes`` — the multipart parser
-        # already materialised the file contents. If a client uses Django's
-        # native multipart transport instead, the bytes will be on
-        # ``request.FILES["file"]`` as an UploadedFile.
-        if isinstance(file, (bytes, bytearray, memoryview)):
-            file_data = bytes(file)
-        elif isinstance(file, list):
-            # Some multipart parsers return a list of byte chunks — concat.
-            file_data = b"".join(bytes(p) for p in file)
-        elif hasattr(file, "read") and callable(getattr(file, "read")):
-            file_data = file.read()
-        else:
-            upload = info.context.request.FILES.get("file")
-            if upload is None:
-                raise ValueError("Uploaded file is empty.")
-            file_data = upload.read()
-
-        # The strawberry multipart parser includes the trailing CRLF
-        # separator in the file bytes when the file is delivered as an
-        # InMemoryUploadedFile. Strip it so the upload matches what the
-        # client actually sent.
-        if file_data.endswith(b"\r\n"):
-            file_data = file_data[:-2]
-
-        file_size = len(file_data)
-
-        if file_size == 0:
-            raise ValueError("Uploaded file is empty.")
-        if file_size > config.max_file_size_limit:
+        if total_size == 0:
+            raise ValueError("File size must be positive.")
+        if total_size > config.max_file_size_limit:
             raise ValueError(
-                f"File size {file_size} exceeds the maximum allowed size "
+                f"File size {total_size} exceeds the maximum allowed size "
                 f"{config.max_file_size_limit}."
             )
+        if chunk_count < 1:
+            raise ValueError("chunk_count must be at least 1.")
 
         if expires_at > config.default_expiry:
             raise ValueError(
@@ -70,26 +101,55 @@ class FileMutation:
                 f"{config.default_expiry}s."
             )
 
-        key = str(uuid4())
-        await upload_file_data(key=key, data=file_data)
         file_obj = await sync_to_async(File.objects.create)(
-            key=key,
+            key=str(uuid4()),
             filename=filename,
-            size=file_size,
+            size=total_size,
+            chunk_count=chunk_count,
             expires_at=timezone.now() + timezone.timedelta(seconds=expires_at),
             expire_after_n_download=expire_after_n_download,
             number_of_files=number_of_files,
         )
-        await broadcast_state()
         return file_obj
 
     @strawberry.mutation
-    async def delete_file(self, file_id: strawberry.ID) -> bool:
+    async def complete_upload(self, file_id: strawberry.ID) -> bool:
+        """Mark a file's upload as complete and verify all chunks are present."""
         try:
             file_obj = await sync_to_async(File.objects.get)(id=file_id)
-            await delete_file_from_storage(file_obj.key)
-            await sync_to_async(file_obj.delete)()
-            await broadcast_state()
-            return True
         except File.DoesNotExist:
             return False
+
+        ok = await services.file_chunks_exist(file_obj.key, file_obj.chunk_count)
+        if not ok:
+            raise ValueError("Some chunks are missing; upload incomplete.")
+        return True
+
+    @strawberry.mutation
+    async def delete_file(self, file_id: strawberry.ID) -> bool:
+        """Delete a file and all of its chunks from storage."""
+        try:
+            file_obj = await sync_to_async(File.objects.get)(id=file_id)
+        except File.DoesNotExist:
+            return False
+
+        await services.delete_file_chunks(file_obj.key)
+        await sync_to_async(file_obj.delete)()
+        return True
+
+    @strawberry.mutation
+    async def chunk_url(self, file_id: strawberry.ID, chunk_index: int) -> str:
+        """Return a URL (presigned, if S3) to fetch one chunk directly.
+
+        The frontend downloads each chunk from this URL — bypassing Django —
+        and reassembles them client-side before decryption.
+        """
+        try:
+            file_obj = await sync_to_async(File.objects.get)(id=file_id)
+        except File.DoesNotExist:
+            raise ValueError("File not found.")
+
+        if chunk_index < 0 or chunk_index >= file_obj.chunk_count:
+            raise ValueError("chunk_index out of range.")
+
+        return await services.presigned_chunk_url(file_obj.key, chunk_index)

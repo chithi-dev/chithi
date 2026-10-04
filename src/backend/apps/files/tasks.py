@@ -4,7 +4,7 @@ from asgiref.sync import sync_to_async
 from django.tasks import task
 from django.utils import timezone
 
-from apps.files.services import delete_file_from_storage
+from apps.files.services import delete_file_chunks
 from apps.files.models import File
 
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ async def delete_expired_files() -> int:
 
     for file_obj in expired_files:
         try:
-            await delete_file_from_storage(file_obj.key)
+            await delete_file_chunks(file_obj.key)
         except Exception as e:
             logger.error("Failed to delete file %s: %s", file_obj.key, e)
         await sync_to_async(file_obj.delete)()

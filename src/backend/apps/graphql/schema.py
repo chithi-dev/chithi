@@ -1,5 +1,4 @@
 import strawberry
-from django.core.files.uploadedfile import UploadedFile
 from strawberry.file_uploads import UploadDefinition
 from strawberry.schema.config import StrawberryConfig
 
@@ -16,7 +15,6 @@ from apps.graphql.queries import (
     OnboardingQuery,
     UserQuery,
 )
-from apps.graphql.subscriptions import Subscription
 
 strawberry_config = StrawberryConfig(
     auto_camel_case=True,
@@ -47,7 +45,5 @@ class Mutation(
 schema = strawberry.Schema(
     query=Query,
     mutation=Mutation,
-    subscription=Subscription,
     config=strawberry_config,
-    scalar_overrides={UploadedFile: UploadDefinition},
 )

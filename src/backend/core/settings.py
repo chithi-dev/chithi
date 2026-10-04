@@ -18,8 +18,6 @@ CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 INSTALLED_APPS = [
-    "daphne",
-    "channels",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -65,25 +63,6 @@ TEMPLATES = [
 
 ASGI_APPLICATION = "core.asgi.application"
 
-# Channels — Redis in production (shared across cluster), in-memory in dev
-CHANNEL_LAYERS: dict = {
-    "default": {
-        "BACKEND": (
-            "channels_redis.core.RedisChannelLayer"
-            if os.environ.get("CELERY_BROKER_URL")
-            else "channels.layers.InMemoryChannelLayer"
-        ),
-        "CONFIG": {
-            "capacity": 150
-            if os.environ.get("CELERY_BROKER_URL")
-            else None,  # cap messages in Redis layer
-            "expiry": 10,  # expire idle messages after 10s
-        }
-        if os.environ.get("CELERY_BROKER_URL")
-        else {},
-    },
-}
-
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
     "sqlite:///db.sqlite3",
@@ -117,12 +96,6 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
-
-# S3 settings — if defined, files are stored on S3; otherwise local filesystem
-AWS_S3_ENDPOINT_URL = os.environ.get("AWS_S3_ENDPOINT_URL", "")
-AWS_ACCESS_KEY_ID = os.environ.get("AWS_ACCESS_KEY_ID", "")
-AWS_SECRET_ACCESS_KEY = os.environ.get("AWS_SECRET_ACCESS_KEY", "")
-AWS_STORAGE_BUCKET_NAME = os.environ.get("AWS_STORAGE_BUCKET_NAME", "")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "users.User"

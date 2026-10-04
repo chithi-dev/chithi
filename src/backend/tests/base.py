@@ -70,7 +70,7 @@ def make_file(
     If ``size`` is given, the data is padded/truncated to that exact byte
     count and the row's size is set accordingly.
     """
-    from apps.files.services import upload_file_data
+    from apps.files.services import upload_chunk
 
     if size is not None:
         if len(data) >= size:
@@ -81,13 +81,14 @@ def make_file(
     key = str(uuid.uuid4())
 
     def _do_upload():
-        return upload_file_data(key=key, data=data)
+        return upload_chunk(key, 0, data)
 
     async_to_sync(_do_upload)()
     return File.objects.create(
         key=key,
         filename=filename,
         size=len(data),
+        chunk_count=1,
         expires_at=timezone.now() + timedelta(seconds=expires_in),
         expire_after_n_download=expire_after_n_download,
         number_of_files=number_of_files,
