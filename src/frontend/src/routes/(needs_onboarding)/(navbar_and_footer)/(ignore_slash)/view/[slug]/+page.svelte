@@ -76,7 +76,7 @@
     phase = 'downloading';
     prog = new Tween(0, { duration: 500, easing: cubicOut });
     try {
-      const blob = await fetchDecryptedBlob(slug, key, password, { knownSize: fileSize, onProgress: (p) => prog.target = p });
+      const blob = await fetchDecryptedBlob(slug, key, password, { onProgress: (p) => prog.target = p });
       decryptedBlob = blob;
       await validateZipBlob(blob);
       phase = 'listing';

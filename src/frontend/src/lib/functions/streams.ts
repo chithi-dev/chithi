@@ -48,8 +48,8 @@ export async function createZipStream(files: File[]): Promise<ReadableStream<Uin
 			);
 		});
 	});
+}
 
-// ---------------------------------------------------------------------------
 // ECE (RFC 8188) streaming encrypt/decrypt over AES-128-GCM.
 //
 // Wire format:

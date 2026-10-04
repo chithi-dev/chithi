@@ -1,15 +1,17 @@
 # Chithi Implementation Plan
 
-> **Status**: Active implementation — wiring frontend ↔ Django GraphQL backend, fixing critical gaps
-> **Date**: 2026-07-28
+> **Status**: Active — chunked S3 + Web Crypto rewrite complete, CLI rewrite pending
+> **Date**: 2026-10-04
 > **Branch**: `feat/jxr-other`
 >
-> Three workstreams completed previously:
-> 1. **Frontend** — Apollo Client v4, GraphQL codegen, shadcn-svelte compliance, camelCase migration
-> 2. **Django + Strawberry-Django Backend** — full port from FastAPI, GraphQL schema, S3, Celery
-> 3. **WASM Multi-Core** — `wasm_thread` parallelism, XChaCha20-Poly1305, all cores utilized
+> **Current architecture** (post-rewrite):
+> - **Backend**: Django + Strawberry GraphQL + aioboto3 (S3) — runs on port 8001
+> - **Frontend**: SvelteKit 2 + Svelte 5 + Apollo Client 4 + fflate — uploads 50 MB chunks to S3 via Django, downloads chunks directly from S3 (presigned URLs, behind Cloudflare)
+> - **CLI**: Python — pending rewrite to pure Python (remove wasmtime/Rust bridge)
+> - **Crypto**: Web Crypto API only — HKDF-SHA-256 + PBKDF2-SHA-256 + AES-128-GCM ECE (RFC 8188), 64 KiB records
+> - **Removed**: Rust crates, WASM SDKs, WebSockets, reverse-share
 >
-> **Current focus**: Fix critical integration gaps, add missing mutations, wire file uploads/downloads, verify end-to-end.
+> **Current focus**: CLI crypto rewrite in pure Python, then end-to-end verification.
 
 ---
 
@@ -17,24 +19,24 @@
 
 | Area | Status | Detail |
 |---|---|---|
-| **Rust WASM** | DONE | `wasm_thread` parallel feature, `+atomics,+simd128`, SharedArrayBuffer |
-| **JS Worker Pool** | DONE | `WORKER_CONCURRENCY = 1` (Rust handles parallelism) |
-| **Django Project** | DONE | Settings, mixins, models, Celery, S3 configured |
-| **GraphQL Schema** | DONE | Query/Mutation for all domain objects |
-| **S3 Service Layer** | DONE | `apps/files/services.py` — upload, download, delete, presigned URLs |
+| **Rust WASM** | REMOVED | Rust crates deleted; replaced with pure Web Crypto API |
+| **Web Crypto Streams** | DONE | `streams.ts` — HKDF + AES-128-GCM ECE, worker-based, 64 KiB records |
+| **Django Project** | DONE | Settings, models, Celery, S3 configured (port 8001) |
+| **GraphQL Schema** | DONE | Chunked upload/download mutations (registerFile, uploadFileChunk, completeUpload, chunkUrl) |
+| **S3 Service Layer** | DONE | `apps/files/services.py` — chunked upload, presigned download URLs |
 | **Celery Expired Files** | DONE | Periodic task via django_celery_beat |
-| **Frontend GraphQL Client** | DONE | Apollo Client v4, codegen, generated types |
-| **Frontend TypeScript** | DONE | `npm run check` passes, 0 errors |
-| **Frontend Build** | DONE | `npm run build` succeeds |
-| **Django Migrations** | DONE | 39 migrations, SQLite + PostgreSQL compatible |
+| **Frontend GraphQL Client** | DONE | Apollo Client v4, codegen, generated types, apollo-upload-client |
+| **Frontend TypeScript** | DONE | Download-flow files type-clean; remaining 38 errors in pre-existing admin/reverse files (out of scope) |
+| **Frontend Build** | DONE | `npm run build` passes |
+| **Django Migrations** | DONE | SQLite + PostgreSQL compatible |
 | **Frontend camelCase Migration** | DONE | All GraphQL interfaces, query modules, and Svelte components migrated |
 | **shadcn-svelte Compliance** | DONE | 46 components, docs-exact patterns |
-| **WASM Parallel Verification** | DONE | 4 parallel call sites, 14/14 tests pass |
-| **Logout Mutation** | DONE | Added `logout` mutation returning `Boolean` |
-| **Backend URL** | DONE | Updated to `localhost:8002` |
-| **File Mutation Bugs** | DONE | Fixed `delete_file` outside class, removed presigned URL mutation, cleaned imports |
-| **Subscriptions asyncio** | DONE | Added missing `import asyncio` |
-| **Backend Serves Files** | CONFIRMED | `views.py` streams files directly (no presigned URLs), users never access S3 directly |
+| **Chunked Upload (50 MB)** | DONE | `upload.ts` — registerFile → uploadFileChunk loop → completeUpload |
+| **Chunked Download (50 MB)** | DONE | `download.ts` — fileInfo → chunkUrl loop → reassemble → decrypt |
+| **WebSocket Removal** | PARTIAL | WebSockets removed from backend; `upload/state.svelte.ts` still references `Api.STATE_WS` (404, non-fatal) |
+| **CLI Rewrite** | TODO | Rewrite `src/cli/app/helpers/crypto.py` in pure Python (HKDF + AES-128-GCM ECE); remove wasmtime |
+| **Crypto Docs** | TODO | Update `apps/docs/crypto-architecture.md` to reflect new Web Crypto + chunked S3 model |
+| **E2E Verification** | TODO | Full upload→download round-trip with a real file via Playwright |
 
 ---
 
@@ -220,46 +222,56 @@ Connects to `Api.STATE_WS` (WebSocket). Django doesn't have WebSocket support ye
 
 ---
 
-## Phase 5: WASM Multi-Core Verification
+## Phase 5: CLI Rewrite — Pure Python Crypto
 
-### 5.1 Verify `wasm_thread` parallelism is enabled
+### 5.1 Rewrite `crypto.py` using `cryptography` library
+
+Replace the wasmtime/Rust bridge with pure Python using the `cryptography` package:
+
+```python
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives import hashes
+```
+
+**Scheme** (must match `streams.ts` exactly):
+- **IKM resolution**: `resolveIkM(ikm, password)` → HKDF-SHA256 extract from IKM, or PBKDF2-SHA256 if only password
+- **File key**: HKDF-SHA256 expand with salt (16 bytes) → AES-128 key
+- **ECE records**: AES-128-GCM, 64 KiB plaintext per record, nonce = nonceBase XOR seq (last 4 bytes BE)
+- **nonceBase**: SHA-256(file_key)[0:12]
+- **Wire format**: `[16B salt][4B record_size BE][record_0][record_1]...`
 
 **Files**:
-- `crates/chithi-core/Cargo.toml` — `parallel` feature is default ✓
-- `crates/wasm_bindings/Cargo.toml` — inherits default features ✓
-- `src/frontend/src/lib/wasm/chithi_wasm.ts` — calls `wasmEncryptChunksParallel` ✓
+- `src/cli/app/helpers/crypto.py` — full rewrite
+- `src/cli/requirements.txt` — add `cryptography`, remove wasmtime
+- `src/cli/app/helpers/chithi_core_bridge.py` — DELETE (wasmtime bridge, no longer needed)
 
-The Rust `encrypt_chunks_parallel` uses `wasm_thread::scope()` to spawn parallel threads per chunk. The `parallel` feature is enabled by default in `chithi-core`.
+**Status**: TODO
 
-**Status**: VERIFIED
+### 5.2 Update CLI upload/download to use 50 MB chunks
 
-### 5.2 Verify WASM is compiled with `+atomics,+simd128`
+Align CLI chunk size with backend's `CHUNK_SIZE_BYTES` (50 MB). CLI uploads chunks via GraphQL `uploadFileChunk` mutation, downloads via presigned `chunkUrl`.
 
-**File**: `src/frontend/src/lib/wasm/chithi_wasm.ts` and build script
-
-The WASM module must be compiled with `+atomics,+simd128` for `wasm_thread` to work. Check the build script.
-
-**Status**: VERIFY
-
-### 5.3 Verify SharedArrayBuffer is available
-
-The frontend must serve with correct COOP/COEP headers for `SharedArrayBuffer` (required by `wasm_thread`). Check `svelte.config.js` for headers.
-
-**Status**: VERIFY
+**Status**: TODO
 
 ---
 
-## Phase 6: Add WebSocket Support to Django (Upload State)
+## Phase 6: Remove Remaining WebSocket References
 
-### 6.1 Install and configure Django Channels
+### 6.1 Clean up `upload/state.svelte.ts`
 
-Add `channels` to `INSTALLED_APPS`, configure `ASGI_APPLICATION`, add WebSocket routing.
+Remove or replace the WebSocket state store. Upload progress is now tracked locally (per-chunk callbacks) — no server push needed.
 
-### 6.2 Create upload state consumer
+**File**: `src/frontend/src/routes/.../upload/state.svelte.ts`
 
-Port the WebSocket state broadcasting from FastAPI to Django Channels, preserving Redis pub/sub for state sync.
+**Status**: TODO
 
-**Status**: DEFER (after Phase 3 verification)
+### 6.2 Remove `Api.STATE_WS` and `Api.REVERSE`
+
+**File**: `src/frontend/src/lib/consts/backend.ts`
+
+**Status**: TODO
 
 ---
 

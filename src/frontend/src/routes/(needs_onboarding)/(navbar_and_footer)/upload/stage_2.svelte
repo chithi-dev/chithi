@@ -15,11 +15,10 @@
 	import { formatSeconds } from '#functions/times';
 	import { clipboardFiles, hasFileItems } from '#functions/file-tree';
 	import { createZipStream, createEncryptedStream } from '#functions/streams';
+	import { uploadFile } from '#functions/upload';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { v7 as uuidv7 } from 'uuid';
 	import { Progress } from '$lib/components/ui/progress/index.js';
-	import { client } from '$lib/graphql/client.js';
-	import { UploadFileDocument } from '$lib/graphql/generated/graphql.js';
 	import { addHistoryEntry } from '$lib/database';
 	import { toast } from 'svelte-sonner';
 	import { cubicOut } from 'svelte/easing';
@@ -134,7 +133,9 @@
 			uploadError = '';
 			inProgress = true;
 			uploadProgress = newTween();
-			const stream = await createZipStream(files, isPasswordProtected ? password : undefined);
+
+			// Phase 1: Zip + encrypt
+			const stream = await createZipStream(files);
 			isEncrypting = true;
 			encryptionProgress = newTween();
 			const { stream: encryptedStream, keySecret } = await createEncryptedStream(
@@ -153,34 +154,28 @@
 			isEncrypting = false;
 			encryptionProgress.target = 100;
 
-			const result = await client.mutate<any>({
-				mutation: UploadFileDocument,
-				variables: {
-					file: encryptedBlob,
-					filename: files.length === 1 ? files[0].name : folderName,
-					expiresAt: parseInt(timeLimit),
-					expireAfterNDownload: viewOnce ? 1 : parseInt(downloadLimit),
-					numberOfFiles: files.length
+			// Phase 2: Upload chunks
+			const displayName = files.length === 1 ? files[0].name : folderName;
+			const { id: fileId } = await uploadFile({
+				encryptedData: encryptedBlob,
+				filename: displayName,
+				expiresAt: parseInt(timeLimit),
+				expireAfterNDownload: viewOnce ? 1 : parseInt(downloadLimit),
+				numberOfFiles: files.length,
+				onProgress: (done, total) => {
+					uploadProgress.target = Math.round((done / total) * 100);
 				}
 			});
-
-			if (result.error) {
-				throw new Error(result.error.message);
-			}
-
 			uploadProgress.target = 100;
-			const data = result.data?.uploadFile;
-			const serverPath = String(data?.id ?? data?.path ?? data?.key ?? '');
-			if (!serverPath || serverPath === 'null' || serverPath === 'undefined')
-				throw new Error('Invalid server response');
+
 			const origin = window.location.origin;
-			const downloadPath = `/download/${serverPath}#${keySecret}`;
+			const downloadPath = `/download/${fileId}#${keySecret}`;
 			const finalLink = `${origin}${downloadPath}`;
-			const viewOnceLink = viewOnce ? `${origin}/once/${serverPath}#${keySecret}` : '';
+			const viewOnceLink = viewOnce ? `${origin}/once/${fileId}#${keySecret}` : '';
 
 			addHistoryEntry({
-				id: serverPath,
-				name: files.length === 1 ? files[0].name : folderName,
+				id: fileId,
+				name: displayName,
 				link: viewOnce ? viewOnceLink : finalLink,
 				expiry: Temporal.Now.instant().epochMilliseconds + parseInt(timeLimit) * 1000,
 				downloadLimit: viewOnce ? '1' : downloadLimit,

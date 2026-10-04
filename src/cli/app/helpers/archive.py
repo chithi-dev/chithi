@@ -1,8 +1,10 @@
+"""Compress/encrypt helpers — pure Python, no WASM dependency."""
+
 from pathlib import Path
 
-from app.chithi_core_bridge import chithi_core
 from app.chithi_exceptions import ChithiError, CryptoError, ValidationError
 from app.chithi_types import EncryptedBundle
+from app.helpers.crypto import decrypt_bundle, encrypt_files
 
 __all__ = [
     "compress_and_encrypt",
@@ -34,29 +36,25 @@ def read_directory_entries(dirpath: Path) -> list[tuple[str, bytes]]:
     entries: list[tuple[str, bytes]] = []
     for f in sorted(path.rglob("*")):
         if f.is_file():
-            rel = str(f.relative_to(path))
+            rel = str(f.relative_to(path)).replace("\\", "/")
             entries.append((rel, f.read_bytes()))
     return entries
 
 
-def compress_and_encrypt(
-    source: Path, *, password: str
-) -> EncryptedBundle:
+def compress_and_encrypt(source: Path, *, password: str) -> EncryptedBundle:
     """Compress and encrypt a file or directory.
 
     Pipeline:
-    1. Read file(s) into memory
-    2. Compress into 7z archive (LZMA2)
-    3. Split into 32KB chunks
-    4. Encrypt each chunk with AES-256-GCM (parallel across all cores)
-    5. Sign bundle with Ed25519
+      1. Read file(s) into memory
+      2. Compress into a zip archive (zlib, level 6)
+      3. Encrypt with AES-128-GCM ECE (64 KiB records)
 
     Args:
         source: Path to a file or directory.
         password: Encryption password.
 
     Returns:
-        EncryptedBundle containing the encrypted data and crypto metadata.
+        EncryptedBundle containing the encrypted data.
     """
     if source.is_file():
         files = [(source.name, source.read_bytes())]
@@ -69,11 +67,11 @@ def compress_and_encrypt(
         raise ValidationError("Password must not be empty")
 
     try:
-        bundle_bytes = chithi_core.upload(files, password)
-    except ValueError as e:
+        return encrypt_files(files, password=password)
+    except (ValidationError, CryptoError):
+        raise
+    except Exception as e:
         raise ChithiError(str(e)) from e
-
-    return EncryptedBundle(bytes(bundle_bytes))
 
 
 def decrypt_and_decompress(
@@ -85,11 +83,10 @@ def decrypt_and_decompress(
     """Decrypt and decompress a bundle to disk.
 
     Pipeline:
-    1. Verify Ed25519 signature
-    2. Derive encryption key (Argon2id + HKDF)
-    3. Decrypt chunks with AES-256-GCM (parallel across all cores)
-    4. Decompress 7z archive (LZMA2)
-    5. Write files to output directory
+      1. Derive key from password (PBKDF2-SHA-256 + HKDF-SHA-256)
+      2. Decrypt ECE records with AES-128-GCM
+      3. Decompress zip archive
+      4. Write files to output directory
 
     Args:
         bundle: Encrypted bundle or raw bytes.
@@ -105,8 +102,10 @@ def decrypt_and_decompress(
     raw_bytes: bytes = bundle.raw if isinstance(bundle, EncryptedBundle) else bytes(bundle)
 
     try:
-        raw_files = chithi_core.download(raw_bytes, password)
-    except ValueError as e:
+        raw_files = decrypt_bundle(raw_bytes, password=password)
+    except (ValidationError, CryptoError):
+        raise
+    except Exception as e:
         raise CryptoError(f"Decryption failed: {e}") from e
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -115,7 +114,7 @@ def decrypt_and_decompress(
     for name, data in raw_files:
         dest = output_dir / name
         dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(bytes(data))
+        dest.write_bytes(data)
         written.append(dest)
 
     return written
