@@ -40,32 +40,67 @@ class _SegmentRenderable:
         return iter(self.segments)
 
 
-def print_branded_qr(url: str, console: Console = Console()) -> None:
-    """Render QR code to terminal.
+def _supports_half_block() -> bool:
+    """Check whether the terminal can render the ▀ half-block glyph."""
+    import sys
+    try:
+        sys.stdout.encoding
+        "▀".encode(sys.stdout.encoding or "utf-8")
+        return True
+    except (UnicodeEncodeError, AttributeError, LookupError):
+        return False
 
-    Rasterises the QR SVG then downsamples 2× before printing, so each
-    terminal cell covers a 2×2 pixel block — roughly half the terminal size.
+
+def print_branded_qr(url: str, console: Console = Console()) -> None:
+    """Render QR code to terminal, as compact as the terminal allows.
+
+    On terminals that support the ▀ half-block glyph, each row encodes 2 pixel
+    rows, halving the height. On legacy Windows consoles (cp1252), falls back
+    to full-block spaces with a 2× downsample.
     """
     png_data = _qr_png(url)
-    img = Image.open(BytesIO(png_data)).convert("RGBA")
+    img = Image.open(BytesIO(png_data)).convert("L")
     w, h = img.size
 
-    # Downsample 2× to keep the terminal QR compact.
-    img = img.resize((w // 2, h // 2), Image.LANCZOS)
-    w, h = img.size
+    use_half_block = _supports_half_block()
 
-    DARK_BG = Style(bgcolor="#000000")
-    LIGHT_BG = Style(bgcolor="#ffffff")
-
-    for y in range(h):
-        row: list[Segment] = []
-        for x in range(w):
-            r, g, b, _a = img.getpixel((x, y))  # type: ignore[assignment]
-            brightness = (r + g + b) / 3
-            style = LIGHT_BG if brightness > 128 else DARK_BG
-            row.append(Segment(" ", style))
-        row.append(Segment("\n"))
-        console.print(_SegmentRenderable(row))
+    if use_half_block:
+        # Half-block mode: 2 pixel rows per terminal row, 3× horizontal downsample.
+        if h % 2:
+            img = img.resize((w, h + 1), Image.LANCZOS)
+            w, h = img.size
+        target_w = max(1, w // 3)
+        img = img.resize((target_w, h), Image.LANCZOS)
+        w, h = img.size
+        pixels = img.load()
+        dark = Style(bgcolor="#000000")
+        light = Style(bgcolor="#ffffff")
+        for y in range(0, h, 2):
+            row: list[Segment] = []
+            for x in range(w):
+                top_dark = pixels[x, y] < 128
+                bot_dark = pixels[x, y + 1] < 128 if y + 1 < h else top_dark
+                if top_dark and bot_dark:
+                    row.append(Segment(" ", dark))
+                elif top_dark:
+                    row.append(Segment("▀", light))
+                else:
+                    row.append(Segment(" ", light))
+            row.append(Segment("\n"))
+            console.print(_SegmentRenderable(row))
+    else:
+        # Fallback: full-block, 2× downsample.
+        img = img.resize((w // 2, h // 2), Image.LANCZOS)
+        w, h = img.size
+        pixels = img.load()
+        dark = Style(bgcolor="#000000")
+        light = Style(bgcolor="#ffffff")
+        for y in range(h):
+            row: list[Segment] = []
+            for x in range(w):
+                row.append(Segment(" ", dark if pixels[x, y] < 128 else light))
+            row.append(Segment("\n"))
+            console.print(_SegmentRenderable(row))
 
 
 def export_qr_svg(url: str, path: str) -> None:
