@@ -17,7 +17,6 @@
   import type { LayoutData } from './$types';
   import { type Component, type Snippet } from 'svelte';
   import { MetaTags, deepMerge } from 'svelte-meta-tags';
-  import { ensureInitialized } from '$lib/wasm/chithi_wasm';
 
   let { children, data }: { children: Snippet; data: LayoutData } = $props();
 
@@ -29,15 +28,6 @@
 
   let SvelteQueryDevtools = $state<Component<any> | null>(null);
   void loadDevtools().then((c) => { SvelteQueryDevtools = c; });
-
-  $effect.pre(() => {
-    let cancelled = false;
-    (async () => {
-      if (cancelled) return;
-      await ensureInitialized();
-    })();
-    return () => { cancelled = true; };
-  });
 
   $effect.pre(() => {
     NProgress.done();
