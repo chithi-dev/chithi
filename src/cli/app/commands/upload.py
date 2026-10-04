@@ -1,4 +1,3 @@
-import tempfile
 from pathlib import Path
 from typing import Annotated, Any
 
@@ -61,37 +60,22 @@ async def upload(
             assert expire_seconds is not None
             assert expire_downloads is not None
 
-            # Compress and encrypt using SDK (parallel across all cores)
+            # Compress and encrypt using pure-Python crypto
             bundle = compress_and_encrypt(path, password=password)
 
-            # Write bundle to temp file for upload
-            fd, tmp_path_str = tempfile.mkstemp(suffix=".enc", prefix="chithi_")
-            tmp_path = Path(tmp_path_str)
+            # Upload encrypted bytes in 50 MB chunks via GraphQL
+            result: dict[str, Any] = await c.upload_file(
+                bundle.raw,
+                filename=filename or f"{path.name}.enc",
+                expire_after_n_download=expire_downloads,
+                expire_after=expire_seconds,
+            )
 
-            try:
-                tmp_path.write_bytes(bundle.raw)
+            slug = result.get("key") or result.get("id")
+            if not slug:
+                raise ValueError("Server response did not include a file identifier")
 
-                # Upload encrypted bundle
-                result: dict[str, Any] = await c.upload_file(
-                    tmp_path,
-                    filename=filename or f"{path.name}.enc",
-                    expire_after_n_download=expire_downloads,
-                    expire_after=expire_seconds,
-                )
-
-                # Extract identifier from response
-                slug_value = result.get("key") or result.get("path") or result.get("id")
-                slug = str(slug_value) if slug_value is not None else None
-                if not slug:
-                    raise ValueError(
-                        "Server response did not include a file identifier."
-                    )
-
-                # Construct the link (key not needed in URL - bundle contains all metadata)
-                download_url = urls.share_url(slug, "")
-
-            finally:
-                tmp_path.unlink(missing_ok=True)
+            download_url = urls.share_url(str(slug), "")
 
         # UI Output Logic
         if minimal:

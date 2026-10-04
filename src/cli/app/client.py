@@ -1,6 +1,23 @@
+"""Async GraphQL API client for the Chithi backend.
+
+Upload flow:
+  1. registerFile  → get file key + chunk count
+  2. uploadFileChunk (per 50 MB chunk, multipart GraphQL)
+  3. completeUpload
+
+Download flow:
+  1. fileInfo      → get chunkCount
+  2. chunkUrl (per chunk) → presigned S3 URL
+  3. Fetch each chunk directly from S3
+  4. Reassemble into a single byte buffer
+"""
+
+from __future__ import annotations
+
+import io
 from pathlib import Path
 from types import TracebackType
-from typing import Any, BinaryIO, Self, cast
+from typing import Any, Self
 
 import httpx2
 from tqdm import tqdm
@@ -8,63 +25,93 @@ from tqdm import tqdm
 from app.builder.urls import UrlBuilder
 from app.settings import settings
 
-# Stream in 8 MiB chunks (matches S3 multipart minimum)
-STREAM_CHUNK_SIZE = 8 * 1024 * 1024
+# Must match the backend's CHUNK_SIZE_BYTES
+CHUNK_SIZE = 50 * 1024 * 1024
 
 DEFAULT_TIMEOUT = httpx2.Timeout(connect=30.0, read=None, write=None, pool=None)
 
+# ── GraphQL documents ───────────────────────────────────────────────────────
 
-class _ProgressReader:
-    """Wraps a file object and updates a tqdm bar on every read."""
+_REGISTER_FILE = """
+mutation RegisterFile(
+  $filename: String!
+  $totalSize: Int!
+  $chunkCount: Int!
+  $expiresAt: Int!
+  $expireAfterNDownload: Int!
+  $numberOfFiles: Int
+) {
+  registerFile(
+    filename: $filename
+    totalSize: $totalSize
+    chunkCount: $chunkCount
+    expiresAt: $expiresAt
+    expireAfterNDownload: $expireAfterNDownload
+    numberOfFiles: $numberOfFiles
+  ) { id key filename size chunkCount }
+}
+"""
 
-    def __init__(self, fp: BinaryIO, pbar: tqdm) -> None:
-        """Create a progress-aware wrapper around a binary file object."""
-        self._fp = fp
-        self._pbar = pbar
+_UPLOAD_FILE_CHUNK = """
+mutation UploadFileChunk($fileKey: String!, $chunkIndex: Int!, $chunk: Upload!, $isLast: Boolean!) {
+  uploadFileChunk(fileKey: $fileKey, chunkIndex: $chunkIndex, chunk: $chunk, isLast: $isLast)
+}
+"""
 
-    def read(self, size: int = -1) -> bytes:
-        """Read bytes and advance the progress bar."""
-        data = self._fp.read(size)
-        if data:
-            self._pbar.update(len(data))
-        return data
+_COMPLETE_UPLOAD = """
+mutation CompleteUpload($fileId: ID!) {
+  completeUpload(fileId: $fileId)
+}
+"""
 
-    def seek(self, offset: int, whence: int = 0) -> int:
-        """Seek within the wrapped file object."""
-        return self._fp.seek(offset, whence)
+_FILE_INFO = """
+query FileInfo($slug: String!) {
+  fileInfo(key: $slug) {
+    id key filename size chunkCount numberOfFiles
+    downloadCount createdAt expiresAt expireAfterNDownload isExpired
+  }
+}
+"""
 
-    def tell(self) -> int:
-        """Return the current stream position."""
-        return self._fp.tell()
+_CHUNK_URL = """
+mutation ChunkUrl($fileId: ID!, $chunkIndex: Int!) {
+  chunkUrl(fileId: $fileId, chunkIndex: $chunkIndex)
+}
+"""
 
-    def __getattr__(self, name: str) -> Any:
-        """Delegate missing attributes to the wrapped file object."""
-        return getattr(self._fp, name)
+_CONFIG = """
+query Config {
+  config {
+    defaultExpiry
+    defaultNumberOfDownloads
+    allowUploads
+  }
+}
+"""
+
+
+# ── Client ─────────────────────────────────────────────────────────────────
 
 
 class Client:
-    """Async API client for uploads and downloads."""
+    """Async GraphQL + S3 client for the Chithi backend."""
 
-    def __init__(self, urls: UrlBuilder):
-        """
-        Initialize with a UrlBuilder instance.
-        Uses backend_url for API calls and frontend_url for headers.
-        """
+    def __init__(self, urls: UrlBuilder) -> None:
         self.urls = urls
-        # Set headers based on the frontend URL to avoid CORS/Security issues
         self._session = httpx2.AsyncClient(
             headers={
                 "Origin": self.urls.frontend_url.rstrip("/"),
                 "Referer": self.urls.frontend_url,
-                "Accept-Encoding": "br, zstd, gzip, deflate",
             },
             timeout=DEFAULT_TIMEOUT,
             follow_redirects=True,
             http2=True,
         )
+        self._graphql_url = self.urls.backend_url.rstrip("/") + "/graphql/"
+
+    # ── context manager ────────────────────────────────────────────────────
 
     async def __aenter__(self) -> Self:
-        """Enter the async context manager."""
         return self
 
     async def __aexit__(
@@ -73,117 +120,158 @@ class Client:
         exc_value: BaseException | None,
         traceback: TracebackType | None,
     ) -> None:
-        """Exit the async context manager and close the session."""
         await self.close()
 
     async def close(self) -> None:
-        """Close the underlying HTTP session."""
         await self._session.aclose()
 
     @classmethod
     def resolve(cls, initial_url: str | None = None) -> Self:
-        """Resolve URLs via UrlBuilder and return a Client."""
         urls = UrlBuilder.resolve(initial_url)
         return cls(urls)
 
-    async def get_config(self) -> dict[str, Any]:
-        """Fetch the server configuration using the backend URL."""
-        url = self.urls.config_url()
-        response = await self._session.get(url)
+    # ── low-level GraphQL helper ───────────────────────────────────────────
+
+    async def _gql(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Send a plain JSON GraphQL request (no file upload)."""
+        payload: dict[str, Any] = {"query": query, "variables": variables or {}}
+        response = await self._session.post(
+            self._graphql_url,
+            json=payload,
+            headers={"Content-Type": "application/json"},
+        )
         response.raise_for_status()
-        return cast(dict[str, Any], response.json())
+        data = response.json()
+        if "errors" in data:
+            raise ConnectionError(f"GraphQL error: {data['errors']}")
+        return data["data"]
+
+    async def _gql_multipart(
+        self,
+        query: str,
+        variables: dict[str, Any],
+        file_field: str,
+        file_bytes: bytes,
+        filename: str,
+    ) -> dict[str, Any]:
+        """Send a multipart GraphQL request with a file upload.
+
+        Follows the GraphQL Multipart Request Spec:
+          operations  = JSON with the query + variables (file vars as null)
+          map         = JSON mapping variable names to file part indices
+          0           = the file blob
+        """
+        import json
+
+        # Build the operations JSON (file variables are null in JSON)
+        json_vars = {k: (None if k == file_field else v) for k, v in variables.items()}
+        operations = json.dumps({"query": query, "variables": json_vars})
+        mapping = json.dumps({file_field: ["0"]})
+
+        files = {
+            "operations": (None, operations, "application/json"),
+            "map": (None, mapping, "application/json"),
+            "0": (filename, file_bytes, "application/octet-stream"),
+        }
+
+        response = await self._session.post(self._graphql_url, files=files)
+        response.raise_for_status()
+        data = response.json()
+        if "errors" in data:
+            raise ConnectionError(f"GraphQL error: {data['errors']}")
+        return data["data"]
+
+    # ── public API ─────────────────────────────────────────────────────────
+
+    async def get_config(self) -> dict[str, Any]:
+        data = await self._gql(_CONFIG)
+        config = data.get("config") or {}
+        # Normalise camelCase → snake_case keys the CLI expects
+        return {
+            "default_expiry": config.get("defaultExpiry", 86400),
+            "default_number_of_downloads": config.get("defaultNumberOfDownloads", 1),
+            "allow_uploads": config.get("allowUploads", True),
+        }
 
     async def upload_file(
         self,
-        file_path: Path,
-        filename: str | None = None,
-        expire_after_n_download: int | None = None,
-        expire_after: int | None = None,
+        encrypted_data: bytes,
+        filename: str,
+        expire_after_n_download: int = 1,
+        expire_after: int = 86400,
+        number_of_files: int | None = None,
     ) -> dict[str, Any]:
+        """Upload encrypted bytes in 50 MB chunks via the GraphQL chunked flow.
+
+        Returns a dict with 'id' and 'key' (the file slug).
         """
-        Stream-upload *file_path* to the backend.
-        Uses the resolved backend_url/upload endpoint.
+        total_size = len(encrypted_data)
+        chunk_count = max(1, -(-total_size // CHUNK_SIZE))  # ceil div
+
+        # 1. Register the file
+        reg_data = await self._gql(_REGISTER_FILE, {
+            "filename": filename,
+            "totalSize": total_size,
+            "chunkCount": chunk_count,
+            "expiresAt": expire_after,
+            "expireAfterNDownload": expire_after_n_download,
+            "numberOfFiles": number_of_files,
+        })
+        registered = reg_data["registerFile"]
+        file_key: str = registered["key"]
+        file_id: str = registered["id"]
+
+        # 2. Upload each chunk
+        for i in range(chunk_count):
+            start = i * CHUNK_SIZE
+            end = min(start + CHUNK_SIZE, total_size)
+            chunk_bytes = encrypted_data[start:end]
+            is_last = i == chunk_count - 1
+
+            await self._gql_multipart(
+                _UPLOAD_FILE_CHUNK,
+                variables={
+                    "fileKey": file_key,
+                    "chunkIndex": i,
+                    "chunk": None,
+                    "isLast": is_last,
+                },
+                file_field="chunk",
+                file_bytes=chunk_bytes,
+                filename=f"chunk-{i}",
+            )
+
+        # 3. Complete the upload
+        await self._gql(_COMPLETE_UPLOAD, {"fileId": file_id})
+
+        return {"id": file_id, "key": file_key}
+
+    async def download_file(self, slug: str) -> bytes:
+        """Download a file chunk-by-chunk from S3 via presigned URLs.
+
+        Returns the reassembled encrypted bytes.
         """
-        # Resolve expiration settings
-        expire_n = expire_after_n_download or settings.EXPIRE_AFTER_N_DOWNLOAD
-        expire_t = expire_after or settings.EXPIRE_AFTER
+        # 1. Get file info
+        info_data = await self._gql(_FILE_INFO, {"slug": slug})
+        info = info_data["fileInfo"]
+        if info is None:
+            raise ConnectionError("File not found")
+        if info["isExpired"]:
+            raise ConnectionError("File has expired")
 
-        # Fallback to server defaults if not set locally
-        if expire_n is None or expire_t is None:
-            config = await self.get_config()
-            if expire_n is None:
-                default_n = config.get("default_number_of_downloads", 1)
-                expire_n = int(default_n) if default_n is not None else 1
-            if expire_t is None:
-                default_t = config.get("default_expiry", 86400)
-                expire_t = int(default_t) if default_t is not None else 86400
+        chunk_count: int = info["chunkCount"]
+        file_id: str = info["id"]
 
-        assert expire_n is not None
-        assert expire_t is not None
+        # 2. Fetch each chunk from S3
+        chunks: list[bytes] = []
+        for i in range(chunk_count):
+            url_data = await self._gql(_CHUNK_URL, {"fileId": file_id, "chunkIndex": i})
+            url: str = url_data["chunkUrl"]
+            if not url:
+                raise ConnectionError(f"No presigned URL for chunk {i}")
 
-        upload_url = self.urls.upload_url()
-        display_name = filename or file_path.name
-        file_size = file_path.stat().st_size
+            async with self._session.stream("GET", url) as resp:
+                resp.raise_for_status()
+                chunks.append(b"".join([c async for c in resp.aiter_bytes()]))
 
-        with (
-            open(file_path, "rb") as f,
-            tqdm(
-                total=file_size,
-                unit="B",
-                unit_scale=True,
-                desc="Uploading",
-                leave=False,
-            ) as pbar,
-        ):
-            wrapped = _ProgressReader(f, pbar)
-            wrapped_io = cast(BinaryIO, wrapped)
-
-            # Multipart form data
-            files = {"file": (display_name, wrapped_io, "application/octet-stream")}
-            data = {
-                "filename": display_name,
-                "expire_after_n_download": str(expire_n),
-                "expire_after": str(expire_t),
-            }
-
-            response = await self._session.post(upload_url, data=data, files=files)
-
-            # If the backend returned HTML (redirect/error), catch it here
-            if "text/html" in response.headers.get("Content-Type", ""):
-                raise ConnectionError(
-                    f"Upload failed: Server returned HTML instead of JSON from {upload_url}"
-                )
-
-            response.raise_for_status()
-            return cast(dict[str, Any], response.json())
-
-    async def download_to_file(self, key: str, dest: Path) -> Path:
-        """Stream-download a file using the backend URL."""
-        download_url = f"{self.urls.download_url()}{key}"
-
-        async with self._session.stream("GET", download_url) as response:
-            # Validation: Catch frontend HTML responses before they hit the crypto layer
-            content_type = response.headers.get("Content-Type", "")
-            if "text/html" in content_type:
-                raise ConnectionError(
-                    f"Expected binary file, but got HTML. Your API URL is likely wrong.\n"
-                    f"Attempted URL: {download_url}"
-                )
-
-            response.raise_for_status()
-            total = int(response.headers.get("content-length", 0)) or None
-
-            with (
-                open(dest, "wb") as f,
-                tqdm(
-                    total=total,
-                    unit="B",
-                    unit_scale=True,
-                    desc="Downloading",
-                    leave=False,
-                ) as pbar,
-            ):
-                async for chunk in response.aiter_bytes(STREAM_CHUNK_SIZE):
-                    f.write(chunk)
-                    pbar.update(len(chunk))
-        return dest
+        return b"".join(chunks)

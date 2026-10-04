@@ -1,4 +1,3 @@
-import tempfile
 from pathlib import Path
 from typing import Annotated
 from urllib.parse import urlparse
@@ -51,23 +50,13 @@ async def download(
 
         urls = UrlBuilder.resolve(initial_url=(instance_url or inferred_url))
 
-        # Use a TemporaryDirectory for thread-safe, secure file handling
-        with tempfile.TemporaryDirectory(prefix="chithi_") as tmp_dir:
-            tmp_path = Path(tmp_dir)
-            tmp_dl = tmp_path / "encrypted.bin"
+        # Download encrypted bytes (chunked from S3) and decrypt
+        async with client.Client(urls) as c:
+            bundle_data = await c.download_file(slug)
 
-            # Download encrypted bundle
-            async with client.Client(urls) as c:
-                await c.download_to_file(slug, tmp_dl)
-
-            # Read bundle data
-            bundle_data = tmp_dl.read_bytes()
-
-            # Decrypt and decompress using SDK (parallel across all cores)
-            out_path = output.resolve()
-            decrypt_and_decompress(bundle_data, out_path, password=password)
-
-            console.print(f"\n[green]Success! Extracted to {out_path}[/green]")
+        out_path = output.resolve()
+        decrypt_and_decompress(bundle_data, out_path, password=password)
+        console.print(f"\n[green]Success! Extracted to {out_path}[/green]")
 
     except Exception as exc:
         error_console.print(f"[red]Download failed: {exc}[/red]")
