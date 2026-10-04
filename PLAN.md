@@ -34,7 +34,10 @@
 | **Chunked Upload (50 MB)** | DONE | `upload.ts` — registerFile → uploadFileChunk loop → completeUpload |
 | **Chunked Download (50 MB)** | DONE | `download.ts` — fileInfo → chunkUrl loop → reassemble → decrypt |
 | **WebSocket Removal** | PARTIAL | WebSockets removed from backend; `upload/state.svelte.ts` still references `Api.STATE_WS` (404, non-fatal) |
-| **CLI Rewrite** | TODO | Rewrite `src/cli/app/helpers/crypto.py` in pure Python (HKDF + AES-128-GCM ECE); remove wasmtime |
+| **CLI Crypto Rewrite** | DONE | `crypto.py` in pure Python (cryptography lib); round-trip verified at 1/2/16 records |
+| **CLI Client Rewrite** | DONE | `client.py` uses chunked GraphQL (registerFile → uploadFileChunk → completeUpload) + S3 presigned download |
+| **CLI Commands Update** | DONE | `upload.py` + `download.py` use new client API (bytes in/out, no temp files) |
+| **WASM Bridge Removal** | DONE | `chithi_core_bridge.py` deleted; `chithi-sdk` dep removed from pyproject.toml |
 | **Crypto Docs** | TODO | Update `apps/docs/crypto-architecture.md` to reflect new Web Crypto + chunked S3 model |
 | **E2E Verification** | TODO | Full upload→download round-trip with a real file via Playwright |
 
@@ -222,38 +225,31 @@ Connects to `Api.STATE_WS` (WebSocket). Django doesn't have WebSocket support ye
 
 ---
 
-## Phase 5: CLI Rewrite — Pure Python Crypto
+## Phase 5: CLI Rewrite — Pure Python Crypto ✅
 
-### 5.1 Rewrite `crypto.py` using `cryptography` library
+### 5.1 Rewrite `crypto.py` using `cryptography` library ✅ DONE
 
-Replace the wasmtime/Rust bridge with pure Python using the `cryptography` package:
+Pure Python ECE implementation in `src/cli/app/helpers/crypto.py`:
+- PBKDF2-SHA256(password, 'chithi-salt-v2', 100_000) → 16B IKM
+- HKDF-SHA256(IKM, salt='chithi-salt-v2', info='chithi-file-key-v2') → 16B AES-128 key
+- nonceBase = SHA-256(file_key)[0:12]
+- Per-record nonce = nonceBase XOR (seq as last 4 bytes, BE)
+- Wire format: `[16B random salt][4B record_size BE][AES-GCM record_0][record_1]...`
+- Each record: 64 KiB plaintext → 65552 bytes ciphertext (64 KiB + 16B GCM tag)
+- Zip via `zipfile` (zlib level 6)
+- `cryptography>=42.0.0` added to pyproject.toml
 
-```python
-from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.hazmat.primitives import hashes
-```
+### 5.2 Rewrite `client.py` for chunked GraphQL ✅ DONE
 
-**Scheme** (must match `streams.ts` exactly):
-- **IKM resolution**: `resolveIkM(ikm, password)` → HKDF-SHA256 extract from IKM, or PBKDF2-SHA256 if only password
-- **File key**: HKDF-SHA256 expand with salt (16 bytes) → AES-128 key
-- **ECE records**: AES-128-GCM, 64 KiB plaintext per record, nonce = nonceBase XOR seq (last 4 bytes BE)
-- **nonceBase**: SHA-256(file_key)[0:12]
-- **Wire format**: `[16B salt][4B record_size BE][record_0][record_1]...`
+- `registerFile` → `uploadFileChunk` (multipart GraphQL) → `completeUpload` for upload
+- `fileInfo` → `chunkUrl` (presigned S3) → fetch chunks for download
+- `CHUNK_SIZE = 50 MB` matches backend
+- No temp files — upload takes `bytes`, download returns `bytes`
 
-**Files**:
-- `src/cli/app/helpers/crypto.py` — full rewrite
-- `src/cli/requirements.txt` — add `cryptography`, remove wasmtime
-- `src/cli/app/helpers/chithi_core_bridge.py` — DELETE (wasmtime bridge, no longer needed)
+### 5.3 Update CLI commands ✅ DONE
 
-**Status**: TODO
-
-### 5.2 Update CLI upload/download to use 50 MB chunks
-
-Align CLI chunk size with backend's `CHUNK_SIZE_BYTES` (50 MB). CLI uploads chunks via GraphQL `uploadFileChunk` mutation, downloads via presigned `chunkUrl`.
-
-**Status**: TODO
+- `upload.py`: encrypt → `c.upload_file(bundle.raw, ...)` (no temp file)
+- `download.py`: `c.download_file(slug)` → `decrypt_and_decompress(bundle_data, ...)`
 
 ---
 
