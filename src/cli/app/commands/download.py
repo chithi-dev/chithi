@@ -9,12 +9,12 @@ from app import client
 from app.builder.urls import UrlBuilder
 from app.helpers.archive import decrypt_and_decompress
 
-app = typer.AsyncTyper(help="Download encrypted files via Chithi.")
+app = typer.Typer(help="Download encrypted files via Chithi.")
 console: Console = Console()
 error_console: Console = Console(stderr=True)
 
 
-@app.async_command()
+@app.command()
 async def download(
     link: Annotated[str, typer.Argument(help="URL or 'slug#key'")],
     instance_url: Annotated[str | None, typer.Option("--url", "-u")] = None,
@@ -32,30 +32,25 @@ async def download(
         slug = ""
         inferred_url: str | None = None
 
-        # Parse the input link
         if "://" in link:
             parsed = urlparse(link)
             path_parts = [p for p in parsed.path.split("/") if p]
             if not path_parts:
-                raise ValueError(
-                    "Link must be in format: https://domain/download/SLUG#KEY"
-                )
+                raise ValueError("Link must be in format: https://domain/download/SLUG#KEY")
             slug = path_parts[-1]
             inferred_url = f"{parsed.scheme}://{parsed.netloc}"
         elif "#" in link:
             slug, _ = link.split("#", 1)
         else:
-            # Plain slug
             slug = link
 
         urls = UrlBuilder.resolve(initial_url=(instance_url or inferred_url))
 
-        # Download encrypted bytes (chunked from S3) and decrypt
         async with client.Client(urls) as c:
             bundle_data = await c.download_file(slug)
 
         out_path = output.resolve()
-        decrypt_and_decompress(bundle_data, out_path, password=password)
+        await decrypt_and_decompress(bundle_data, out_path, password=password)
         console.print(f"\n[green]Success! Extracted to {out_path}[/green]")
 
     except Exception as exc:

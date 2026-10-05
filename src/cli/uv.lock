@@ -184,6 +184,7 @@ name = "cli"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "anyio" },
     { name = "argon2-cffi" },
     { name = "async-typer" },
     { name = "cryptography" },
@@ -211,6 +212,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anyio", specifier = ">=4.0.0" },
     { name = "argon2-cffi", specifier = ">=25.1.0" },
     { name = "async-typer", specifier = ">=0.2.1" },
     { name = "cryptography", specifier = ">=42.0.0" },

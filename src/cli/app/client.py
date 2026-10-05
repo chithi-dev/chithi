@@ -1,7 +1,5 @@
 """Async REST API client for the Chithi backend.
 
-The CLI speaks only REST (django-ninja); there is no GraphQL in this client.
-
 Upload flow:
   1. POST /api/upload/register/  -> get file key
   2. POST /api/upload/chunk/     (per 50 MB chunk, multipart)
@@ -14,16 +12,14 @@ Download flow:
   4. Reassemble into a single byte buffer
 """
 
-from __future__ import annotations
-
 from types import TracebackType
 from typing import Any, Self
+from urllib.parse import urlparse
 
 import httpx2
 
 from app.builder.urls import UrlBuilder
 
-# Must match the backend's CHUNK_SIZE_BYTES
 CHUNK_SIZE = 50 * 1024 * 1024
 
 DEFAULT_TIMEOUT = httpx2.Timeout(connect=30.0, read=None, write=None, pool=None)
@@ -44,8 +40,6 @@ class Client:
             http2=True,
         )
 
-    # ── context manager ────────────────────────────────────────────────────
-
     async def __aenter__(self) -> Self:
         return self
 
@@ -62,17 +56,12 @@ class Client:
 
     @classmethod
     def resolve(cls, initial_url: str | None = None) -> Self:
-        urls = UrlBuilder.resolve(initial_url)
-        return cls(urls)
-
-    # ── REST endpoint URLs ─────────────────────────────────────────────────
+        return cls(UrlBuilder.resolve(initial_url))
 
     @property
     def _api_base(self) -> str:
         return self.urls.backend_url.rstrip("/")
 
-    # backend_url already ends with /api/ (set by UrlBuilder.resolve),
-    # so paths here are relative to that base.
     @property
     def _api_register_url(self) -> str:
         return self._api_base + "/upload/register/"
@@ -95,13 +84,8 @@ class Client:
     def _api_file_chunk_url(self, slug: str, index: int) -> str:
         return self._api_base + f"/files/{slug}/chunk/{index}/"
 
-    # ── low-level REST helpers ─────────────────────────────────────────────
-
     async def _api_request(self, method: str, url: str, **kwargs: Any) -> dict[str, Any]:
-        """Send a REST request and return the parsed JSON body.
-
-        Raises ConnectionError with the server's detail if the response is 4xx/5xx.
-        """
+        """Send a REST request and return the parsed JSON body."""
         response = await self._session.request(method, url, **kwargs)
         if response.status_code >= 400:
             try:
@@ -118,10 +102,8 @@ class Client:
     async def _api_get(self, url: str, **kwargs: Any) -> dict[str, Any]:
         return await self._api_request("GET", url, **kwargs)
 
-    # ── public API ─────────────────────────────────────────────────────────
-
     async def get_config(self) -> dict[str, Any]:
-        """Fetch the instance config (REST) and normalise to the CLI's keys."""
+        """Fetch the instance config and normalise to the CLI's keys."""
         config = await self._api_get(self._api_config_url)
         return {
             "default_expiry": config.get("default_expiry", 86400),
@@ -139,77 +121,54 @@ class Client:
     ) -> dict[str, Any]:
         """Upload encrypted bytes in 50 MB chunks via the REST chunked flow.
 
-        Uses the django-ninja endpoints:
-          1. POST /api/upload/register/  -> get file key
-          2. POST /api/upload/chunk/     -> upload each chunk (multipart)
-          3. POST /api/upload/complete/  -> verify all chunks arrived
-
         Returns a dict with 'id' and 'key' (the file slug).
         """
         total_size = len(encrypted_data)
-        chunk_count = max(1, -(-total_size // CHUNK_SIZE))  # ceil div
+        chunk_count = max(1, -(-total_size // CHUNK_SIZE))
 
-        # 1. Register the file (JSON body)
-        register_body = {
-            "filename": filename,
-            "total_size": total_size,
-            "chunk_count": chunk_count,
-            "expires_at": expire_after,
-            "expire_after_n_download": expire_after_n_download,
-            "number_of_files": number_of_files,
-        }
-        reg = await self._api_post(self._api_register_url, json=register_body)
+        reg = await self._api_post(
+            self._api_register_url,
+            json={
+                "filename": filename,
+                "total_size": total_size,
+                "chunk_count": chunk_count,
+                "expires_at": expire_after,
+                "expire_after_n_download": expire_after_n_download,
+                "number_of_files": number_of_files,
+            },
+        )
         file_key: str = reg["key"]
         file_id: str = reg["id"]
 
-        # 2. Upload each chunk (multipart form)
         for i in range(chunk_count):
             start = i * CHUNK_SIZE
             end = min(start + CHUNK_SIZE, total_size)
-            chunk_bytes = encrypted_data[start:end]
-
             await self._api_post(
                 self._api_chunk_url,
                 data={"file_key": file_key, "chunk_index": i},
-                files={"chunk": (f"chunk-{i}", chunk_bytes, "application/octet-stream")},
+                files={"chunk": (f"chunk-{i}", encrypted_data[start:end], "application/octet-stream")},
             )
 
-        # 3. Complete the upload (form field)
         await self._api_post(self._api_complete_url, data={"file_key": file_key})
 
         return {"id": file_id, "key": file_key}
 
     async def download_file(self, slug: str) -> bytes:
-        """Download a file chunk-by-chunk via REST chunk-URL endpoints.
-
-        Each chunk URL is a presigned S3 URL (or a local path when the backend
-        uses filesystem storage). Returns the reassembled encrypted bytes.
-        """
-        # 1. Get file info (REST)
+        """Download a file chunk-by-chunk and return the reassembled encrypted bytes."""
         info = await self._api_get(self._api_file_info_url(slug))
         if info.get("is_expired"):
             raise ConnectionError("File has expired")
 
         chunk_count: int = info["chunk_count"]
+        origin = f"{urlparse(self.urls.backend_url).scheme}://{urlparse(self.urls.backend_url).netloc}"
 
-        # 2. Fetch each chunk from its presigned URL
         chunks: list[bytes] = []
         for i in range(chunk_count):
-            url_data = await self._api_get(self._api_file_chunk_url(slug, i))
-            url: str = url_data["url"]
+            url: str = (await self._api_get(self._api_file_chunk_url(slug, i)))["url"]
             if not url:
                 raise ConnectionError(f"No URL returned for chunk {i}")
 
-            # Resolve relative URLs (local storage) against the origin,
-            # not the API path. The /media/ route lives at the Django root.
-            if url.startswith(("http://", "https://")):
-                fetch_url = url
-            else:
-                from urllib.parse import urlparse
-
-                parsed = urlparse(self.urls.backend_url)
-                origin = f"{parsed.scheme}://{parsed.netloc}"
-                fetch_url = origin + url
+            fetch_url = url if url.startswith(("http://", "https://")) else origin + url
 
             async with self._session.stream("GET", fetch_url) as resp:
                 if resp.status_code >= 400:

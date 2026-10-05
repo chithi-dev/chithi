@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 import async_typer as typer
 from rich.console import Console
@@ -7,13 +7,14 @@ from rich.console import Console
 from app import client
 from app.builder.urls import UrlBuilder
 from app.helpers.archive import compress_and_encrypt
+from app.helpers.print import export_qr_svg, print_branded_qr
 
-app: typer.AsyncTyper = typer.AsyncTyper(help="Upload encrypted files via Chithi.")
+app = typer.Typer(help="Upload encrypted files via Chithi.")
 console: Console = Console()
 error_console: Console = Console(stderr=True)
 
 
-@app.async_command()
+@app.command()
 async def upload(
     path: Annotated[Path, typer.Argument(exists=True, resolve_path=True)],
     instance_url: Annotated[str | None, typer.Option("--url", "-u")] = None,
@@ -33,38 +34,24 @@ async def upload(
 ) -> None:
     """Compress, encrypt, and upload a file or folder, then print the share link."""
     try:
-        # Require a password (SDK enforces non-empty)
         if not password:
             password = typer.prompt("Enter encryption password", hide_input=True)
             if not password:
                 error_console.print("[red]Password must not be empty.[/red]")
                 raise typer.Exit(code=1)
 
-        # Resolve URLs based on input/prompts
         urls = UrlBuilder.resolve(instance_url)
 
         async with client.Client(urls) as c:
-            # Get server config for defaults
             config = await c.get_config()
             if expire_seconds is None:
-                default_seconds = config.get("default_expiry", 86400)
-                expire_seconds = (
-                    int(default_seconds) if default_seconds is not None else 86400
-                )
+                expire_seconds = int(config.get("default_expiry") or 86400)
             if expire_downloads is None:
-                default_downloads = config.get("default_number_of_downloads", 1)
-                expire_downloads = (
-                    int(default_downloads) if default_downloads is not None else 1
-                )
+                expire_downloads = int(config.get("default_number_of_downloads") or 1)
 
-            assert expire_seconds is not None
-            assert expire_downloads is not None
+            bundle = await compress_and_encrypt(path, password=password)
 
-            # Compress and encrypt using pure-Python crypto
-            bundle = compress_and_encrypt(path, password=password)
-
-            # Upload encrypted bytes in 50 MB chunks via GraphQL
-            result: dict[str, Any] = await c.upload_file(
+            result = await c.upload_file(
                 bundle.raw,
                 filename=filename or f"{path.name}.enc",
                 expire_after_n_download=expire_downloads,
@@ -77,23 +64,18 @@ async def upload(
 
             download_url = urls.share_url(str(slug), "")
 
-        # UI Output Logic
         if minimal:
             console.print(download_url, highlight=False, markup=False)
         else:
-            console.print("\n[green]✓ Upload complete![/green]")
+            console.print("\n[green]Upload complete![/green]")
             if not no_qr:
-                from app.helpers.print import print_branded_qr
-
-                print_branded_qr(download_url, console)
+                await print_branded_qr(download_url, console)
             console.print(f"\n  Download URL : {download_url}")
             console.print(
                 "  [yellow]Password-protected. Recipients will need the password to decrypt.[/yellow]"
             )
             if save_qr:
-                from app.helpers.print import export_qr_svg
-
-                export_qr_svg(download_url, str(save_qr))
+                await export_qr_svg(download_url, str(save_qr))
                 console.print(f"  [dim]QR code saved to {save_qr}[/dim]")
 
     except Exception as exc:

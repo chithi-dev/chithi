@@ -60,21 +60,7 @@ class UrlBuilder:
         """Return the normalized frontend base URL."""
         return self.__ensure_trailing_slash(self._frontend_url)
 
-    def upload_url(self, suffix: str = "") -> str:
-        """Return the REST upload endpoint URL with an optional path suffix."""
-        base = urljoin(self.backend_url, "upload/")
-        return urljoin(base, suffix) if suffix else base
-
-    def config_url(self) -> str:
-        """Return the config endpoint URL."""
-        return urljoin(self.backend_url, "config")
-
-    def download_url(self) -> str:
-        """Return the download endpoint base URL."""
-        return urljoin(self.backend_url, "download/")
-
     def share_url(self, slug: str, key_secret: str) -> str:
         """Build a shareable frontend URL including the key fragment."""
-        # urljoin handles the path joining
         base_share = urljoin(self.frontend_url, f"download/{slug}")
         return f"{base_share}#{key_secret}"

@@ -1,21 +1,16 @@
-"""Type definitions for the Chithi SDK."""
+"""Type definitions for the Chithi CLI."""
 
-from __future__ import annotations
-
-from dataclasses import dataclass, field
-from typing import Tuple
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True)
 class EncryptedBundle:
-    """An encrypted bundle produced by Chithi.upload().
+    """An encrypted bundle produced by compress_and_encrypt.
 
     Contains the encrypted data along with all necessary crypto metadata
-    (salt, initialization vector, signature) for decryption.
-
-    Attributes:
-        raw: Raw bundle bytes including crypto metadata and encrypted data.
+    (salt, version, record size, and AES-GCM records) for decryption.
     """
+
     raw: bytes
 
     def __len__(self) -> int:
@@ -23,7 +18,3 @@ class EncryptedBundle:
 
     def __repr__(self) -> str:
         return f"EncryptedBundle(size={len(self.raw):,} bytes)"
-
-
-FileEntry = Tuple[str, bytes]
-"""A (filename, data) tuple representing a file."""

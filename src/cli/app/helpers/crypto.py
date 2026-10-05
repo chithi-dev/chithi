@@ -1,30 +1,28 @@
-"""Pure-Python ECE encryption/decryption — mirrors the Web Crypto pipeline exactly.
+"""Pure-Python ECE encryption/decryption, mirroring the Web Crypto pipeline.
 
 Scheme v3 (must match src/frontend/src/lib/consts/encryption.ts, streams.ts and
 crypto.worker.ts):
   1. IKM resolution:
-       password path → Argon2id(password, header_salt, t=3, m=64 MiB, p=1) → 32 bytes
-       secret path   → 32-byte random IKM (zero-knowledge root, lives in URL fragment)
-  2. File key: HKDF-SHA-256(IKM, salt=header_salt, info=HKDF_FILE_INFO) → 32 bytes (AES-256)
+       password path -> Argon2id(password, header_salt, t=3, m=64 MiB, p=1) -> 32 bytes
+       secret path   -> 32-byte random IKM (zero-knowledge root, lives in URL fragment)
+  2. File key: HKDF-SHA-256(IKM, salt=header_salt, info=HKDF_FILE_INFO) -> 32 bytes
   3. nonceBase: SHA-256(file_key)[0:12]
   4. Per-record nonce: nonceBase XOR (sequence_number as last 4 bytes, BE)
   5. Wire format: [16-byte random salt][1-byte version=3][4-byte record size, BE]
      [record_0][record_1]...
-     Each record = AES-256-GCM(plaintext_chunk) — 64 KiB plaintext + 16-byte auth tag.
+     Each record = AES-256-GCM(plaintext_chunk), 64 KiB plaintext + 16-byte auth tag.
 
-The header salt is REAL: it is fed to both Argon2id (password path) and HKDF (all
-paths), so identical passwords over different uploads yield different keys and
-ciphertexts (no cross-upload rainbow-table reuse).
+The header salt is real: it is fed to both Argon2id (password path) and HKDF
+(all paths), so identical passwords over different uploads yield different keys
+and ciphertexts.
 """
-
-from __future__ import annotations
 
 import base64
 import hashlib
 import os
 import struct
-from typing import TYPE_CHECKING
 
+import anyio
 from argon2 import Type
 from argon2.low_level import hash_secret_raw
 from cryptography.hazmat.primitives import hashes
@@ -34,26 +32,17 @@ from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from app.chithi_exceptions import CryptoError, ValidationError
 from app.chithi_types import EncryptedBundle
 
-if TYPE_CHECKING:
-    from pathlib import Path
-
-# ── Constants (must match src/frontend/src/lib/consts/encryption.ts) ────────
 SCHEME_VERSION = 3
 HKDF_FILE_INFO = b"chithi-file-key-v3"
 
-# Argon2id parameters (OWASP 2024 minimum for interactive password use).
 ARGON2_TIME_COST = 3
-ARGON2_MEMORY_COST_KIB = 64 * 1024  # 64 MiB
+ARGON2_MEMORY_COST_KIB = 64 * 1024
 ARGON2_PARALLELISM = 1
-ARGON2_HASH_LENGTH = 32  # bytes → IKM
+ARGON2_HASH_LENGTH = 32
 
-# File-key length: AES-256 (32 bytes).
 FILE_KEY_LENGTH = 32
-
-# ECE (RFC 8188) record size: 64 KiB.
 RECORD_SIZE = 64 * 1024
 
-# Wire header: [16B random salt][1B version][4B record_size BE] = 21 bytes.
 SALT_LENGTH = 16
 VERSION_LENGTH = 1
 RECORD_SIZE_FIELD_LENGTH = 4
@@ -62,18 +51,18 @@ TAG_LENGTH = 16
 NONCE_LENGTH = 12
 
 
-# ── Key derivation ──────────────────────────────────────────────────────────
-
-def password_to_ikm(password: str, salt: bytes) -> bytes:
+async def password_to_ikm(password: str, salt: bytes) -> bytes:
     """Derive 32-byte IKM from a password using Argon2id against the header salt."""
-    return hash_secret_raw(
-        secret=password.encode("utf-8"),
-        salt=salt,
-        time_cost=ARGON2_TIME_COST,
-        memory_cost=ARGON2_MEMORY_COST_KIB,
-        parallelism=ARGON2_PARALLELISM,
-        hash_len=ARGON2_HASH_LENGTH,
-        type=Type.ID,
+    return await anyio.to_thread.run_sync(
+        lambda: hash_secret_raw(
+            secret=password.encode("utf-8"),
+            salt=salt,
+            time_cost=ARGON2_TIME_COST,
+            memory_cost=ARGON2_MEMORY_COST_KIB,
+            parallelism=ARGON2_PARALLELISM,
+            hash_len=ARGON2_HASH_LENGTH,
+            type=Type.ID,
+        )
     )
 
 
@@ -102,16 +91,14 @@ def record_nonce(nonce_base: bytes, seq: int) -> bytes:
     return bytes(nonce)
 
 
-def resolve_ikm(password: str | None, secret_key: bytes | None, salt: bytes) -> bytes:
+async def resolve_ikm(password: str | None, secret_key: bytes | None, salt: bytes) -> bytes:
     """Resolve the IKM from either a password (Argon2id) or a raw secret key."""
     if password:
-        return password_to_ikm(password, salt)
+        return await password_to_ikm(password, salt)
     if secret_key is not None:
         return secret_key
     raise ValidationError("Password or secret key required")
 
-
-# ── Header helpers ──────────────────────────────────────────────────────────
 
 def build_header(salt: bytes) -> bytes:
     """Build the 21-byte v3 header: [salt][version][record_size BE]."""
@@ -122,27 +109,26 @@ def parse_header(ciphertext: bytes) -> tuple[bytes, int, int]:
     """Parse the v3 header. Returns (salt, version, record_size)."""
     salt = ciphertext[:SALT_LENGTH]
     version = ciphertext[SALT_LENGTH]
-    record_size = struct.unpack(">I", ciphertext[SALT_LENGTH + VERSION_LENGTH : SALT_LENGTH + VERSION_LENGTH + RECORD_SIZE_FIELD_LENGTH])[0]
+    record_size = struct.unpack(
+        ">I",
+        ciphertext[
+            SALT_LENGTH + VERSION_LENGTH : SALT_LENGTH + VERSION_LENGTH + RECORD_SIZE_FIELD_LENGTH
+        ],
+    )[0]
     return salt, version, record_size
 
-
-# ── ECE encrypt / decrypt ───────────────────────────────────────────────────
 
 def ece_encrypt(plaintext: bytes, file_key: bytes, salt: bytes) -> bytes:
     """Encrypt plaintext using AES-256-GCM ECE.
 
-    Args:
-        salt: The per-file salt already used for key derivation — it must be the
-              same salt that feeds Argon2id/HKDF, so it travels in the header.
-
-    Returns: [16B salt][1B version=3][4B record_size BE][record_0][record_1]...
+    The salt must be the same one used for key derivation; it travels in the
+    header so the receiver can re-derive the key.
     """
     nonce_base = compute_nonce_base(file_key)
     aesgcm = AESGCM(file_key)
-
     header = build_header(salt)
-    records = bytearray()
 
+    records = bytearray()
     offset = 0
     seq = 0
     while offset < len(plaintext):
@@ -156,51 +142,47 @@ def ece_encrypt(plaintext: bytes, file_key: bytes, salt: bytes) -> bytes:
 
 
 def ece_decrypt(ciphertext: bytes, file_key: bytes) -> bytes:
-    """Decrypt ECE ciphertext.
-
-    Input:  [16B salt][1B version=3][4B record_size BE][record_0][record_1]...
-    Returns: plaintext bytes.
-    """
+    """Decrypt ECE ciphertext into plaintext bytes."""
     if len(ciphertext) < HEADER_LENGTH:
         raise CryptoError("Ciphertext too short")
 
     _salt, version, record_size = parse_header(ciphertext)
     if version != SCHEME_VERSION:
-        raise CryptoError(f"Unsupported encryption version: {version} (expected {SCHEME_VERSION})")
+        raise CryptoError(
+            f"Unsupported encryption version: {version} (expected {SCHEME_VERSION})"
+        )
 
-    # The caller already resolved the IKM against the header salt (see decrypt_bundle /
-    # decrypt_data) and derived the file key; we consume it as-is.
     nonce_base = compute_nonce_base(file_key)
     aesgcm = AESGCM(file_key)
-
-    ct_record_size = record_size + TAG_LENGTH  # ciphertext size of a full record
+    ct_record_size = record_size + TAG_LENGTH
 
     plaintext = bytearray()
     offset = HEADER_LENGTH
     seq = 0
     while offset < len(ciphertext):
         remaining = len(ciphertext) - offset
-        # Full records are exactly ct_record_size bytes; the last record is shorter.
-        chunk = ciphertext[offset : offset + ct_record_size] if remaining >= ct_record_size else ciphertext[offset:]
+        chunk = (
+            ciphertext[offset : offset + ct_record_size]
+            if remaining >= ct_record_size
+            else ciphertext[offset:]
+        )
         nonce = record_nonce(nonce_base, seq)
         try:
             plaintext.extend(aesgcm.decrypt(nonce, chunk, None))
-        except Exception as e:
+        except Exception as exc:
             raise CryptoError(
                 f"Decryption failed at record {seq} (wrong password or corrupted data)"
-            ) from e
+            ) from exc
         offset += len(chunk)
         seq += 1
 
     return bytes(plaintext)
 
 
-# ── Zip helpers (matches fflate in the frontend) ───────────────────────────
-
 def files_to_zip(files: list[tuple[str, bytes]]) -> bytes:
-    """Compress files into a zip archive (equivalent to fflate's zip())."""
-    import zipfile
+    """Compress files into a zip archive (equivalent to fflate zip in the frontend)."""
     import io
+    import zipfile
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
@@ -211,8 +193,8 @@ def files_to_zip(files: list[tuple[str, bytes]]) -> bytes:
 
 def zip_to_files(zip_bytes: bytes) -> list[tuple[str, bytes]]:
     """Decompress a zip archive back into (name, data) tuples."""
-    import zipfile
     import io
+    import zipfile
 
     files: list[tuple[str, bytes]] = []
     with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as zf:
@@ -222,9 +204,7 @@ def zip_to_files(zip_bytes: bytes) -> list[tuple[str, bytes]]:
     return files
 
 
-# ── Public API ─────────────────────────────────────────────────────────────
-
-def encrypt_files(
+async def encrypt_files(
     files: list[tuple[str, bytes]],
     *,
     password: str = "",
@@ -236,107 +216,80 @@ def encrypt_files(
       1. Files are compressed into a zip archive (zlib, level 6)
       2. Archive is encrypted with AES-256-GCM ECE (64 KiB records)
       3. Wire format: [16B salt][1B version=3][4B record_size][records...]
-
-    Args:
-        files: List of (filename, data) tuples.
-        password: Encryption password (or pass secret_key directly).
-        secret_key: Optional 32-byte IKM to skip Argon2id (for share-URL secrets).
-
-    Returns:
-        EncryptedBundle containing the ciphertext bytes.
     """
     if not files:
         raise ValidationError("At least one file is required")
 
-    # Generate the per-file salt FIRST — it feeds both Argon2id (password path)
-    # and HKDF (all paths), and travels in the wire header.
     salt = os.urandom(SALT_LENGTH)
-    ikm = resolve_ikm(password or None, secret_key, salt)
+    ikm = await resolve_ikm(password or None, secret_key, salt)
     file_key = derive_file_key(ikm, salt)
-    zip_bytes = files_to_zip(files)
+    zip_bytes = await anyio.to_thread.run_sync(files_to_zip, files)
     ciphertext = ece_encrypt(zip_bytes, file_key, salt)
 
     return EncryptedBundle(ciphertext)
 
 
-def decrypt_bundle(
+async def decrypt_bundle(
     bundle: EncryptedBundle | bytes,
     *,
     password: str = "",
     secret_key: bytes | None = None,
 ) -> list[tuple[str, bytes]]:
-    """Decrypt and decompress an encrypted bundle.
-
-    Args:
-        bundle: EncryptedBundle or raw ciphertext bytes.
-        password: The password used during encryption.
-        secret_key: Optional 32-byte IKM (alternative to password).
-
-    Returns:
-        List of (filename, data) tuples.
-    """
+    """Decrypt and decompress an encrypted bundle into (name, data) tuples."""
     raw = bundle.raw if isinstance(bundle, EncryptedBundle) else bytes(bundle)
 
     if len(raw) < HEADER_LENGTH:
         raise CryptoError("Ciphertext too short")
 
-    # Read the header salt — required to re-derive the IKM (password path) and
-    # the file key (all paths).
     salt, version, _record_size = parse_header(raw)
     if version != SCHEME_VERSION:
-        raise CryptoError(f"Unsupported encryption version: {version} (expected {SCHEME_VERSION})")
+        raise CryptoError(
+            f"Unsupported encryption version: {version} (expected {SCHEME_VERSION})"
+        )
 
-    ikm = resolve_ikm(password or None, secret_key, salt)
+    ikm = await resolve_ikm(password or None, secret_key, salt)
     file_key = derive_file_key(ikm, salt)
     zip_bytes = ece_decrypt(raw, file_key)
 
-    return zip_to_files(zip_bytes)
+    return await anyio.to_thread.run_sync(zip_to_files, zip_bytes)
 
 
-def encrypt_data(data: bytes, *, password: str = "", secret_key: bytes | None = None) -> bytes:
-    """Encrypt raw bytes (no compression) using the ECE wire format.
-
-    Args:
-        data: Raw bytes to encrypt.
-        password: Encryption password.
-        secret_key: Optional 32-byte IKM.
-
-    Returns:
-        Ciphertext bytes (ECE wire format).
-    """
+async def encrypt_data(
+    data: bytes,
+    *,
+    password: str = "",
+    secret_key: bytes | None = None,
+) -> bytes:
+    """Encrypt raw bytes (no compression) using the ECE wire format."""
     if not data:
         raise ValidationError("Data must not be empty")
 
     salt = os.urandom(SALT_LENGTH)
-    ikm = resolve_ikm(password or None, secret_key, salt)
+    ikm = await resolve_ikm(password or None, secret_key, salt)
     file_key = derive_file_key(ikm, salt)
     return ece_encrypt(data, file_key, salt)
 
 
-def decrypt_data(ciphertext: bytes, *, password: str = "", secret_key: bytes | None = None) -> bytes:
-    """Decrypt raw ECE ciphertext (no decompression).
-
-    Args:
-        ciphertext: ECE wire-format bytes.
-        password: The password used during encryption.
-        secret_key: Optional 32-byte IKM.
-
-    Returns:
-        Decrypted raw bytes.
-    """
+async def decrypt_data(
+    ciphertext: bytes,
+    *,
+    password: str = "",
+    secret_key: bytes | None = None,
+) -> bytes:
+    """Decrypt raw ECE ciphertext (no decompression)."""
     if len(ciphertext) < HEADER_LENGTH:
         raise CryptoError("Ciphertext too short")
 
     salt, version, _record_size = parse_header(ciphertext)
     if version != SCHEME_VERSION:
-        raise CryptoError(f"Unsupported encryption version: {version} (expected {SCHEME_VERSION})")
+        raise CryptoError(
+            f"Unsupported encryption version: {version} (expected {SCHEME_VERSION})"
+        )
 
-    ikm = resolve_ikm(password or None, secret_key, salt)
+    ikm = await resolve_ikm(password or None, secret_key, salt)
     file_key = derive_file_key(ikm, salt)
     return ece_decrypt(ciphertext, file_key)
 
-
-# ── Base64url helpers (for URL fragment transport) ─────────────────────────
 
 def base64url_encode(data: bytes) -> str:
     return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
