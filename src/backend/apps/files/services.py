@@ -81,6 +81,29 @@ async def presigned_chunk_url(
     return await sync_to_async(_storage().url)(key)
 
 
+async def open_chunk(file_key: str, index: int):
+    """Open a chunk for streaming so the backend can proxy its bytes.
+
+    Returns a file-like object (the storage backend's ``open()`` result) plus
+    the chunk's byte size. The caller must stream it in chunks and close it,
+    which is what the ninja ``FileResponse``-style handler in
+    ``apps/api/views/files.py`` does. This is the single code path that reads
+    chunk bytes on the server, regardless of which storage backend is active
+    (S3/CDN or local filesystem).
+    """
+    key = chunk_key(file_key, index)
+
+    def _open() -> tuple[object, int]:
+        storage = _storage()
+        fh = storage.open(key, "rb")
+        # size() is cheap on S3 (a HEAD) and on the filesystem; it lets the
+        # response advertise a correct Content-Length.
+        size = storage.size(key)
+        return fh, size
+
+    return await sync_to_async(_open)()
+
+
 async def delete_file_chunks(file_key: str) -> None:
     """Delete every chunk of a file from storage."""
     await sync_to_async(_delete_by_prefix)(f"{file_key}/")
@@ -105,6 +128,41 @@ def schedule_expiry(file_key: str, expires_at: datetime.datetime) -> None:
     countdown = (expires_at - timezone.now()).total_seconds()
     if countdown > 0:
         delete_file_after_expiry.apply_async(args=[file_key], countdown=countdown)
+
+
+def _increment_download_count(file_key: str) -> tuple[int, int]:
+    """Atomically bump a file's download count and return (new count, limit).
+
+    Uses ``F()`` so concurrent chunk fetches don't lose updates (no read-modify
+    write race). Returns the post-increment count and the file's
+    ``expire_after_n_download`` limit so the caller can decide whether the file
+    has just hit its download-count expiry.
+    """
+    from django.db.models import F
+
+    from apps.files.models import File
+
+    File.objects.filter(key=file_key).update(download_count=F("download_count") + 1)
+    fresh = File.objects.get(key=file_key)
+    return fresh.download_count, fresh.expire_after_n_download
+
+
+async def record_download(file_key: str) -> None:
+    """Count a chunk access toward the file's download limit.
+
+    Incremented on every ``chunk_url`` request (the one place a file is
+    actually being fetched). When the count reaches the file's
+    ``expire_after_n_download`` limit, a deletion is scheduled immediately
+    (countdown=0) so the file is evicted right after this last allowed fetch
+    completes -- mirroring the time-based one-shot path.
+    """
+    from apps.files.tasks import delete_file_after_expiry
+
+    new_count, limit = await sync_to_async(_increment_download_count)(file_key)
+    if limit and new_count >= limit:
+        # The download-count limit has just been reached; remove the file
+        # without waiting for a time-based expiry.
+        delete_file_after_expiry.apply_async(args=[file_key], countdown=0)
 
 
 def _delete_by_prefix(prefix: str) -> None:

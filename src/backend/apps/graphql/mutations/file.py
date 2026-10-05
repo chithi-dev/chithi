@@ -167,4 +167,15 @@ class FileMutation:
         if chunk_index < 0 or chunk_index >= file_obj.chunk_count:
             raise ValueError("chunk_index out of range.")
 
+        if file_obj.is_expired:
+            raise ValueError("File has expired.")
+
+        # Count a download only when the *last* chunk is fetched: a client
+        # cannot complete the file without it, so this is the signal that a
+        # full download actually happened (a partial one that aborts earlier
+        # is not counted). When the limit is hit this schedules immediate
+        # deletion.
+        if chunk_index == file_obj.chunk_count - 1:
+            await services.record_download(file_obj.key)
+
         return await services.presigned_chunk_url(file_obj.key, chunk_index)

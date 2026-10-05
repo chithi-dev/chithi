@@ -54,3 +54,42 @@ class DeleteFileAfterExpiryTests(IntegrationTestCase):
         from asgiref.sync import async_to_sync
 
         return async_to_sync(file_chunks_exist)(key, 1)
+
+
+class RecordDownloadTests(IntegrationTestCase):
+    def test_increments_download_count(self):
+        from asgiref.sync import async_to_sync
+        from apps.files import services
+
+        f = make_file(filename="counted.bin")
+        async_to_sync(services.record_download)(f.key)
+        f.refresh_from_db()
+        self.assertEqual(f.download_count, 1)
+
+    def test_schedules_deletion_when_limit_reached(self):
+        from asgiref.sync import async_to_sync
+        from apps.files import services
+        from apps.files.tasks import delete_file_after_expiry
+
+        f = make_file(filename="limited.bin", expire_after_n_download=2)
+        with patch("apps.files.tasks.delete_file_after_expiry.apply_async") as m:
+            # First download: count 1 < limit 2, no schedule.
+            async_to_sync(services.record_download)(f.key)
+            m.assert_not_called()
+            # Second download: count 2 >= limit 2, schedule immediate deletion.
+            async_to_sync(services.record_download)(f.key)
+            m.assert_called_once()
+            kwargs = m.call_args.kwargs
+            self.assertEqual(kwargs["args"], [f.key])
+            self.assertEqual(kwargs["countdown"], 0)
+
+    def test_no_schedule_when_limit_is_zero(self):
+        from asgiref.sync import async_to_sync
+        from apps.files import services
+
+        # expire_after_n_download=0 means "unlimited downloads" per the
+        # validator; no deletion should ever be scheduled.
+        f = make_file(filename="unlimited.bin", expire_after_n_download=0)
+        with patch("apps.files.tasks.delete_file_after_expiry.apply_async") as m:
+            async_to_sync(services.record_download)(f.key)
+            m.assert_not_called()

@@ -10,10 +10,11 @@ database read is sync, so it is wrapped in ``sync_to_async``; the URL
 generation runs through the storage backend and is likewise awaited.
 """
 
+import asyncio
 from uuid import UUID
 
 from asgiref.sync import sync_to_async
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
 from ninja import Router
 from ninja.errors import ValidationError
 
@@ -80,5 +81,59 @@ async def chunk_url(request: HttpRequest, file_key: str, chunk_index: int) -> Ch
     if chunk_index < 0 or chunk_index >= file_obj.chunk_count:
         raise ValidationError("chunk_index out of range.")
 
+    # Count a download only when the *last* chunk is fetched: a client cannot
+    # complete the file without it, so this is the signal that a full download
+    # actually happened (a partial one that aborts earlier is not counted).
+    if chunk_index == file_obj.chunk_count - 1:
+        await services.record_download(file_obj.key)
+
     url = await services.presigned_chunk_url(file_obj.key, chunk_index)
     return ChunkUrlResponse(url=url)
+
+
+@router.get("/files/{file_key}/chunk/{chunk_index}/bytes/")
+async def chunk_bytes(request: HttpRequest, file_key: str, chunk_index: int) -> HttpResponse:
+    """Proxy one chunk's bytes through the backend.
+
+    The single download endpoint when a CDN is not used (or when the operator
+    wants all egress to flow through the app): the backend streams the chunk
+    straight from the storage backend (S3/CDN/local) to the client, so the
+    client talks to exactly one URL and never contacts S3/CDN directly.
+    """
+    file_obj = await sync_to_async(_file_by_key_or_id)(file_key)
+    if file_obj is None:
+        raise ValidationError("File not found.")
+
+    if file_obj.is_expired:
+        raise ValidationError("File has expired.")
+
+    if chunk_index < 0 or chunk_index >= file_obj.chunk_count:
+        raise ValidationError("chunk_index out of range.")
+
+    if chunk_index == file_obj.chunk_count - 1:
+        await services.record_download(file_obj.key)
+
+    fh, size = await services.open_chunk(file_obj.key, chunk_index)
+
+    async def _iter_chunks():
+        # Each read runs in the thread pool (thread_sensitive=False), so the
+        # event loop stays free to serve every other request while the bytes
+        # stream; the yield between reads guarantees the loop is released even
+        # between the two pool hops. The handle is always closed, even if the
+        # client aborts mid-stream.
+        try:
+            while True:
+                block = await sync_to_async(fh.read, thread_sensitive=False)(
+                    services.CHUNK_SIZE_BYTES
+                )
+                if not block:
+                    break
+                yield block
+                await asyncio.sleep(0)
+        finally:
+            await sync_to_async(fh.close, thread_sensitive=False)()
+
+    response = StreamingHttpResponse(_iter_chunks(), content_type="application/octet-stream")
+    if size is not None:
+        response["Content-Length"] = str(size)
+    return response
