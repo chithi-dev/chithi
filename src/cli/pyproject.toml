@@ -25,6 +25,7 @@ dependencies = [
     # Types
     "types-qrcode>=8.2.0.20260518",
     "types-tqdm>=4.67.3.20260408",
+    "argon2-cffi>=25.1.0",
 ]
 
 

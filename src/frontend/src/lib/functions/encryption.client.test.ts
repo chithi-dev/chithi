@@ -4,8 +4,7 @@ import {
 	base64ToBytes,
 	base64url,
 	base64urlToBytes,
-	xorBytes,
-	deriveKeys,
+	deriveFileKey,
 	passwordToIkM,
 	generateSecret,
 } from './encryption';
@@ -53,63 +52,64 @@ describe('base64url utilities', () => {
 	});
 });
 
-describe('xorBytes', () => {
-	it('should xor two equal-length arrays', () => {
-		const a = new Uint8Array([0xff, 0x0f, 0xf0]);
-		const b = new Uint8Array([0xf0, 0xf0, 0x0f]);
-		expect(xorBytes(a, b)).toEqual(new Uint8Array([0x0f, 0xff, 0xff]));
-	});
-
-	it('should xor with self to produce zeros', () => {
-		const a = new Uint8Array([1, 2, 3, 4, 5]);
-		expect(xorBytes(a, a)).toEqual(new Uint8Array([0, 0, 0, 0, 0]));
-	});
-});
-
-describe('Web Crypto key derivation', () => {
-	it('should produce a 128-bit random secret', () => {
+describe('scheme v3 key material', () => {
+	it('should produce a 256-bit random secret', () => {
 		const secret = generateSecret();
-		expect(secret.byteLength).toBe(16);
+		expect(secret.byteLength).toBe(32);
 		expect(generateSecret()).not.toEqual(secret);
 	});
 
-	it('should derive a file key and auth key from an IKM', async () => {
-		const ikm = crypto.getRandomValues(new Uint8Array(16));
-		const { fileKey, authKey } = await deriveKeys(ikm);
+	it('should derive a 256-bit AES-GCM file key from an IKM via HKDF', async () => {
+		const ikm = crypto.getRandomValues(new Uint8Array(32));
+		const salt = crypto.getRandomValues(new Uint8Array(16));
+		const fileKey = await deriveFileKey(ikm, salt);
 		expect(fileKey.algorithm.name).toBe('AES-GCM');
-		expect(fileKey.algorithm.length).toBe(128);
-		expect(authKey.algorithm.name).toBe('HMAC');
+		expect((fileKey.algorithm as AesKeyAlgorithm).length).toBe(256);
 	});
 
-	it('should derive the same keys from the same IKM', async () => {
-		const ikm = crypto.getRandomValues(new Uint8Array(16));
-		const a = await deriveKeys(ikm);
-		const b = await deriveKeys(ikm);
-		const rawA = new Uint8Array(await crypto.subtle.exportKey('raw', a.fileKey));
-		const rawB = new Uint8Array(await crypto.subtle.exportKey('raw', b.fileKey));
+	it('should derive the same key from the same IKM + salt', async () => {
+		const ikm = crypto.getRandomValues(new Uint8Array(32));
+		const salt = crypto.getRandomValues(new Uint8Array(16));
+		const a = await deriveFileKey(ikm, salt);
+		const b = await deriveFileKey(ikm, salt);
+		const rawA = new Uint8Array(await crypto.subtle.exportKey('raw', a));
+		const rawB = new Uint8Array(await crypto.subtle.exportKey('raw', b));
 		expect(rawA).toEqual(rawB);
 	});
 
-	it('should derive different keys from different IKMs', async () => {
-		const a = await deriveKeys(crypto.getRandomValues(new Uint8Array(16)));
-		const b = await deriveKeys(crypto.getRandomValues(new Uint8Array(16)));
-		const rawA = new Uint8Array(await crypto.subtle.exportKey('raw', a.fileKey));
-		const rawB = new Uint8Array(await crypto.subtle.exportKey('raw', b.fileKey));
+	it('should derive different keys from different salts (same IKM)', async () => {
+		const ikm = crypto.getRandomValues(new Uint8Array(32));
+		const saltA = crypto.getRandomValues(new Uint8Array(16));
+		const saltB = crypto.getRandomValues(new Uint8Array(16));
+		const a = await deriveFileKey(ikm, saltA);
+		const b = await deriveFileKey(ikm, saltB);
+		const rawA = new Uint8Array(await crypto.subtle.exportKey('raw', a));
+		const rawB = new Uint8Array(await crypto.subtle.exportKey('raw', b));
 		expect(rawA).not.toEqual(rawB);
 	});
 
-	it('should derive a 128-bit IKM from a password via PBKDF2', async () => {
-		const ikm = await passwordToIkM('correct horse battery staple');
-		expect(ikm.byteLength).toBe(16);
-		const ikm2 = await passwordToIkM('correct horse battery staple');
+	it('should derive a 256-bit IKM from a password via Argon2id', async () => {
+		const salt = crypto.getRandomValues(new Uint8Array(16));
+		const ikm = await passwordToIkM('correct horse battery staple', salt);
+		expect(ikm.byteLength).toBe(32);
+		const ikm2 = await passwordToIkM('correct horse battery staple', salt);
 		expect(ikm).toEqual(ikm2);
+	});
+
+	it('should derive different IKMs from the same password with different salts', async () => {
+		const saltA = crypto.getRandomValues(new Uint8Array(16));
+		const saltB = crypto.getRandomValues(new Uint8Array(16));
+		const ikmA = await passwordToIkM('same-password', saltA);
+		const ikmB = await passwordToIkM('same-password', saltB);
+		expect(ikmA).not.toEqual(ikmB);
 	});
 });
 
-describe('AES-128-GCM encrypt/decrypt roundtrip', () => {
+describe('AES-256-GCM encrypt/decrypt roundtrip', () => {
 	it('should encrypt and decrypt a chunk', async () => {
-		const ikm = crypto.getRandomValues(new Uint8Array(16));
-		const { fileKey } = await deriveKeys(ikm);
+		const ikm = crypto.getRandomValues(new Uint8Array(32));
+		const salt = crypto.getRandomValues(new Uint8Array(16));
+		const fileKey = await deriveFileKey(ikm, salt);
 		const nonce = crypto.getRandomValues(new Uint8Array(12));
 		const plaintext = new TextEncoder().encode('Hello, encrypted world!');
 
@@ -119,7 +119,8 @@ describe('AES-128-GCM encrypt/decrypt roundtrip', () => {
 	});
 
 	it('should produce ciphertext 16 bytes longer than plaintext (auth tag)', async () => {
-		const { fileKey } = await deriveKeys(crypto.getRandomValues(new Uint8Array(16)));
+		const ikm = crypto.getRandomValues(new Uint8Array(32));
+		const fileKey = await deriveFileKey(ikm, crypto.getRandomValues(new Uint8Array(16)));
 		const nonce = crypto.getRandomValues(new Uint8Array(12));
 		const plaintext = new Uint8Array([1, 2, 3, 4, 5]);
 		const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, fileKey, plaintext));
@@ -127,7 +128,8 @@ describe('AES-128-GCM encrypt/decrypt roundtrip', () => {
 	});
 
 	it('should handle empty plaintext', async () => {
-		const { fileKey } = await deriveKeys(crypto.getRandomValues(new Uint8Array(16)));
+		const ikm = crypto.getRandomValues(new Uint8Array(32));
+		const fileKey = await deriveFileKey(ikm, crypto.getRandomValues(new Uint8Array(16)));
 		const nonce = crypto.getRandomValues(new Uint8Array(12));
 		const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: nonce }, fileKey, new Uint8Array(0)));
 		expect(ct.byteLength).toBe(16);

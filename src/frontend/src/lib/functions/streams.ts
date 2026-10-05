@@ -4,6 +4,8 @@ import {
 	RECORD_SIZE,
 	RECORD_SIZE_FIELD_LENGTH,
 	SALT_LENGTH,
+	SCHEME_VERSION,
+	VERSION_LENGTH,
 } from '#consts/encryption';
 import { base64url, base64urlToBytes, resolveIkM } from './encryption';
 import CryptoWorker from '#workers/crypto.worker?worker';
@@ -50,18 +52,20 @@ export async function createZipStream(files: File[]): Promise<ReadableStream<Uin
 	});
 }
 
-// ECE (RFC 8188) streaming encrypt/decrypt over AES-128-GCM.
+// ---------------------------------------------------------------------------
+// ECE (RFC 8188) streaming encrypt/decrypt over AES-256-GCM.
 //
-// Wire format:
-//   [16-byte random salt][4-byte record size, BE]
+// Wire format v3:
+//   [16-byte random salt][1-byte version][4-byte record size, BE]
 //   [record_0][record_1]...
 //
-// Each record is the AES-128-GCM ciphertext of a RECORD_SIZE-sized plaintext
-// chunk (last record may be shorter). Per-record nonce = random 12-byte
+// Each record is the AES-256-GCM ciphertext of a RECORD_SIZE-sized plaintext
+// chunk (last record may be shorter). Per-record nonce = deterministic 12-byte
 // nonceBase XOR sequence_number (last 4 bytes BE).
 //
-// The file key is HKDF-derived from the IKM + salt. The IKM (or password)
-// travels in the URL hash fragment; the salt travels in the ciphertext header.
+// The file key is HKDF(IKM, salt=header_salt). The salt is REAL: it feeds
+// both Argon2id (password path) and HKDF (all paths), so identical passwords
+// over different uploads yield different keys and ciphertexts.
 // ---------------------------------------------------------------------------
 
 interface WorkerSlot {
@@ -69,7 +73,7 @@ interface WorkerSlot {
 	ready: Promise<void>;
 }
 
-function makeWorkerSlot(ikmB64: string, passwordB64: string | null, op: 'encrypt' | 'decrypt'): WorkerSlot {
+function makeWorkerSlot(ikmB64: string, saltB64: string, op: 'encrypt' | 'decrypt'): WorkerSlot {
 	const worker = new CryptoWorker();
 	let resolveReady: () => void;
 	let rejectReady: (e: Error) => void;
@@ -83,7 +87,7 @@ function makeWorkerSlot(ikmB64: string, passwordB64: string | null, op: 'encrypt
 		else if (msg.type === 'error') rejectReady(new Error(msg.error ?? 'worker error'));
 	};
 	worker.onerror = (e) => rejectReady(new Error(e.message || 'worker error'));
-	worker.postMessage({ type: 'init', ikmB64, passwordB64, op });
+	worker.postMessage({ type: 'init', ikmB64, saltB64, op });
 	return { worker, ready };
 }
 
@@ -106,11 +110,29 @@ async function workerProcess(slot: WorkerSlot, index: number, data: Uint8Array):
 	});
 }
 
+/** Build the 21-byte v3 header: [salt][version][record_size BE]. */
+function buildHeader(salt: Uint8Array): Uint8Array {
+	const header = new Uint8Array(HEADER_LENGTH);
+	header.set(salt, 0);
+	header[SALT_LENGTH] = SCHEME_VERSION;
+	const view = new DataView(header.buffer, SALT_LENGTH + VERSION_LENGTH, RECORD_SIZE_FIELD_LENGTH);
+	view.setUint32(0, RECORD_SIZE);
+	return header;
+}
+
+/** Parse the v3 header. Returns { salt, version, recordSize }. */
+function parseHeader(bytes: Uint8Array): { salt: Uint8Array; version: number; recordSize: number } {
+	const salt = bytes.slice(0, SALT_LENGTH);
+	const version = bytes[SALT_LENGTH];
+	const recordSize = new DataView(bytes.buffer, bytes.byteOffset + SALT_LENGTH + VERSION_LENGTH, RECORD_SIZE_FIELD_LENGTH).getUint32(0);
+	return { salt, version, recordSize };
+}
+
 // ---------------------------------------------------------------------------
 // createEncryptedStream
 //
 // Reads the input stream, slices into RECORD_SIZE chunks, encrypts each in a
-// worker, and emits the ECE header + ciphertext records in order. Returns the
+// worker, and emits the v3 header + ciphertext records in order. Returns the
 // encrypted stream and the base64url-encoded IKM (the "keySecret" embedded in
 // the share URL hash).
 // ---------------------------------------------------------------------------
@@ -121,25 +143,22 @@ export async function createEncryptedStream(
 	onProgress?: (processed: number, total?: number) => void,
 	ikmOverride?: Uint8Array,
 ): Promise<{ stream: ReadableStream<Uint8Array>; keySecret: string }> {
-	const ikm = await resolveIkM(ikmOverride ?? null, password ?? null);
+	// Generate the per-file salt FIRST — it feeds both Argon2id (password path)
+	// and HKDF (all paths), and travels in the wire header.
+	const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
+	const ikm = await resolveIkM(ikmOverride ?? null, password ?? null, salt);
 	const keySecret = base64url(ikm);
 	const ikmB64 = keySecret;
-	const passwordB64 = password ? base64url(encoder.encode(password)) : null;
+	const saltB64 = base64url(salt);
 
-	const slot = makeWorkerSlot(ikmB64, passwordB64, 'encrypt');
-
-	const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
-	const header = new Uint8Array(HEADER_LENGTH);
-	header.set(salt, 0);
-	const view = new DataView(header.buffer, SALT_LENGTH, RECORD_SIZE_FIELD_LENGTH);
-	view.setUint32(0, RECORD_SIZE);
+	const slot = makeWorkerSlot(ikmB64, saltB64, 'encrypt');
+	const header = buildHeader(salt);
 
 	const reader = inputStream.getReader();
 	let buffer = new Uint8Array(0);
 	let processed = 0;
 	let seq = 0;
 	let inputDone = false;
-	let headerEmitted = false;
 
 	const readMore = async (): Promise<Uint8Array | null> => {
 		const { done, value } = await reader.read();
@@ -149,15 +168,10 @@ export async function createEncryptedStream(
 
 	const stream = new ReadableStream<Uint8Array>({
 		async start(controller) {
-			// Emit the ECE header first so the decryptor knows the record size.
 			controller.enqueue(header);
-			headerEmitted = true;
 		},
 		async pull(controller) {
 			for (;;) {
-				// Fill the buffer until we have at least RECORD_SIZE bytes, or
-				// the input is exhausted (then whatever remains is the final
-				// partial record).
 				if (buffer.length < RECORD_SIZE) {
 					const value = await readMore();
 					if (value === null) {
@@ -175,21 +189,17 @@ export async function createEncryptedStream(
 					}
 				}
 
-				// Slice off the next record (full RECORD_SIZE, or the final
-				// partial if the input is done).
 				const isFinal = inputDone;
 				const chunkSize = isFinal ? buffer.length : RECORD_SIZE;
 				const chunk = buffer.slice(0, chunkSize);
 				buffer = buffer.slice(chunkSize);
 
-				// Encrypt this record in the worker and emit the ciphertext.
 				const index = seq++;
 				const ciphertext = await workerProcess(slot, index, chunk);
 				processed += chunkSize;
 				onProgress?.(processed, origSize);
 				controller.enqueue(ciphertext);
 
-				// If the input is exhausted and the buffer is empty, we're done.
 				if (isFinal && buffer.length === 0) {
 					slot.worker.terminate();
 					controller.close();
@@ -209,8 +219,9 @@ export async function createEncryptedStream(
 // ---------------------------------------------------------------------------
 // createDecryptedStream
 //
-// Reads the ECE wire format, strips the header, and decrypts each record in a
-// worker. Emits plaintext chunks in order.
+// Reads the v3 wire format, strips the header (extracting the real salt),
+// resolves the IKM against that salt, then decrypts each record in a worker.
+// Emits plaintext chunks in order.
 // ---------------------------------------------------------------------------
 export async function createDecryptedStream(
 	inputStream: ReadableStream<Uint8Array>,
@@ -219,46 +230,48 @@ export async function createDecryptedStream(
 	origSize?: number,
 	onProgress?: (processed: number, total?: number) => void,
 ): Promise<ReadableStream<Uint8Array>> {
-	const ikm = password ? await resolveIkM(null, password) : base64urlToBytes(keySecret);
-	const ikmB64 = base64url(ikm);
-	const passwordB64 = password ? base64url(encoder.encode(password)) : null;
-
-	const slot = makeWorkerSlot(ikmB64, passwordB64, 'decrypt');
 	const reader = inputStream.getReader();
 
-	let headerConsumed = false;
+	// Read the header first — the salt inside is required to derive the IKM.
 	let buffer = new Uint8Array(0);
-	let seq = 0;
-	let processed = 0;
-	let inputDone = false;
-
 	const readMore = async (): Promise<Uint8Array | null> => {
 		const { done, value } = await reader.read();
 		if (done) return null;
 		return value;
 	};
 
+	while (buffer.length < HEADER_LENGTH) {
+		const value = await readMore();
+		if (value === null) throw new Error('Ciphertext ended before header');
+		const combined = new Uint8Array(buffer.length + value.length);
+		combined.set(buffer);
+		combined.set(value, buffer.length);
+		buffer = combined;
+	}
+
+	const { salt, version, recordSize } = parseHeader(buffer);
+	buffer = buffer.slice(HEADER_LENGTH);
+
+	if (version !== SCHEME_VERSION) {
+		throw new Error(`Unsupported encryption version: ${version} (expected ${SCHEME_VERSION})`);
+	}
+
+	// Resolve IKM using the real salt from the header.
+	const ikm = password ? await resolveIkM(null, password, salt) : base64urlToBytes(keySecret);
+	const ikmB64 = base64url(ikm);
+	const saltB64 = base64url(salt);
+
+	const slot = makeWorkerSlot(ikmB64, saltB64, 'decrypt');
+
+	let seq = 0;
+	let processed = 0;
+	let inputDone = false;
+	const CHUNK = recordSize; // honour the record size from the header
+
 	const stream = new ReadableStream<Uint8Array>({
 		async pull(controller) {
 			for (;;) {
-				// 1) Consume the ECE header exactly once (salt + record size).
-				if (!headerConsumed) {
-					while (buffer.length < HEADER_LENGTH) {
-						const value = await readMore();
-						if (value === null) throw new Error('Ciphertext ended before header');
-						const combined = new Uint8Array(buffer.length + value.length);
-						combined.set(buffer);
-						combined.set(value, buffer.length);
-						buffer = combined;
-					}
-					buffer = buffer.slice(HEADER_LENGTH);
-					headerConsumed = true;
-				}
-
-				// 2) Fill the buffer until we have at least RECORD_SIZE bytes, or
-				//    the input is exhausted (then whatever remains is the final
-				//    partial record).
-				if (buffer.length < RECORD_SIZE) {
+				if (buffer.length < CHUNK) {
 					const value = await readMore();
 					if (value === null) {
 						inputDone = true;
@@ -275,21 +288,17 @@ export async function createDecryptedStream(
 					}
 				}
 
-				// 3) Slice off the next ciphertext record (full RECORD_SIZE, or
-				//    the final partial if the input is done).
 				const isFinal = inputDone;
-				const chunkSize = isFinal ? buffer.length : RECORD_SIZE;
+				const chunkSize = isFinal ? buffer.length : CHUNK;
 				const chunk = buffer.slice(0, chunkSize);
 				buffer = buffer.slice(chunkSize);
 
-				// 4) Decrypt this record in the worker and emit the plaintext.
 				const index = seq++;
 				const plaintext = await workerProcess(slot, index, chunk);
 				processed += plaintext.byteLength;
 				onProgress?.(processed, origSize);
 				controller.enqueue(plaintext);
 
-				// 5) If the input is exhausted and the buffer is empty, we're done.
 				if (isFinal && buffer.length === 0) {
 					slot.worker.terminate();
 					controller.close();

@@ -1,17 +1,17 @@
 # Chithi Implementation Plan
 
-> **Status**: Active — chunked S3 + Web Crypto rewrite complete, CLI rewrite pending
-> **Date**: 2026-10-04
+> **Status**: Active — v3 crypto upgrade (AES-256-GCM + Argon2id) complete on frontend + CLI
+> **Date**: 2026-10-05
 > **Branch**: `feat/jxr-other`
 >
 > **Current architecture** (post-rewrite):
 > - **Backend**: Django + Strawberry GraphQL + aioboto3 (S3) — runs on port 8001
-> - **Frontend**: SvelteKit 2 + Svelte 5 + Apollo Client 4 + fflate — uploads 50 MB chunks to S3 via Django, downloads chunks directly from S3 (presigned URLs, behind Cloudflare)
-> - **CLI**: Python — pending rewrite to pure Python (remove wasmtime/Rust bridge)
-> - **Crypto**: Web Crypto API only — HKDF-SHA-256 + PBKDF2-SHA-256 + AES-128-GCM ECE (RFC 8188), 64 KiB records
+> - **Frontend**: SvelteKit 2 + Svelte 5 + Apollo Client 4 + TanStack Svelte Query + fflate — uploads 50 MB chunks to S3 via Django, downloads chunks directly from S3 (presigned URLs, behind Cloudflare)
+> - **CLI**: Python — pure Python crypto (`cryptography` + `argon2-cffi`); chunked GraphQL client
+> - **Crypto v3**: **AES-256-GCM** (up from AES-128) + **Argon2id** password KDF (up from PBKDF2) + HKDF-SHA-256 with a **real per-file 16-byte salt** wired into both Argon2id and HKDF. ECE (RFC 8188), 64 KiB records. Wire header is now `[16B salt][1B version=3][4B record_size BE]` (21 bytes).
 > - **Removed**: Rust crates, WASM SDKs, WebSockets, reverse-share
 >
-> **Current focus**: CLI crypto rewrite in pure Python, then end-to-end verification.
+> **Current focus**: Crypto docs refresh + end-to-end browser verification.
 
 ---
 
@@ -34,11 +34,12 @@
 | **Chunked Upload (50 MB)** | DONE | `upload.ts` — registerFile → uploadFileChunk loop → completeUpload |
 | **Chunked Download (50 MB)** | DONE | `download.ts` — fileInfo → chunkUrl loop → reassemble → decrypt |
 | **WebSocket Removal** | PARTIAL | WebSockets removed from backend; `upload/state.svelte.ts` still references `Api.STATE_WS` (404, non-fatal) |
-| **CLI Crypto Rewrite** | DONE | `crypto.py` in pure Python (cryptography lib); round-trip verified at 1/2/16 records |
+| **Crypto v3 (frontend)** | DONE | `encryption.ts`/`streams.ts`/`crypto.worker.ts` — AES-256-GCM + Argon2id + real per-file salt; `npm run check` clean |
+| **Crypto v3 (CLI)** | DONE | `crypto.py` rewritten (argon2-cffi + cryptography); 14 tests pass; cross-language interop verified |
+| **Crypto Docs** | DONE | `apps/docs/crypto-architecture.md` rewritten to v3 |
 | **CLI Client Rewrite** | DONE | `client.py` uses chunked GraphQL (registerFile → uploadFileChunk → completeUpload) + S3 presigned download |
 | **CLI Commands Update** | DONE | `upload.py` + `download.py` use new client API (bytes in/out, no temp files) |
 | **WASM Bridge Removal** | DONE | `chithi_core_bridge.py` deleted; `chithi-sdk` dep removed from pyproject.toml |
-| **Crypto Docs** | TODO | Update `apps/docs/crypto-architecture.md` to reflect new Web Crypto + chunked S3 model |
 | **E2E Verification** | TODO | Full upload→download round-trip with a real file via Playwright |
 
 ---
@@ -227,17 +228,20 @@ Connects to `Api.STATE_WS` (WebSocket). Django doesn't have WebSocket support ye
 
 ## Phase 5: CLI Rewrite — Pure Python Crypto ✅
 
-### 5.1 Rewrite `crypto.py` using `cryptography` library ✅ DONE
+### 5.1 Rewrite `crypto.py` using `cryptography` + `argon2-cffi` ✅ DONE (v3)
 
-Pure Python ECE implementation in `src/cli/app/helpers/crypto.py`:
-- PBKDF2-SHA256(password, 'chithi-salt-v2', 100_000) → 16B IKM
-- HKDF-SHA256(IKM, salt='chithi-salt-v2', info='chithi-file-key-v2') → 16B AES-128 key
+Pure Python ECE implementation in `src/cli/app/helpers/crypto.py`, mirrors the
+frontend exactly:
+- Argon2id(password, header_salt, t=3, m=64 MiB, p=1) → 32B IKM  *(was PBKDF2 → 16B)*
+- HKDF-SHA256(IKM, salt=header_salt, info='chithi-file-key-v3') → 32B AES-256 key
 - nonceBase = SHA-256(file_key)[0:12]
 - Per-record nonce = nonceBase XOR (seq as last 4 bytes, BE)
-- Wire format: `[16B random salt][4B record_size BE][AES-GCM record_0][record_1]...`
+- Wire format: `[16B salt][1B version=3][4B record_size BE][AES-256-GCM record_0]...`
 - Each record: 64 KiB plaintext → 65552 bytes ciphertext (64 KiB + 16B GCM tag)
 - Zip via `zipfile` (zlib level 6)
-- `cryptography>=42.0.0` added to pyproject.toml
+- `cryptography>=42.0.0` + `argon2-cffi>=25.1.0` in pyproject.toml
+- **Cross-language interop verified**: TS HKDF file-key + nonceBase byte-identical to
+  Python; frontend pipeline decrypts a CLI-produced 3-record ciphertext.
 
 ### 5.2 Rewrite `client.py` for chunked GraphQL ✅ DONE
 

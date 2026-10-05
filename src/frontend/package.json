@@ -21,6 +21,7 @@
 		"@apollo/client": "^4.2.8",
 		"@internationalized/date": "^3.12.2",
 		"apollo-upload-client": "^19.0.0",
+		"argon2-browser": "^1.18.0",
 		"embla-carousel-svelte": "^8.6.0",
 		"fflate": "^0.8.3",
 		"takumi-js": "^1.0.15"
@@ -60,6 +61,7 @@
 		"@tanstack/svelte-query": "^6.1.25",
 		"@tanstack/svelte-query-devtools": "^6.1.25",
 		"@tanstack/table-core": "^8.21.3",
+		"@types/argon2-browser": "^1.18.4",
 		"@types/caniuse-lite": "^1.0.5",
 		"@types/d3": "^7.4.3",
 		"@types/node": "^25.6.0",
