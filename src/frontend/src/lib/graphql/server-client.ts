@@ -58,6 +58,16 @@ const GRAPHQL_URL = `${Api.BASE}/graphql/`;
 export const BACKEND_DOWN_SENTINEL = 'CHITHI_BACKEND_DOWN';
 
 /**
+ * The backend-not-configured sentinel.
+ *
+ * Thrown from `+layout.server.ts` when `PUBLIC_BACKEND_API` is absent - the
+ * deployment was never given a backend URL, so nothing can be reached.
+ * `+error.svelte` compares against this to show setup instructions instead of
+ * the generic "backend down" retry screen.
+ */
+export const BACKEND_NOT_CONFIGURED_SENTINEL = 'CHITHI_BACKEND_NOT_CONFIGURED';
+
+/**
  * Probe the backend by sending a real GraphQL request.
  *
  * Server-only: called from `+layout.server.ts` `load()` on every route load.

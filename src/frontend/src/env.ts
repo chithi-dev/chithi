@@ -10,15 +10,16 @@ export const variables = defineEnvVars({
 		schema: z
 			.string()
 			.trim()
-			.min(1, 'PUBLIC_BACKEND_API must be a non-empty URL')
 			.refine((val) => {
+				if (!val) return true; // allow empty string (means unset)
 				try {
 					new URL(val);
 					return true;
 				} catch {
 					return false;
 				}
-			}, 'PUBLIC_BACKEND_API must be a valid URL'),
+			}, 'PUBLIC_BACKEND_API must be a valid URL')
+			.optional(),
 		description: 'Base URL of the chithi backend (e.g. http://localhost:8000)'
 	},
 

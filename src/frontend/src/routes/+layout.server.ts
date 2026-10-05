@@ -1,4 +1,5 @@
-import { checkBackendHealth, prefetchApollo, BACKEND_DOWN_SENTINEL } from '$lib/graphql/server-client';
+import { checkBackendHealth, prefetchApollo, BACKEND_DOWN_SENTINEL, BACKEND_NOT_CONFIGURED_SENTINEL } from '$lib/graphql/server-client';
+import { PUBLIC_BACKEND_API } from '$app/env/public';
 import {
 	OnboardingDocument,
 	ConfigDocument,
@@ -22,6 +23,14 @@ import type { LayoutServerLoad } from './$types';
  * key.
  */
 export const load: LayoutServerLoad = async ({ cookies, locals }) => {
+	// ── Backend-not-configured gate ───────────────────────────────────────────
+	// If PUBLIC_BACKEND_API was never set (e.g. Docker build without the
+	// build-arg), there is nothing to reach. Show setup instructions instead
+	// of the generic retry screen.
+	if (!PUBLIC_BACKEND_API) {
+		throw new Error(BACKEND_NOT_CONFIGURED_SENTINEL);
+	}
+
 	// ── Backend-down gate ─────────────────────────────────────────────────────
 	// Probe the backend once per page load. If unreachable, throw a sentinel
 	// error that +error.svelte recognizes.

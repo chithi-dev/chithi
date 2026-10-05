@@ -1,6 +1,8 @@
 import { PUBLIC_BACKEND_API } from '$app/env/public';
 import { strip_trailing_slash } from '#functions/urls';
 
+// Throws at runtime if PUBLIC_BACKEND_API is not configured.
+// The layout catches this and renders +error.svelte with a setup hint.
 const root = strip_trailing_slash(PUBLIC_BACKEND_API);
 
 /**
