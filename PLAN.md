@@ -49,8 +49,9 @@
 | **Legacy Django Views** | REMOVED | `apps/files/views.py`, `speedtest.py`, `speedtest_urls.py`, `urls.py` deleted; all routes served via GraphQL or ninja API only |
 | **Context-Based Auth** | DONE | `apps/graphql/context.py` (`Context` dataclass) + `ChithiGraphQLView.get_context()` override; `GraphQLJwtMiddleware` removed from `core/middleware.py` (file deleted); `me` query verified with/without JWT |
 | **Celery Stub** | REMOVED | `core/celery.py` deleted; `core/settings.py` MIDDLEWARE list updated |
-| **Type Hints (Backend)** | DONE | All views, resolvers, managers, services fully annotated; no `Any` used; `manager.py` `**extra_fields: bool \| str`; `services.py` S3 helpers untyped (aioboto3 lacks stubs) |
+| **Type Hints (Backend)** | DONE | All views, resolvers, managers, services fully annotated; no `Any` used; `manager.py` `**extra_fields: bool \| str`; `services.py` fully typed via django-storages |
 | **Type Hints (CLI)** | DONE | `test/test_crypto.py` moved to `test/` package; all 14 test functions annotated `-> None`; async calls wrapped in `asyncio.run`; `print.py` `__rich_console__` return type added; 14/14 tests pass |
+| **django-storages** | DONE | `aioboto3` + hand-rolled boto3 removed; `STORAGES` dict in settings.py selects `S3Storage` (creds present) or `FileSystemStorage` (dev); `services.py` rewritten on `default_storage` API (`save`/`url`/`delete`/`exists`); sync calls wrapped in `sync_to_async`; upload/exist/url/delete round-trip verified; CDN via `S3_CDN_URL` setting |
 
 ---
 
