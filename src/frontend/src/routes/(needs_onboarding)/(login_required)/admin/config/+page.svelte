@@ -3,7 +3,8 @@
 	import { H2, Mutated, InlineCode } from '$lib/components/ui/typography/index.js';
 	import { fade } from 'svelte/transition';
 	import { page } from '$app/state';
-	import { createQueryStore, executeMutation } from '$lib/graphql/use-query.svelte.js';
+	import { executeMutation } from '$lib/graphql/use-query.svelte.js';
+	import { usePrefetchedQuery } from '$lib/graphql/hydration.svelte.js';
 	import { client } from '$lib/graphql/client.js';
 	import { ConfigDocument, type ConfigQuery, UpdateConfigDocument } from '$lib/graphql/generated/graphql.js';
 	import { formatBytes, type ByteUnit } from '#functions/bytes';
@@ -16,7 +17,7 @@
 	const { default: FileSecurityCard } = await import('./file_security_card.svelte');
 	const { default: SiteDescriptionCard } = await import('./site_description_card.svelte');
 
-	const configQuery = createQueryStore<ConfigQuery>(ConfigDocument);
+	const configQuery = usePrefetchedQuery<ConfigQuery>(ConfigDocument);
 
 	async function updateConfig(payload: any) {
 		try {
@@ -103,7 +104,7 @@
 </div>
 
 <div class="space-y-6">
-	{#if configQuery.fetching}
+	{#if configQuery.loading}
 		<div
 			in:fade
 			class="fixed top-24 right-10 z-50 flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1 text-xs font-semibold tracking-wider text-muted-foreground uppercase shadow-sm backdrop-blur-sm"
@@ -112,7 +113,7 @@
 		</div>
 	{/if}
 
-	{#if configQuery.fetching}
+	{#if configQuery.loading}
 		<ConfigLoadingSkeleton />
 	{:else if configData}
 		<Tabs.Root bind:value={activeTab} class="space-y-4">

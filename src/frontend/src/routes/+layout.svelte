@@ -10,24 +10,20 @@
 
   import favicon from '$lib/assets/logo.svg';
   import { ModeWatcher } from 'mode-watcher';
-  import { QueryClientProvider } from '@tanstack/svelte-query';
   import { Toaster } from '$lib/components/ui/sonner/index.js';
   import CommandPalette from '$lib/components/CommandPalette.svelte';
 
   import type { LayoutData } from './$types';
   import { type Component, type Snippet } from 'svelte';
   import { MetaTags, deepMerge } from 'svelte-meta-tags';
+  import HydrationBoundary from '$lib/graphql/hydration-boundary.svelte';
 
   let { children, data }: { children: Snippet; data: LayoutData } = $props();
 
-  const loadDevtools = async () => {
-    if (!import.meta.env.DEV) return null;
-    const mod = await import('@tanstack/svelte-query-devtools');
-    return mod.SvelteQueryDevtools;
-  };
-
-  let SvelteQueryDevtools = $state<Component<any> | null>(null);
-  void loadDevtools().then((c) => { SvelteQueryDevtools = c; });
+  // Server-prefetched Apollo cache (if any). Populated by +layout.server.ts or
+  // any child +page.server.ts that calls prefetchApollo(). Shape:
+  // { cache: Record, dehydratedAt: number }.
+  let apolloState = $derived(data.__APOLLO__ ?? null);
 
   $effect.pre(() => {
     NProgress.done();
@@ -54,9 +50,6 @@
 <CommandPalette />
 <ModeWatcher />
 
-<QueryClientProvider client={data.queryClient}>
-  {#if SvelteQueryDevtools}
-    <SvelteQueryDevtools buttonPosition="top-left" />
-  {/if}
+<HydrationBoundary state={apolloState}>
   {@render children()}
-</QueryClientProvider>
+</HydrationBoundary>

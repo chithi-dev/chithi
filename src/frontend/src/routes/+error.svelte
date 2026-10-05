@@ -2,11 +2,13 @@
 	import { page } from '$app/state';
 	import { Button } from '$lib/components/ui/button/index.js';
 	import * as Card from '$lib/components/ui/card/index.js';
-	import { RefreshCw, ShieldAlert } from '@lucide/svelte';
+	import { RefreshCw, ShieldAlert, CloudOff } from '@lucide/svelte';
+	import { BACKEND_DOWN_SENTINEL } from '$lib/graphql/server-client.js';
 	import { fly } from 'svelte/transition';
 
 	let error = $derived(page.error);
 	let status = $derived(page.status);
+	let isBackendDown = $derived(error?.message === BACKEND_DOWN_SENTINEL);
 
 	function reload() {
 		globalThis.window.location.reload();
@@ -40,16 +42,26 @@
 				<div
 					class="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl border border-red-100 bg-red-50 text-red-500 shadow-sm ring-1 ring-red-200 dark:border-red-500/20 dark:bg-red-500/10 dark:ring-red-500/20"
 				>
-					<ShieldAlert class="size-8" />
+					{#if isBackendDown}
+						<CloudOff class="size-8" />
+					{:else}
+						<ShieldAlert class="size-8" />
+					{/if}
 				</div>
 				<div class="space-y-1">
 					<Card.Title class="text-2xl font-semibold tracking-tight text-foreground">
-						{#if status === 404}
+						{#if isBackendDown}
+							Backend Unavailable
+						{:else if status === 404}
 							Page Not Found
+						{:else if status}
+							Error {status}
 						{/if}
 					</Card.Title>
 					<Card.Description class="text-sm text-muted-foreground">
-						{#if error?.message}
+						{#if isBackendDown}
+							We can't reach the chithi server right now. Please make sure the backend is running and try again.
+						{:else if error?.message}
 							{error.message}
 						{:else}
 							An unexpected error occurred.

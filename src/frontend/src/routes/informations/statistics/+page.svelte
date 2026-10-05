@@ -11,17 +11,16 @@
 		ShieldCheck
 	} from '@lucide/svelte';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
-	import { client } from '$lib/graphql/client.js';
+	import { usePrefetchedQuery } from '$lib/graphql/hydration.svelte.js';
 	import { InstanceStatisticsDocument } from '$lib/graphql/generated/graphql.js';
 	import type { InstanceStatisticsQuery } from '$lib/graphql/generated/graphql.js';
 	import { formatFileSize } from '$lib/functions/bytes';
 	import InfoCard from '../components/InfoCard.svelte';
 
-	let statsData = $state<InstanceStatisticsQuery['instanceStatistics'] | undefined>(undefined);
-	let statsLoading = $state(true);
-	let statsError = $state<Error | null>(null);
-
-	const stats = $derived(statsData);
+	const statsQuery = usePrefetchedQuery<InstanceStatisticsQuery>(InstanceStatisticsDocument);
+	const stats = $derived(statsQuery.data?.instanceStatistics);
+	const statsLoading = $derived(statsQuery.loading);
+	const statsError = $derived(statsQuery.error);
 
 	const statRows = $derived([
 		{ Icon: HardDrive, label: 'Total Storage', value: formatFileSize(stats?.totalStorageUsed ?? 0), cls: 'text-xl font-bold text-foreground' },
@@ -30,26 +29,6 @@
 		{ Icon: XCircle, label: 'Expired Files', value: (stats?.expiredFiles ?? 0).toLocaleString(), cls: 'text-xl font-bold text-foreground' },
 		{ Icon: Users, label: 'Total Users', value: (stats?.totalUsers ?? 0).toLocaleString(), cls: 'text-xl font-bold text-foreground' },
 	]);
-
-	$effect(() => {
-		const observable = client.watchQuery<InstanceStatisticsQuery>({ query: InstanceStatisticsDocument });
-		const subscription = observable.subscribe({
-			next(result) {
-				statsLoading = result.loading;
-				if (result.error) {
-					statsError = new Error(result.error.message);
-				} else if (result.data) {
-					statsData = result.data.instanceStatistics;
-					statsError = null;
-				}
-			},
-			error(err) {
-				statsLoading = false;
-				statsError = err instanceof Error ? err : new Error(String(err));
-			}
-		});
-		return () => subscription.unsubscribe();
-	});
 </script>
 
 {#if statsLoading}
@@ -60,7 +39,7 @@
 	<div class="flex flex-col items-center justify-center gap-4 py-12 text-destructive">
 		<CircleAlert class="h-12 w-12" />
 		<p class="font-medium">Failed to load instance statistics</p>
-		<Button variant="outline" onclick={() => client.query({ query: InstanceStatisticsDocument })}>Retry</Button>
+		<Button variant="outline" onclick={() => statsQuery.refetch()}>Retry</Button>
 	</div>
 {:else if stats}
 	<InfoCard

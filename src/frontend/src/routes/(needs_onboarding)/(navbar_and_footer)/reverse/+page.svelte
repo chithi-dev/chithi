@@ -10,7 +10,7 @@
 	import { Upload, Download, ArrowLeft } from '@lucide/svelte';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { Api } from '#consts/backend';
-	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { usePrefetchedQuery } from '$lib/graphql/hydration.svelte.js';
 	import { ConfigDocument, type ConfigQuery } from '$lib/graphql/generated/graphql.js';
 	import { base64url } from '#functions/encryption';
 	import { H1, P } from '$lib/components/ui/typography/index.js';
@@ -25,7 +25,7 @@
 	let joinId = $state('');
 	let isCreating = $state(false);
 
-	const configData = createQueryStore<ConfigQuery>(ConfigDocument);
+	const configData = usePrefetchedQuery<ConfigQuery>(ConfigDocument);
 	let defaultDownloadLimitSet = $state(false);
 
 	$effect(() => {

@@ -3,7 +3,7 @@
 	import { Plus } from '@lucide/svelte';
 	import { formatFileSize } from '#functions/bytes';
 	import { dropFiles } from '#functions/file-tree';
-	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { usePrefetchedQuery } from '$lib/graphql/hydration.svelte.js';
 	import { ConfigDocument, type ConfigQuery } from '$lib/graphql/generated/graphql.js';
 
 	let {
@@ -18,7 +18,7 @@
 		onZoneDragLeave: (e: DragEvent) => void;
 	} = $props();
 
-	const configData = createQueryStore<ConfigQuery>(ConfigDocument);
+	const configData = usePrefetchedQuery<ConfigQuery>(ConfigDocument);
 	let fileInput = $state<HTMLInputElement>();
 	let folderInput = $state<HTMLInputElement>();
 

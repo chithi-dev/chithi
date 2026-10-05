@@ -7,7 +7,7 @@
 	import * as Empty from '$lib/components/ui/empty/index.js';
 	import * as Alert from '$lib/components/ui/alert/index.js';
 	import { Kbd, KbdGroup } from '$lib/components/ui/kbd/index.js';
-	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { usePrefetchedQuery } from '$lib/graphql/hydration.svelte.js';
 	import { ConfigDocument, type ConfigQuery } from '$lib/graphql/generated/graphql.js';
 	import { Plus, ArrowLeft, X, FileIcon, Eye, EyeOff, Trash2, Upload } from '@lucide/svelte';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
@@ -42,7 +42,7 @@
 		onZoneDragLeave: (e: DragEvent) => void;
 	} = $props();
 
-	const configData = createQueryStore<ConfigQuery>(ConfigDocument);
+	const configData = usePrefetchedQuery<ConfigQuery>(ConfigDocument);
 	let fileInput = $state<HTMLInputElement>();
 	let downloadLimit = $state('1');
 	let timeLimit = $state('86400');

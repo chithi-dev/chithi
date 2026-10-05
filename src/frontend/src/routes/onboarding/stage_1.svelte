@@ -6,9 +6,8 @@
   import { User, ArrowRight, Mail, Lock } from '@lucide/svelte';
   import { Spinner } from '$lib/components/ui/spinner/index.js';
   import { toast } from 'svelte-sonner';
-  import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
-  import { OnboardingDocument, CompleteOnboardingDocument } from '$lib/graphql/generated/graphql.js';
-  import type { OnboardingQuery, CompleteOnboardingMutation } from '$lib/graphql/generated/graphql.js';
+  import { CompleteOnboardingDocument } from '$lib/graphql/generated/graphql.js';
+  import type { CompleteOnboardingMutation } from '$lib/graphql/generated/graphql.js';
   import { client } from '$lib/graphql/client.js';
   import { login as loginRemote } from '$lib/remote/auth.remote';
   import { user_store } from '$lib/store/user.svelte';
@@ -19,7 +18,6 @@
   let username = $state('');
   let email = $state('');
   let password = $state('');
-  createQueryStore<OnboardingQuery>(OnboardingDocument);
   const valid = $derived(username && email && password);
 
   async function handleSubmit(e: SubmitEvent) {

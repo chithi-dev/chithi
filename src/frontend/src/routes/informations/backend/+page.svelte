@@ -3,12 +3,12 @@
 	import { SiPython } from '@icons-pack/svelte-simple-icons';
 	import { Server, ShieldCheck, CircleAlert, Monitor } from '@lucide/svelte';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
-	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { usePrefetchedQuery } from '$lib/graphql/hydration.svelte.js';
 	import { InstanceInformationDocument, type InstanceInformationQuery } from '$lib/graphql/generated/graphql.js';
 	import { client } from '$lib/graphql/client.js';
 	import InfoCard from '../components/InfoCard.svelte';
 
-	const instanceQuery = createQueryStore<InstanceInformationQuery>(InstanceInformationDocument);
+	const instanceQuery = usePrefetchedQuery<InstanceInformationQuery>(InstanceInformationDocument);
 	const info = $derived(instanceQuery.data?.instanceInformation);
 
 	const infoRows = $derived([
@@ -18,7 +18,7 @@
 	]);
 </script>
 
-{#if instanceQuery.fetching}
+{#if instanceQuery.loading}
 	<div class="flex h-64 items-center justify-center">
 		<Spinner class="size-8 text-muted-foreground" />
 	</div>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import * as Card from '$lib/components/ui/card/index.js';
-	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { usePrefetchedQuery } from '$lib/graphql/hydration.svelte.js';
 	import { ConfigDocument, type ConfigQuery } from '$lib/graphql/generated/graphql.js';
 	import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 	import { ScrollArea } from '$lib/components/ui/scroll-area/index.js';
@@ -21,7 +21,7 @@
 	const { default: UploadShowcase } = await import('./upload_showcase.svelte');
 	const { default: RecentUpload } = await import('./recent_upload.svelte');
 
-	const configData = createQueryStore<ConfigQuery>(ConfigDocument);
+	const configData = usePrefetchedQuery<ConfigQuery>(ConfigDocument);
 	let stage = $state<UploadStage>(UploadStage.Stage_1);
 	let dragActive = $state(false);
 	let dragOverCard = $state(false);
@@ -295,7 +295,7 @@
 	<div class="absolute top-4 right-4 z-20"><RecentUpload /></div>
 	<Card.Content class="p-6">
 		<div class="grid min-h-150 grid-cols-1 gap-8 lg:grid-cols-2">
-			{#if configData.fetching || (dev && debugLoading)}
+			{#if configData.loading || (dev && debugLoading)}
 				<div class="col-span-1">{@render configSkeleton()}</div>
 				<div class="col-span-1">{@render rightColumnSkeleton()}</div>
 			{:else if configData.data?.config?.allowUploads === false}

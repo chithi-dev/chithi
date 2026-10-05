@@ -9,13 +9,13 @@
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
 	import { B_VALS, bytesToNumber, formatBytes, type ByteUnit } from '#functions/bytes';
 	import { toast } from 'svelte-sonner';
-	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { usePrefetchedQuery } from '$lib/graphql/hydration.svelte.js';
 	import { ConfigDocument, UpdateConfigDocument } from '$lib/graphql/generated/graphql.js';
 	import type { ConfigQuery, UpdateConfigMutation } from '$lib/graphql/generated/graphql.js';
 	import { client } from '$lib/graphql/client.js';
 
 	let { onNext }: Props = $props();
-	const configQuery = createQueryStore<ConfigQuery>(ConfigDocument);
+	const configQuery = usePrefetchedQuery<ConfigQuery>(ConfigDocument);
 	let configData = $derived(configQuery.data?.config);
 	let isLoading = $state(false);
 	let storageLimitVal = $state(0);
@@ -79,7 +79,7 @@
 		</div>
 	</Card.Header>
 	<Card.Content>
-		{#if configQuery.fetching}
+		{#if configQuery.loading}
 			<div class="flex h-60 items-center justify-center">
 				<Spinner class="size-8 text-primary" />
 			</div>
