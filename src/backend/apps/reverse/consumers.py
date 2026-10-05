@@ -142,7 +142,7 @@ class RoomConsumer(AsyncJsonWebsocketConsumer):
             stream = stream_file(file_key, 0, BINARY_READ_SIZE)
             async for block in stream:
                 if block:
-                    await self.send(bytes=block)
+                    await self.send(bytes_data=block)
         except Exception as e:
             logger.error("Stream error for %s: %s", file_key, e)
             await self.send_json({"type": "file_error", "detail": str(e), "key": file_key})
