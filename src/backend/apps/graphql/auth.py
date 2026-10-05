@@ -3,9 +3,10 @@ from datetime import UTC, datetime, timedelta
 import jwt
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractBaseUser
 
 
-def get_jwt_tokens(user) -> tuple[str, str]:
+def get_jwt_tokens(user: AbstractBaseUser) -> tuple[str, str]:
     """Generate access and refresh JWT tokens for a user."""
     now = datetime.now(UTC)
 
@@ -24,7 +25,7 @@ def get_jwt_tokens(user) -> tuple[str, str]:
     return access_token, refresh_token
 
 
-def get_user_from_jwt_token(token_string: str):
+def get_user_from_jwt_token(token_string: str) -> AbstractBaseUser | None:
     """Resolve a user from a JWT token string."""
     User = get_user_model()
     try:

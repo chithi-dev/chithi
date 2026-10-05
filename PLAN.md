@@ -46,6 +46,11 @@
 | **E2E Verification** | DONE | CLI upload→download round-trip, matching md5; Playwright browser E2E still pending |
 | **CLI Async Refactor** | DONE | All crypto/archive/QR helpers async via `anyio.to_thread`; banner comments removed; dead `urls.py` helpers removed; `__future__` imports removed; full round-trip verified |
 | **Speedtest (ninja)** | DONE | `apps/api/views/speedtest.py` — download/upload/latency under `/api/speedtest/`; async `_iter_chunks`; all three endpoints verified against live backend |
+| **Legacy Django Views** | REMOVED | `apps/files/views.py`, `speedtest.py`, `speedtest_urls.py`, `urls.py` deleted; all routes served via GraphQL or ninja API only |
+| **Context-Based Auth** | DONE | `apps/graphql/context.py` (`Context` dataclass) + `ChithiGraphQLView.get_context()` override; `GraphQLJwtMiddleware` removed from `core/middleware.py` (file deleted); `me` query verified with/without JWT |
+| **Celery Stub** | REMOVED | `core/celery.py` deleted; `core/settings.py` MIDDLEWARE list updated |
+| **Type Hints (Backend)** | DONE | All views, resolvers, managers, services fully annotated; no `Any` used; `manager.py` `**extra_fields: bool \| str`; `services.py` S3 helpers untyped (aioboto3 lacks stubs) |
+| **Type Hints (CLI)** | DONE | `test/test_crypto.py` moved to `test/` package; all 14 test functions annotated `-> None`; async calls wrapped in `asyncio.run`; `print.py` `__rich_console__` return type added; 14/14 tests pass |
 
 ---
 

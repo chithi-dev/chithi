@@ -43,7 +43,7 @@ class FileQuery:
         if search:
             qs = qs.filter(filename__icontains=search)
 
-        def _paginate():
+        def _paginate() -> PaginatedFiles:
             paginator = Paginator(qs, size)
             page_obj = paginator.get_page(page)
             return PaginatedFiles(
@@ -64,7 +64,7 @@ class FileQuery:
         now = timezone.now()
         User = get_user_model()
 
-        def get_stats():
+        def get_stats() -> InstanceStatisticsType:
             stats = File.objects.aggregate(
                 total_files=Count("pk"),
                 active_files=Count("pk", filter=Q(expires_at__gt=now)),

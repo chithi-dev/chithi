@@ -8,7 +8,7 @@ import os
 import time
 from collections.abc import AsyncIterator
 
-from django.http import StreamingHttpResponse
+from django.http import HttpRequest, StreamingHttpResponse
 from ninja import Query, Router
 
 from apps.api.schemas.speedtest import SpeedtestQuery, SpeedtestResponse
@@ -31,7 +31,7 @@ async def _iter_chunks(size: int) -> AsyncIterator[bytes]:
 
 @router.get("/speedtest/download/")
 async def speedtest_download(
-    request, params: SpeedtestQuery = Query(...)
+    request: HttpRequest, params: SpeedtestQuery = Query(...)
 ) -> StreamingHttpResponse:
     size = max(1, min(params.bytes, _MAX_SIZE))
     response = StreamingHttpResponse(
@@ -45,7 +45,7 @@ async def speedtest_download(
 
 
 @router.post("/speedtest/upload/")
-async def speedtest_upload(request) -> dict:
+async def speedtest_upload(request: HttpRequest) -> dict:
     body = request.body
     return {
         "bytes_received": len(body) if body else 0,
@@ -54,7 +54,7 @@ async def speedtest_upload(request) -> dict:
 
 
 @router.get("/speedtest/latency/")
-async def speedtest_latency(request) -> dict:
+async def speedtest_latency(request: HttpRequest) -> dict:
     return {
         "bytes_received": 0,
         "timestamp": time.time(),

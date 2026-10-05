@@ -13,6 +13,7 @@ generation is async (aioboto3) and awaited directly.
 from uuid import UUID
 
 from asgiref.sync import sync_to_async
+from django.http import HttpRequest
 from ninja import Router
 from ninja.errors import ValidationError
 
@@ -59,7 +60,7 @@ def _file_info_response(file_obj: File) -> FileInfoResponse:
 
 
 @router.get("/files/{file_key}/info/", response=FileInfoResponse)
-async def file_info(request, file_key: str) -> FileInfoResponse:
+async def file_info(request: HttpRequest, file_key: str) -> FileInfoResponse:
     file_obj = await sync_to_async(_file_by_key_or_id)(file_key)
     if file_obj is None:
         raise ValidationError("File not found.")
@@ -68,7 +69,7 @@ async def file_info(request, file_key: str) -> FileInfoResponse:
 
 
 @router.get("/files/{file_key}/chunk/{chunk_index}/", response=ChunkUrlResponse)
-async def chunk_url(request, file_key: str, chunk_index: int) -> ChunkUrlResponse:
+async def chunk_url(request: HttpRequest, file_key: str, chunk_index: int) -> ChunkUrlResponse:
     file_obj = await sync_to_async(_file_by_key_or_id)(file_key)
     if file_obj is None:
         raise ValidationError("File not found.")

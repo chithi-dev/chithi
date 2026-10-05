@@ -6,6 +6,7 @@ GraphQL ``config`` query. The singleton read uses the native async
 ``Config.aload()``, so no threadpool hop is needed.
 """
 
+from django.http import HttpRequest
 from ninja import Router
 
 from apps.api.schemas.config import ConfigResponse
@@ -15,7 +16,7 @@ router = Router()
 
 
 @router.get("/config/", response=ConfigResponse)
-async def config(request) -> ConfigResponse:
+async def config(request: HttpRequest) -> ConfigResponse:
     cfg = await Config.aload()
     return ConfigResponse(
         allow_uploads=cfg.allow_uploads,

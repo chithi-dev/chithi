@@ -6,7 +6,9 @@ import anyio
 from PIL import Image
 from qrcode import QRCode
 from qrcode.image.svg import SvgPathFillImage
-from rich.console import Console
+from collections.abc import Iterable
+
+from rich.console import Console, ConsoleOptions
 from rich.segment import Segment
 from rich.style import Style
 
@@ -39,7 +41,9 @@ class _SegmentRenderable:
     def __init__(self, segments: list[Segment]) -> None:
         self.segments = segments
 
-    def __rich_console__(self, console: Console, options):
+    def __rich_console__(
+        self, console: Console, options: ConsoleOptions
+    ) -> Iterable[Segment]:
         return iter(self.segments)
 
 

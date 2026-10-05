@@ -17,6 +17,7 @@ wrapped in ``sync_to_async`` to keep the event loop unblocked and avoid
 from uuid import uuid4
 
 from asgiref.sync import sync_to_async
+from django.http import HttpRequest
 from django.utils import timezone
 from ninja import Form, Router
 from ninja.errors import ValidationError
@@ -55,7 +56,7 @@ def _file_by_key(file_key: str) -> File | None:
 
 
 @router.post("/register/", response=RegisterResponse)
-async def register_file(request, body: RegisterRequest) -> RegisterResponse:
+async def register_file(request: HttpRequest, body: RegisterRequest) -> RegisterResponse:
     await ensure_uploads_enabled()
     await validate_registration(body.total_size, body.chunk_count, body.expires_at)
 
@@ -71,7 +72,7 @@ async def register_file(request, body: RegisterRequest) -> RegisterResponse:
 
 @router.post("/chunk/", response=ChunkResponse)
 async def upload_chunk(
-    request,
+    request: HttpRequest,
     file_key: Form[str],
     chunk_index: Form[int],
 ) -> ChunkResponse:
@@ -95,7 +96,7 @@ async def upload_chunk(
 
 
 @router.post("/complete/", response=CompleteResponse)
-async def complete_upload(request, file_key: Form[str]) -> CompleteResponse:
+async def complete_upload(request: HttpRequest, file_key: Form[str]) -> CompleteResponse:
     file_obj = await sync_to_async(_file_by_key)(file_key)
     if file_obj is None:
         raise ValidationError("File not found.")
