@@ -30,9 +30,13 @@ async def _iter_chunks(size: int) -> AsyncIterator[bytes]:
 
 
 @router.get("/speedtest/download/")
-async def speedtest_download(request, params: SpeedtestQuery = Query(...)) -> StreamingHttpResponse:
+async def speedtest_download(
+    request, params: SpeedtestQuery = Query(...)
+) -> StreamingHttpResponse:
     size = max(1, min(params.bytes, _MAX_SIZE))
-    response = StreamingHttpResponse(_iter_chunks(size), content_type="application/octet-stream")
+    response = StreamingHttpResponse(
+        _iter_chunks(size), content_type="application/octet-stream"
+    )
     response["Content-Length"] = str(size)
     response["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response["Pragma"] = "no-cache"

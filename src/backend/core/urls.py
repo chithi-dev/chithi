@@ -8,8 +8,6 @@ from apps.api.urls import api
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("graphql/", include("apps.graphql.urls")),
-    path("files/", include("apps.files.urls")),
-    path("speedtest/", include("apps.files.speedtest_urls")),
     path("api/", api.urls),
 ]
 
