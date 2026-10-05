@@ -441,8 +441,16 @@ The current upload flow loads the entire encrypted blob into memory before sendi
 | **Reverse relay E2E check** | DONE | Live backend verification: connection counts (host join → guests increment), guest→host relay (`file_added`), host→guest relay (`upload_progress`), `request_file` with missing key (`file_start` + `file_error`), guest leave (guests decrement to 0) — all pass |
 | **CI push** | PENDING | `0c6eadc..ff7a8ec` pushed to `feat/jxr-other`; CI runs pending |
 
+### Full-stack E2E (Docker Postgres + Redis + RustFS + Celery)
+
+| Task | Status | Detail |
+|---|---|---|
+| **All 4 services up** | DONE | Postgres (Docker, :5433), Redis (Docker, :6379 PONG), RustFS (Docker, :9000 health 200, bucket `chithi`), Celery worker (`--pool=solo`, connected) |
+| **Full test suite** | DONE | **113 passed, 0 failed** (was 80/8 on SQLite, 121/2 after base.py fix) |
+| **E2E script** | DONE | `src/backend/e2e_full_test.py` — 14/14 checks pass: register → chunk upload → RustFS verify (boto3 get_object, byte-identical) → proxy download (byte-identical) → file info → eager Celery `delete_file_after_expiry` → Postgres row gone + RustFS chunk gone |
+
 ### Known remaining issues
 
-1. **7 Redis-dependent tests fail locally** (`test_register_and_upload_chunk_roundtrip`, `test_chunk_url_*`, `test_complete_upload_*`, `test_delete_file_*`, `test_register_exactly_at_size_limit_*`) — all timeout waiting for Redis at `localhost:6379`. These pass in CI (Redis available). Not code bugs.
+1. ~~7 Redis-dependent tests fail locally~~ **RESOLVED** — all 113 pass against Docker Postgres+Redis+RustFS.
 2. **`file_start` / `file_end` do not include `filename` or `size`** — the consumer echoes the values the caller sent in `request_file`, which are always empty strings / 0. The caller is expected to already know the file's metadata from the `file_added` relay message. This is a protocol design choice, not a bug, but it means `file_start` / `file_end` carry no metadata.
 3. **Frontend SSR 500 on reverse-share route** — the running dev server reports `CHITHI_BACKEND_DOWN` for the `/reverse/{id}/` route but returns 200 for `/` and `/onboarding/`. Root cause: the dev server process has a stale `PUBLIC_BACKEND_API` pointing at a different port. The WebSocket protocol itself is fully functional (verified above).
