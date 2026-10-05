@@ -22,7 +22,7 @@
 			const url = new URL(raw, window.location.origin);
 			const pathMatch = url.pathname.match(/\/reverse\/([^/]+)/);
 			if (!pathMatch) {
-				toast.error('Invalid link — expected a /reverse/<room_id> URL');
+				toast.error('Invalid link - expected a /reverse/<room_id> URL');
 				return;
 			}
 			const roomId = pathMatch[1];

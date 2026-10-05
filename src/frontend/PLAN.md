@@ -39,7 +39,7 @@
 
 ### 3. Move `graphql` to devDependencies
 
-**Problem**: `graphql` v17 is in `dependencies` but only imported for the `DocumentNode` type in `hooks.ts` — a build-time need.
+**Problem**: `graphql` v17 is in `dependencies` but only imported for the `DocumentNode` type in `hooks.ts` - a build-time need.
 
 **Action**: `npm move graphql --dev`
 
@@ -56,9 +56,9 @@
 ### 5. Add user-facing error toasts where only `console.error` exists
 
 **Problem**: Several catch blocks log to console but don't inform the user:
-- `once/[slug]/+page.svelte` — `console.error(e)` with no toast
-- `view/[slug]/+page.svelte` — `console.error(e)` with no toast
-- `download/[slug]/+page.svelte` — `console.error(e)` with no toast
+- `once/[slug]/+page.svelte` - `console.error(e)` with no toast
+- `view/[slug]/+page.svelte` - `console.error(e)` with no toast
+- `download/[slug]/+page.svelte` - `console.error(e)` with no toast
 
 **Action**: Add `toast.error()` calls from `svelte-sonner` in these catch blocks.
 
@@ -70,7 +70,7 @@
 
 ### 6. Fix module-level Apollo subscription in `auth.ts`
 
-**Problem**: `lib/queries/auth.ts` creates a `watchQuery` at module load time — it starts even when no component uses it and never cleans up. Memory leak risk.
+**Problem**: `lib/queries/auth.ts` creates a `watchQuery` at module load time - it starts even when no component uses it and never cleans up. Memory leak risk.
 
 **Action**: Move the subscription into the `useAuth` hook or a component that calls it, with proper `$effect` cleanup.
 
@@ -86,7 +86,7 @@
 
 ### 8. Consolidate TanStack Query or remove it
 
-**Problem**: TanStack Query is set up (`QueryClientProvider`, devtools) but underutilized — most data fetching uses custom Apollo `watchQuery` wrappers. This is either redundant or an incomplete migration.
+**Problem**: TanStack Query is set up (`QueryClientProvider`, devtools) but underutilized - most data fetching uses custom Apollo `watchQuery` wrappers. This is either redundant or an incomplete migration.
 
 **Decision needed**: Either migrate Apollo queries to TanStack Query hooks, or remove TanStack Query entirely.
 
@@ -135,7 +135,7 @@
 **Verification:**
 - [x] `npm run build` passes
 - [x] svelte-check: no errors in changed files
-- [ ] Playwright visual verification (login/onboarding) — blocked: backend not running locally
+- [ ] Playwright visual verification (login/onboarding) - blocked: backend not running locally
 - [ ] CI: all 4 workflows pass (pending push)
 
 **Note:** Backend (`localhost:8001`) must be running for live Playwright verification. The 500 on `/login` is the expected "Backend Unavailable" screen (`+error.svelte`), not a bug.
@@ -154,4 +154,4 @@
 - [ ] TanStack Query decision made (keep or remove)
 - [ ] `npm run check` passes (0 errors)
 - [ ] `npm run build` succeeds
-- [ ] Playwright visual verification — no regressions
+- [ ] Playwright visual verification - no regressions

@@ -146,8 +146,8 @@
 						</Tooltip.Trigger>
 						<Tooltip.Content>
 							{appState.connected
-								? 'Connected — updates in real time'
-								: 'Disconnected — reconnecting'}
+								? 'Connected - updates in real time'
+								: 'Disconnected - reconnecting'}
 						</Tooltip.Content>
 					</Tooltip.Root>
 				</Tooltip.Provider>

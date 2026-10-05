@@ -1,13 +1,13 @@
 # Chithi Implementation Plan
 
-> **Status**: Active — v3 crypto upgrade (AES-256-GCM + Argon2id) complete on frontend + CLI
+> **Status**: Active - v3 crypto upgrade (AES-256-GCM + Argon2id) complete on frontend + CLI
 > **Date**: 2026-10-05
 > **Branch**: `feat/jxr-other`
 >
 > **Current architecture** (post-rewrite):
-> - **Backend**: Django + Strawberry GraphQL + aioboto3 (S3) — runs on port 8001
-> - **Frontend**: SvelteKit 2 + Svelte 5 + Apollo Client 4 + TanStack Svelte Query + fflate — uploads 50 MB chunks to S3 via Django, downloads chunks directly from S3 (presigned URLs, behind Cloudflare)
-> - **CLI**: Python — pure Python crypto (`cryptography` + `argon2-cffi`); chunked GraphQL client
+> - **Backend**: Django + Strawberry GraphQL + aioboto3 (S3) - runs on port 8001
+> - **Frontend**: SvelteKit 2 + Svelte 5 + Apollo Client 4 + TanStack Svelte Query + fflate - uploads 50 MB chunks to S3 via Django, downloads chunks directly from S3 (presigned URLs, behind Cloudflare)
+> - **CLI**: Python - pure Python crypto (`cryptography` + `argon2-cffi`); chunked GraphQL client
 > - **Crypto v3**: **AES-256-GCM** (up from AES-128) + **Argon2id** password KDF (up from PBKDF2) + HKDF-SHA-256 with a **real per-file 16-byte salt** wired into both Argon2id and HKDF. ECE (RFC 8188), 64 KiB records. Wire header is now `[16B salt][1B version=3][4B record_size BE]` (21 bytes).
 > - **Removed**: Rust crates, WASM SDKs, WebSockets, reverse-share
 >
@@ -20,10 +20,10 @@
 | Area | Status | Detail |
 |---|---|---|
 | **Rust WASM** | REMOVED | Rust crates deleted; replaced with pure Web Crypto API |
-| **Web Crypto Streams** | DONE | `streams.ts` — HKDF + AES-128-GCM ECE, worker-based, 64 KiB records |
+| **Web Crypto Streams** | DONE | `streams.ts` - HKDF + AES-128-GCM ECE, worker-based, 64 KiB records |
 | **Django Project** | DONE | Settings, models, Celery, S3 configured (port 8001) |
 | **GraphQL Schema** | DONE | Chunked upload/download mutations (registerFile, uploadFileChunk, completeUpload, chunkUrl) |
-| **S3 Service Layer** | DONE | `apps/files/services.py` — chunked upload, presigned download URLs |
+| **S3 Service Layer** | DONE | `apps/files/services.py` - chunked upload, presigned download URLs |
 | **Celery Expired Files** | DONE | `apps/files/tasks.py` `delete_file_after_expiry(file_key)` (Celery `shared_task`); one-shot, enqueued at register via `services.schedule_expiry` (countdown = `expires_at - timezone.now()`, derived from Django's timezone-aware clock); no beat needed -- file deleted exactly at expiry |
 | **Frontend GraphQL Client** | DONE | Apollo Client v4, codegen, generated types, apollo-upload-client |
 | **Frontend TypeScript** | DONE | Download-flow files type-clean; remaining 38 errors in pre-existing admin/reverse files (out of scope) |
@@ -31,10 +31,10 @@
 | **Django Migrations** | DONE | SQLite + PostgreSQL compatible |
 | **Frontend camelCase Migration** | DONE | All GraphQL interfaces, query modules, and Svelte components migrated |
 | **shadcn-svelte Compliance** | DONE | 46 components, docs-exact patterns |
-| **Chunked Upload (50 MB)** | DONE | `upload.ts` — registerFile → uploadFileChunk loop → completeUpload |
-| **Chunked Download (50 MB)** | DONE | `download.ts` — fileInfo → chunkUrl loop → reassemble → decrypt |
+| **Chunked Upload (50 MB)** | DONE | `upload.ts` - registerFile → uploadFileChunk loop → completeUpload |
+| **Chunked Download (50 MB)** | DONE | `download.ts` - fileInfo → chunkUrl loop → reassemble → decrypt |
 | **WebSocket Removal** | PARTIAL | WebSockets removed from backend; `Api.STATE_WS` / `Api.REVERSE` in `backend.ts` documented as placeholder URLs kept only to keep the dead reverse-share / state code compiling -- remove once that code is deleted |
-| **Crypto v3 (frontend)** | DONE | `encryption.ts`/`streams.ts`/`crypto.worker.ts` — AES-256-GCM + Argon2id + real per-file salt; `npm run check` clean |
+| **Crypto v3 (frontend)** | DONE | `encryption.ts`/`streams.ts`/`crypto.worker.ts` - AES-256-GCM + Argon2id + real per-file salt; `npm run check` clean |
 | **Crypto v3 (CLI)** | DONE | `crypto.py` rewritten (argon2-cffi + cryptography); 14 tests pass; cross-language interop verified |
 | **Crypto Docs** | DONE | `apps/docs/crypto-architecture.md` rewritten to v3 |
 | **CLI Client Rewrite** | DONE | `client.py` uses chunked GraphQL (registerFile → uploadFileChunk → completeUpload) + S3 presigned download |
@@ -45,7 +45,7 @@
 | **Async Config Singleton** | DONE | `SingletonModel.aload()` via Django 6 native async ORM (`aget_or_create`); all async call sites (REST `/config/`, upload validation, GraphQL config + file mutations) use `await Config.aload()`; `onboarding` uses `aget` to avoid a create side effect; `load()` retained for sync-only contexts |
 | **E2E Verification** | DONE | CLI upload→download round-trip, matching md5; Playwright browser E2E still pending |
 | **CLI Async Refactor** | DONE | All crypto/archive/QR helpers async via `anyio.to_thread`; banner comments removed; dead `urls.py` helpers removed; `__future__` imports removed; full round-trip verified |
-| **Speedtest (ninja)** | DONE | `apps/api/views/speedtest.py` — download/upload/latency under `/api/speedtest/`; async `_iter_chunks`; all three endpoints verified against live backend |
+| **Speedtest (ninja)** | DONE | `apps/api/views/speedtest.py` - download/upload/latency under `/api/speedtest/`; async `_iter_chunks`; all three endpoints verified against live backend |
 | **Legacy Django Views** | REMOVED | `apps/files/views.py`, `speedtest.py`, `speedtest_urls.py`, `urls.py` deleted; all routes served via GraphQL or ninja API only |
 | **Middleware Auth** | DONE | `core/middleware.py` `JwtAuthenticationMiddleware` injects `request.user` from Bearer JWT on every request (session auth takes priority); registered after `AuthenticationMiddleware`; GraphQL context forwards `request.user`; verified JWT sets user on both GraphQL `me` and a ninja endpoint; 3 middleware tests pass |
 | **Celery (one-shot)** | DONE | `core/celery.py` (Celery app, no beat); `core/__init__.py` imports `celery_app`; `core/settings.py` `TASKS` (django.tasks) removed, replaced with `CELERY_BROKER_URL`/`CELERY_RESULT_BACKEND`; `pyproject.toml` adds `celery[redis]`; `services.schedule_expiry` shared helper enqueues at register (GraphQL + ninja); 8 Docker docs keep `celery` worker (no beat); 6 task tests pass |
@@ -67,15 +67,15 @@
 
 ---
 
-## Phase 1: Fix Critical File Upload — Add `apollo-upload-client` 🔴 BLOCKER
+## Phase 1: Fix Critical File Upload - Add `apollo-upload-client` 🔴 BLOCKER
 
 ### 1.1 Install and configure `apollo-upload-client`
 
-**Problem**: The frontend sends file uploads via GraphQL `UPLOAD_FILE_MUTATION` which uses `$file: Upload!`. The current Apollo client uses `HttpLink` which does **NOT** support GraphQL multipart file uploads. This is the #1 blocker — file uploads will fail silently or throw a serialization error.
+**Problem**: The frontend sends file uploads via GraphQL `UPLOAD_FILE_MUTATION` which uses `$file: Upload!`. The current Apollo client uses `HttpLink` which does **NOT** support GraphQL multipart file uploads. This is the #1 blocker - file uploads will fail silently or throw a serialization error.
 
 **Files**:
-- `src/frontend/package.json` — add `apollo-upload-client` dependency
-- `src/frontend/src/lib/graphql/client.ts` — replace `HttpLink` with `createUploadLink`
+- `src/frontend/package.json` - add `apollo-upload-client` dependency
+- `src/frontend/src/lib/graphql/client.ts` - replace `HttpLink` with `createUploadLink`
 
 **Implementation**:
 
@@ -154,25 +154,25 @@ Strawberry auto-converts `expires_at` → `expiresAt` and `expire_after_n_downlo
 
 ---
 
-## Phase 2: File Download — Backend Serves Files Directly (No Presigned URLs)
+## Phase 2: File Download - Backend Serves Files Directly (No Presigned URLs)
 
 ### 2.1 Confirm download flow
 
 **Decision**: Users never access S3 directly. The backend serves all files, exactly like FastAPI did.
 
-**File**: `src/backend/apps/files/views.py` — `download_file` view already exists and correctly:
+**File**: `src/backend/apps/files/views.py` - `download_file` view already exists and correctly:
 - Streams files from both local storage and S3 backends
 - Enforces atomic expiry/download-count checks via F() expressions
 - Increments download count only after successful stream completion
 - Returns `StreamingHttpResponse` for S3, `FileResponse` for local storage
 
-**File**: `src/backend/apps/files/urls.py` — URL pattern `path("<uuid:file_id>/", download_file)` already wired
+**File**: `src/backend/apps/files/urls.py` - URL pattern `path("<uuid:file_id>/", download_file)` already wired
 
-**File**: `src/frontend/src/lib/functions/fetch-decrypt.ts` — already calls `Api.DOWNLOAD(slug)` which hits `/files/<uuid>/` — **correct, no change needed**
+**File**: `src/frontend/src/lib/functions/fetch-decrypt.ts` - already calls `Api.DOWNLOAD(slug)` which hits `/files/<uuid>/` - **correct, no change needed**
 
-**Removed**: `download_file_stream` mutation that returned presigned URLs — deleted from `file.py`
+**Removed**: `download_file_stream` mutation that returned presigned URLs - deleted from `file.py`
 
-**Status**: DONE — confirmed correct architecture
+**Status**: DONE - confirmed correct architecture
 
 ---
 
@@ -249,7 +249,7 @@ Connects to `Api.STATE_WS` (WebSocket). Django doesn't have WebSocket support ye
 
 ---
 
-## Phase 5: CLI Rewrite — Pure Python Crypto ✅
+## Phase 5: CLI Rewrite - Pure Python Crypto ✅
 
 ### 5.1 Rewrite `crypto.py` using `cryptography` + `argon2-cffi` ✅ DONE (v3)
 
@@ -271,7 +271,7 @@ frontend exactly:
 - `registerFile` → `uploadFileChunk` (multipart GraphQL) → `completeUpload` for upload
 - `fileInfo` → `chunkUrl` (presigned S3) → fetch chunks for download
 - `CHUNK_SIZE = 50 MB` matches backend
-- No temp files — upload takes `bytes`, download returns `bytes`
+- No temp files - upload takes `bytes`, download returns `bytes`
 
 ### 5.3 Update CLI commands ✅ DONE
 
@@ -284,7 +284,7 @@ frontend exactly:
 
 ### 6.1 Clean up `upload/state.svelte.ts`
 
-Remove or replace the WebSocket state store. Upload progress is now tracked locally (per-chunk callbacks) — no server push needed.
+Remove or replace the WebSocket state store. Upload progress is now tracked locally (per-chunk callbacks) - no server push needed.
 
 **File**: `src/frontend/src/routes/.../upload/state.svelte.ts`
 
@@ -364,32 +364,32 @@ Phase 5 (WASM verification) ──────────────┘
 ## Critical Files Reference
 
 ### Django Backend (Needs Fixes)
-- `src/backend-django/apps/graphql/mutations/__init__.py` — upload mutation, presigned URL
-- `src/backend-django/core/settings.py` — configured, port 8002
-- `src/backend-django/core/urls.py` — routes: /admin/, /graphql/, /files/
-- `src/backend-django/apps/files/services.py` — S3 operations, presigned URLs
+- `src/backend-django/apps/graphql/mutations/__init__.py` - upload mutation, presigned URL
+- `src/backend-django/core/settings.py` - configured, port 8002
+- `src/backend-django/core/urls.py` - routes: /admin/, /graphql/, /files/
+- `src/backend-django/apps/files/services.py` - S3 operations, presigned URLs
 
 ### Frontend (Needs Fixes)
-- `src/frontend/package.json` — add `apollo-upload-client`
-- `src/frontend/src/lib/graphql/client.ts` — replace `HttpLink` with `createUploadLink`
-- `src/frontend/src/lib/functions/fetch-decrypt.ts` — migrate to presigned URL
-- `src/frontend/src/routes/.../view/[slug]/+page.ts` — migrate to GraphQL
-- `src/frontend/src/routes/.../download/[slug]/+page.ts` — migrate to GraphQL
+- `src/frontend/package.json` - add `apollo-upload-client`
+- `src/frontend/src/lib/graphql/client.ts` - replace `HttpLink` with `createUploadLink`
+- `src/frontend/src/lib/functions/fetch-decrypt.ts` - migrate to presigned URL
+- `src/frontend/src/routes/.../view/[slug]/+page.ts` - migrate to GraphQL
+- `src/frontend/src/routes/.../download/[slug]/+page.ts` - migrate to GraphQL
 
 ### Frontend (Completed)
-- `src/frontend/src/lib/consts/backend.ts` — ✅ port updated to 8002
-- `src/frontend/codegen.ts` — ✅ schema URL updated
-- `src/frontend/src/lib/graphql/hooks.ts` — ✅ all interfaces camelCase
-- `src/frontend/src/lib/queries/*.ts` — ✅ all query modules camelCase
-- `src/frontend/src/lib/graphql/queries.ts` — ✅ UPLOAD_FILE_MUTATION uses `$file: Upload!`
-- `src/frontend/src/routes/**/+page.svelte` — ✅ all components use camelCase data access
+- `src/frontend/src/lib/consts/backend.ts` - ✅ port updated to 8002
+- `src/frontend/codegen.ts` - ✅ schema URL updated
+- `src/frontend/src/lib/graphql/hooks.ts` - ✅ all interfaces camelCase
+- `src/frontend/src/lib/queries/*.ts` - ✅ all query modules camelCase
+- `src/frontend/src/lib/graphql/queries.ts` - ✅ UPLOAD_FILE_MUTATION uses `$file: Upload!`
+- `src/frontend/src/routes/**/+page.svelte` - ✅ all components use camelCase data access
 
 ### Unchanged (Working Correctly)
-- `src/frontend/src/lib/workers/chithi.worker.ts` — WASM worker pool
-- `src/frontend/src/lib/wasm/chithi_wasm.ts` — WASM C ABI wrapper
-- `src/frontend/src/lib/functions/streams.ts` — encrypted stream helpers
-- `crates/chithi-core/src/chithi_cryto.rs` — parallel XChaCha20 encryption
-- `src/backend-django/apps/files/tasks.py` — Celery expired file cleanup
+- `src/frontend/src/lib/workers/chithi.worker.ts` - WASM worker pool
+- `src/frontend/src/lib/wasm/chithi_wasm.ts` - WASM C ABI wrapper
+- `src/frontend/src/lib/functions/streams.ts` - encrypted stream helpers
+- `crates/chithi-core/src/chithi_cryto.rs` - parallel XChaCha20 encryption
+- `src/backend-django/apps/files/tasks.py` - Celery expired file cleanup
 
 ---
 
@@ -423,22 +423,22 @@ The current upload flow loads the entire encrypted blob into memory before sendi
 
 ## Notes
 
-- The `UPLOAD_FILE_MUTATION` already uses `$file: Upload!` in the GraphQL definition — the schema is correct, only the transport layer (`HttpLink` → `createUploadLink`) needs fixing.
-- The `download_file_stream` mutation that returned presigned URLs has been removed — the backend serves all files directly through `views.py`, users never access S3 directly.
+- The `UPLOAD_FILE_MUTATION` already uses `$file: Upload!` in the GraphQL definition - the schema is correct, only the transport layer (`HttpLink` → `createUploadLink`) needs fixing.
+- The `download_file_stream` mutation that returned presigned URLs has been removed - the backend serves all files directly through `views.py`, users never access S3 directly.
 - The WASM parallel encryption is already configured correctly with `wasm_thread` and the `parallel` feature enabled by default.
-- All camelCase migration is complete — frontend interfaces, query modules, and components all use camelCase matching the Strawberry-Django schema.
+- All camelCase migration is complete - frontend interfaces, query modules, and components all use camelCase matching the Strawberry-Django schema.
 
 ---
 
-## Session Log — 2026-10-05 (Backend Test Fixes + WebSocket Binary Frame Bug)
+## Session Log - 2026-10-05 (Backend Test Fixes + WebSocket Binary Frame Bug)
 
 ### Completed this session
 
 | Task | Status | Detail |
 |---|---|---|
-| **8 backend test fixes** | DONE | `0c6eadc` — speedtest views (async generator → sync, `request.abody` → `request.body`, `@require_GET`/`@require_POST`); file-info 404 (`ValidationError` → `Http404`); file-info test paths (`/files/info/` → `/api/files/`); JWT test secrets (hardcoded → `settings.SECRET_KEY`); 80/80 non-Redis tests pass |
-| **WebSocket binary frame bug** | DONE | `ff7a8ec` — `consumers.py` `send(bytes=block)` → `send(bytes_data=block)`; `AsyncWebsocketConsumer.send()` does not accept a `bytes` keyword argument, so every `request_file` stream raised `TypeError` and the reverse-share file-transfer path was completely broken; verified end-to-end: seeded a 3 MB file, connected a guest WebSocket, sent `request_file`, confirmed all 3,158,073 bytes arrived byte-for-byte |
-| **Reverse relay E2E check** | DONE | Live backend verification: connection counts (host join → guests increment), guest→host relay (`file_added`), host→guest relay (`upload_progress`), `request_file` with missing key (`file_start` + `file_error`), guest leave (guests decrement to 0) — all pass |
+| **8 backend test fixes** | DONE | `0c6eadc` - speedtest views (async generator → sync, `request.abody` → `request.body`, `@require_GET`/`@require_POST`); file-info 404 (`ValidationError` → `Http404`); file-info test paths (`/files/info/` → `/api/files/`); JWT test secrets (hardcoded → `settings.SECRET_KEY`); 80/80 non-Redis tests pass |
+| **WebSocket binary frame bug** | DONE | `ff7a8ec` - `consumers.py` `send(bytes=block)` → `send(bytes_data=block)`; `AsyncWebsocketConsumer.send()` does not accept a `bytes` keyword argument, so every `request_file` stream raised `TypeError` and the reverse-share file-transfer path was completely broken; verified end-to-end: seeded a 3 MB file, connected a guest WebSocket, sent `request_file`, confirmed all 3,158,073 bytes arrived byte-for-byte |
+| **Reverse relay E2E check** | DONE | Live backend verification: connection counts (host join → guests increment), guest→host relay (`file_added`), host→guest relay (`upload_progress`), `request_file` with missing key (`file_start` + `file_error`), guest leave (guests decrement to 0) - all pass |
 | **CI push** | PENDING | `0c6eadc..ff7a8ec` pushed to `feat/jxr-other`; CI runs pending |
 
 ### Full-stack E2E (Docker Postgres + Redis + RustFS + Celery)
@@ -447,10 +447,10 @@ The current upload flow loads the entire encrypted blob into memory before sendi
 |---|---|---|
 | **All 4 services up** | DONE | Postgres (Docker, :5433), Redis (Docker, :6379 PONG), RustFS (Docker, :9000 health 200, bucket `chithi`), Celery worker (`--pool=solo`, connected) |
 | **Full test suite** | DONE | **113 passed, 0 failed** (was 80/8 on SQLite, 121/2 after base.py fix) |
-| **E2E script** | DONE | `src/backend/e2e_full_test.py` — 14/14 checks pass: register → chunk upload → RustFS verify (boto3 get_object, byte-identical) → proxy download (byte-identical) → file info → eager Celery `delete_file_after_expiry` → Postgres row gone + RustFS chunk gone |
+| **E2E script** | DONE | `src/backend/e2e_full_test.py` - 14/14 checks pass: register → chunk upload → RustFS verify (boto3 get_object, byte-identical) → proxy download (byte-identical) → file info → eager Celery `delete_file_after_expiry` → Postgres row gone + RustFS chunk gone |
 
 ### Known remaining issues
 
-1. ~~7 Redis-dependent tests fail locally~~ **RESOLVED** — all 113 pass against Docker Postgres+Redis+RustFS.
-2. **`file_start` / `file_end` do not include `filename` or `size`** — the consumer echoes the values the caller sent in `request_file`, which are always empty strings / 0. The caller is expected to already know the file's metadata from the `file_added` relay message. This is a protocol design choice, not a bug, but it means `file_start` / `file_end` carry no metadata.
-3. **Frontend SSR 500 on reverse-share route** — the running dev server reports `CHITHI_BACKEND_DOWN` for the `/reverse/{id}/` route but returns 200 for `/` and `/onboarding/`. Root cause: the dev server process has a stale `PUBLIC_BACKEND_API` pointing at a different port. The WebSocket protocol itself is fully functional (verified above).
+1. ~~7 Redis-dependent tests fail locally~~ **RESOLVED** - all 113 pass against Docker Postgres+Redis+RustFS.
+2. **`file_start` / `file_end` do not include `filename` or `size`** - the consumer echoes the values the caller sent in `request_file`, which are always empty strings / 0. The caller is expected to already know the file's metadata from the `file_added` relay message. This is a protocol design choice, not a bug, but it means `file_start` / `file_end` carry no metadata.
+3. **Frontend SSR 500 on reverse-share route** - the running dev server reports `CHITHI_BACKEND_DOWN` for the `/reverse/{id}/` route but returns 200 for `/` and `/onboarding/`. Root cause: the dev server process has a stale `PUBLIC_BACKEND_API` pointing at a different port. The WebSocket protocol itself is fully functional (verified above).

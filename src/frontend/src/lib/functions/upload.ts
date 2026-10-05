@@ -15,7 +15,7 @@ import {
 } from '$lib/graphql/generated/graphql.js';
 import { client } from '$lib/graphql/client.js';
 
-/** 50 MB — must match the backend's CHUNK_SIZE_BYTES. */
+/** 50 MB - must match the backend's CHUNK_SIZE_BYTES. */
 const CHUNK_SIZE = 50 * 1024 * 1024;
 
 export interface UploadFileOptions {
@@ -39,7 +39,7 @@ export async function uploadFile(opts: UploadFileOptions): Promise<{ id: string;
 	const totalSize = encryptedData.size;
 	const chunkCount = Math.max(1, Math.ceil(totalSize / CHUNK_SIZE));
 
-	// 1. Register the file — creates the DB row and returns the storage key.
+	// 1. Register the file - creates the DB row and returns the storage key.
 	const regResult = await client.mutate<any>({
 		mutation: RegisterFileDocument,
 		variables: {

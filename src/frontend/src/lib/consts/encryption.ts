@@ -1,4 +1,4 @@
-// Encryption scheme v3 — the single source of truth for the interop contract
+// Encryption scheme v3 - the single source of truth for the interop contract
 // shared with the Python CLI (src/cli/app/helpers/crypto.py).
 //
 // Pipeline:

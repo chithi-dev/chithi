@@ -165,7 +165,7 @@ export async function createEncryptedStream(
 	onProgress?: (processed: number, total?: number) => void,
 	ikmOverride?: Uint8Array,
 ): Promise<{ stream: ReadableStream<Uint8Array>; keySecret: string }> {
-	// Generate the per-file salt FIRST — it feeds both Argon2id (password path)
+	// Generate the per-file salt FIRST - it feeds both Argon2id (password path)
 	// and HKDF (all paths), and travels in the wire header.
 	const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
 	const ikm = await resolveIkM(ikmOverride ?? null, password ?? null, salt);
@@ -254,7 +254,7 @@ export async function createDecryptedStream(
 ): Promise<ReadableStream<Uint8Array>> {
 	const reader = inputStream.getReader();
 
-	// Read the header first — the salt inside is required to derive the IKM.
+	// Read the header first - the salt inside is required to derive the IKM.
 	let buffer = new Uint8Array(0);
 	const readMore = async (): Promise<Uint8Array | null> => {
 		const { done, value } = await reader.read();

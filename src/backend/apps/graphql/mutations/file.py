@@ -62,7 +62,7 @@ class FileMutation:
         if not data:
             raise ValueError("Uploaded chunk is empty.")
 
-        # A single chunk must never exceed the agreed chunk size — the client
+        # A single chunk must never exceed the agreed chunk size - the client
         # is expected to split at CHUNK_SIZE_BYTES, so an oversized chunk means
         # a buggy or hostile client. Reject before writing anything to storage.
         if len(data) > services.CHUNK_SIZE_BYTES:
@@ -156,7 +156,7 @@ class FileMutation:
     async def chunk_url(self, file_id: strawberry.ID, chunk_index: int) -> str:
         """Return a URL (presigned, if S3) to fetch one chunk directly.
 
-        The frontend downloads each chunk from this URL — bypassing Django —
+        The frontend downloads each chunk from this URL - bypassing Django -
         and reassembles them client-side before decryption.
         """
         try:

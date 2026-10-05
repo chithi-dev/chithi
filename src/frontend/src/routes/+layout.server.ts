@@ -8,7 +8,7 @@ import {
 import type { LayoutServerLoad } from './$types';
 
 /**
- * Root layout server load — the single server-side gate for the whole app.
+ * Root layout server load - the single server-side gate for the whole app.
  *
  * **1. Backend-down gate.**
  * `checkBackendHealth()` probes the GraphQL endpoint once per page load. If

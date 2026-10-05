@@ -1,4 +1,4 @@
-"""Storage service tests — chunked local-filesystem backend.
+"""Storage service tests - chunked local-filesystem backend.
 
 The storage layer is a thin async wrapper over either S3 (when configured)
 or a local-filesystem fallback (used in tests). All public functions are

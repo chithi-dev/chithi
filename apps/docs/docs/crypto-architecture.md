@@ -7,7 +7,7 @@ icon: lucide/lock
 ## Overview
 
 Chithi is an end-to-end encrypted file-sharing app inspired by Firefox Send. All
-cryptographic work happens **client-side** — the Django backend is a dumb store and
+cryptographic work happens **client-side** - the Django backend is a dumb store and
 never sees plaintext, passwords, or key material.
 
 There are exactly **two interoperable crypto implementations**, and they produce
@@ -25,19 +25,19 @@ so data encrypted on one platform decrypts on the other. This is verified by
 cross-language interop tests.
 
 **Core properties:**
-- **Zero-knowledge** — the server stores only ciphertext.
-- **Password optional** — a random 32-byte IKM (the share-URL secret) or a
+- **Zero-knowledge** - the server stores only ciphertext.
+- **Password optional** - a random 32-byte IKM (the share-URL secret) or a
   user-supplied password both work.
-- **Authenticated** — every 64 KiB record carries a 16-byte AES-GCM tag.
-- **Streaming** — files are split into 64 KiB records (RFC 8188 / ECE model) and
+- **Authenticated** - every 64 KiB record carries a 16-byte AES-GCM tag.
+- **Streaming** - files are split into 64 KiB records (RFC 8188 / ECE model) and
   processed record-by-record in a worker, so memory stays bounded.
-- **Real per-file salt** — a fresh random 16-byte salt travels in the ciphertext
+- **Real per-file salt** - a fresh random 16-byte salt travels in the ciphertext
   header and feeds **both** Argon2id (password path) and HKDF (all paths), so the
   same password over different uploads yields different keys and ciphertexts.
 
 > **Scheme v3 is a breaking change.** Ciphertexts produced under v3 (AES-256-GCM +
 > Argon2id + 21-byte header) cannot be decrypted by the earlier v2 code (AES-128-GCM
-> + PBKDF2 + 20-byte header), and vice-versa. There is no back-compat shim — the
+> + PBKDF2 + 20-byte header), and vice-versa. There is no back-compat shim - the
 > version byte in the header is the single dispatch point.
 
 ---
@@ -59,7 +59,7 @@ cross-language interop tests.
 
 - **Record size:** 64 KiB of plaintext. Each full record is 65 552 bytes of
   ciphertext (64 KiB + 16-byte GCM tag). The final record may be shorter.
-- **Header:** 21 bytes total — a 16-byte random salt, a 1-byte version (currently
+- **Header:** 21 bytes total - a 16-byte random salt, a 1-byte version (currently
   `3`), and a 4-byte big-endian record size.
 - **Nonce per record:** `nonce_base` (12 bytes) with the record sequence number
   XOR'd into the final 4 bytes, big-endian.
@@ -70,7 +70,7 @@ nonce[i]   = nonce_base, with nonce_base[8:12] XOR= i (as u32 BE)
 ```
 
 Because every nonce is a pure function of `(file_key, i)`, both encrypt and
-decrypt derive the exact same nonces from the same key — no counter state is
+decrypt derive the exact same nonces from the same key - no counter state is
 carried across records, and records can be processed in any order or on any
 thread.
 
@@ -83,7 +83,7 @@ thread.
   password ─────►│ Argon2id(password, salt, t=3, m=64 MiB, p=1) │──► 32-byte IKM
                  └─────────────────────────────────────────────┘
   secret ─────────────────────────────────────────────────────────  32-byte IKM
-                 (zero-knowledge path — the IKM itself is the secret)
+                 (zero-knowledge path - the IKM itself is the secret)
 
   32-byte IKM ──► HKDF-SHA-256(salt=header_salt, info="chithi-file-key-v3")
                  ──────────────────────────────────────────────────────►
@@ -92,9 +92,9 @@ thread.
 
 Two entry points feed the same HKDF:
 
-1. **Password path** — the user's password is stretched with Argon2id against the
+1. **Password path** - the user's password is stretched with Argon2id against the
    per-file header salt, producing a 32-byte IKM.
-2. **Secret path** — a random 32-byte IKM is generated once and carried in the
+2. **Secret path** - a random 32-byte IKM is generated once and carried in the
    share-URL fragment. This is the zero-knowledge "link" the sender shares.
 
 Either way, HKDF-SHA-256 expands the IKM into a 32-byte AES-256 key using the
@@ -129,7 +129,7 @@ Either way, HKDF-SHA-256 expands the IKM into a 32-byte AES-256 key using the
 ## 3. Why AES-256-GCM
 
 v3 moved from AES-128-GCM to **AES-256-GCM** (32-byte key). GCM provides
-authenticated encryption — the 16-byte tag per record is a one-shot MAC over the
+authenticated encryption - the 16-byte tag per record is a one-shot MAC over the
 record, so any tampering, truncation, or reordering is rejected at decrypt time
 with a hard error (not silent corruption). AES-GCM is hardware-accelerated in
 browsers (`AES-NI`) and in the `cryptography` library, and both implementations
@@ -151,26 +151,26 @@ agree byte-for-byte.
 
 ### Frontend (TypeScript)
 
-- `src/frontend/src/lib/consts/encryption.ts` — the v3 constants (single source of truth).
-- `src/frontend/src/lib/functions/encryption.ts` — `generateSecret`, `passwordToIkM`
+- `src/frontend/src/lib/consts/encryption.ts` - the v3 constants (single source of truth).
+- `src/frontend/src/lib/functions/encryption.ts` - `generateSecret`, `passwordToIkM`
   (Argon2id via `argon2-browser`), `deriveFileKey` (HKDF → AES-256 `CryptoKey`),
   `computeNonceBase`.
-- `src/frontend/src/lib/workers/crypto.worker.ts` — a dedicated worker that derives
+- `src/frontend/src/lib/workers/crypto.worker.ts` - a dedicated worker that derives
   the file key on `init` and encrypts/decrypts each record. Keeps the heavy work
   off the main thread.
-- `src/frontend/src/lib/functions/streams.ts` — `createEncryptedStream` /
+- `src/frontend/src/lib/functions/streams.ts` - `createEncryptedStream` /
   `createDecryptedStream`: slice the input stream into 64 KiB records, dispatch to
   the worker in order, and prepend/strip the 21-byte header.
 
 ### CLI (Python)
 
-- `src/cli/app/helpers/crypto.py` — pure Python mirror.
-  - `password_to_ikm` — `argon2-cffi` (`hash_secret_raw`, `Type.ID`)
-  - `derive_file_key` — `cryptography` HKDF → 32-byte key
-  - `ece_encrypt` / `ece_decrypt` — `cryptography` `AESGCM`, 64 KiB records
-  - `encrypt_files` / `decrypt_bundle` — zip (`zipfile`, level 6) + ECE
-  - `encrypt_data` / `decrypt_data` — raw bytes, ECE only
-- `src/cli/app/helpers/archive.py` — thin wrappers for file/dir read + write.
+- `src/cli/app/helpers/crypto.py` - pure Python mirror.
+  - `password_to_ikm` - `argon2-cffi` (`hash_secret_raw`, `Type.ID`)
+  - `derive_file_key` - `cryptography` HKDF → 32-byte key
+  - `ece_encrypt` / `ece_decrypt` - `cryptography` `AESGCM`, 64 KiB records
+  - `encrypt_files` / `decrypt_bundle` - zip (`zipfile`, level 6) + ECE
+  - `encrypt_data` / `decrypt_data` - raw bytes, ECE only
+- `src/cli/app/helpers/archive.py` - thin wrappers for file/dir read + write.
 
 ### Cross-language interop
 

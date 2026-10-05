@@ -221,7 +221,7 @@
 				<Accordion.Content>
 					<p class="text-sm text-muted-foreground">
 						The encryption key lives only in your browser and the share URL fragment. Losing the
-						link means losing access — store it securely.
+						link means losing access - store it securely.
 					</p>
 				</Accordion.Content>
 			</Accordion.Item>

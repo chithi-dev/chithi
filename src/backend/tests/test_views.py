@@ -1,4 +1,4 @@
-"""HTTP view integration tests — file info + speedtest.
+"""HTTP view integration tests - file info + speedtest.
 
 Download is handled by the frontend fetching chunks directly from S3 via
 presigned URLs (obtained through the ``chunkUrl`` GraphQL mutation), so

@@ -1,4 +1,4 @@
-"""QR code encoder from scratch — byte mode, versions 1–10, EC levels L/M/Q/H.
+"""QR code encoder from scratch - byte mode, versions 1–10, EC levels L/M/Q/H.
 
 Follows ISO/IEC 18004 / GB 18284.  No third-party QR libraries.
 """
@@ -259,7 +259,7 @@ def _reserved(n: int, ver: int) -> list[list[bool]]:
             r[pos][i] = True
             r[i][pos] = True
 
-    # Format info areas (avoid row 6 and col 6 — timing pattern takes priority)
+    # Format info areas (avoid row 6 and col 6 - timing pattern takes priority)
     for i in range(8):
         r[8][i] = True  # left of top-left finder
         r[i][8] = True  # above top-left finder
@@ -394,7 +394,7 @@ def _penalty(m: list[list[int]]) -> int:
     n = len(m)
     p = 0
 
-    # Rule 1 — consecutive same-colour modules
+    # Rule 1 - consecutive same-colour modules
     for r in range(n):
         run = 1
         for c in range(1, n):
@@ -418,13 +418,13 @@ def _penalty(m: list[list[int]]) -> int:
             else:
                 run = 1
 
-    # Rule 2 — 2×2 blocks
+    # Rule 2 - 2×2 blocks
     for r in range(n - 1):
         for c in range(n - 1):
             if m[r][c] == m[r][c + 1] == m[r + 1][c] == m[r + 1][c + 1]:
                 p += 3
 
-    # Rule 3 — finder-like patterns
+    # Rule 3 - finder-like patterns
     a_pat = [1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1]
     b_pat = [0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0]
     for r in range(n):
@@ -438,7 +438,7 @@ def _penalty(m: list[list[int]]) -> int:
             if strip == a_pat or strip == b_pat:
                 p += 40
 
-    # Rule 4 — dark module proportion
+    # Rule 4 - dark module proportion
     dark = sum(m[r][c] for r in range(n) for c in range(n))
     pct = dark * 100 // (n * n)
     diff = abs(pct - 50)

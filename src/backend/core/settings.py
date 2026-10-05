@@ -236,13 +236,13 @@ STORAGES = {
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "users.User"
 
-# Celery — periodic eviction is scheduled by beat (see core/celery.py).
+# Celery - periodic eviction is scheduled by beat (see core/celery.py).
 # CELERY_BROKER_URL drives both the broker and the Redis cache location.
 # Defaults to a local Redis so `celery worker` / `celery beat` run out of the box.
 CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 
-# Channels — WebSocket transport for reverse-share rooms.
+# Channels - WebSocket transport for reverse-share rooms.
 # Uses Redis (same broker as Celery) so groups work across workers;
 # falls back to in-memory for local dev without a broker configured.
 if os.environ.get("CELERY_BROKER_URL"):
@@ -261,7 +261,7 @@ else:
         }
     }
 
-# Cache — use locmem for local dev, Redis when a broker URL is configured.
+# Cache - use locmem for local dev, Redis when a broker URL is configured.
 if os.environ.get("CELERY_BROKER_URL"):
     CACHES = {
         "default": {

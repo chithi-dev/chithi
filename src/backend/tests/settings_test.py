@@ -4,7 +4,7 @@ Inherits everything from core.settings, then pins down the pieces that must
 be deterministic and hermetic under the Django test runner:
 
 - A throwaway SQLite database on disk (the async views/mutations hop threads
-  via sync_to_async, so every connection must see committed rows — a plain
+  via sync_to_async, so every connection must see committed rows - a plain
   TestCase transaction would hide them).
 - A throwaway MEDIA_ROOT so local-storage tests never touch real uploads.
 - MD5 password hashing (Argon2 is far too slow for hundreds of logins).

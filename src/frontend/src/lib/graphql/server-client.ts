@@ -1,5 +1,5 @@
 /**
- * Server-side Apollo Client factory — the SvelteKit SSR prefetch bridge.
+ * Server-side Apollo Client factory - the SvelteKit SSR prefetch bridge.
  *
  * **Pattern (mirrors the platformer's TanStack-style SSR):**
  *
@@ -28,14 +28,14 @@
  * `dehydrateApollo()` serializes that cache to plain JSON, which SvelteKit ships
  * to the browser as page data. The client's `<HydrationBoundary>` restores it
  * into the browser Apollo cache, and `usePrefetchedQuery` reads the data
- * instantly — no client network round-trip on first paint.
+ * instantly - no client network round-trip on first paint.
  *
  * **Why a separate factory (not the browser's `client`)?**
  *
  * 1. The browser `client` reads the token from `localStorage`, which is
  *    unavailable during SSR. The server reads it from the `access_token`
  *    cookie instead (set by the login action) and injects it as a Bearer header.
- * 2. `ssrMode: true` tells Apollo to skip `watchQuery` reactivity — the server
+ * 2. `ssrMode: true` tells Apollo to skip `watchQuery` reactivity - the server
  *    only needs one-shot `query()` calls.
  * 3. Keeping the two clients separate means the browser singleton's upload link
  *    (needed for file uploads) is never loaded into server bundles.
@@ -65,10 +65,10 @@ export const BACKEND_DOWN_SENTINEL = 'CHITHI_BACKEND_DOWN';
  * a true "can the prefetch path reach the backend" check.
  *
  * The distinction that matters:
- *   - **Network failure** (`fetch` throws — connection refused, DNS, timeout):
+ *   - **Network failure** (`fetch` throws - connection refused, DNS, timeout):
  *     the backend is *down*. Return `false`.
  *   - **Any HTTP response** (200 or a GraphQL error body): the backend is
- *     *up* — it answered. A GraphQL error is not "backend down"; the backend
+ *     *up* - it answered. A GraphQL error is not "backend down"; the backend
  *     is alive and processing.
  *
  * The timeout keeps a hung backend from stalling the page load.
@@ -76,7 +76,7 @@ export const BACKEND_DOWN_SENTINEL = 'CHITHI_BACKEND_DOWN';
 export async function checkBackendHealth(timeoutMs = 3000): Promise<boolean> {
 	try {
 		// A trivial, always-valid query. We only care whether the transport
-		// connects — not what it returns. `__typename` is valid on any schema.
+		// connects - not what it returns. `__typename` is valid on any schema.
 		await fetch(GRAPHQL_URL, {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
@@ -95,7 +95,7 @@ export async function checkBackendHealth(timeoutMs = 3000): Promise<boolean> {
  * Create a server-side Apollo Client for use in SvelteKit `load()` /
  * `+server.ts` handlers.
  *
- * @param accessToken — the JWT (from the `access_token` cookie) to send as
+ * @param accessToken - the JWT (from the `access_token` cookie) to send as
  *   `Authorization: Bearer`. Pass `null`/`undefined` for anonymous queries.
  */
 export function createServerApollo(accessToken?: string | null): ApolloClient {
@@ -119,7 +119,7 @@ export function createServerApollo(accessToken?: string | null): ApolloClient {
 export interface DehydratedApolloState {
 	/** The InMemoryCache entity map (plain JSON). */
 	cache: Record<string, unknown>;
-	/** Unix ms — when the server completed the prefetch. */
+	/** Unix ms - when the server completed the prefetch. */
 	dehydratedAt: number;
 }
 
@@ -129,7 +129,7 @@ export interface DehydratedApolloState {
  * Call this after `apollo.query()` has populated the cache, and include the
  * result in the `load()` return value (e.g. `__APOLLO__: dehydrated`).
  *
- * The returned object is plain JSON — safe for SvelteKit page data.
+ * The returned object is plain JSON - safe for SvelteKit page data.
  */
 export function dehydrateApollo(apollo: ApolloClient): DehydratedApolloState {
 	return {
@@ -144,7 +144,7 @@ export function dehydrateApollo(apollo: ApolloClient): DehydratedApolloState {
  * multiple queries in parallel before serializing.
  *
  * Fail-soft: individual query failures are logged and skipped. The function
- * never throws — the client will retry any missing data.
+ * never throws - the client will retry any missing data.
  */
 export async function prefetchApollo(
 	accessToken: string | null | undefined,
@@ -170,13 +170,13 @@ export async function prefetchApollo(
 				})
 				.then((res) => {
 					if (import.meta.env.DEV && q.label) {
-						console.debug(`[prefetch:server] ${q.label} — ok`);
+						console.debug(`[prefetch:server] ${q.label} - ok`);
 					}
 					return res;
 				})
 				.catch((e) => {
 					if (import.meta.env.DEV) {
-						console.debug(`[prefetch:server] ${q.label ?? 'query'} — failed`, e);
+						console.debug(`[prefetch:server] ${q.label ?? 'query'} - failed`, e);
 					}
 					throw e;
 				})

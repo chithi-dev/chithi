@@ -2,7 +2,7 @@
 
 Every async surface in this backend (async views, Strawberry mutations,
 Channels consumers) hops threads via ``sync_to_async``, so tests must run on
-``TransactionTestCase`` — plain ``TestCase`` wraps each test in a transaction
+``TransactionTestCase`` - plain ``TestCase`` wraps each test in a transaction
 that other connections (and the thread pool) cannot see.
 
 The GraphQL helper executes real HTTP POSTs through Django's AsyncClient so
@@ -65,7 +65,7 @@ def make_file(
 ):
     """Create a File row AND put its bytes into the active storage backend.
 
-    Safe to call from sync or async tests — uses async_to_sync so it works
+    Safe to call from sync or async tests - uses async_to_sync so it works
     even when an event loop is already running on the calling thread.
     If ``size`` is given, the data is padded/truncated to that exact byte
     count and the row's size is set accordingly.

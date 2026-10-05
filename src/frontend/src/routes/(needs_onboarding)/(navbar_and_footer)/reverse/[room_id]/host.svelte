@@ -569,7 +569,7 @@
           <ScrollArea class="max-h-64 w-full rounded-md border p-2">
             <div class="space-y-2">
               <p class="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                Queued — {formatFileSize(totalUploadSize)}
+                Queued - {formatFileSize(totalUploadSize)}
               </p>
               {#each pendingFiles as file, i}
                 <div class="flex items-center gap-3 rounded-md border px-3 py-2">
@@ -594,7 +594,7 @@
         {#if isUploading || (uploads.length > 0 && completedUploads < totalUploads)}
           <div class="space-y-1">
             <div class="flex justify-between text-xs">
-              <span class="text-muted-foreground">Overall — {completedUploads}/{totalUploads} files</span>
+              <span class="text-muted-foreground">Overall - {completedUploads}/{totalUploads} files</span>
               <span class="text-muted-foreground">{overallProgress.current.toFixed(0)}%</span>
             </div>
             <Progress value={overallProgress.current} max={100} />

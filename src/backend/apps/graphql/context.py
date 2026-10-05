@@ -1,4 +1,4 @@
-"""Strawberry context — carries the resolved request user to resolvers.
+"""Strawberry context - carries the resolved request user to resolvers.
 
 ``request.user`` is already populated by ``JwtAuthenticationMiddleware``
 (session auth or Bearer JWT), so the context simply exposes it.

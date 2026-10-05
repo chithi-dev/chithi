@@ -1,5 +1,5 @@
 /**
- * Client-side Apollo cache hydration + reactive query — the browser half of
+ * Client-side Apollo cache hydration + reactive query - the browser half of
  * the SSR prefetch pattern.
  *
  * **Flow:**
@@ -21,7 +21,7 @@
  *
  * The first render happens before the HydrationBoundary's $effect has restored
  * the cache into the browser Apollo client. A synchronous `cache.readQuery` at
- * setup time therefore misses the data and falls through to a network fetch —
+ * setup time therefore misses the data and falls through to a network fetch -
  * causing a "No data yet → data" flash.
  *
  * A $effect that reads `apollo.cache` is reactive: it re-runs whenever the
@@ -45,7 +45,7 @@ let hydrated = $state(false);
  * Restore a dehydrated Apollo cache into the browser client.
  *
  * Called by `<HydrationBoundary>` before any `usePrefetchedQuery` $effect runs.
- * Idempotent — a second call with the same state is a no-op.
+ * Idempotent - a second call with the same state is a no-op.
  */
 export function hydrateApollo(state: DehydratedApolloState | null | undefined): void {
 	if (!state?.cache) return;
@@ -100,9 +100,9 @@ export interface PrefetchQueryState<TData> {
  * | Has data | `loading=false`, no network | `loading=false`, background refetch |
  * | No data | `loading=true`, network | `loading=true`, network |
  *
- * @param documentNode — the precompiled `DocumentNode` from the generated types.
- * @param variables — query variables (or `undefined` for no-arg queries).
- * @param staleTimeMs — freshness window in ms. Default 30 000 (30 s).
+ * @param documentNode - the precompiled `DocumentNode` from the generated types.
+ * @param variables - query variables (or `undefined` for no-arg queries).
+ * @param staleTimeMs - freshness window in ms. Default 30 000 (30 s).
  *   Set to `Infinity` to never refetch after hydration.
  */
 export function usePrefetchedQuery<
@@ -120,7 +120,7 @@ export function usePrefetchedQuery<
 	let refetching = $state(false);
 
 	// Track whether we've ever resolved this (doc, vars) pair from the cache or
-	// network — so we don't re-show "loading" on re-runs where data is present.
+	// network - so we don't re-show "loading" on re-runs where data is present.
 	let resolvedOnce = false;
 
 	async function fetchNetwork(): Promise<TData | undefined> {
@@ -162,7 +162,7 @@ export function usePrefetchedQuery<
 		const h = hydrated;
 		const hState = hydratedState;
 
-		// The page's dehydrated state (from a server `load()`) — available
+		// The page's dehydrated state (from a server `load()`) - available
 		// synchronously on the first client render. If this exists but
 		// hydration hasn't happened yet, the HydrationBoundary's $effect is
 		// about to restore the cache and trigger a re-run of this effect. In
@@ -184,13 +184,13 @@ export function usePrefetchedQuery<
 		}
 
 		if (cached !== null) {
-			// Data is in the cache — serve it immediately.
+			// Data is in the cache - serve it immediately.
 			data = cached;
 			error = null;
 			loading = false;
 			resolvedOnce = true;
 
-			// Stale? Fire a background refetch (SWR) — client-only.
+			// Stale? Fire a background refetch (SWR) - client-only.
 			if (typeof window !== 'undefined' && hState && !isFresh(hState, staleTimeMs)) {
 				refetching = true;
 				void fetchNetwork().then((d) => {
@@ -203,18 +203,18 @@ export function usePrefetchedQuery<
 		// Cache miss.
 		//
 		// Case A: page data has __APOLLO__ but hydration hasn't run yet
-		// (HydrationBoundary's $effect is queued). Skip the network fetch —
+		// (HydrationBoundary's $effect is queued). Skip the network fetch -
 		// the boundary will restore the cache and trigger a re-run of this
 		// effect, which will find the data.
 		//
 		// Case B: no __APOLLO__ in page data (no server prefetch) and we're on
 		// the client. Fire a network fetch.
 		//
-		// Case C: SSR (no window). Do nothing — the server prefetch is the
+		// Case C: SSR (no window). Do nothing - the server prefetch is the
 		// source of truth.
 		if (typeof window !== 'undefined') {
 			if (pageApollo && !h) {
-				// Case A — waiting for hydration.
+				// Case A - waiting for hydration.
 				return;
 			}
 			// Case B: cache miss AND the page did not prefetch this query.
