@@ -4,23 +4,18 @@ Both the register and chunk endpoints enforce the same limits from the
 singleton ``Config``. Centralising the checks here keeps the view functions
 short and guarantees the GraphQL and HTTP upload paths stay in agreement.
 
-The ``Config`` singleton is read through the Django ORM, which is sync, so each
-check is async and wraps the read in ``sync_to_async`` to match the async view
-layer without blocking the event loop.
+The ``Config`` singleton is read through ``Config.aload()`` -- a native async
+method on the model -- so these async checks never block the event loop.
 """
 
-from asgiref.sync import sync_to_async
 from ninja.errors import ValidationError
 
 from apps.config.models import Config
 
 
-def _config():
-    return Config.load()
-
-
 async def ensure_uploads_enabled() -> None:
-    if not (await sync_to_async(_config)()).allow_uploads:
+    config = await Config.aload()
+    if not config.allow_uploads:
         raise ValidationError("File uploads are currently disabled.")
 
 
@@ -29,7 +24,7 @@ async def validate_registration(
     chunk_count: int,
     expires_at: int,
 ) -> None:
-    config = await sync_to_async(_config)()
+    config = await Config.aload()
 
     if total_size <= 0:
         raise ValidationError("File size must be positive.")

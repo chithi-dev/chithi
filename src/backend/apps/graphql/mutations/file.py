@@ -37,7 +37,7 @@ class FileMutation:
         already exists, no extra work is needed (the File row is created by the
         first ``register_file`` call before chunks start).
         """
-        config = await sync_to_async(Config.load)()
+        config = await Config.aload()
         if not config.allow_uploads:
             raise ValueError("File uploads are currently disabled.")
 
@@ -90,7 +90,7 @@ class FileMutation:
         Returns the file record (including its UUID key) so the frontend knows
         where to upload chunks and how many it must send.
         """
-        config = await sync_to_async(Config.load)()
+        config = await Config.aload()
         if not config.allow_uploads:
             raise ValueError("File uploads are currently disabled.")
 
