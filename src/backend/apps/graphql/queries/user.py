@@ -16,5 +16,5 @@ class UserQuery:
 
     @strawberry.field
     async def me(self, info: Info) -> UserType | None:
-        user = info.context.request.user
+        user = info.context.user
         return user if user and user.is_authenticated else None
