@@ -98,15 +98,18 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
-# Object storage (S3 / B2). Two separate concerns:
-#   S3_PRIVATE_BUCKET_URL – the endpoint the backend writes chunks to
-#                           (B2 S3-compatible endpoint, R2, RUSTFS, etc.)
-#   S3_CDN_URL            – the public domain that serves chunk downloads
-#                           (Cloudflare Bandwidth Alliance domain, or
-#                           backblazeb2.com for B2's free-egress CDN)
+# Object storage (S3 / B2 / R2). Two separate concerns:
+#   S3_ENDPOINT_URL   – the S3-compatible endpoint the backend writes chunks
+#                       to (B2, R2, RUSTFS, ...).
+#   S3_CDN_URL        – the public domain that serves chunk downloads
+#                       (Cloudflare Bandwidth Alliance domain, or
+#                       backblazeb2.com for B2's free-egress CDN).
 # When S3_CDN_URL is set, presigned_chunk_url returns a CDN URL instead of
-# a signed B2 URL, so the CLI / frontend fetch directly from the CDN.
-S3_PRIVATE_BUCKET_URL = os.environ.get("S3_PRIVATE_BUCKET_URL", "")
+# a signed S3 URL, so the CLI / frontend fetch directly from the CDN.
+S3_ENDPOINT_URL = os.environ.get("S3_ENDPOINT_URL", "")
+S3_ACCESS_KEY_ID = os.environ.get("S3_ACCESS_KEY_ID", "")
+S3_SECRET_ACCESS_KEY = os.environ.get("S3_SECRET_ACCESS_KEY", "")
+S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME", "")
 S3_CDN_URL = os.environ.get("S3_CDN_URL", "").rstrip("/")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

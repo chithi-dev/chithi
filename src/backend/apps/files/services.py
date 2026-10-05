@@ -33,9 +33,9 @@ def chunk_key(file_key: str, index: int) -> str:
 def is_s3_backend() -> bool:
     """True if S3 credentials + bucket are configured."""
     return bool(
-        getattr(settings, "AWS_ACCESS_KEY_ID", "")
-        and getattr(settings, "AWS_SECRET_ACCESS_KEY", "")
-        and getattr(settings, "AWS_STORAGE_BUCKET_NAME", "")
+        getattr(settings, "S3_ACCESS_KEY_ID", "")
+        and getattr(settings, "S3_SECRET_ACCESS_KEY", "")
+        and getattr(settings, "S3_BUCKET_NAME", "")
     )
 
 
@@ -61,9 +61,9 @@ def _s3_resource():
 
     return aioboto3.resource(
         "s3",
-        endpoint_url=getattr(settings, "AWS_S3_ENDPOINT_URL", None) or None,
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,  # type: ignore[attr-defined]
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,  # type: ignore[attr-defined]
+        endpoint_url=getattr(settings, "S3_ENDPOINT_URL", None) or None,
+        aws_access_key_id=settings.S3_ACCESS_KEY_ID,  # type: ignore[attr-defined]
+        aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,  # type: ignore[attr-defined]
     )
 
 
@@ -72,9 +72,9 @@ def _s3_client():
 
     return aioboto3.client(
         "s3",
-        endpoint_url=getattr(settings, "AWS_S3_ENDPOINT_URL", None) or None,
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,  # type: ignore[attr-defined]
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,  # type: ignore[attr-defined]
+        endpoint_url=getattr(settings, "S3_ENDPOINT_URL", None) or None,
+        aws_access_key_id=settings.S3_ACCESS_KEY_ID,  # type: ignore[attr-defined]
+        aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,  # type: ignore[attr-defined]
     )
 
 
@@ -124,7 +124,7 @@ async def upload_chunk(file_key: str, index: int, data: bytes) -> None:
     if is_s3_backend():
         res = _s3_resource()
         async with res as s3:
-            await s3.Object(settings.AWS_STORAGE_BUCKET_NAME, key).put(Body=data)  # type: ignore[attr-defined]
+            await s3.Object(settings.S3_BUCKET_NAME, key).put(Body=data)  # type: ignore[attr-defined]
     else:
         await _LocalStore().put(key, data)
     logger.debug("Uploaded chunk %s/%d (%d bytes)", file_key, index, len(data))
@@ -152,7 +152,7 @@ async def presigned_chunk_url(file_key: str, index: int, expires_in: int = 3600)
         async with client as s3:
             return await s3.generate_presigned_url(
                 "get_object",
-                Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": key},  # type: ignore[attr-defined]
+                Params={"Bucket": settings.S3_BUCKET_NAME, "Key": key},  # type: ignore[attr-defined]
                 ExpiresIn=expires_in,
             )
 
@@ -169,12 +169,12 @@ async def delete_file_chunks(file_key: str) -> None:
             prefix = f"{file_key}/"
             # List all chunks then delete in a single batch (max 1000 keys).
             resp = await client.list_objects_v2(
-                Bucket=settings.AWS_STORAGE_BUCKET_NAME, Prefix=prefix  # type: ignore[attr-defined]
+                Bucket=settings.S3_BUCKET_NAME, Prefix=prefix  # type: ignore[attr-defined]
             )
             contents = resp.get("Contents", [])
             if contents:
                 await client.delete_objects(
-                    Bucket=settings.AWS_STORAGE_BUCKET_NAME,  # type: ignore[attr-defined]
+                    Bucket=settings.S3_BUCKET_NAME,  # type: ignore[attr-defined]
                     Delete={"Objects": [{"Key": obj["Key"]} for obj in contents]},
                 )
     else:
@@ -187,7 +187,7 @@ async def file_chunks_exist(file_key: str, count: int) -> bool:
         res = _s3_resource()
         async with res as s3:
             for i in range(count):
-                obj = s3.Object(settings.AWS_STORAGE_BUCKET_NAME, chunk_key(file_key, i))  # type: ignore[attr-defined]
+                obj = s3.Object(settings.S3_BUCKET_NAME, chunk_key(file_key, i))  # type: ignore[attr-defined]
                 if not await obj.metadata():
                     return False
             return True
