@@ -29,4 +29,18 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["django-debug-toolbar>=6.0.0", "django-extensions>=4.1", "ruff>=0.12.12"]
+dev = [
+    "django-debug-toolbar>=6.0.0",
+    "django-extensions>=4.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "pytest-django>=4.14.0",
+    "ruff>=0.12.12",
+]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "core.settings"
+python_files = ["test_*.py", "tests.py"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
