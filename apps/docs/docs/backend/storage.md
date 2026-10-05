@@ -32,10 +32,9 @@ Every backend exposes the same small surface the storage service relies on:
 | :----------------------------- | :--------------------------------------------- | ---------------------------------- |
 | *(empty)*, `local`, `filesystem` | `django.core.files.storage.FileSystemStorage` | Zero-config default                |
 | `s3`, `b2`, `r2`, `minio`, `rustfs` | `storages.backends.s3.S3Storage`         | S3-compatible object stores        |
-| `gcs`, `google`               | `storages.backends.gcs.GoogleCloudStorage`     | Google Cloud Storage buckets       |
-| `gdrive`, `google_drive`      | `storages.backends.gdrive.GDriveStorage`       | Google Drive folders               |
+| `gcs`, `google`               | `storages.backends.gcloud.GoogleCloudStorage`  | Google Cloud Storage buckets       |
 | `azure`, `azurite`            | `storages.backends.azure_storage.AzureStorage` | Azure Blob Storage                 |
-| `openstack`, `swift`          | `storages.backends.openstack.OpenStackStorage` | OpenStack / Swift object storage   |
+| `openstack`, `swift`          | `storages.backends.apache_libcloud.Storage`    | OpenStack / Swift via Apache LibCloud |
 
 ## S3 / S3-compatible backends
 
@@ -68,7 +67,8 @@ S3-compatible endpoint.
 
 ## Google Cloud Storage
 
-Install the GCS extra before deploying: `pip install django-storages[gcs]`.
+Included in the `google` extra: `django-storages[google]` (already in
+`pyproject.toml`).
 
 | Variable                | Purpose                                        | Notes                        |
 | :---------------------- | :--------------------------------------------- | ---------------------------- |
@@ -76,22 +76,6 @@ Install the GCS extra before deploying: `pip install django-storages[gcs]`.
 | `GCS_BUCKET_NAME`       | Bucket that receives uploaded chunks           | Must exist and be writable   |
 | `GCS_CREDENTIALS_PATH`  | Path to a service-account JSON key file        | Leave empty for metadata server |
 | `GCS_CUSTOM_DOMAIN`     | Public domain that serves chunk downloads      | Optional, disables signing   |
-
-## Google Drive
-
-Install the GDrive extra: `pip install django-storages[gdrive]`.
-
-| Variable             | Purpose                                    | Notes                          |
-| :------------------- | :----------------------------------------- | ------------------------------ |
-| `GDRIVE_CLIENT_ID`    | OAuth2 client ID                           | From Google Cloud Console      |
-| `GDRIVE_CLIENT_SECRET`| OAuth2 client secret                       | **Sensitive**                  |
-| `GDRIVE_REFRESH_TOKEN`| Long-lived refresh token for the app       | **Sensitive** - see below      |
-| `GDRIVE_ROOT_ID`      | Drive folder ID that receives chunks       | Optional, defaults to root     |
-
-To obtain a refresh token, run an OAuth2 authorization flow once with a
-`drive.file` scope and store the returned `refresh_token` in
-`GDRIVE_REFRESH_TOKEN`. django-storages exchanges it for access tokens
-automatically.
 
 ## Azure Blob Storage
 
@@ -105,7 +89,8 @@ Install the Azure extra: `pip install django-storages[azure]`.
 
 ## OpenStack / Swift
 
-Install the OpenStack extra: `pip install django-storages[openstack]`.
+Included in the `libcloud` extra: `django-storages[libcloud]` (already in
+`pyproject.toml`).
 
 | Variable                | Purpose                                      | Notes                  |
 | :---------------------- | :------------------------------------------- | ---------------------- |
@@ -147,13 +132,6 @@ export STORAGE_BACKEND=gcs
 export GCS_PROJECT_ID="my-project"
 export GCS_BUCKET_NAME="chithi"
 export GCS_CREDENTIALS_PATH="/secrets/gsa.json"
-
-# Google Drive
-export STORAGE_BACKEND=gdrive
-export GDRIVE_CLIENT_ID="..."
-export GDRIVE_CLIENT_SECRET="..."
-export GDRIVE_REFRESH_TOKEN="..."
-export GDRIVE_ROOT_ID="1AbC..."
 
 # Azure Blob
 export STORAGE_BACKEND=azure

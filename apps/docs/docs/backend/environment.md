@@ -40,10 +40,6 @@ The backend supports the following environment variables:
 | `GCS_BUCKET_NAME`      | GCS bucket that receives chunks                                    | Must exist and be writable            |
 | `GCS_CREDENTIALS_PATH` | Path to a service-account JSON key file                            | Empty for metadata server             |
 | `GCS_CUSTOM_DOMAIN`    | Public domain that serves chunk downloads                          | Optional                              |
-| `GDRIVE_CLIENT_ID`     | OAuth2 client ID                                                   | Required for `STORAGE_BACKEND=gdrive` |
-| `GDRIVE_CLIENT_SECRET` | OAuth2 client secret                                               | **Sensitive**                         |
-| `GDRIVE_REFRESH_TOKEN` | Long-lived refresh token for the app                               | **Sensitive**                         |
-| `GDRIVE_ROOT_ID`       | Drive folder ID that receives chunks                               | Optional                              |
 | `AZURE_STORAGE_ACCOUNT`| Azure storage account name                                         | Required for `STORAGE_BACKEND=azure`  |
 | `AZURE_STORAGE_KEY`    | Azure account access key                                           | **Sensitive**                         |
 | `AZURE_STORAGE_CONTAINER`| Azure Blob container that receives chunks                        | Must exist and be writable            |

@@ -184,23 +184,12 @@ def _resolve_default_storage() -> tuple[str, dict[str, str]]:
 
     if STORAGE_BACKEND in ("gcs", "google"):
         return (
-            "storages.backends.gcs.GoogleCloudStorage",
+            "storages.backends.gcloud.GoogleCloudStorage",
             {
                 "project_id": os.environ.get("GCS_PROJECT_ID", ""),
                 "bucket_name": os.environ.get("GCS_BUCKET_NAME", ""),
                 "credentials_path": os.environ.get("GCS_CREDENTIALS_PATH", ""),
                 "custom_domain": os.environ.get("GCS_CUSTOM_DOMAIN", "") or None,
-            },
-        )
-
-    if STORAGE_BACKEND in ("gdrive", "google_drive"):
-        return (
-            "storages.backends.gdrive.GDriveStorage",
-            {
-                "client_id": os.environ.get("GDRIVE_CLIENT_ID", ""),
-                "client_secret": os.environ.get("GDRIVE_CLIENT_SECRET", ""),
-                "refresh_token": os.environ.get("GDRIVE_REFRESH_TOKEN", ""),
-                "root_id": os.environ.get("GDRIVE_ROOT_ID", ""),
             },
         )
 
@@ -216,9 +205,10 @@ def _resolve_default_storage() -> tuple[str, dict[str, str]]:
 
     if STORAGE_BACKEND in ("openstack", "swift"):
         return (
-            "storages.backends.openstack.OpenStackStorage",
+            "storages.backends.apache_libcloud.Storage",
             {
-                "openstack_container": os.environ.get("OPENSTACK_CONTAINER", ""),
+                "libcloud_type": "openstack",
+                "container": os.environ.get("OPENSTACK_CONTAINER", ""),
             },
         )
 

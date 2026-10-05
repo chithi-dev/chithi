@@ -6,9 +6,10 @@ requires-python = ">=3.13"
 dependencies = [
     # Base Framework
     "django[argon2]>=6.0",
-    # Database
+    # Database -- drivers for all supported engines (SQLite needs no driver)
     "psycopg[binary]>=3",
     "pymysql>=1.1",
+    "mysqlclient>=2.2",
     # GraphQL
     "strawberry-graphql>=0.322.0",
     "strawberry-graphql-django>=0.86.0",
@@ -26,7 +27,7 @@ dependencies = [
     "python-multipart>=0.0.18",
     # Database env handling
     "dj-database-url>=3.1.2",
-    "django-storages[s3,gcs,gdrive,azure,openstack]>=1.14.6",
+    "django-storages[s3,azure,google,libcloud]>=1.14.6",
     # Task runner
     "celery[redis]>=5.4",
     # Redis
