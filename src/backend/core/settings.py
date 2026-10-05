@@ -33,7 +33,11 @@ INSTALLED_APPS = [
     "apps.graphql",
 ]
 
+# ExemptMiddleware must run first: it is the only middleware that can skip the
+# rest of the chain for exempt views, so it has to see the request before any
+# other middleware does.
 MIDDLEWARE = [
+    "core.middlewares.ExemptMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "corsheaders.middleware.CorsMiddleware",
@@ -41,10 +45,17 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "core.middlewares.JwtAuthenticationMiddleware",
-    "core.middlewares.MyMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
+# Fail fast if ExemptMiddleware is ever removed or reordered below a middleware
+# it must precede: it is the first entry in the chain by design.
+if MIDDLEWARE[0] != "core.middlewares.ExemptMiddleware":
+    raise RuntimeError(
+        "core.middlewares.ExemptMiddleware must be the first entry in MIDDLEWARE. "
+        f"Current first entry: {MIDDLEWARE[0]!r}."
+    )
 
 ROOT_URLCONF = "core.urls"
 

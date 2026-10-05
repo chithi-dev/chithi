@@ -1,14 +1,18 @@
-"""Tests for core.middlewares -- the ``middleware_exempt`` decorator and the
-exempt-aware middleware (:class:`ExemptMiddleware` / :class:`MyMiddleware`).
+"""Tests for :class:`ExemptMiddleware` and the ``middleware_exempt`` decorator.
 
-Proves the four behaviours the decorator must guarantee:
-1. A normal view goes through the middleware.
-2. A ``@middleware_exempt`` view completely skips the middleware.
-3. Multiple exempt views work independently.
-4. The decorator does not alter the view's normal return behaviour.
+Proves the contract:
+1. A normal (non-exempt) view goes through the middleware chain (``get_response``).
+2. A ``@middleware_exempt`` view is called **directly**, bypassing the entire
+   rest of the chain -- ``get_response`` is never invoked.
+3. Multiple exempt views each bypass the chain independently.
+4. The decorator does not alter the view's name, signature, or return value.
+5. The ``ExemptMiddleware`` must be the first entry in ``MIDDLEWARE`` (settings
+   guard).
 """
 
 from types import SimpleNamespace
+
+from django.conf import settings
 
 
 def _request_with_func(view_func):
@@ -36,125 +40,117 @@ def test_decorator_does_not_wrap_or_alter_view() -> None:
     def _add(a, b):
         return a + b
 
-    # Same function object, name, signature and return behaviour preserved.
+    # Same function object, name, and return behaviour preserved.
     assert _add.__name__ == "_add"
     assert _add(2, 3) == 5
     assert _add(10, 20) == 30
 
 
-def test_normal_view_goes_through_middleware() -> None:
-    """Requirement 1: a non-exempt view runs the middleware's logic."""
-    from core.middlewares import MyMiddleware
-
-    ran: list[str] = []
-
-    class RecordingMW(MyMiddleware):
-        def _handle(self, request):
-            ran.append("handle")
+def test_normal_view_goes_through_chain() -> None:
+    """A non-exempt view is delegated to get_response (the rest of the chain)."""
+    from core.middlewares import ExemptMiddleware
 
     def _normal(request):
-        return "ok"
+        return "view-response"
 
-    mw = RecordingMW(lambda r: "chain")
-    assert mw(_request_with_func(_normal)) == "chain"
-    assert ran == ["handle"]
+    calls: list[str] = []
+
+    def get_response(request):
+        calls.append("get_response")
+        return "chain-response"
+
+    mw = ExemptMiddleware(get_response)
+    result = mw(_request_with_func(_normal))
+
+    assert result == "chain-response"
+    assert calls == ["get_response"]
 
 
-def test_exempt_view_skips_middleware() -> None:
-    """Requirement 2: an exempt view skips the middleware's logic entirely."""
-    from core.middlewares import MyMiddleware, middleware_exempt
-
-    ran: list[str] = []
-
-    class RecordingMW(MyMiddleware):
-        def _handle(self, request):
-            ran.append("handle")
+def test_exempt_view_bypasses_entire_chain() -> None:
+    """An exempt view is called directly; get_response is never invoked."""
+    from core.middlewares import ExemptMiddleware, middleware_exempt
 
     @middleware_exempt
     def _exempt(request):
-        return "ok"
+        return "exempt-view-response"
 
-    mw = RecordingMW(lambda r: "chain")
-    # The chain still runs (get_response), but _handle never does.
-    assert mw(_request_with_func(_exempt)) == "chain"
-    assert ran == []
+    calls: list[str] = []
+
+    def get_response(request):
+        calls.append("get_response")
+        return "chain-response"
+
+    mw = ExemptMiddleware(get_response)
+    result = mw(_request_with_func(_exempt))
+
+    # The view ran directly and the rest of the chain was skipped entirely.
+    assert result == "exempt-view-response"
+    assert calls == []
 
 
 def test_multiple_exempt_views_independent() -> None:
-    """Requirement 3: several exempt views each skip, normal views don't."""
-    from core.middlewares import MyMiddleware, middleware_exempt
+    """Each exempt view bypasses the chain on its own; normal views don't."""
+    from core.middlewares import ExemptMiddleware, middleware_exempt
 
-    ran: list[str] = []
+    calls: list[str] = []
 
-    class RecordingMW(MyMiddleware):
-        def _handle(self, request):
-            ran.append("handle")
+    def get_response(request):
+        calls.append("get_response")
+        return "chain-response"
 
     @middleware_exempt
     def _exempt_one(request):
-        return "ok"
+        return "one"
 
     @middleware_exempt
     def _exempt_two(request):
-        return "ok"
+        return "two"
 
     def _normal(request):
-        return "ok"
+        return "three"
 
-    mw = RecordingMW(lambda r: "chain")
-    assert mw(_request_with_func(_exempt_one)) == "chain"
-    assert mw(_request_with_func(_exempt_two)) == "chain"
-    assert mw(_request_with_func(_normal)) == "chain"
+    mw = ExemptMiddleware(get_response)
+    assert mw(_request_with_func(_exempt_one)) == "one"
+    assert mw(_request_with_func(_exempt_two)) == "two"
+    assert mw(_request_with_func(_normal)) == "chain-response"
 
-    # Only the single normal view triggered the middleware logic.
-    assert ran == ["handle"]
+    # Only the normal view went through the chain.
+    assert calls == ["get_response"]
 
 
-def test_exempt_middleware_base_skips_exempt_view() -> None:
+def test_exempt_view_receives_raw_request() -> None:
+    """The exempt view is called with the same request object it resolved to."""
     from core.middlewares import ExemptMiddleware, middleware_exempt
 
-    ran: list[str] = []
-
-    class MW(ExemptMiddleware):
-        def _handle(self, request):
-            ran.append("handle")
+    seen_requests: list[object] = []
 
     @middleware_exempt
     def _exempt(request):
+        seen_requests.append(request)
         return "ok"
 
-    mw = MW(lambda r: "chain")
-    assert mw(_request_with_func(_exempt)) == "chain"
-    assert ran == []
+    mw = ExemptMiddleware(lambda r: "chain")
+    request = _request_with_func(_exempt)
+    mw(request)
 
-
-def test_exempt_middleware_base_runs_handle_for_non_exempt() -> None:
-    from core.middlewares import ExemptMiddleware
-
-    ran: list[str] = []
-
-    class MW(ExemptMiddleware):
-        def _handle(self, request):
-            ran.append("handle")
-
-    def _normal(request):
-        return "ok"
-
-    mw = MW(lambda r: "chain")
-    assert mw(_request_with_func(_normal)) == "chain"
-    assert ran == ["handle"]
+    assert seen_requests == [request]
 
 
 def test_request_without_resolver_match_is_not_exempt() -> None:
     """A request with no resolver_match (e.g. a 404) is treated as non-exempt."""
-    from core.middlewares import MyMiddleware
+    from core.middlewares import ExemptMiddleware
 
-    ran: list[str] = []
+    calls: list[str] = []
 
-    class RecordingMW(MyMiddleware):
-        def _handle(self, request):
-            ran.append("handle")
+    def get_response(request):
+        calls.append("get_response")
+        return "chain-response"
 
-    mw = RecordingMW(lambda r: "chain")
-    assert mw(SimpleNamespace()) == "chain"
-    assert ran == ["handle"]
+    mw = ExemptMiddleware(get_response)
+    assert mw(SimpleNamespace()) == "chain-response"
+    assert calls == ["get_response"]
+
+
+def test_exempt_middleware_must_be_first_in_middleware() -> None:
+    """The settings guard ensures ExemptMiddleware is the first entry."""
+    assert settings.MIDDLEWARE[0] == "core.middlewares.ExemptMiddleware"
