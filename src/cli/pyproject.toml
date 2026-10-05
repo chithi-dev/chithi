@@ -32,7 +32,13 @@ dependencies = [
 
 [dependency-groups]
 build = ["nuitka>=2.8.9", "zstandard>=0.25.0"]
-dev = ["poethepoet>=0.39.0", "pyrefly>=0.62.0", "ruff>=0.15.12"]
+dev = [
+    "poethepoet>=0.39.0",
+    "pyrefly>=0.62.0",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+    "ruff>=0.15.12",
+]
 
 [tool.poe.tasks]
 nuitka-build = "python build.py"
@@ -60,3 +66,9 @@ combine-as-imports = true
 
 [tool.pyrefly]
 strict = true
+
+[tool.pytest.ini_options]
+python_files = ["test_*.py", "tests.py"]
+pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
