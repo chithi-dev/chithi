@@ -33,7 +33,7 @@
 | **shadcn-svelte Compliance** | DONE | 46 components, docs-exact patterns |
 | **Chunked Upload (50 MB)** | DONE | `upload.ts` — registerFile → uploadFileChunk loop → completeUpload |
 | **Chunked Download (50 MB)** | DONE | `download.ts` — fileInfo → chunkUrl loop → reassemble → decrypt |
-| **WebSocket Removal** | PARTIAL | WebSockets removed from backend; `upload/state.svelte.ts` still references `Api.STATE_WS` (404, non-fatal) |
+| **WebSocket Removal** | PARTIAL | WebSockets removed from backend; `Api.STATE_WS` / `Api.REVERSE` in `backend.ts` documented as placeholder URLs kept only to keep the dead reverse-share / state code compiling -- remove once that code is deleted |
 | **Crypto v3 (frontend)** | DONE | `encryption.ts`/`streams.ts`/`crypto.worker.ts` — AES-256-GCM + Argon2id + real per-file salt; `npm run check` clean |
 | **Crypto v3 (CLI)** | DONE | `crypto.py` rewritten (argon2-cffi + cryptography); 14 tests pass; cross-language interop verified |
 | **Crypto Docs** | DONE | `apps/docs/crypto-architecture.md` rewritten to v3 |
@@ -55,8 +55,10 @@
 | **Delete-Safety Fix** | DONE | `delete_file_chunks` no longer crashes on a missing prefix (local-filesystem `listdir` raises `FileNotFoundError`; S3 returns empty) - now a safe no-op |
 | **Backend Docs** | DONE | `backend/storage.md` (multi-backend), `backend/custom-clients.md` (REST+GraphQL protocol + Docker hosting), `crypto-architecture.md` moved into docs/; all registered in nav; Zensical build clean |
 | **Docker Celery Docs** | DONE | `celery` worker service present in all 8 compose files (basic + watchtower x vanila/caddy/nginx/traefik); no beat service (one-shot tasks, no periodic scheduler); all YAML validated |
-| **Chunk Proxy (ninja)** | DONE | `apps/api/views/files.py` `GET /files/{key}/chunk/{index}/bytes/` streams chunk bytes through the backend (one egress URL, no direct CDN); `services.open_chunk()` opens handle + size; reads run off the thread pool with an event-loop yield per block so a slow S3 read never blocks other requests; 200 + exact Content-Length + byte-for-byte match verified, expired -> 422 |
+| **Chunk Proxy (ninja)** | DONE | `apps/api/views/files.py` `GET /files/{key}/chunk/{index}/bytes/` streams chunk bytes through the backend (one egress URL, no direct CDN); 200 + exact Content-Length + byte-for-byte match verified, expired -> 422 |
+| **Unified Chunk Stream** | DONE | `services.open_chunk_stream()` is the single async interface for chunk egress. `S3_CDN_URL` set -> `httpx.AsyncClient` v2 `client.stream()` + `aiter_bytes` (all egress backend-mediated, client never hits the CDN); local `FileSystemStorage` -> `aiofiles` true-async reads; S3 -> `sync_to_async` handle with per-block loop yield. View is a one-liner `StreamingHttpResponse(services.open_chunk_stream(...))`; new deps `httpx` + `aiofiles` in `pyproject.toml`; 4 tests in `tests/test_chunk_stream.py` pass |
 | **N-Download Eviction** | DONE | `services.record_download()` increments `download_count` (atomic `F()`); called when the *last* chunk is fetched (the only signal a full download completed) by both `chunk_url` transports (GraphQL + ninja); when the count hits `expire_after_n_download`, schedules one-shot deletion (countdown=0), mirroring the time-based path; 8 task tests pass |
+| **Frontend Env Vars** | DONE | `src/env.ts` with `defineEnvVars` (zod schemas) for `PUBLIC_BACKEND_API` + optional donation/instance URLs; `experimental.explicitEnvironmentVariables: true` in `svelte.config.js`; `@sveltejs/kit` upgraded to `^2.70.3`; all `$env/dynamic/public` + `#consts/urls` consumers migrated to `import { ... } from '$app/env/public'` (backend.ts, layout.svelte); `svelte-check` clean on touched files |
 
 ---
 
