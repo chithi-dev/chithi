@@ -98,6 +98,17 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Object storage (S3 / B2). Two separate concerns:
+#   S3_PRIVATE_BUCKET_URL – the endpoint the backend writes chunks to
+#                           (B2 S3-compatible endpoint, R2, RUSTFS, etc.)
+#   S3_CDN_URL            – the public domain that serves chunk downloads
+#                           (Cloudflare Bandwidth Alliance domain, or
+#                           backblazeb2.com for B2's free-egress CDN)
+# When S3_CDN_URL is set, presigned_chunk_url returns a CDN URL instead of
+# a signed B2 URL, so the CLI / frontend fetch directly from the CDN.
+S3_PRIVATE_BUCKET_URL = os.environ.get("S3_PRIVATE_BUCKET_URL", "")
+S3_CDN_URL = os.environ.get("S3_CDN_URL", "").rstrip("/")
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "users.User"
 

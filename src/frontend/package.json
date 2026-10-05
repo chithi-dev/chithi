@@ -58,8 +58,6 @@
 		"@tailwindcss/forms": "^0.5.11",
 		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "=4.3.0",
-		"@tanstack/svelte-query": "^6.1.25",
-		"@tanstack/svelte-query-devtools": "^6.1.25",
 		"@tanstack/table-core": "^8.21.3",
 		"@types/argon2-browser": "^1.18.4",
 		"@types/caniuse-lite": "^1.0.5",

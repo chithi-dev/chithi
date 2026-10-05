@@ -60,9 +60,10 @@ class UrlBuilder:
         """Return the normalized frontend base URL."""
         return self.__ensure_trailing_slash(self._frontend_url)
 
-    def upload_url(self) -> str:
-        """Return the upload endpoint URL."""
-        return urljoin(self.backend_url, "upload")
+    def upload_url(self, suffix: str = "") -> str:
+        """Return the REST upload endpoint URL with an optional path suffix."""
+        base = urljoin(self.backend_url, "upload/")
+        return urljoin(base, suffix) if suffix else base
 
     def config_url(self) -> str:
         """Return the config endpoint URL."""

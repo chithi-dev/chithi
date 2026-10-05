@@ -39,6 +39,18 @@ def is_s3_backend() -> bool:
     )
 
 
+def _cdn_chunk_url(key: str) -> str:
+    """Build a public CDN URL for a single chunk object key.
+
+    Returns an empty string when S3_CDN_URL is not configured, so the
+    caller can fall back to a presigned S3 URL.
+    """
+    cdn_base = getattr(settings, "S3_CDN_URL", "")
+    if not cdn_base:
+        return ""
+    return f"{cdn_base}/{key}"
+
+
 # ---------------------------------------------------------------------------
 # S3 client (lazy - aioboto3 only imported when S3 is actually used)
 # ---------------------------------------------------------------------------
@@ -119,8 +131,22 @@ async def upload_chunk(file_key: str, index: int, data: bytes) -> None:
 
 
 async def presigned_chunk_url(file_key: str, index: int, expires_in: int = 3600) -> str:
-    """Return a URL the frontend can use to fetch one chunk directly."""
+    """Return a URL the frontend can use to fetch one chunk directly.
+
+    Priority:
+      1. S3_CDN_URL – static CDN URL (Cloudflare Bandwidth Alliance, B2 CDN).
+         No signing needed; the CDN serves the object by key path.
+      2. Presigned S3 URL – signed by the S3 endpoint (B2, R2, etc.).
+      3. Local MEDIA_URL – Django serves the file from the filesystem.
+    """
     key = chunk_key(file_key, index)
+
+    # Fastest path: a static CDN domain, no signing required.
+    cdn_url = _cdn_chunk_url(key)
+    if cdn_url:
+        return cdn_url
+
+    # Signed URL via the S3-compatible endpoint.
     if is_s3_backend():
         client = _s3_client()
         async with client as s3:
@@ -129,6 +155,8 @@ async def presigned_chunk_url(file_key: str, index: int, expires_in: int = 3600)
                 Params={"Bucket": settings.AWS_STORAGE_BUCKET_NAME, "Key": key},  # type: ignore[attr-defined]
                 ExpiresIn=expires_in,
             )
+
+    # Local filesystem fallback.
     return await _LocalStore().presigned_get_url(key, expires_in)
 
 

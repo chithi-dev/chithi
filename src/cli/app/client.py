@@ -1,100 +1,36 @@
-"""Async GraphQL API client for the Chithi backend.
+"""Async REST API client for the Chithi backend.
+
+The CLI speaks only REST (django-ninja); there is no GraphQL in this client.
 
 Upload flow:
-  1. registerFile  → get file key + chunk count
-  2. uploadFileChunk (per 50 MB chunk, multipart GraphQL)
-  3. completeUpload
+  1. POST /api/upload/register/  -> get file key
+  2. POST /api/upload/chunk/     (per 50 MB chunk, multipart)
+  3. POST /api/upload/complete/
 
 Download flow:
-  1. fileInfo      → get chunkCount
-  2. chunkUrl (per chunk) → presigned S3 URL
-  3. Fetch each chunk directly from S3
+  1. GET /api/files/{slug}/info/        -> get chunk_count
+  2. GET /api/files/{slug}/chunk/{i}/   -> presigned S3 URL (or local path)
+  3. Fetch each chunk from that URL
   4. Reassemble into a single byte buffer
 """
 
 from __future__ import annotations
 
-import io
-from pathlib import Path
 from types import TracebackType
 from typing import Any, Self
 
 import httpx2
-from tqdm import tqdm
 
 from app.builder.urls import UrlBuilder
-from app.settings import settings
 
 # Must match the backend's CHUNK_SIZE_BYTES
 CHUNK_SIZE = 50 * 1024 * 1024
 
 DEFAULT_TIMEOUT = httpx2.Timeout(connect=30.0, read=None, write=None, pool=None)
 
-# ── GraphQL documents ───────────────────────────────────────────────────────
-
-_REGISTER_FILE = """
-mutation RegisterFile(
-  $filename: String!
-  $totalSize: Int!
-  $chunkCount: Int!
-  $expiresAt: Int!
-  $expireAfterNDownload: Int!
-  $numberOfFiles: Int
-) {
-  registerFile(
-    filename: $filename
-    totalSize: $totalSize
-    chunkCount: $chunkCount
-    expiresAt: $expiresAt
-    expireAfterNDownload: $expireAfterNDownload
-    numberOfFiles: $numberOfFiles
-  ) { id key filename size chunkCount }
-}
-"""
-
-_UPLOAD_FILE_CHUNK = """
-mutation UploadFileChunk($fileKey: String!, $chunkIndex: Int!, $chunk: Upload!, $isLast: Boolean!) {
-  uploadFileChunk(fileKey: $fileKey, chunkIndex: $chunkIndex, chunk: $chunk, isLast: $isLast)
-}
-"""
-
-_COMPLETE_UPLOAD = """
-mutation CompleteUpload($fileId: ID!) {
-  completeUpload(fileId: $fileId)
-}
-"""
-
-_FILE_INFO = """
-query FileInfo($slug: String!) {
-  fileInfo(key: $slug) {
-    id key filename size chunkCount numberOfFiles
-    downloadCount createdAt expiresAt expireAfterNDownload isExpired
-  }
-}
-"""
-
-_CHUNK_URL = """
-mutation ChunkUrl($fileId: ID!, $chunkIndex: Int!) {
-  chunkUrl(fileId: $fileId, chunkIndex: $chunkIndex)
-}
-"""
-
-_CONFIG = """
-query Config {
-  config {
-    defaultExpiry
-    defaultNumberOfDownloads
-    allowUploads
-  }
-}
-"""
-
-
-# ── Client ─────────────────────────────────────────────────────────────────
-
 
 class Client:
-    """Async GraphQL + S3 client for the Chithi backend."""
+    """Async REST + object-storage client for the Chithi backend."""
 
     def __init__(self, urls: UrlBuilder) -> None:
         self.urls = urls
@@ -107,7 +43,6 @@ class Client:
             follow_redirects=True,
             http2=True,
         )
-        self._graphql_url = self.urls.backend_url.rstrip("/") + "/graphql/"
 
     # ── context manager ────────────────────────────────────────────────────
 
@@ -130,67 +65,68 @@ class Client:
         urls = UrlBuilder.resolve(initial_url)
         return cls(urls)
 
-    # ── low-level GraphQL helper ───────────────────────────────────────────
+    # ── REST endpoint URLs ─────────────────────────────────────────────────
 
-    async def _gql(self, query: str, variables: dict[str, Any] | None = None) -> dict[str, Any]:
-        """Send a plain JSON GraphQL request (no file upload)."""
-        payload: dict[str, Any] = {"query": query, "variables": variables or {}}
-        response = await self._session.post(
-            self._graphql_url,
-            json=payload,
-            headers={"Content-Type": "application/json"},
-        )
-        response.raise_for_status()
-        data = response.json()
-        if "errors" in data:
-            raise ConnectionError(f"GraphQL error: {data['errors']}")
-        return data["data"]
+    @property
+    def _api_base(self) -> str:
+        return self.urls.backend_url.rstrip("/")
 
-    async def _gql_multipart(
-        self,
-        query: str,
-        variables: dict[str, Any],
-        file_field: str,
-        file_bytes: bytes,
-        filename: str,
-    ) -> dict[str, Any]:
-        """Send a multipart GraphQL request with a file upload.
+    # backend_url already ends with /api/ (set by UrlBuilder.resolve),
+    # so paths here are relative to that base.
+    @property
+    def _api_register_url(self) -> str:
+        return self._api_base + "/upload/register/"
 
-        Follows the GraphQL Multipart Request Spec:
-          operations  = JSON with the query + variables (file vars as null)
-          map         = JSON mapping variable names to file part indices
-          0           = the file blob
+    @property
+    def _api_chunk_url(self) -> str:
+        return self._api_base + "/upload/chunk/"
+
+    @property
+    def _api_complete_url(self) -> str:
+        return self._api_base + "/upload/complete/"
+
+    @property
+    def _api_config_url(self) -> str:
+        return self._api_base + "/config/"
+
+    def _api_file_info_url(self, slug: str) -> str:
+        return self._api_base + f"/files/{slug}/info/"
+
+    def _api_file_chunk_url(self, slug: str, index: int) -> str:
+        return self._api_base + f"/files/{slug}/chunk/{index}/"
+
+    # ── low-level REST helpers ─────────────────────────────────────────────
+
+    async def _api_request(self, method: str, url: str, **kwargs: Any) -> dict[str, Any]:
+        """Send a REST request and return the parsed JSON body.
+
+        Raises ConnectionError with the server's detail if the response is 4xx/5xx.
         """
-        import json
+        response = await self._session.request(method, url, **kwargs)
+        if response.status_code >= 400:
+            try:
+                body = response.json()
+            except Exception:
+                body = {}
+            detail = body.get("detail", response.text)
+            raise ConnectionError(f"{method} {url} -> {response.status_code}: {detail}")
+        return response.json()
 
-        # Build the operations JSON (file variables are null in JSON)
-        json_vars = {k: (None if k == file_field else v) for k, v in variables.items()}
-        operations = json.dumps({"query": query, "variables": json_vars})
-        mapping = json.dumps({file_field: ["0"]})
+    async def _api_post(self, url: str, **kwargs: Any) -> dict[str, Any]:
+        return await self._api_request("POST", url, **kwargs)
 
-        files = {
-            "operations": (None, operations, "application/json"),
-            "map": (None, mapping, "application/json"),
-            "0": (filename, file_bytes, "application/octet-stream"),
-        }
-
-        response = await self._session.post(self._graphql_url, files=files)
-        response.raise_for_status()
-        data = response.json()
-        if "errors" in data:
-            raise ConnectionError(f"GraphQL error: {data['errors']}")
-        return data["data"]
+    async def _api_get(self, url: str, **kwargs: Any) -> dict[str, Any]:
+        return await self._api_request("GET", url, **kwargs)
 
     # ── public API ─────────────────────────────────────────────────────────
 
     async def get_config(self) -> dict[str, Any]:
-        data = await self._gql(_CONFIG)
-        config = data.get("config") or {}
-        # Normalise camelCase → snake_case keys the CLI expects
+        """Fetch the instance config (REST) and normalise to the CLI's keys."""
+        config = await self._api_get(self._api_config_url)
         return {
-            "default_expiry": config.get("defaultExpiry", 86400),
-            "default_number_of_downloads": config.get("defaultNumberOfDownloads", 1),
-            "allow_uploads": config.get("allowUploads", True),
+            "default_expiry": config.get("default_expiry", 86400),
+            "default_number_of_downloads": config.get("default_number_of_downloads", 1),
+            "allow_uploads": config.get("allow_uploads", True),
         }
 
     async def upload_file(
@@ -201,77 +137,83 @@ class Client:
         expire_after: int = 86400,
         number_of_files: int | None = None,
     ) -> dict[str, Any]:
-        """Upload encrypted bytes in 50 MB chunks via the GraphQL chunked flow.
+        """Upload encrypted bytes in 50 MB chunks via the REST chunked flow.
+
+        Uses the django-ninja endpoints:
+          1. POST /api/upload/register/  -> get file key
+          2. POST /api/upload/chunk/     -> upload each chunk (multipart)
+          3. POST /api/upload/complete/  -> verify all chunks arrived
 
         Returns a dict with 'id' and 'key' (the file slug).
         """
         total_size = len(encrypted_data)
         chunk_count = max(1, -(-total_size // CHUNK_SIZE))  # ceil div
 
-        # 1. Register the file
-        reg_data = await self._gql(_REGISTER_FILE, {
+        # 1. Register the file (JSON body)
+        register_body = {
             "filename": filename,
-            "totalSize": total_size,
-            "chunkCount": chunk_count,
-            "expiresAt": expire_after,
-            "expireAfterNDownload": expire_after_n_download,
-            "numberOfFiles": number_of_files,
-        })
-        registered = reg_data["registerFile"]
-        file_key: str = registered["key"]
-        file_id: str = registered["id"]
+            "total_size": total_size,
+            "chunk_count": chunk_count,
+            "expires_at": expire_after,
+            "expire_after_n_download": expire_after_n_download,
+            "number_of_files": number_of_files,
+        }
+        reg = await self._api_post(self._api_register_url, json=register_body)
+        file_key: str = reg["key"]
+        file_id: str = reg["id"]
 
-        # 2. Upload each chunk
+        # 2. Upload each chunk (multipart form)
         for i in range(chunk_count):
             start = i * CHUNK_SIZE
             end = min(start + CHUNK_SIZE, total_size)
             chunk_bytes = encrypted_data[start:end]
-            is_last = i == chunk_count - 1
 
-            await self._gql_multipart(
-                _UPLOAD_FILE_CHUNK,
-                variables={
-                    "fileKey": file_key,
-                    "chunkIndex": i,
-                    "chunk": None,
-                    "isLast": is_last,
-                },
-                file_field="chunk",
-                file_bytes=chunk_bytes,
-                filename=f"chunk-{i}",
+            await self._api_post(
+                self._api_chunk_url,
+                data={"file_key": file_key, "chunk_index": i},
+                files={"chunk": (f"chunk-{i}", chunk_bytes, "application/octet-stream")},
             )
 
-        # 3. Complete the upload
-        await self._gql(_COMPLETE_UPLOAD, {"fileId": file_id})
+        # 3. Complete the upload (form field)
+        await self._api_post(self._api_complete_url, data={"file_key": file_key})
 
         return {"id": file_id, "key": file_key}
 
     async def download_file(self, slug: str) -> bytes:
-        """Download a file chunk-by-chunk from S3 via presigned URLs.
+        """Download a file chunk-by-chunk via REST chunk-URL endpoints.
 
-        Returns the reassembled encrypted bytes.
+        Each chunk URL is a presigned S3 URL (or a local path when the backend
+        uses filesystem storage). Returns the reassembled encrypted bytes.
         """
-        # 1. Get file info
-        info_data = await self._gql(_FILE_INFO, {"slug": slug})
-        info = info_data["fileInfo"]
-        if info is None:
-            raise ConnectionError("File not found")
-        if info["isExpired"]:
+        # 1. Get file info (REST)
+        info = await self._api_get(self._api_file_info_url(slug))
+        if info.get("is_expired"):
             raise ConnectionError("File has expired")
 
-        chunk_count: int = info["chunkCount"]
-        file_id: str = info["id"]
+        chunk_count: int = info["chunk_count"]
 
-        # 2. Fetch each chunk from S3
+        # 2. Fetch each chunk from its presigned URL
         chunks: list[bytes] = []
         for i in range(chunk_count):
-            url_data = await self._gql(_CHUNK_URL, {"fileId": file_id, "chunkIndex": i})
-            url: str = url_data["chunkUrl"]
+            url_data = await self._api_get(self._api_file_chunk_url(slug, i))
+            url: str = url_data["url"]
             if not url:
-                raise ConnectionError(f"No presigned URL for chunk {i}")
+                raise ConnectionError(f"No URL returned for chunk {i}")
 
-            async with self._session.stream("GET", url) as resp:
-                resp.raise_for_status()
+            # Resolve relative URLs (local storage) against the origin,
+            # not the API path. The /media/ route lives at the Django root.
+            if url.startswith(("http://", "https://")):
+                fetch_url = url
+            else:
+                from urllib.parse import urlparse
+
+                parsed = urlparse(self.urls.backend_url)
+                origin = f"{parsed.scheme}://{parsed.netloc}"
+                fetch_url = origin + url
+
+            async with self._session.stream("GET", fetch_url) as resp:
+                if resp.status_code >= 400:
+                    raise ConnectionError(f"Chunk {i} fetch failed: {resp.status_code}")
                 chunks.append(b"".join([c async for c in resp.aiter_bytes()]))
 
         return b"".join(chunks)

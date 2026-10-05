@@ -36,6 +36,7 @@ def _gf_mul(a: int, b: int) -> int:
 # 2. Reed-Solomon encoder
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def _rs_gen(nsym: int) -> list[int]:
     """Generator polynomial of degree *nsym* over GF(256)."""
     g = [1]
@@ -63,6 +64,7 @@ def _rs_encode(data: bytes, nsym: int) -> bytes:
 # ═══════════════════════════════════════════════════════════════════════════
 # 3. QR code parameters  (ISO/IEC 18004 Tables 2-3)
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 def _size(ver: int) -> int:
     """Module count for a given version."""
@@ -135,6 +137,7 @@ _ALIGNMENT: dict[int, list[int]] = {
 # 4. Data encoding  (byte mode)
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def _total_raw_codewords(ver: int) -> int:
     """Total codewords in the raw code (data + EC)."""
     return 4 * ver * ver + 26 * ver + 16
@@ -203,6 +206,7 @@ def _encode_stream(msg: bytes, ver: int, ec: int) -> bytes:
 # 5. Error correction & interleaving
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def _add_ec(data: bytes, ver: int, ec: int) -> bytes:
     """Add RS error correction and interleave blocks."""
     dcw, dist = _CAPACITY[(ver, ec)]
@@ -235,6 +239,7 @@ def _add_ec(data: bytes, ver: int, ec: int) -> bytes:
 # ═══════════════════════════════════════════════════════════════════════════
 # 6. Matrix construction
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 def _reserved(n: int, ver: int) -> list[list[bool]]:
     """Mark cells reserved by structural elements."""
@@ -393,6 +398,7 @@ def _mask_apply(
 # 8. Penalty scoring  (ISO/IEC 18004 Annex E)
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def _penalty(m: list[list[int]]) -> int:
     n = len(m)
     p = 0
@@ -454,6 +460,7 @@ def _penalty(m: list[list[int]]) -> int:
 # 9. Format information  (BCH(15, 5), generator 10100110111)
 # ═══════════════════════════════════════════════════════════════════════════
 
+
 def _format_info(ec: int, mask: int) -> int:
     """Compute 15-bit format information word."""
     data = (ec << 13) | (mask << 10)
@@ -466,14 +473,21 @@ def _format_info(ec: int, mask: int) -> int:
 
 # Pre-computed for EC-H (ec=3) to avoid runtime errors:
 _FMT_H = {
-    0: 0x5412, 1: 0x512A, 2: 0x5E25, 3: 0x5B1D,
-    4: 0x45F1, 5: 0x40C9, 6: 0x4FC6, 7: 0x4AFE,
+    0: 0x5412,
+    1: 0x512A,
+    2: 0x5E25,
+    3: 0x5B1D,
+    4: 0x45F1,
+    5: 0x40C9,
+    6: 0x4FC6,
+    7: 0x4AFE,
 }
 
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 10. Public API
 # ═══════════════════════════════════════════════════════════════════════════
+
 
 def matrix(text: str, ec: int = 3) -> list[list[int]]:
     """Encode *text* into a QR code matrix.
