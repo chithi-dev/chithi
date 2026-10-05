@@ -1,4 +1,8 @@
-# Chithi — Cryptography Architecture (Scheme v3)
+---
+icon: lucide/lock
+---
+
+# Cryptography Architecture (Scheme v3)
 
 ## Overview
 
@@ -222,7 +226,7 @@ NONCE_LENGTH            = 12
 - **Frontend** (`src/frontend/src/lib/functions/encryption.client.test.ts`):
   base64/base64url, `generateSecret` (32 B), `deriveFileKey` (AES-256, salt-sensitive),
   `passwordToIkM` (Argon2id, salt-sensitive), AES-256-GCM roundtrip.
-- **CLI** (`src/cli/test_crypto.py`): 14 tests covering IKM/file-key derivation,
+- **CLI** (`src/cli/test/test_crypto.py`): 14 tests covering IKM/file-key derivation,
   nonce base, record nonce, header format (version 3), encrypt/decrypt roundtrips
   (password + secret), file bundle roundtrip, and rejection of wrong password /
   empty input / short ciphertext.
