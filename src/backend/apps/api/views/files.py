@@ -6,8 +6,8 @@ These back the CLI download flow:
 2. ``GET /files/{file_key}/chunk/{index}/`` - a presigned S3 URL for one chunk
 
 Both mirror the GraphQL ``fileInfo`` query and ``chunkUrl`` mutation. The
-database read is sync, so it is wrapped in ``sync_to_async``; the presigned-URL
-generation is async (aioboto3) and awaited directly.
+database read is sync, so it is wrapped in ``sync_to_async``; the URL
+generation runs through the storage backend and is likewise awaited.
 """
 
 from uuid import UUID

@@ -21,11 +21,11 @@ dependencies = [
     "python-dotenv>=1.2.2",
     # S3 handling
     "boto3>=1.37",
-    "aioboto3>=15.5.0",
-    # File uploading 
+    # File uploading
     "python-multipart>=0.0.18",
     # Database env handling
     "dj-database-url>=3.1.2",
+    "django-storages[s3]>=1.14.6",
 ]
 
 [dependency-groups]

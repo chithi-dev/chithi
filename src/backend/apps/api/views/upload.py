@@ -8,10 +8,10 @@ Mirrors the three-step contract used by the GraphQL mutations:
 
 Both transports write to the same S3 / local objects via ``services.upload_chunk``.
 
-The storage service is async (aioboto3), so the views are async too. The Django
-ORM and the ``Config`` singleton are sync, so every database access below is
-wrapped in ``sync_to_async`` to keep the event loop unblocked and avoid
-``SynchronousOnlyOperation``.
+The storage service is async (sync_to_async over the sync storage backend),
+so the views are async too. The Django ORM and the ``Config`` singleton are
+sync, so every database access below is wrapped in ``sync_to_async`` to keep
+the event loop unblocked and avoid ``SynchronousOnlyOperation``.
 """
 
 from uuid import uuid4

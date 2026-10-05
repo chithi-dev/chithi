@@ -1,23 +1,30 @@
-"""Storage service - S3-compatible object storage with chunked upload.
+"""Storage service - chunked file upload/download via Django storage backends.
 
-Architecture (per project requirements):
+Architecture:
 - **Upload**: the frontend splits the encrypted payload into 50 MB chunks and
-  uploads each chunk through a GraphQL mutation. Django streams each chunk to
-  S3 as a separate object under ``{file_key}/chunk-{index}``.
-- **Download**: the frontend fetches each chunk **directly from S3** using
-  presigned URLs (S3 sits behind Cloudflare), then reassembles and decrypts.
-  Django is not in the download hot path.
+  uploads each chunk through a GraphQL mutation or the ninja API. Django writes
+  each chunk as a separate object under ``{file_key}/chunk-{index}``.
+- **Download**: the frontend fetches each chunk **directly from the storage
+  backend** using presigned URLs (S3) or a MEDIA_URL path (local), then
+  reassembles and decrypts. Django is not in the download hot path.
 
-If S3 is not configured, a local-filesystem fallback keeps the same object-key
-layout so the rest of the app (and the frontend chunk contract) is unchanged.
+The storage backend is selected at startup in ``settings.py`` via the
+``STORAGES`` setting: ``S3Storage`` when credentials are present,
+``FileSystemStorage`` otherwise. All access goes through
+``django.core.files.storage.default_storage`` so the rest of the app is
+backend-agnostic.
 """
 
-import io
 import logging
-import os
-from pathlib import Path
+from typing import TYPE_CHECKING
 
+from asgiref.sync import sync_to_async
 from django.conf import settings
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
+
+if TYPE_CHECKING:
+    from django.core.files.storage import Storage
 
 logger = logging.getLogger(__name__)
 
@@ -25,25 +32,21 @@ logger = logging.getLogger(__name__)
 CHUNK_SIZE_BYTES = 50 * 1024 * 1024
 
 
+def _storage() -> "Storage":
+    """Return the configured default storage backend."""
+    return default_storage
+
+
 def chunk_key(file_key: str, index: int) -> str:
-    """S3 object key for a single chunk of a file."""
+    """Object key for a single chunk of a file."""
     return f"{file_key}/chunk-{index}"
-
-
-def is_s3_backend() -> bool:
-    """True if S3 credentials + bucket are configured."""
-    return bool(
-        getattr(settings, "S3_ACCESS_KEY_ID", "")
-        and getattr(settings, "S3_SECRET_ACCESS_KEY", "")
-        and getattr(settings, "S3_BUCKET_NAME", "")
-    )
 
 
 def _cdn_chunk_url(key: str) -> str:
     """Build a public CDN URL for a single chunk object key.
 
     Returns an empty string when S3_CDN_URL is not configured, so the
-    caller can fall back to a presigned S3 URL.
+    caller can fall back to a presigned / relative URL.
     """
     cdn_base = getattr(settings, "S3_CDN_URL", "")
     if not cdn_base:
@@ -51,145 +54,56 @@ def _cdn_chunk_url(key: str) -> str:
     return f"{cdn_base}/{key}"
 
 
-# ---------------------------------------------------------------------------
-# S3 client (lazy - aioboto3 only imported when S3 is actually used)
-# ---------------------------------------------------------------------------
-
-
-def _s3_resource():
-    import aioboto3
-
-    return aioboto3.resource(
-        "s3",
-        endpoint_url=getattr(settings, "S3_ENDPOINT_URL", None) or None,
-        aws_access_key_id=settings.S3_ACCESS_KEY_ID,  # type: ignore[attr-defined]
-        aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,  # type: ignore[attr-defined]
-    )
-
-
-def _s3_client():
-    import aioboto3
-
-    return aioboto3.client(
-        "s3",
-        endpoint_url=getattr(settings, "S3_ENDPOINT_URL", None) or None,
-        aws_access_key_id=settings.S3_ACCESS_KEY_ID,  # type: ignore[attr-defined]
-        aws_secret_access_key=settings.S3_SECRET_ACCESS_KEY,  # type: ignore[attr-defined]
-    )
-
-
-# ---------------------------------------------------------------------------
-# Local-filesystem fallback (same object-key layout)
-# ---------------------------------------------------------------------------
-
-
-class _LocalStore:
-    """Local-filesystem stand-in for S3, used when S3 is not configured."""
-
-    def __init__(self) -> None:
-        self.root = Path(settings.MEDIA_ROOT)
-        self.root.mkdir(parents=True, exist_ok=True)
-
-    def _path(self, key: str) -> Path:
-        return self.root / key
-
-    async def put(self, key: str, data: bytes) -> None:
-        path = self._path(key)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(data)
-
-    async def presigned_get_url(self, key: str, expires_in: int) -> str:
-        # Local files are served by Django at MEDIA_URL (DEBUG) or a CDN (prod).
-        # A relative URL keeps the client free to prepend its own origin.
-        media_url = getattr(settings, "MEDIA_URL", "/media/")
-        return f"{media_url.rstrip('/')}/{key}/"
-
-    async def delete_prefix(self, prefix: str) -> None:
-        base = self._path(prefix)
-        if base.is_dir():
-            for child in sorted(base.rglob("*"), reverse=True):
-                if child.is_file():
-                    child.unlink()
-            base.rmdir()
-
-
-# ---------------------------------------------------------------------------
-# Public storage API
-# ---------------------------------------------------------------------------
-
-
 async def upload_chunk(file_key: str, index: int, data: bytes) -> None:
     """Upload a single chunk (<= 50 MB) to storage."""
     key = chunk_key(file_key, index)
-    if is_s3_backend():
-        res = _s3_resource()
-        async with res as s3:
-            await s3.Object(settings.S3_BUCKET_NAME, key).put(Body=data)  # type: ignore[attr-defined]
-    else:
-        await _LocalStore().put(key, data)
+    await sync_to_async(_storage().save)(key, ContentFile(data))
     logger.debug("Uploaded chunk %s/%d (%d bytes)", file_key, index, len(data))
 
 
-async def presigned_chunk_url(file_key: str, index: int, expires_in: int = 3600) -> str:
+async def presigned_chunk_url(
+    file_key: str, index: int, expires_in: int = 3600
+) -> str:
     """Return a URL the frontend can use to fetch one chunk directly.
 
     Priority:
-      1. S3_CDN_URL – static CDN URL (Cloudflare Bandwidth Alliance, B2 CDN).
-         No signing needed; the CDN serves the object by key path.
-      2. Presigned S3 URL – signed by the S3 endpoint (B2, R2, etc.).
-      3. Local MEDIA_URL – Django serves the file from the filesystem.
+      1. S3_CDN_URL -- static CDN URL (Cloudflare, B2 CDN). No signing needed.
+      2. Presigned S3 URL -- signed by the S3 endpoint (B2, R2, etc.).
+      3. Local MEDIA_URL -- Django serves the file from the filesystem.
     """
     key = chunk_key(file_key, index)
 
-    # Fastest path: a static CDN domain, no signing required.
     cdn_url = _cdn_chunk_url(key)
     if cdn_url:
         return cdn_url
 
-    # Signed URL via the S3-compatible endpoint.
-    if is_s3_backend():
-        client = _s3_client()
-        async with client as s3:
-            return await s3.generate_presigned_url(
-                "get_object",
-                Params={"Bucket": settings.S3_BUCKET_NAME, "Key": key},  # type: ignore[attr-defined]
-                ExpiresIn=expires_in,
-            )
-
-    # Local filesystem fallback.
-    return await _LocalStore().presigned_get_url(key, expires_in)
+    return await sync_to_async(_storage().url)(key)
 
 
 async def delete_file_chunks(file_key: str) -> None:
     """Delete every chunk of a file from storage."""
-    if is_s3_backend():
-        res = _s3_resource()
-        async with res as s3:
-            client = s3.meta.client
-            prefix = f"{file_key}/"
-            # List all chunks then delete in a single batch (max 1000 keys).
-            resp = await client.list_objects_v2(
-                Bucket=settings.S3_BUCKET_NAME, Prefix=prefix  # type: ignore[attr-defined]
-            )
-            contents = resp.get("Contents", [])
-            if contents:
-                await client.delete_objects(
-                    Bucket=settings.S3_BUCKET_NAME,  # type: ignore[attr-defined]
-                    Delete={"Objects": [{"Key": obj["Key"]} for obj in contents]},
-                )
-    else:
-        await _LocalStore().delete_prefix(f"{file_key}/")
+    await sync_to_async(_delete_by_prefix)(f"{file_key}/")
+
+
+def _delete_by_prefix(prefix: str) -> None:
+    """List and delete all objects under *prefix*."""
+    storage = _storage()
+    dir_path = prefix.rstrip("/")
+
+    subdirs, files = storage.listdir(dir_path)
+    for name in files:
+        storage.delete(f"{dir_path}/{name}")
+
+    for subdir in subdirs:
+        storage.delete(f"{dir_path}/{subdir}")
+
+    logger.debug("Deleted contents of %s", prefix)
 
 
 async def file_chunks_exist(file_key: str, count: int) -> bool:
     """Check that all expected chunks are present in storage."""
-    if is_s3_backend():
-        res = _s3_resource()
-        async with res as s3:
-            for i in range(count):
-                obj = s3.Object(settings.S3_BUCKET_NAME, chunk_key(file_key, i))  # type: ignore[attr-defined]
-                if not await obj.metadata():
-                    return False
-            return True
-    store = _LocalStore()
-    return all(store._path(chunk_key(file_key, i)).exists() for i in range(count))
+    storage = _storage()
+    for i in range(count):
+        if not await sync_to_async(storage.exists)(chunk_key(file_key, i)):
+            return False
+    return True

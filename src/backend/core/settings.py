@@ -110,6 +110,51 @@ S3_ACCESS_KEY_ID = os.environ.get("S3_ACCESS_KEY_ID", "")
 S3_SECRET_ACCESS_KEY = os.environ.get("S3_SECRET_ACCESS_KEY", "")
 S3_BUCKET_NAME = os.environ.get("S3_BUCKET_NAME", "")
 S3_CDN_URL = os.environ.get("S3_CDN_URL", "").rstrip("/")
+S3_REGION_NAME = os.environ.get("S3_REGION_NAME", "")
+S3_ADDRESSING_STYLE = os.environ.get("S3_ADDRESSING_STYLE", "")
+S3_QUERYSTRING_AUTH = os.environ.get("S3_QUERYSTRING_AUTH", "True").lower() == "true"
+S3_QUERYSTRING_EXPIRE = int(os.environ.get("S3_QUERYSTRING_EXPIRE", "3600"))
+
+# The "default" storage backend. S3 when credentials are present, otherwise
+# local filesystem so the app runs in dev with zero configuration.
+_HAS_S3 = bool(S3_ACCESS_KEY_ID and S3_SECRET_ACCESS_KEY and S3_BUCKET_NAME)
+
+if _HAS_S3:
+    _S3_OPTIONS: dict[str, str | int | bool | None] = {
+        "bucket_name": S3_BUCKET_NAME,
+        "access_key": S3_ACCESS_KEY_ID,
+        "secret_key": S3_SECRET_ACCESS_KEY,
+        "endpoint_url": S3_ENDPOINT_URL or None,
+        "querystring_auth": S3_QUERYSTRING_AUTH,
+        "querystring_expire": S3_QUERYSTRING_EXPIRE,
+    }
+    if S3_REGION_NAME:
+        _S3_OPTIONS["region_name"] = S3_REGION_NAME
+    if S3_ADDRESSING_STYLE:
+        _S3_OPTIONS["addressing_style"] = S3_ADDRESSING_STYLE
+    if S3_CDN_URL:
+        _S3_OPTIONS["custom_domain"] = S3_CDN_URL.rstrip(".")
+        _S3_OPTIONS["querystring_auth"] = False
+
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+            "OPTIONS": _S3_OPTIONS,
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
+else:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+            "OPTIONS": {"location": str(MEDIA_ROOT)},
+        },
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+        },
+    }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "users.User"
