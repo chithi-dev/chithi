@@ -18,7 +18,6 @@
   import { formatFileSize } from '#functions/bytes';
   import { formatDate } from '#functions/dates';
   import { autoDownload } from '$lib/functions/browser-download';
-  import { Api } from '#consts/backend';
   import { createDecryptedStream } from '#functions/streams';
   import { resolve } from '$app/paths';
   import { extractEncryptionKey } from './utils';
@@ -29,10 +28,19 @@
   const { room_id }: { room_id: string } = $props();
   let roomKey = $derived(extractEncryptionKey(page.url.hash.slice(1)));
   const downloadHref = (key: string) => resolve(`/download/${key}${roomKey ? `#${roomKey}` : ''}`);
-  let loadStatus = $state<'loading' | 'not_found' | 'error' | 'loaded'>('loading');
+
+  // The backend is a stateless relay and stores no room. The guest's view of
+  // the room is built entirely from relayed messages (file_added, etc). We
+  // seed a minimal local object so the UI has something to render before the
+  // host's first message arrives.
+  let loadStatus = $state<'loading' | 'loaded'>('loading');
   let room = $state<RoomOut | null>(null);
   let roomFiles = $state<RoomFileEntry[]>([]);
-  let hostCount = $state(1);
+  let hostCount = $state(0);
+  let connectedHosts = $state(0);
+  let connectedGuests = $state(0);
+  let roomName = $state('Shared Room');
+  let roomReady = $state(false);
   let receiveState = $state<ReceiveState>({ type: 'idle' });
   let downloadedFiles = $state<DownloadedFile[]>([]);
   let decryptionProgress = $state(new Tween(0, { duration: 500, easing: cubicOut }));
@@ -154,9 +162,19 @@
     },
 
     onConnectionCounts: (h: number, g: number) => {
+      connectedHosts = h;
+      connectedGuests = g;
       if (room) {
         room.connected_hosts = h;
         room.connected_guests = g;
+      }
+    },
+
+    // The host broadcasts a new file entry after it lands in backend storage.
+    // The guest records it so the user can request a stream.
+    onFileAdded: (f: RoomFileEntry) => {
+      if (!roomFiles.some((existing) => existing.key === f.key)) {
+        roomFiles = [...roomFiles, f];
       }
     },
   });
@@ -191,24 +209,22 @@
     loadRoom();
   }
 
-  async function loadRoom() {
-    loadStatus = 'loading';
-    try {
-      const res = await fetch(Api.REVERSE.ROOM_DETAIL(room_id), { credentials: 'include' });
-      if (res.status === 404) {
-        loadStatus = 'not_found';
-        return;
-      }
-      if (!res.ok) throw new Error();
-      const data: RoomOut = await res.json();
-      room = data;
-      roomFiles = structuredClone(data.files);
-      hostCount = data.host_count ?? 1;
-      loadStatus = 'loaded';
-      if (!roomKey) showKeyPrompt = true;
-    } catch {
-      loadStatus = 'error';
-    }
+  // No REST round-trip: the guest's room is assembled from relayed messages.
+  // We seed the local object immediately and let WS events fill it in.
+  function loadRoom() {
+    room = {
+      id: room_id,
+      name: roomName,
+      expires_at: new Date().toISOString(),
+      files: [],
+      active_uploads: [],
+      host_count: 0,
+      connected_hosts: 0,
+      connected_guests: 0,
+    };
+    roomFiles = [];
+    loadStatus = 'loaded';
+    roomReady = true;
   }
 
   async function copyShareLink() {
@@ -289,25 +305,6 @@
       <span>Loading room…</span>
     </div>
   </div>
-{:else if loadStatus === 'not_found'}
-  <div class="flex min-h-[70vh] items-center justify-center p-4">
-    <div class="space-y-4 text-center">
-      <h2 class="text-2xl font-bold">Room Not Found</h2>
-      <p class="text-muted-foreground">This room doesn't exist or has expired.</p>
-      <Button onclick={() => goto('/reverse')}><ArrowLeft class="mr-2 h-4 w-4" />Back to Reverse Share</Button>
-    </div>
-  </div>
-{:else if loadStatus === 'error'}
-  <div class="flex min-h-[70vh] items-center justify-center p-4">
-    <div class="space-y-4 text-center">
-      <h2 class="text-2xl font-bold">Something went wrong</h2>
-      <p class="text-muted-foreground">Failed to load the room. Please try again.</p>
-      <div class="flex justify-center gap-2">
-        <Button variant="outline" onclick={() => goto('/reverse')}><ArrowLeft class="mr-2 h-4 w-4" />Go Back</Button>
-        <Button onclick={loadRoom}>Retry</Button>
-      </div>
-    </div>
-  </div>
 {:else if loadStatus === 'loaded' && room}
   {#if downloadPreference === null}
     <div class="mx-auto flex min-h-[60vh] max-w-2xl flex-col items-center justify-center p-4">
@@ -346,8 +343,8 @@
             <Badge variant="secondary">Guest</Badge>
             <Tooltip.Provider>
               <Tooltip.Root>
-                <Tooltip.Trigger><Badge variant="outline" class="gap-1"><Users class="h-3 w-3" />{room.connected_hosts} {room.connected_hosts === 1 ? 'host' : 'hosts'}</Badge></Tooltip.Trigger>
-                <Tooltip.Content>{room.connected_hosts} host{room.connected_hosts === 1 ? '' : 's'} online</Tooltip.Content>
+                <Tooltip.Trigger><Badge variant="outline" class="gap-1"><Users class="h-3 w-3" />{connectedHosts} {connectedHosts === 1 ? 'host' : 'hosts'}</Badge></Tooltip.Trigger>
+                <Tooltip.Content>{connectedHosts} host{connectedHosts === 1 ? '' : 's'} online</Tooltip.Content>
               </Tooltip.Root>
             </Tooltip.Provider>
             <Tooltip.Provider>

@@ -9,7 +9,6 @@
 	import * as Field from '$lib/components/ui/field/index.js';
 	import { Upload, Download, ArrowLeft } from '@lucide/svelte';
 	import { Spinner } from '$lib/components/ui/spinner/index.js';
-	import { Api } from '#consts/backend';
 	import { usePrefetchedQuery } from '$lib/graphql/hydration.svelte.js';
 	import { ConfigDocument, type ConfigQuery } from '$lib/graphql/generated/graphql.js';
 	import { base64url } from '#functions/encryption';
@@ -43,31 +42,20 @@
 		}
 	});
 
-	async function createRoom() {
+	function createRoom() {
 		if (!roomName.trim()) {
 			toast.error('Please enter a room name');
 			return;
 		}
 		isCreating = true;
 		try {
-			const res = await fetch(Api.REVERSE.ROOMS, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					name: roomName.trim(),
-					expire_after: expireAfter,
-					number_of_downloads: numberOfDownloads === '' ? null : Number(numberOfDownloads)
-				}),
-				credentials: 'include'
-			});
-			if (!res.ok) {
-				const err = await res.json().catch(() => ({}));
-				throw new Error((err as { detail?: string }).detail ?? `HTTP ${res.status}`);
-			}
-			const data = (await res.json()) as { id: string; host_token: string };
-			const roomKeyBytes = crypto.getRandomValues(new Uint8Array(32));
-			const roomKey = base64url(roomKeyBytes);
-			goto(`/reverse/${data.id}#${data.host_token}:${roomKey}`);
+			// The backend is a stateless relay: it stores no room records.
+			// The room identity (id, host token, encryption key) is generated
+			// entirely client-side and carried in the URL hash.
+			const roomId = crypto.randomUUID();
+			const hostToken = base64url(crypto.getRandomValues(new Uint8Array(24)));
+			const roomKey = base64url(crypto.getRandomValues(new Uint8Array(32)));
+			goto(`/reverse/${roomId}#${hostToken}:${roomKey}`);
 		} catch (e: unknown) {
 			toast.error(`Failed to create room: ${e instanceof Error ? e.message : String(e)}`);
 		} finally {

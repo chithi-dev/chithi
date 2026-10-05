@@ -69,6 +69,7 @@ nav = [
     { "Backend" = [
         { "Architecture" = "backend/architecture.md" },
         { "Storage Backends" = "backend/storage.md" },
+        { "Database Backends" = "backend/database.md" },
         { "Custom Clients" = "backend/custom-clients.md" },
         { "Environment" = "backend/environment.md" },
         { "License" = "backend/license.md" },

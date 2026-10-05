@@ -52,10 +52,13 @@ export class Api {
 	}
 
 	/**
-	 * Reverse-share (P2P) routes -- the backend currently has no WebSocket
-	 * support, so these are placeholder URLs kept only to keep the existing
-	 * client code compiling. Remove once the feature is either implemented
-	 * server-side or deleted from the frontend.
+	 * Reverse-share (P2P) signaling.
+	 *
+	 * The backend is a stateless relay: it stores no room records and no file
+	 * bytes. It only joins sockets into a Channels group keyed by room id,
+	 * forwards JSON between members, and streams a stored file's bytes on
+	 * ``request_file``. The host owns the room and drives every message over
+	 * this WebSocket.
 	 */
 	static get REVERSE() {
 		const ws = (path: string, params?: Record<string, string>) => {
@@ -67,10 +70,6 @@ export class Api {
 			return url.href;
 		};
 		return {
-			ROOMS: `${root}/reverse/rooms`,
-			ROOM_DETAIL: (id: string) => `${root}/reverse/rooms/${id}`,
-			ROOM_UPLOAD: (id: string) => `${root}/reverse/rooms/${id}/upload`,
-			ROOM_HOSTS: (id: string) => `${root}/reverse/rooms/${id}/hosts`,
 			WS_URL: (id: string, token?: string) =>
 				ws(`ws/reverse/rooms/${id}`, token ? { host_token: token } : undefined)
 		};

@@ -21,9 +21,9 @@
   import { formatFileSize } from '#functions/bytes';
   import { formatDate } from '#functions/dates';
   import { autoDownload } from '$lib/functions/browser-download';
-  import { Api } from '#consts/backend';
   import { createZipStream, createEncryptedStream, createDecryptedStream } from '#functions/streams';
-  import { base64urlToBytes } from '#functions/encryption';
+  import { base64urlToBytes, base64url } from '#functions/encryption';
+  import { uploadFile } from '#functions/upload';
   import { resolve } from '$app/paths';
   import { extractEncryptionKey, extractHostToken } from './utils';
   import { getDisplayFilename } from './functions';
@@ -33,14 +33,24 @@
   const { room_id }: { room_id: string } = $props();
   let hostToken = $derived(extractHostToken(page.url.hash.slice(1)));
   let roomKey = $derived(extractEncryptionKey(page.url.hash.slice(1)));
+  const roomName = $derived.by(() => (room ? room.name : 'Host Room'));
 
   const downloadPageHref = (fileKey: string) =>
     resolve(`/download/${fileKey}${roomKey ? `#${roomKey}` : ''}`);
 
-  let loadStatus = $state<'loading' | 'not_found' | 'error' | 'loaded'>('loading');
+  // The backend is a stateless relay and stores no room. The host owns the
+  // room locally: it materializes this object on mount and drives all room
+  // state through the WebSocket relay.
+  let loadStatus = $state<'loading' | 'loaded' | 'error'>('loading');
   let room = $state<RoomOut | null>(null);
   let roomFiles = $state<RoomFileEntry[]>([]);
   let hostCount = $state(1);
+  let connectedHosts = $state(1);
+  let connectedGuests = $state(0);
+
+  // Expiry is host-controlled: files uploaded into the room inherit this TTL.
+  const DEFAULT_EXPIRY_SECONDS = 3600;
+  const roomExpiryMs = $state(Date.now() + DEFAULT_EXPIRY_SECONDS * 1000);
 
   // Host key prompt
   let showKeyPrompt = $state(false);
@@ -103,18 +113,21 @@
     loadRoom();
   }
 
-  async function loadRoom() {
-    loadStatus = 'loading';
-    try {
-      const res = await fetch(Api.REVERSE.ROOM_DETAIL(room_id), { credentials: 'include' });
-      if (res.status === 404) { loadStatus = 'not_found'; return; }
-      if (!res.ok) throw new Error();
-      const data: RoomOut = await res.json();
-      room = data;
-      roomFiles = structuredClone(data.files);
-      hostCount = data.host_count ?? 1;
-      loadStatus = 'loaded';
-    } catch { loadStatus = 'error'; }
+  // No network round-trip: the host IS the room. Materialize local state and
+  // mark the room ready. Files start empty and fill in as the host uploads.
+  function loadRoom() {
+    room = {
+      id: room_id,
+      name: roomName,
+      expires_at: new Date(roomExpiryMs).toISOString(),
+      files: [],
+      active_uploads: [],
+      host_count: 1,
+      connected_hosts: 1,
+      connected_guests: 0,
+    };
+    roomFiles = [];
+    loadStatus = 'loaded';
   }
 
   let ws = useWsReconnect({
@@ -141,6 +154,8 @@
     },
     onHostCount: (c: number) => { hostCount = c; },
     onConnectionCounts: (h: number, g: number) => {
+      connectedHosts = h;
+      connectedGuests = g;
       if (room) { room.connected_hosts = h; room.connected_guests = g; }
     },
     onUploadStart: (entry) => {
@@ -273,23 +288,49 @@
 
         const filename = `${entry.file.name}.zip`;
 
-        const fileEntry = await uploadFileXhr(encryptedBlob, filename, (pct) => {
-          entry.progress.target = pct;
-          const done = uploads.filter((u) => u.status === 'done').length;
-          overallProgress.target = ((done + pct / 100) / batch.length) * 100;
-          uploads = [...uploads];
+        // Upload through the normal encrypted-file pipeline so the backend
+        // stores the bytes. The relay then only carries signaling: once the
+        // upload lands, broadcast a file_added message so guests can request
+        // the stored key over the WebSocket.
+        const { key: fileKey, id: fileId } = await uploadFile({
+          encryptedData: encryptedBlob,
+          filename,
+          expiresAt: Math.floor(roomExpiryMs / 1000),
+          expireAfterNDownload: 5,
+          numberOfFiles: 1,
+          onProgress: (done, total) => {
+            const pct = (done / total) * 100;
+            entry.progress.target = pct;
+            const completed = uploads.filter((u) => u.status === 'done').length;
+            overallProgress.target = ((completed + pct / 100) / batch.length) * 100;
+            uploads = [...uploads];
+          }
         });
+
+        const fileEntry: RoomFileEntry = {
+          key: fileKey,
+          filename,
+          size: encryptedBlob.size,
+          uploaded_at: Date.now() / 1000,
+          download_url: downloadPageHref(fileKey)
+        };
+
         entry.status = 'done';
         entry.entry = fileEntry;
-        if (!roomFiles.some((f) => f.key === fileEntry.key)) {
+        if (!roomFiles.some((f) => f.key === fileKey)) {
           roomFiles = [...roomFiles, fileEntry];
+        }
+
+        // Notify connected guests that a new file is available.
+        if (ws.connected) {
+          ws.send({ type: 'file_added', file: fileEntry, download_id: fileId });
         }
 
         // Add to downloadedFiles so it shows as "Saved" instead of "Download"
         const objectUrl = URL.createObjectURL(entry.file);
         downloadedFiles = [
           ...downloadedFiles,
-          { key: fileEntry.key, filename: entry.file.name, size: entry.file.size, objectUrl }
+          { key: fileKey, filename: entry.file.name, size: entry.file.size, objectUrl }
         ];
       } catch (e: any) {
         entry.status = 'error';
@@ -304,46 +345,6 @@
     isUploading = false;
   }
 
-  function uploadFileXhr(
-    file: Blob,
-    filename: string,
-    onProgress: (pct: number) => void
-  ): Promise<RoomFileEntry> {
-    return new Promise((resolve, reject) => {
-      const fd = new FormData();
-      fd.append('file', file, filename);
-
-      const xhr = new XMLHttpRequest();
-      xhr.open('POST', Api.REVERSE.ROOM_UPLOAD(room_id));
-      xhr.withCredentials = true;
-      xhr.setRequestHeader('X-Host-Token', hostToken);
-
-      xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) onProgress((e.loaded / e.total) * 100);
-      };
-
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            resolve(JSON.parse(xhr.responseText));
-          } catch {
-            reject(new Error('Invalid server response'));
-          }
-        } else {
-          let detail = `HTTP ${xhr.status}`;
-          try {
-            detail = JSON.parse(xhr.responseText).detail || detail;
-          } catch {
-            /* ignore */
-          }
-          reject(new Error(detail));
-        }
-      };
-      xhr.onerror = () => reject(new Error('Network error'));
-      xhr.send(fd);
-    });
-  }
-
   async function copyShareLink() {
     const url = roomKey ? `${shareUrl}#${roomKey}` : shareUrl;
     await navigator.clipboard.writeText(url);
@@ -351,18 +352,14 @@
     setTimeout(() => copiedShareLink = false, 2000);
   }
 
+  // A co-host invite is just another host URL: same room id, a fresh host
+  // token, and the shared encryption key. Generated entirely client-side --
+  // the stateless backend has no concept of host registration.
   async function inviteHost() {
     isInviting = true;
     try {
-      const res = await fetch(Api.REVERSE.ROOM_HOSTS(room_id), {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'X-Host-Token': hostToken }
-      });
-      if (!res.ok) throw new Error((await res.json()).detail || `HTTP ${res.status}`);
-
-      const { host_token } = await res.json();
-      const inviteUrl = `${window.location.origin}/reverse/${room_id}#${host_token}${roomKey ? `:${roomKey}` : ''}`;
+      const newHostToken = base64url(crypto.getRandomValues(new Uint8Array(24)));
+      const inviteUrl = `${window.location.origin}/reverse/${room_id}#${newHostToken}:${roomKey}`;
       await navigator.clipboard.writeText(inviteUrl);
       copiedInviteLink = true;
       toast.success('Host invite link copied to clipboard');
@@ -444,29 +441,6 @@
       </Card.Root>
     </div>
   </div>
-{:else if loadStatus === 'loading'}
-  <div class="flex min-h-[70vh] items-center justify-center">
-    <div class="flex items-center gap-3 text-muted-foreground"><Spinner class="size-6" /><span>Loading room…</span></div>
-  </div>
-{:else if loadStatus === 'not_found'}
-  <div class="flex min-h-[70vh] items-center justify-center p-4">
-    <div class="space-y-4 text-center">
-      <h2 class="text-2xl font-bold">Room Not Found</h2>
-      <p class="text-muted-foreground">This room doesn't exist or has expired.</p>
-      <Button onclick={() => goto('/reverse')}><ArrowLeft class="mr-2 h-4 w-4" />Back to Reverse Share</Button>
-    </div>
-  </div>
-{:else if loadStatus === 'error'}
-  <div class="flex min-h-[70vh] items-center justify-center p-4">
-    <div class="space-y-4 text-center">
-      <h2 class="text-2xl font-bold">Something went wrong</h2>
-      <p class="text-muted-foreground">Failed to load the room. Please try again.</p>
-      <div class="flex justify-center gap-2">
-        <Button variant="outline" onclick={() => goto('/reverse')}><ArrowLeft class="mr-2 h-4 w-4" />Go Back</Button>
-        <Button onclick={loadRoom}>Retry</Button>
-      </div>
-    </div>
-  </div>
 {:else if loadStatus === 'loaded' && room}
   <div class="mx-auto max-w-3xl space-y-6 p-4">
     <!-- Header -->
@@ -480,12 +454,12 @@
               <Tooltip.Trigger>
                 <Badge variant="outline" class="gap-1">
                   <Users class="h-3 w-3" />
-                  {room.connected_hosts}
-                  {room.connected_hosts === 1 ? 'host' : 'hosts'}
+                  {connectedHosts}
+                  {connectedHosts === 1 ? 'host' : 'hosts'}
                 </Badge>
               </Tooltip.Trigger>
               <Tooltip.Content>
-                {room.connected_hosts} host{room.connected_hosts === 1 ? '' : 's'} online
+                {connectedHosts} host{connectedHosts === 1 ? '' : 's'} online
               </Tooltip.Content>
             </Tooltip.Root>
           </Tooltip.Provider>
