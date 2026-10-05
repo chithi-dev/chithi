@@ -22,8 +22,13 @@
 	import { page } from '$app/state';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import favicon from '$lib/assets/logo.svg';
-	import { PUBLIC_INSTANCE_URL } from '#consts/urls';
-	import { env } from '$env/dynamic/public';
+	import {
+		PUBLIC_INSTANCE_URL,
+		PUBLIC_BUY_ME_A_COFFEE,
+		PUBLIC_LIBERAPAY,
+		PUBLIC_KO_FI,
+		PUBLIC_PATREON
+	} from '$app/env/public';
 	import { SiGithub, SiUpptime } from '@icons-pack/svelte-simple-icons';
 	import CommandPalette from '$lib/components/CommandPalette.svelte';
 	import type { Component } from 'svelte';
@@ -56,7 +61,7 @@
 	];
 	const baseRightFooterLinks: LinkItem[] = [
 		{ href: 'https://github.com/chithi-dev/chithi', name: 'Source', icon: SiGithub, order: 1 },
-		{ href: PUBLIC_INSTANCE_URL, name: 'Public Instances', icon: SiUpptime, order: 2 },
+		{ href: PUBLIC_INSTANCE_URL ?? 'https://public.chithi.dev/', name: 'Public Instances', icon: SiUpptime, order: 2 },
 		{ href: 'https://docs.chithi.dev', name: 'Documentation', icon: BookOpenText, order: 3 }
 	];
 	const leftFooterLinks: LinkItem[] = [
@@ -64,24 +69,28 @@
 		{ href: '/informations', name: 'Information about the instance', icon: Info, order: 2 }
 	];
 
-	const donationPlatforms = [
+	const donationPlatforms: Array<{
+		href: string | undefined;
+		name: string;
+		iconLoader: () => Promise<{ default: Component<any> }>;
+	}> = [
 		{
-			key: 'PUBLIC_BUY_ME_A_COFFEE',
+			href: PUBLIC_BUY_ME_A_COFFEE,
 			name: 'Buy Me A Coffee',
 			iconLoader: () => import('@icons-pack/svelte-simple-icons/icons/SiBuymeacoffee')
 		},
 		{
-			key: 'PUBLIC_LIBERAPAY',
+			href: PUBLIC_LIBERAPAY,
 			name: 'Liberapay',
 			iconLoader: () => import('@icons-pack/svelte-simple-icons/icons/SiLiberapay')
 		},
 		{
-			key: 'PUBLIC_KO_FI',
+			href: PUBLIC_KO_FI,
 			name: 'Ko-Fi',
 			iconLoader: () => import('@icons-pack/svelte-simple-icons/icons/SiKofi')
 		},
 		{
-			key: 'PUBLIC_PATREON',
+			href: PUBLIC_PATREON,
 			name: 'Patreon',
 			iconLoader: () => import('@icons-pack/svelte-simple-icons/icons/SiPatreon')
 		}
@@ -91,11 +100,10 @@
 	let order = baseRightFooterLinks.length;
 	const donationLinks: LinkItem[] = [];
 	for (const p of donationPlatforms) {
-		const href = (env as Record<string, string | undefined>)[p.key];
-		if (!href || seen.has(href)) continue;
-		seen.add(href);
+		if (!p.href || seen.has(p.href)) continue;
+		seen.add(p.href);
 		order++;
-		donationLinks.push({ href, name: p.name, icon: Link, order, iconLoader: p.iconLoader });
+		donationLinks.push({ href: p.href, name: p.name, icon: Link, order, iconLoader: p.iconLoader });
 	}
 
 	let rightFooterLinks: LinkItem[] = $state([...baseRightFooterLinks, ...donationLinks]);

@@ -1,110 +1,83 @@
+import { PUBLIC_BACKEND_API } from '$app/env/public';
 import { strip_trailing_slash } from '#functions/urls';
-import { env } from '$env/dynamic/public';
 
-const environment_variable = env.PUBLIC_BACKEND_API ?? 'http://localhost:8000';
-const normalized_env = strip_trailing_slash(environment_variable);
+const root = strip_trailing_slash(PUBLIC_BACKEND_API);
 
 /**
- * Single source of truth for the Backend API.
- * Uses string templates for reliable path joining and the URL API for complex transformations.
+ * Single source of truth for the chithi backend API.
+ * Mirrors the live routes on the Django + ninja backend.
  */
 export class Api {
-	static #root = normalized_env;
-
-	/**
-	 * Internal helper to build absolute HTTP URLs.
-	 */
-	static #url = (path: string) => `${this.#root}/${path}`;
-
-	/**
-	 * Internal helper to build absolute WebSocket URLs.
-	 */
-	static #ws = (path: string) => {
-		const url = this.#url(path).replace(/^http/, 'ws');
-		return new URL(url);
-	};
-
-	// --- Core Routes ---
 	static get BASE() {
-		return this.#root;
+		return root;
 	}
-	static get LOGIN() {
-		return this.#url('login');
+
+	/** GraphQL endpoint. */
+	static get GRAPHQL() {
+		return `${root}/graphql/`;
 	}
-	static get USER() {
-		return this.#url('user');
-	}
+
+	/** Instance config (max size, expiry limits, etc). */
 	static get CONFIG() {
-		return this.#url('config');
-	}
-	static get ONBOARDING() {
-		return this.#url('onboarding');
+		return `${root}/config/`;
 	}
 
-	static get INSTANCE() {
-		return this.#url('instance/information');
-	}
-
-	static get INSTANCE_STATISTICS() {
-		return this.#url('instance/statistics');
-	}
-
+	/** Upload registration endpoint. */
 	static get UPLOAD() {
-		return this.#url('upload');
+		return `${root}/upload/`;
 	}
 
-	/**
-	 * App state WebSocket URL.
-	 */
-	static get STATE_WS() {
-		return this.#ws('ws/state').href;
+	/** File metadata by key or UUID. */
+	static FILE_INFO(fileKey: string) {
+		return `${root}/files/${fileKey}/info/`;
 	}
 
-	// --- Parameterized Routes ---
-	static FILE_INFO(slug: string) {
-		return this.#url(`files/info/${slug}`);
-	}
-	static DOWNLOAD(slug: string) {
-		return this.#url(`files/${slug}`);
+	/** Presigned / CDN URL for a single chunk. */
+	static CHUNK_URL(fileKey: string, chunkIndex: number) {
+		return `${root}/files/${fileKey}/chunk/${chunkIndex}/`;
 	}
 
-	// --- Admin Namespace ---
-	static get ADMIN() {
-		return {
-			CONFIG: this.#url('admin/config'),
-			USER_UPDATE: this.#url('admin/user'),
-			USERS: this.#url('admin/users'),
-			USER_CREATE: this.#url('admin/user'),
-			USER_DELETE: (id: string) => this.#url(`admin/user/${id}`),
-			FILES: this.#url('admin/files'),
-			FILE_REVOKE: (id: string) => this.#url(`admin/files/${id}`)
-		};
+	/** Stream a single chunk's bytes through the backend. */
+	static CHUNK_BYTES(fileKey: string, chunkIndex: number) {
+		return `${root}/files/${fileKey}/chunk/${chunkIndex}/bytes/`;
 	}
 
-	// --- Reverse Share Namespace ---
-	static get REVERSE() {
-		return {
-			ROOMS: this.#url('reverse/rooms'),
-			ROOM_DETAIL: (id: string) => this.#url(`reverse/rooms/${id}`),
-			ROOM_UPLOAD: (id: string) => this.#url(`reverse/rooms/${id}/upload`),
-			ROOM_HOSTS: (id: string) => this.#url(`reverse/rooms/${id}/hosts`),
-
-			/**
-			 * Builds a WebSocket URL for a room.
-			 */
-			WS_URL: (id: string, token?: string) => {
-				const ws = this.#ws(`ws/reverse/rooms/${id}`);
-				if (token) ws.searchParams.set('host_token', token);
-				return ws.href;
-			}
-		};
-	}
-
+	/** Speedtest endpoints (standalone speedtest app, no ninja). */
 	static get SPEEDTEST() {
 		return {
-			DOWNLOAD: this.#url('speedtest/download'),
-			UPLOAD: this.#url('speedtest/upload'),
-			LATENCY: this.#url('speedtest/latency')
+			DOWNLOAD: `${root}/speedtest/download`,
+			UPLOAD: `${root}/speedtest/upload`,
+			LATENCY: `${root}/speedtest/latency`
 		};
+	}
+
+	/**
+	 * Reverse-share (P2P) routes -- the backend currently has no WebSocket
+	 * support, so these are placeholder URLs kept only to keep the existing
+	 * client code compiling. Remove once the feature is either implemented
+	 * server-side or deleted from the frontend.
+	 */
+	static get REVERSE() {
+		const ws = (path: string, params?: Record<string, string>) => {
+			const base = `${root}/${path}`.replace(/^http/, 'ws');
+			const url = new URL(base);
+			if (params) {
+				for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+			}
+			return url.href;
+		};
+		return {
+			ROOMS: `${root}/reverse/rooms`,
+			ROOM_DETAIL: (id: string) => `${root}/reverse/rooms/${id}`,
+			ROOM_UPLOAD: (id: string) => `${root}/reverse/rooms/${id}/upload`,
+			ROOM_HOSTS: (id: string) => `${root}/reverse/rooms/${id}/hosts`,
+			WS_URL: (id: string, token?: string) =>
+				ws(`ws/reverse/rooms/${id}`, token ? { host_token: token } : undefined)
+		};
+	}
+
+	/** App-state WebSocket URL (upload progress, space usage). */
+	static get STATE_WS() {
+		return `${root}/ws/state`.replace(/^http/, 'ws');
 	}
 }
