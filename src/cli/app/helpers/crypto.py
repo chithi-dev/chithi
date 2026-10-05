@@ -179,28 +179,36 @@ def ece_decrypt(ciphertext: bytes, file_key: bytes) -> bytes:
     return bytes(plaintext)
 
 
-def files_to_zip(files: list[tuple[str, bytes]]) -> bytes:
-    """Compress files into a zip archive (equivalent to fflate zip in the frontend)."""
+def files_to_7z(files: list[tuple[str, bytes]]) -> bytes:
+    """Compress files into a 7z archive (mirrors JS7z in the frontend)."""
     import io
-    import zipfile
+
+    import py7zr
 
     buf = io.BytesIO()
-    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as zf:
+    with py7zr.SevenZipFile(buf, "w") as archive:
         for name, data in files:
-            zf.writestr(name, data)
+            archive.writestr(data, name)
     return buf.getvalue()
 
 
-def zip_to_files(zip_bytes: bytes) -> list[tuple[str, bytes]]:
-    """Decompress a zip archive back into (name, data) tuples."""
+def extract_7z(archive_bytes: bytes) -> list[tuple[str, bytes]]:
+    """Decompress a 7z archive back into (name, data) tuples."""
     import io
-    import zipfile
+    import os
+    import tempfile
 
-    files: list[tuple[str, bytes]] = []
-    with zipfile.ZipFile(io.BytesIO(zip_bytes), "r") as zf:
-        for info in zf.infolist():
-            if not info.is_dir():
-                files.append((info.filename, zf.read(info)))
+    import py7zr
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        with py7zr.SevenZipFile(io.BytesIO(archive_bytes), "r") as archive:
+            archive.extractall(tmpdir)
+        files: list[tuple[str, bytes]] = []
+        for root, _dirs, filenames in os.walk(tmpdir):
+            for filename in filenames:
+                abs_path = os.path.join(root, filename)
+                rel_path = os.path.relpath(abs_path, tmpdir).replace(os.sep, "/")
+                files.append((rel_path, open(abs_path, "rb").read()))
     return files
 
 
@@ -213,7 +221,7 @@ async def encrypt_files(
     """Compress and encrypt files into an encrypted bundle.
 
     Pipeline:
-      1. Files are compressed into a zip archive (zlib, level 6)
+      1. Files are compressed into a 7z archive
       2. Archive is encrypted with AES-256-GCM ECE (64 KiB records)
       3. Wire format: [16B salt][1B version=3][4B record_size][records...]
     """
@@ -223,8 +231,8 @@ async def encrypt_files(
     salt = os.urandom(SALT_LENGTH)
     ikm = await resolve_ikm(password or None, secret_key, salt)
     file_key = derive_file_key(ikm, salt)
-    zip_bytes = await anyio.to_thread.run_sync(files_to_zip, files)
-    ciphertext = ece_encrypt(zip_bytes, file_key, salt)
+    archive_bytes = await anyio.to_thread.run_sync(files_to_7z, files)
+    ciphertext = ece_encrypt(archive_bytes, file_key, salt)
 
     return EncryptedBundle(ciphertext)
 
@@ -249,9 +257,9 @@ async def decrypt_bundle(
 
     ikm = await resolve_ikm(password or None, secret_key, salt)
     file_key = derive_file_key(ikm, salt)
-    zip_bytes = ece_decrypt(raw, file_key)
+    archive_bytes = ece_decrypt(raw, file_key)
 
-    return await anyio.to_thread.run_sync(zip_to_files, zip_bytes)
+    return await anyio.to_thread.run_sync(extract_7z, archive_bytes)
 
 
 async def encrypt_data(
@@ -313,8 +321,8 @@ __all__ = [
     "ece_decrypt",
     "base64url_encode",
     "base64url_decode",
-    "files_to_zip",
-    "zip_to_files",
+    "files_to_7z",
+    "extract_7z",
     "EncryptedBundle",
     "ValidationError",
     "CryptoError",

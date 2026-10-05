@@ -31,7 +31,7 @@ def _read_directory_entries(path: Path) -> list[tuple[str, bytes]]:
 async def compress_and_encrypt(source: Path, *, password: str) -> EncryptedBundle:
     """Compress and encrypt a file or directory into an EncryptedBundle.
 
-    Pipeline: read files -> zip (zlib 6) -> AES-256-GCM ECE.
+    Pipeline: read files -> 7z -> AES-256-GCM ECE.
     """
     if not password:
         raise ValidationError("Password must not be empty")
@@ -61,7 +61,7 @@ async def decrypt_and_decompress(
 ) -> list[Path]:
     """Decrypt and write files to disk.
 
-    Pipeline: derive key -> decrypt ECE records -> unzip -> write files.
+    Pipeline: derive key -> decrypt ECE records -> 7z extract -> write files.
     """
     if not password:
         raise ValidationError("Password must not be empty")
