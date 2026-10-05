@@ -17,7 +17,7 @@ from .base import IntegrationTestCase, make_file
 class FileInfoViewTests(IntegrationTestCase):
     async def test_info_returns_metadata(self):
         f = await self._q(make_file, filename="meta.bin", number_of_files=4)
-        resp = await self.gql.client.get(f"/files/info/{f.id}/")
+        resp = await self.gql.client.get(f"/api/files/{f.id}/info/")
         self.assertEqual(resp.status_code, 200)
         body = json.loads(resp.content)
         self.assertEqual(body["id"], str(f.id))
@@ -29,12 +29,12 @@ class FileInfoViewTests(IntegrationTestCase):
         self.assertFalse(body["is_expired"])
 
     async def test_info_missing_404(self):
-        resp = await self.gql.client.get(f"/files/info/{uuid.uuid4()}/")
+        resp = await self.gql.client.get(f"/api/files/{uuid.uuid4()}/info/")
         self.assertEqual(resp.status_code, 404)
 
     async def test_info_rejects_post(self):
         f = await self._q(make_file)
-        resp = await self.gql.client.post(f"/files/info/{f.id}/")
+        resp = await self.gql.client.post(f"/api/files/{f.id}/info/")
         self.assertEqual(resp.status_code, 405)
 
 

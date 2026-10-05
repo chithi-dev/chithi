@@ -36,6 +36,10 @@ dependencies = [
     "httpx>=0.27",
     # Async filesystem I/O (local storage streaming)
     "aiofiles>=23.2",
+    # Django Channels (WebSocket transport for reverse-share rooms)
+    "channels>=4.2.0",
+    # Redis-backed channel layer (used when a broker URL is configured)
+    "channels-redis>=4.3.0",
 ]
 
 [dependency-groups]

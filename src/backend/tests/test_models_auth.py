@@ -4,6 +4,7 @@ import uuid
 from datetime import timedelta
 
 import jwt as pyjwt
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.test import TransactionTestCase
 from django.utils import timezone
@@ -169,17 +170,16 @@ class JwtAuthTests(TransactionTestCase):
     def test_tokens_roundtrip(self):
         access, refresh = get_jwt_tokens(self.user)
         for token in (access, refresh):
-            payload = pyjwt.decode(token, "test-secret-key-do-not-use-in-production", algorithms=["HS512"])
+            payload = pyjwt.decode(token, settings.SECRET_KEY, algorithms=["HS512"])
             self.assertEqual(payload["user_id"], str(self.user.id))
 
     def test_access_shorter_lived_than_refresh(self):
         access, refresh = get_jwt_tokens(self.user)
-        now = timezone.now()
 
         def exp(token):
             return pyjwt.decode(
                 token,
-                "test-secret-key-do-not-use-in-production",
+                settings.SECRET_KEY,
                 algorithms=["HS512"],
             )["exp"]
 
@@ -196,7 +196,7 @@ class JwtAuthTests(TransactionTestCase):
     def test_resolve_expired_token_returns_none(self):
         expired = pyjwt.encode(
             {"user_id": str(self.user.id), "exp": timezone.now() - timedelta(days=1)},
-            "test-secret-key-do-not-use-in-production",
+            settings.SECRET_KEY,
             algorithm="HS512",
         )
         self.assertIsNone(get_user_from_jwt_token(expired))
@@ -204,7 +204,7 @@ class JwtAuthTests(TransactionTestCase):
     def test_resolve_token_for_missing_user_returns_none(self):
         ghost = pyjwt.encode(
             {"user_id": str(uuid.uuid4()), "exp": timezone.now() + timedelta(days=1)},
-            "test-secret-key-do-not-use-in-production",
+            settings.SECRET_KEY,
             algorithm="HS512",
         )
         self.assertIsNone(get_user_from_jwt_token(ghost))

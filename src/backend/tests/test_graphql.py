@@ -203,7 +203,7 @@ class JwtMiddlewareTests(IntegrationTestCase):
 
     async def test_middleware_ignores_non_graphql_paths(self):
         f = await self._q(make_file)
-        resp = await self.gql.client.get(f"/files/info/{f.id}/")
+        resp = await self.gql.client.get(f"/api/files/{f.id}/info/")
         self.assertEqual(resp.status_code, 200)
 
 

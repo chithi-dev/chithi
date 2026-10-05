@@ -14,6 +14,7 @@ from uuid import UUID
 
 from asgiref.sync import sync_to_async
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
+from django.http import Http404
 from ninja import Router
 from ninja.errors import ValidationError
 
@@ -63,7 +64,7 @@ def _file_info_response(file_obj: File) -> FileInfoResponse:
 async def file_info(request: HttpRequest, file_key: str) -> FileInfoResponse:
     file_obj = await sync_to_async(_file_by_key_or_id)(file_key)
     if file_obj is None:
-        raise ValidationError("File not found.")
+        raise Http404("File not found.")
 
     return _file_info_response(file_obj)
 

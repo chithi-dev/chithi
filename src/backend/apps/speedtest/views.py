@@ -14,9 +14,9 @@ Routes (registered in ``core/urls.py``)::
 
 import os
 import time
-from collections.abc import AsyncIterator
 
 from django.http import HttpRequest, HttpResponse, StreamingHttpResponse
+from django.views.decorators.http import require_GET, require_POST
 
 from core.middlewares import middleware_exempt
 
@@ -25,7 +25,7 @@ _RANDOM_BYTES = os.urandom(_CHUNK_SIZE)
 _MAX_SIZE = 100_000_000
 
 
-async def _iter_chunks(size: int) -> AsyncIterator[bytes]:
+def _iter_chunks(size: int):
     """Yield *size* random bytes in fixed-size chunks."""
     remaining = size
     while remaining >= _CHUNK_SIZE:
@@ -36,7 +36,8 @@ async def _iter_chunks(size: int) -> AsyncIterator[bytes]:
 
 
 @middleware_exempt
-async def speedtest_download(request: HttpRequest) -> StreamingHttpResponse:
+@require_GET
+def speedtest_download(request: HttpRequest) -> StreamingHttpResponse:
     """Stream up to ``?bytes=N`` of random data (default 10 MB)."""
     raw = request.GET.get("bytes", "10485760")
     try:
@@ -55,19 +56,20 @@ async def speedtest_download(request: HttpRequest) -> StreamingHttpResponse:
 
 
 @middleware_exempt
-async def speedtest_upload(request: HttpRequest) -> HttpResponse:
+@require_POST
+def speedtest_upload(request: HttpRequest) -> HttpResponse:
     """Consume the request body and report how many bytes were received."""
-    body = await request.abody
-    payload = body if isinstance(body, bytes) else str(body).encode()
+    body = request.body if request.body else b""
     response = HttpResponse(
-        f'{{"bytes_received": {len(payload)}, "timestamp": {time.time()}}}',
+        f'{{"bytes_received": {len(body)}, "timestamp": {time.time()}}}',
         content_type="application/json",
     )
     return response
 
 
 @middleware_exempt
-async def speedtest_latency(request: HttpRequest) -> HttpResponse:
+@require_GET
+def speedtest_latency(request: HttpRequest) -> HttpResponse:
     """Return a minimal JSON body with the server timestamp."""
     response = HttpResponse(
         f'{{"bytes_received": 0, "timestamp": {time.time()}}}',
