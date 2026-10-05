@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "apps.users",
     "apps.files",
+    "apps.api",
     "apps.config",
     "strawberry_django",
     "apps.graphql",

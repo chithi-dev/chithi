@@ -40,6 +40,8 @@
 | **CLI Client Rewrite** | DONE | `client.py` uses chunked GraphQL (registerFile → uploadFileChunk → completeUpload) + S3 presigned download |
 | **CLI Commands Update** | DONE | `upload.py` + `download.py` use new client API (bytes in/out, no temp files) |
 | **WASM Bridge Removal** | DONE | `chithi_core_bridge.py` deleted; `chithi-sdk` dep removed from pyproject.toml |
+| **Apollo SSR Prefetch** | DONE | `server-client.ts` (ssrMode) + `hydration.svelte.ts` (usePrefetchedQuery) + `hydration-boundary.svelte`; all pages migrated from TanStack to pure Apollo; `/login` SSR 200 with full dehydrated cache |
+| **HTTP Upload Path** | DONE | `apps/api/` package (django-ninja): register/chunk/complete under `/api/upload/`; views import shared `schemas/` + `utils/`; async views wrap ORM in `sync_to_async`; E2E register→chunk→complete verified, chunk written to store |
 | **E2E Verification** | TODO | Full upload→download round-trip with a real file via Playwright |
 
 ---

@@ -15,6 +15,7 @@ dependencies = [
     "aioboto3>=15.5.0",
     "graphql-core>=3.2.0,<3.3",
     "dj-database-url>=3.1.2",
+    "django-ninja>=1.7.1",
 ]
 
 [dependency-groups]
