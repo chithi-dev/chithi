@@ -9,7 +9,6 @@
   import { Button } from '$lib/components/ui/button/index.js';
   import { untrack } from 'svelte';
   import { toast } from 'svelte-sonner';
-  import { QueryClient } from '@tanstack/svelte-query';
 
   let showPassword = $state(false);
   let { data, next_url }: { data: { form: SuperValidated<Infer<FormSchema>> }; next_url: string } = $props();
