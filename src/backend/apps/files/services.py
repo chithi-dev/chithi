@@ -1,4 +1,4 @@
-"""Storage service — S3-compatible object storage with chunked upload.
+"""Storage service - S3-compatible object storage with chunked upload.
 
 Architecture (per project requirements):
 - **Upload**: the frontend splits the encrypted payload into 50 MB chunks and
@@ -21,7 +21,7 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
-# 50 MB chunk size — the unit of upload/download. Must match the frontend.
+# 50 MB chunk size - the unit of upload/download. Must match the frontend.
 CHUNK_SIZE_BYTES = 50 * 1024 * 1024
 
 
@@ -40,7 +40,7 @@ def is_s3_backend() -> bool:
 
 
 # ---------------------------------------------------------------------------
-# S3 client (lazy — aioboto3 only imported when S3 is actually used)
+# S3 client (lazy - aioboto3 only imported when S3 is actually used)
 # ---------------------------------------------------------------------------
 
 
@@ -87,8 +87,10 @@ class _LocalStore:
         path.write_bytes(data)
 
     async def presigned_get_url(self, key: str, expires_in: int) -> str:
-        # No real URL for local files; the download view serves them.
-        return f"/files/{key}/"
+        # Local files are served by Django at MEDIA_URL (DEBUG) or a CDN (prod).
+        # A relative URL keeps the client free to prepend its own origin.
+        media_url = getattr(settings, "MEDIA_URL", "/media/")
+        return f"{media_url.rstrip('/')}/{key}/"
 
     async def delete_prefix(self, prefix: str) -> None:
         base = self._path(prefix)

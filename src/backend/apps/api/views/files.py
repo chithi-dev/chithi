@@ -1,0 +1,80 @@
+"""File metadata and chunk-URL endpoints (django-ninja).
+
+These back the CLI download flow:
+
+1. ``GET /files/{file_key}/info/`` - metadata for one file (by key or ID)
+2. ``GET /files/{file_key}/chunk/{index}/`` - a presigned S3 URL for one chunk
+
+Both mirror the GraphQL ``fileInfo`` query and ``chunkUrl`` mutation. The
+database read is sync, so it is wrapped in ``sync_to_async``; the presigned-URL
+generation is async (aioboto3) and awaited directly.
+"""
+
+from uuid import UUID
+
+from asgiref.sync import sync_to_async
+from ninja import Router
+from ninja.errors import ValidationError
+
+from apps.api.schemas.files import ChunkUrlResponse, FileInfoResponse
+from apps.files import services
+from apps.files.models import File
+
+router = Router()
+
+
+def _file_by_key_or_id(identifier: str) -> File | None:
+    """Resolve a file by its S3 key first, then by its UUID primary key.
+
+    A File key is itself a UUID, so key and id cannot be told apart by shape.
+    The key is what the client receives from register, so it is tried first;
+    only if no row matches does the id lookup run.
+    """
+    by_key = File.objects.filter(key=identifier).first()
+    if by_key is not None:
+        return by_key
+
+    try:
+        file_id = UUID(identifier)
+    except (ValueError, TypeError):
+        return None
+
+    return File.objects.filter(id=file_id).first()
+
+
+def _file_info_response(file_obj: File) -> FileInfoResponse:
+    return FileInfoResponse(
+        id=str(file_obj.id),
+        key=file_obj.key,
+        filename=file_obj.filename,
+        size=file_obj.size,
+        number_of_files=file_obj.number_of_files,
+        download_count=file_obj.download_count,
+        created_at=file_obj.created_at.isoformat(),
+        expires_at=file_obj.expires_at.isoformat(),
+        expire_after_n_download=file_obj.expire_after_n_download,
+        is_expired=file_obj.is_expired,
+        chunk_count=file_obj.chunk_count,
+    )
+
+
+@router.get("/files/{file_key}/info/", response=FileInfoResponse)
+async def file_info(request, file_key: str) -> FileInfoResponse:
+    file_obj = await sync_to_async(_file_by_key_or_id)(file_key)
+    if file_obj is None:
+        raise ValidationError("File not found.")
+
+    return _file_info_response(file_obj)
+
+
+@router.get("/files/{file_key}/chunk/{chunk_index}/", response=ChunkUrlResponse)
+async def chunk_url(request, file_key: str, chunk_index: int) -> ChunkUrlResponse:
+    file_obj = await sync_to_async(_file_by_key_or_id)(file_key)
+    if file_obj is None:
+        raise ValidationError("File not found.")
+
+    if chunk_index < 0 or chunk_index >= file_obj.chunk_count:
+        raise ValidationError("chunk_index out of range.")
+
+    url = await services.presigned_chunk_url(file_obj.key, chunk_index)
+    return ChunkUrlResponse(url=url)
