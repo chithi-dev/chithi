@@ -29,6 +29,7 @@ INSTALLED_APPS = [
     "apps.files",
     "apps.api",
     "apps.config",
+    "apps.speedtest",
     "strawberry_django",
     "apps.graphql",
 ]
