@@ -14,7 +14,10 @@ declare global {
 			 */
 			session: { token: string } | null;
 		}
-		// interface PageData {}
+		interface PageData {
+			/** The server-resolved auth session, or null when signed out. */
+			session: { token: string } | null;
+		}
 		// interface PageState {}
 		// interface Platform {}
 	}

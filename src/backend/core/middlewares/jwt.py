@@ -34,10 +34,9 @@ class JwtAuthenticationMiddleware:
         if user is not None and user.is_authenticated:
             return
 
-        match = _BEARER_RE.match(request.META.get("HTTP_AUTHORIZATION", ""))
-        if match is None:
+        token = self._extract_token(request)
+        if token is None:
             return
-        token = match.group(1)
 
         resolved = get_user_from_jwt_token(token)
         if resolved is not None:
@@ -46,3 +45,18 @@ class JwtAuthenticationMiddleware:
             # Leave the session user (likely AnonymousUser) in place.
             if user is None:
                 request.user = AnonymousUser()
+
+    @staticmethod
+    def _extract_token(request: HttpRequest) -> str | None:
+        """Return the JWT from the Bearer header or the ``access_token`` cookie.
+
+        Bearer header is tried first (the primary path for API clients).
+        The cookie fallback covers browsers that cannot set custom headers
+        (e.g. cross-origin requests where the HttpOnly cookie is forwarded
+        via ``credentials: 'include'`` but a Bearer header is not).
+        """
+        match = _BEARER_RE.match(request.META.get("HTTP_AUTHORIZATION", ""))
+        if match is not None:
+            return match.group(1)
+
+        return request.COOKIES.get("access_token")

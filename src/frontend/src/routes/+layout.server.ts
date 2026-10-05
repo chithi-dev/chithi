@@ -21,7 +21,7 @@ import type { LayoutServerLoad } from './$types';
  * files can add more via `prefetchApollo` and merge into the same `__APOLLO__`
  * key.
  */
-export const load: LayoutServerLoad = async ({ cookies }) => {
+export const load: LayoutServerLoad = async ({ cookies, locals }) => {
 	// ── Backend-down gate ─────────────────────────────────────────────────────
 	// Probe the backend once per page load. If unreachable, throw a sentinel
 	// error that +error.svelte recognizes.
@@ -32,7 +32,7 @@ export const load: LayoutServerLoad = async ({ cookies }) => {
 
 	const token = cookies.get('access_token');
 
-	// Prefetch the two queries every page needs (Onboarding + Config).
+	// Prefetch the queries every page needs.
 	// Fail-soft: individual query failures are logged and skipped; the client
 	// will retry any missing data.
 	const __APOLLO__ = await prefetchApollo(token, [
@@ -42,5 +42,11 @@ export const load: LayoutServerLoad = async ({ cookies }) => {
 		{ query: InstanceStatisticsDocument, label: 'instance-stats' }
 	]);
 
-	return { token, __APOLLO__ };
+	// Expose the session so the root layout can hydrate the auth store.
+	// The token is serialized into the HTML as page data; it is the same
+	// value the browser would have read from the HttpOnly cookie if it were
+	// not HttpOnly - the server is the sole source of truth here.
+	const session = locals.session ?? null;
+
+	return { __APOLLO__, session };
 };

@@ -32,9 +32,9 @@
  *
  * **Why a separate factory (not the browser's `client`)?**
  *
- * 1. The browser `client` reads the token from `localStorage`, which is
- *    unavailable during SSR. The server reads it from the `access_token`
- *    cookie instead (set by the login action) and injects it as a Bearer header.
+ * 1. The browser `client` sends the HttpOnly session cookie via
+ *    `credentials: 'include'`, which is unavailable during SSR. The server
+ *    reads the `access_token` cookie directly and injects it as a Bearer header.
  * 2. `ssrMode: true` tells Apollo to skip `watchQuery` reactivity - the server
  *    only needs one-shot `query()` calls.
  * 3. Keeping the two clients separate means the browser singleton's upload link

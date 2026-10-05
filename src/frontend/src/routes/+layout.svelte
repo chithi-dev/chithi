@@ -13,7 +13,8 @@
   import { Toaster } from '$lib/components/ui/sonner/index.js';
   import CommandPalette from '$lib/components/CommandPalette.svelte';
 
-  import type { LayoutData } from './$types';
+  import { hydrate as hydrateAuth } from '$lib/auth/store.svelte';
+import type { LayoutData } from './$types';
   import { type Component, type Snippet } from 'svelte';
   import { MetaTags, deepMerge } from 'svelte-meta-tags';
   import HydrationBoundary from '$lib/graphql/hydration-boundary.svelte';
@@ -24,6 +25,12 @@
   // any child +page.server.ts that calls prefetchApollo(). Shape:
   // { cache: Record, dehydratedAt: number }.
   let apolloState = $derived(data.__APOLLO__ ?? null);
+
+  // Hydrate the auth store from the server-resolved session whenever the
+  // layout data changes (initial load, `invalidate('session')` after login/logout).
+  $effect(() => {
+    hydrateAuth(data.session);
+  });
 
   $effect.pre(() => {
     NProgress.done();
