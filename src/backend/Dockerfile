@@ -9,6 +9,10 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 # for an example.
 ENV UV_PYTHON_DOWNLOADS=0
 
+# mysqlclient has no pre-built wheel for Alpine (musl); it compiles from
+# source and needs a C toolchain plus the MariaDB client dev headers.
+RUN apk add --no-cache gcc musl-dev mariadb-dev
+
 
 WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
@@ -30,6 +34,9 @@ FROM python:3.14-alpine
 # It is important to use the image that matches the builder, as the path to the
 # Python executable must be the same, e.g., using `python:3.11-slim-bookworm`
 # will fail.
+
+# mysqlclient links against libmariadb at runtime.
+RUN apk add --no-cache mariadb
 
 ## Create a non-root user and group for running the application
 RUN addgroup -S chithi \
