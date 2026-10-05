@@ -47,11 +47,13 @@
 | **CLI Async Refactor** | DONE | All crypto/archive/QR helpers async via `anyio.to_thread`; banner comments removed; dead `urls.py` helpers removed; `__future__` imports removed; full round-trip verified |
 | **Speedtest (ninja)** | DONE | `apps/api/views/speedtest.py` — download/upload/latency under `/api/speedtest/`; async `_iter_chunks`; all three endpoints verified against live backend |
 | **Legacy Django Views** | REMOVED | `apps/files/views.py`, `speedtest.py`, `speedtest_urls.py`, `urls.py` deleted; all routes served via GraphQL or ninja API only |
-| **Context-Based Auth** | DONE | `apps/graphql/context.py` (`Context` dataclass) + `ChithiGraphQLView.get_context()` override; `GraphQLJwtMiddleware` removed from `core/middleware.py` (file deleted); `me` query verified with/without JWT |
+| **Middleware Auth** | DONE | `core/middleware.py` `JwtAuthenticationMiddleware` injects `request.user` from Bearer JWT on every request (session auth takes priority); registered after `AuthenticationMiddleware`; GraphQL context forwards `request.user`; verified JWT sets user on both GraphQL `me` and a ninja endpoint; 3 middleware tests pass |
 | **Celery Stub** | REMOVED | `core/celery.py` deleted; `core/settings.py` MIDDLEWARE list updated |
 | **Type Hints (Backend)** | DONE | All views, resolvers, managers, services fully annotated; no `Any` used; `manager.py` `**extra_fields: bool \| str`; `services.py` fully typed via django-storages |
 | **Type Hints (CLI)** | DONE | `test/test_crypto.py` moved to `test/` package; all 14 test functions annotated `-> None`; async calls wrapped in `asyncio.run`; `print.py` `__rich_console__` return type added; 14/14 tests pass |
 | **django-storages** | DONE | `aioboto3` + hand-rolled boto3 removed; `STORAGES` dict in settings.py selects `S3Storage` (creds present) or `FileSystemStorage` (dev); `services.py` rewritten on `default_storage` API (`save`/`url`/`delete`/`exists`); sync calls wrapped in `sync_to_async`; upload/exist/url/delete round-trip verified; CDN via `S3_CDN_URL` setting |
+| **Delete-Safety Fix** | DONE | `delete_file_chunks` no longer crashes on a missing prefix (local-filesystem `listdir` raises `FileNotFoundError`; S3 returns empty) - now a safe no-op |
+| **Backend Docs** | DONE | `backend/storage.md` (multi-backend), `backend/custom-clients.md` (REST+GraphQL protocol + Docker hosting), `crypto-architecture.md` moved into docs/; all registered in nav; Zensical build clean |
 
 ---
 
