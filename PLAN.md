@@ -45,6 +45,7 @@
 | **Async Config Singleton** | DONE | `SingletonModel.aload()` via Django 6 native async ORM (`aget_or_create`); all async call sites (REST `/config/`, upload validation, GraphQL config + file mutations) use `await Config.aload()`; `onboarding` uses `aget` to avoid a create side effect; `load()` retained for sync-only contexts |
 | **E2E Verification** | DONE | CLI upload→download round-trip, matching md5; Playwright browser E2E still pending |
 | **CLI Async Refactor** | DONE | All crypto/archive/QR helpers async via `anyio.to_thread`; banner comments removed; dead `urls.py` helpers removed; `__future__` imports removed; full round-trip verified |
+| **Speedtest (ninja)** | DONE | `apps/api/views/speedtest.py` — download/upload/latency under `/api/speedtest/`; async `_iter_chunks`; all three endpoints verified against live backend |
 
 ---
 
