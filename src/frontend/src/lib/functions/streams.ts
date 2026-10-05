@@ -1,5 +1,6 @@
 import JS7z from '#vendor/js7z/js7z.js';
 import js7zWasmUrl from '#vendor/js7z/js7z.wasm?url';
+import type { MainModule } from '#vendor/js7z/js7z.d';
 import {
 	HEADER_LENGTH,
 	RECORD_SIZE,
@@ -25,12 +26,19 @@ const makeUnique = (name: string) => {
 	return dot > 0 ? `${name.slice(0, dot)}_${count}${name.slice(dot)}` : `${name}_${count}`;
 };
 
+// The vendored .d.ts omits the runtime lifecycle callbacks the Emscripten
+// build actually exposes. Augment them here (no vendor file is modified).
+type JS7zRuntime = MainModule & {
+	onExit?: (exitCode: number) => void;
+	callMain: (args: string[]) => void;
+};
+
 // ---------------------------------------------------------------------------
 // 7z archive: read all files into JS7z's virtual FS, compress into a .7z
 // archive, and produce a single ReadableStream of the compressed bytes.
 // ---------------------------------------------------------------------------
 export async function createArchiveStream(files: File[]): Promise<ReadableStream<Uint8Array>> {
-	const js7z = await JS7z({ locateFile: () => js7zWasmUrl });
+	const js7z = (await JS7z({ locateFile: () => js7zWasmUrl })) as JS7zRuntime;
 	const inputDir = '/in';
 	const outputDir = '/out';
 	js7z.FS.mkdir(inputDir);
