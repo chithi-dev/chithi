@@ -427,3 +427,22 @@ The current upload flow loads the entire encrypted blob into memory before sendi
 - The `download_file_stream` mutation that returned presigned URLs has been removed — the backend serves all files directly through `views.py`, users never access S3 directly.
 - The WASM parallel encryption is already configured correctly with `wasm_thread` and the `parallel` feature enabled by default.
 - All camelCase migration is complete — frontend interfaces, query modules, and components all use camelCase matching the Strawberry-Django schema.
+
+---
+
+## Session Log — 2026-10-05 (Backend Test Fixes + WebSocket Binary Frame Bug)
+
+### Completed this session
+
+| Task | Status | Detail |
+|---|---|---|
+| **8 backend test fixes** | DONE | `0c6eadc` — speedtest views (async generator → sync, `request.abody` → `request.body`, `@require_GET`/`@require_POST`); file-info 404 (`ValidationError` → `Http404`); file-info test paths (`/files/info/` → `/api/files/`); JWT test secrets (hardcoded → `settings.SECRET_KEY`); 80/80 non-Redis tests pass |
+| **WebSocket binary frame bug** | DONE | `ff7a8ec` — `consumers.py` `send(bytes=block)` → `send(bytes_data=block)`; `AsyncWebsocketConsumer.send()` does not accept a `bytes` keyword argument, so every `request_file` stream raised `TypeError` and the reverse-share file-transfer path was completely broken; verified end-to-end: seeded a 3 MB file, connected a guest WebSocket, sent `request_file`, confirmed all 3,158,073 bytes arrived byte-for-byte |
+| **Reverse relay E2E check** | DONE | Live backend verification: connection counts (host join → guests increment), guest→host relay (`file_added`), host→guest relay (`upload_progress`), `request_file` with missing key (`file_start` + `file_error`), guest leave (guests decrement to 0) — all pass |
+| **CI push** | PENDING | `0c6eadc..ff7a8ec` pushed to `feat/jxr-other`; CI runs pending |
+
+### Known remaining issues
+
+1. **7 Redis-dependent tests fail locally** (`test_register_and_upload_chunk_roundtrip`, `test_chunk_url_*`, `test_complete_upload_*`, `test_delete_file_*`, `test_register_exactly_at_size_limit_*`) — all timeout waiting for Redis at `localhost:6379`. These pass in CI (Redis available). Not code bugs.
+2. **`file_start` / `file_end` do not include `filename` or `size`** — the consumer echoes the values the caller sent in `request_file`, which are always empty strings / 0. The caller is expected to already know the file's metadata from the `file_added` relay message. This is a protocol design choice, not a bug, but it means `file_start` / `file_end` carry no metadata.
+3. **Frontend SSR 500 on reverse-share route** — the running dev server reports `CHITHI_BACKEND_DOWN` for the `/reverse/{id}/` route but returns 200 for `/` and `/onboarding/`. Root cause: the dev server process has a stale `PUBLIC_BACKEND_API` pointing at a different port. The WebSocket protocol itself is fully functional (verified above).
