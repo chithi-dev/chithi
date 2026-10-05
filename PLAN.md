@@ -55,6 +55,8 @@
 | **Delete-Safety Fix** | DONE | `delete_file_chunks` no longer crashes on a missing prefix (local-filesystem `listdir` raises `FileNotFoundError`; S3 returns empty) - now a safe no-op |
 | **Backend Docs** | DONE | `backend/storage.md` (multi-backend), `backend/custom-clients.md` (REST+GraphQL protocol + Docker hosting), `crypto-architecture.md` moved into docs/; all registered in nav; Zensical build clean |
 | **Docker Celery Docs** | DONE | `celery` worker service present in all 8 compose files (basic + watchtower x vanila/caddy/nginx/traefik); no beat service (one-shot tasks, no periodic scheduler); all YAML validated |
+| **Chunk Proxy (ninja)** | DONE | `apps/api/views/files.py` `GET /files/{key}/chunk/{index}/bytes/` streams chunk bytes through the backend (one egress URL, no direct CDN); `services.open_chunk()` opens handle + size; reads run off the thread pool with an event-loop yield per block so a slow S3 read never blocks other requests; 200 + exact Content-Length + byte-for-byte match verified, expired -> 422 |
+| **N-Download Eviction** | DONE | `services.record_download()` increments `download_count` (atomic `F()`); called when the *last* chunk is fetched (the only signal a full download completed) by both `chunk_url` transports (GraphQL + ninja); when the count hits `expire_after_n_download`, schedules one-shot deletion (countdown=0), mirroring the time-based path; 8 task tests pass |
 
 ---
 
