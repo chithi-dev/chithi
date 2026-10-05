@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { cn, type WithElementRef } from '$lib/utils.js';
-	import type { HTMLAttributes } from 'svelte/elements';
+	import { cn, type WithElementRef } from "$lib/utils.js";
+	import type { HTMLAttributes } from "svelte/elements";
 
 	let {
 		ref = $bindable(null),
@@ -14,7 +14,7 @@
 	bind:this={ref}
 	data-slot="sidebar-group-content"
 	data-sidebar="group-content"
-	class={cn('text-sm w-full', className)}
+	class={cn("text-sm w-full", className)}
 	{...restProps}
 >
 	{@render children?.()}

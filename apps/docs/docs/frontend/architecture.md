@@ -6,7 +6,7 @@ icon: lucide/house
 
 The frontend performs client-side encryption and supports background-safe uploads (Service Worker + IndexedDB).
 
-The diagram below shows the major components and flows — note that the backend never sees unencrypted keys or plaintext:
+The diagram below shows the major components and flows - note that the backend never sees unencrypted keys or plaintext:
 
 ```mermaid
 flowchart TD
@@ -15,7 +15,7 @@ flowchart TD
   UI[Svelte UI]
 
   %% Client subgraph
-  subgraph Client["Client — Browser (Svelte)"]
+  subgraph Client["Client - Browser (Svelte)"]
     WC["WebCrypto API\n(AES-GCM, PBKDF2/Argon2)"]
     Select["Select / Pick Files"]
     Prep["(Optional) Zip / Chunk & Stream"]
@@ -38,7 +38,7 @@ flowchart TD
   end
 
   %% Server subgraph (untrusted)
-  subgraph Server["Server — Untrusted Backend"]
+  subgraph Server["Server - Untrusted Backend"]
     UploadAPI[Upload API]
     Storage[(Encrypted Blob Storage)]
     Meta[(Metadata DB)]

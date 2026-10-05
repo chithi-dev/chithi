@@ -149,128 +149,31 @@ const getBrowserInfo = (): BrowserInfo | null => {
 	const version = parseVersion(browser.version ?? null);
 	if (version === null) return null;
 
+	const isMobile = platform.type === 'mobile' || platform.type === 'tablet';
 	const name = browser.name;
 
-	if (os.name === 'iOS') {
-		return {
-			agent: 'ios_saf',
-			version
-		};
-	}
+	let agent: AgentKey | null = os.name === 'iOS' ? 'ios_saf'
+		: isMobile && name === 'Chrome' ? 'and_chr'
+		: isMobile && name === 'Firefox' ? 'and_ff'
+		: isMobile && name === 'UC Browser' ? 'and_uc'
+		: isMobile && name === 'QQ Browser' ? 'and_qq'
+		: isMobile && name === 'Baidu' ? 'baidu'
+		: isMobile && name === 'Android Browser' ? 'android'
+		: isMobile && name === 'BlackBerry' ? 'bb'
+		: isMobile && name === 'Opera Mini' ? 'op_mini'
+		: isMobile && name === 'Opera' ? 'op_mob'
+		: isMobile && name === 'Internet Explorer' ? 'ie_mob'
+		: name === 'Chrome' ? 'chrome'
+		: name === 'Firefox' ? 'firefox'
+		: name === 'Microsoft Edge' ? 'edge'
+		: name === 'Opera' ? 'opera'
+		: name === 'Safari' ? 'safari'
+		: name === 'Samsung Internet for Android' ? 'samsung'
+		: name === 'Internet Explorer' ? 'ie'
+		: null;
 
-	if (platform.type === 'mobile' || platform.type === 'tablet') {
-		if (name === 'Chrome') {
-			return {
-				agent: 'and_chr',
-				version
-			};
-		}
-		if (name === 'Firefox') {
-			return {
-				agent: 'and_ff',
-				version
-			};
-		}
-		if (name === 'UC Browser') {
-			return {
-				agent: 'and_uc',
-				version
-			};
-		}
-		if (name === 'QQ Browser') {
-			return {
-				agent: 'and_qq',
-				version
-			};
-		}
-		if (name === 'Baidu') {
-			return {
-				agent: 'baidu',
-				version
-			};
-		}
-		if (name === 'Android Browser') {
-			return {
-				agent: 'android',
-				version
-			};
-		}
-		if (name === 'BlackBerry') {
-			return {
-				agent: 'bb',
-				version
-			};
-		}
-		if (name === 'Opera Mini') {
-			return {
-				agent: 'op_mini',
-				version
-			};
-		}
-		if (name === 'Opera') {
-			return {
-				agent: 'op_mob',
-				version
-			};
-		}
-		if (name === 'Internet Explorer') {
-			return {
-				agent: 'ie_mob',
-				version
-			};
-		}
-	}
-
-	if (name === 'Chrome') {
-		return {
-			agent: 'chrome',
-			version
-		};
-	}
-
-	if (name === 'Firefox') {
-		return {
-			agent: 'firefox',
-			version
-		};
-	}
-
-	if (name === 'Microsoft Edge') {
-		return {
-			agent: 'edge',
-			version
-		};
-	}
-
-	if (name === 'Opera') {
-		return {
-			agent: 'opera',
-			version
-		};
-	}
-
-	if (name === 'Safari') {
-		return {
-			agent: 'safari',
-			version
-		};
-	}
-
-	if (name === 'Samsung Internet for Android') {
-		return {
-			agent: 'samsung',
-			version
-		};
-	}
-
-	if (name === 'Internet Explorer') {
-		return {
-			agent: 'ie',
-			version
-		};
-	}
-
-	return null;
+	if (!agent) return null;
+	return { agent, version };
 };
 
 const getMinSupportedVersion = (stats: Record<string, string>) => {

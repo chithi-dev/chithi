@@ -1,714 +1,395 @@
-import { WORKER_CONCURRENCY } from '#consts/concurrency';
-import { HKDF_IV_STR, HKDF_SALT_STR } from '#consts/encryption';
-import DecryptWorker from '#workers/decrypt.worker?worker';
-import EncryptWorker from '#workers/encrypt.worker?worker';
-import { ZipWriter } from '@zip.js/zip.js';
+import JS7z from '#vendor/js7z/js7z.js';
+import js7zWasmUrl from '#vendor/js7z/js7z.wasm?url';
+import type { MainModule } from '#vendor/js7z/js7z.d';
 import {
-	CHUNK_SIZE,
-	argon2Derive,
-	base64url,
-	base64urlToBytes,
-	deriveAESKeyFromIKM,
-	getChunkIv,
-	xorBytes
-} from './encryption';
+	HEADER_LENGTH,
+	RECORD_SIZE,
+	RECORD_SIZE_FIELD_LENGTH,
+	SALT_LENGTH,
+	SCHEME_VERSION,
+	VERSION_LENGTH,
+} from '#consts/encryption';
+import { base64url, base64urlToBytes, resolveIkM } from './encryption';
+import CryptoWorker from '#workers/crypto.worker?worker';
 
+const encoder = new TextEncoder();
+
+// ---------------------------------------------------------------------------
+// Name deduplication for multi-file archives (kept from prior implementation).
+// ---------------------------------------------------------------------------
 const usedNames = new Map<string, number>();
 const makeUnique = (name: string) => {
-	if (!usedNames.has(name)) {
-		usedNames.set(name, 1);
-		return name;
-	}
-	const count = usedNames.get(name) || 1;
+	const count = usedNames.get(name) ?? 0;
 	usedNames.set(name, count + 1);
-
-	const lastDot = name.lastIndexOf('.');
-	if (lastDot > 0) {
-		const base = name.slice(0, lastDot);
-		const ext = name.slice(lastDot);
-		return `${base}_${count}${ext}`;
-	}
-	return `${name}_${count}`;
+	if (!count) return name;
+	const dot = name.lastIndexOf('.');
+	return dot > 0 ? `${name.slice(0, dot)}_${count}${name.slice(dot)}` : `${name}_${count}`;
 };
 
-async function deriveSecrets(ikm: Uint8Array, password?: string) {
-	const enc = new TextEncoder();
-	const derivedSalt = await crypto.subtle.digest(
-		'SHA-256',
-		new Uint8Array([...ikm, ...enc.encode(HKDF_SALT_STR)])
-	);
-	let finalIKM = ikm;
+// The vendored .d.ts omits the runtime lifecycle callbacks the Emscripten
+// build actually exposes. Augment them here (no vendor file is modified).
+type JS7zRuntime = MainModule & {
+	onExit?: (exitCode: number) => void;
+	callMain: (args: string[]) => void;
+};
 
-	if (password && password.length > 0) {
-		const saltBytes = new Uint8Array(derivedSalt).slice(0, 16);
-		const passwordBytes = new TextEncoder().encode(password);
-		const pb = await argon2Derive(passwordBytes, saltBytes, 32, 16384, 32, 1);
-		finalIKM = xorBytes(ikm, pb);
+// ---------------------------------------------------------------------------
+// 7z archive: read all files into JS7z's virtual FS, compress into a .7z
+// archive, and produce a single ReadableStream of the compressed bytes.
+// ---------------------------------------------------------------------------
+export async function createArchiveStream(files: File[]): Promise<ReadableStream<Uint8Array>> {
+	const js7z = (await JS7z({ locateFile: () => js7zWasmUrl })) as JS7zRuntime;
+	const inputDir = '/in';
+	const outputDir = '/out';
+	js7z.FS.mkdir(inputDir);
+	js7z.FS.mkdir(outputDir);
+
+	for (const file of files) {
+		const uniqueName = makeUnique(file.name);
+		const data = new Uint8Array(await file.arrayBuffer());
+		js7z.FS.writeFile(`${inputDir}/${uniqueName}`, data);
 	}
 
-	const hkdfSalt = new Uint8Array(
-		await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode('aes-key')]))
-	).slice(0, 16);
+	let exitCode = -1;
+	js7z.onExit = (code: number) => {
+		exitCode = code;
+	};
 
-	const baseIv = new Uint8Array(
-		await crypto.subtle.digest('SHA-256', new Uint8Array([...finalIKM, ...enc.encode(HKDF_IV_STR)]))
-	).slice(0, 12);
+	js7z.callMain(['a', `${outputDir}/archive.7z`, `${inputDir}/*`]);
 
-	const aesKey = await deriveAESKeyFromIKM(finalIKM, hkdfSalt);
-
-	return { aesKey, baseIv, finalIKM };
-}
-
-interface EncryptionContext {
-	chunkSizes: Map<number, number>;
-	processedTotal: number;
-	workers: Worker[];
-	nextWorker: number;
-	encryptedMap: Map<number, Uint8Array>;
-	nextToEnqueue: number;
-	pendingCount: number;
-	allDoneResolve: (() => void) | null;
-	allDoneReject: ((e: any) => void) | null;
-	streamEnded: boolean;
-	controllerRef: TransformStreamDefaultController<Uint8Array> | null;
-	originalSize?: number;
-	onProgress?: (processed: number, total?: number) => void;
-}
-
-async function handleEncryptionError(ctx: EncryptionContext, e: any): Promise<void> {
-	if (ctx.allDoneReject) ctx.allDoneReject(e);
-	if (ctx.controllerRef) ctx.controllerRef.error(e);
-}
-
-async function handleWorkerEncryptedMessage(ctx: EncryptionContext, data: any): Promise<void> {
-	if (data?.type === 'encrypted') {
-		ctx.pendingCount--;
-		ctx.encryptedMap.set(data.index, new Uint8Array(data.encrypted));
-		while (ctx.encryptedMap.has(ctx.nextToEnqueue)) {
-			const arr = ctx.encryptedMap.get(ctx.nextToEnqueue)!;
-			ctx.encryptedMap.delete(ctx.nextToEnqueue);
-			ctx.controllerRef!.enqueue(arr);
-			ctx.nextToEnqueue++;
-			const sz = ctx.chunkSizes.get(ctx.nextToEnqueue - 1) || 0;
-			ctx.processedTotal += sz;
-			if (ctx.onProgress) ctx.onProgress(ctx.processedTotal, ctx.originalSize);
-		}
-		if (ctx.streamEnded && ctx.pendingCount === 0) {
-			if (ctx.allDoneResolve) ctx.allDoneResolve();
-			if (ctx.onProgress) ctx.onProgress(ctx.originalSize ?? ctx.processedTotal, ctx.originalSize);
-		}
-	} else if (data?.type === 'error') {
-		await handleEncryptionError(ctx, new Error(data.message || 'Worker error'));
-	}
-}
-
-async function initializeEncryptionWorkers(
-	ctx: EncryptionContext,
-	aesKey: CryptoKey,
-	baseIv: Uint8Array,
-	concurrency: number
-): Promise<void> {
-	const keyRaw = await crypto.subtle.exportKey('raw', aesKey);
-	const initPromises: Promise<Worker | null>[] = [];
-
-	for (let i = 0; i < concurrency; i++) {
-		initPromises.push(
-			new Promise<Worker | null>((resolve) => {
-				try {
-					const w = new EncryptWorker();
-					let resolved = false;
-
-					w.onmessage = (ev) => {
-						if (ev.data?.type === 'ready' && !resolved) {
-							resolved = true;
-							resolve(w);
-						} else {
-							handleWorkerEncryptedMessage(ctx, ev.data);
-						}
-					};
-
-					w.onerror = (e) => {
-						if (!resolved) {
-							resolved = true;
-							console.warn(`EncryptWorker ${i} failed to load. Falling back to main thread.`, e);
-							resolve(null);
-						}
-					};
-
-					const keyCopy = keyRaw.slice(0);
-					const ivCopy = baseIv.buffer.slice(0);
-					w.postMessage({ type: 'init', keyRaw: keyCopy, baseIv: ivCopy }, [keyCopy, ivCopy]);
-				} catch (err) {
-					console.warn(`EncryptWorker ${i} instantiation failed.`, err);
-					resolve(null);
-				}
-			})
-		);
+	if (exitCode !== 0) {
+		throw new Error(`7z compression failed with exit code ${exitCode}`);
 	}
 
-	const results = await Promise.all(initPromises);
-	ctx.workers = results.filter(Boolean) as Worker[];
+	const archiveBytes = new Uint8Array(js7z.FS.readFile(`${outputDir}/archive.7z`));
 
-	if (ctx.workers.length === 0) {
-		console.warn('All encryption workers failed. Using main-thread AES-GCM fallback.');
-	}
-}
-async function encryptChunkWithWorker(
-	ctx: EncryptionContext,
-	index: number,
-	chunkData: Uint8Array
-): Promise<void> {
-	ctx.pendingCount++;
-	const transferable = chunkData.buffer.slice(
-		chunkData.byteOffset,
-		chunkData.byteOffset + chunkData.byteLength
-	);
-	const w = ctx.workers[ctx.nextWorker];
-	ctx.nextWorker = (ctx.nextWorker + 1) % ctx.workers.length;
-	w.postMessage({ type: 'encrypt', index, chunk: transferable }, [transferable]);
-}
+	js7z.FS.rmdir(inputDir);
+	js7z.FS.rmdir(outputDir);
 
-async function encryptChunkFallback(
-	ctx: EncryptionContext,
-	index: number,
-	chunkData: Uint8Array,
-	aesKey: CryptoKey,
-	baseIv: Uint8Array
-): Promise<void> {
-	ctx.pendingCount++;
-	try {
-		const iv = getChunkIv(baseIv, index);
-		const buf = chunkData.buffer.slice(
-			chunkData.byteOffset,
-			chunkData.byteOffset + chunkData.byteLength
-		);
-		const encrypted = await crypto.subtle.encrypt(
-			{ name: 'AES-GCM', iv: iv as any },
-			aesKey,
-			buf as ArrayBuffer
-		);
-		ctx.pendingCount--;
-		ctx.encryptedMap.set(index, new Uint8Array(encrypted));
-		while (ctx.encryptedMap.has(ctx.nextToEnqueue)) {
-			const arr = ctx.encryptedMap.get(ctx.nextToEnqueue)!;
-			ctx.encryptedMap.delete(ctx.nextToEnqueue);
-			ctx.controllerRef!.enqueue(arr);
-			ctx.nextToEnqueue++;
-			const szInline = ctx.chunkSizes.get(ctx.nextToEnqueue - 1) ?? chunkData.byteLength;
-			ctx.processedTotal += szInline;
-			if (ctx.onProgress) ctx.onProgress(ctx.processedTotal, ctx.originalSize);
-		}
-		if (ctx.streamEnded && ctx.pendingCount === 0) {
-			if (ctx.allDoneResolve) ctx.allDoneResolve();
-			if (ctx.onProgress) ctx.onProgress(ctx.originalSize ?? ctx.processedTotal, ctx.originalSize);
-		}
-	} catch (err) {
-		await handleEncryptionError(ctx, err);
-	}
-}
-
-async function assignEncryptionChunk(
-	ctx: EncryptionContext,
-	index: number,
-	chunkData: Uint8Array,
-	aesKey: CryptoKey,
-	baseIv: Uint8Array
-): Promise<void> {
-	if (ctx.workers.length > 0) {
-		await encryptChunkWithWorker(ctx, index, chunkData);
-	} else {
-		await encryptChunkFallback(ctx, index, chunkData, aesKey, baseIv);
-	}
-}
-
-interface DecryptionContext {
-	workers: Worker[];
-	nextWorker: number;
-	decryptedMap: Map<number, Uint8Array>;
-	nextToEnqueue: number;
-	pendingCount: number;
-	allDoneResolve: (() => void) | null;
-	allDoneReject: ((e: any) => void) | null;
-	streamEnded: boolean;
-	controllerRef: ReadableStreamDefaultController<Uint8Array> | null;
-	processedTotal: number;
-	originalSize?: number;
-	onProgress?: (processed: number, total?: number) => void;
-}
-
-async function handleDecryptionError(ctx: DecryptionContext, e: any): Promise<void> {
-	if (ctx.allDoneReject) ctx.allDoneReject(e);
-	if (ctx.controllerRef) ctx.controllerRef.error(e);
-}
-
-async function handleWorkerDecryptedMessage(ctx: DecryptionContext, data: any): Promise<void> {
-	if (data?.type === 'decrypted') {
-		ctx.pendingCount--;
-		ctx.decryptedMap.set(data.index, new Uint8Array(data.decrypted));
-		while (ctx.decryptedMap.has(ctx.nextToEnqueue)) {
-			const arr = ctx.decryptedMap.get(ctx.nextToEnqueue)!;
-			ctx.decryptedMap.delete(ctx.nextToEnqueue);
-			ctx.controllerRef!.enqueue(arr);
-			ctx.nextToEnqueue++;
-			ctx.processedTotal += arr.byteLength;
-			if (ctx.onProgress) ctx.onProgress(ctx.processedTotal, ctx.originalSize);
-		}
-		if (ctx.streamEnded && ctx.pendingCount === 0 && ctx.allDoneResolve) {
-			if (ctx.onProgress) ctx.onProgress(ctx.originalSize ?? ctx.processedTotal, ctx.originalSize);
-			ctx.allDoneResolve();
-		}
-	} else if (data?.type === 'error') {
-		const err = new Error(data.message || 'Worker error');
-		if (data.name) err.name = data.name;
-		await handleDecryptionError(ctx, err);
-	}
-}
-
-async function initializeDecryptionWorkers(
-	ctx: DecryptionContext,
-	aesKey: CryptoKey,
-	baseIv: Uint8Array,
-	concurrency: number
-): Promise<void> {
-	const keyRaw = await crypto.subtle.exportKey('raw', aesKey);
-	const initPromises: Promise<Worker | null>[] = [];
-
-	for (let i = 0; i < concurrency; i++) {
-		initPromises.push(
-			new Promise<Worker | null>((resolve) => {
-				try {
-					const w = new DecryptWorker();
-					let resolved = false;
-
-					w.onmessage = (ev) => {
-						if (ev.data?.type === 'ready' && !resolved) {
-							resolved = true;
-							resolve(w);
-						} else {
-							handleWorkerDecryptedMessage(ctx, ev.data);
-						}
-					};
-
-					w.onerror = (e) => {
-						if (!resolved) {
-							resolved = true;
-							console.warn(`DecryptWorker ${i} failed to load. Falling back to main thread.`, e);
-							resolve(null);
-						}
-					};
-
-					const keyCopy = keyRaw.slice(0);
-					const ivCopy = baseIv.buffer.slice(0);
-					w.postMessage({ type: 'init', keyRaw: keyCopy, baseIv: ivCopy }, [keyCopy, ivCopy]);
-				} catch (err) {
-					console.warn(`DecryptWorker ${i} instantiation failed.`, err);
-					resolve(null);
-				}
-			})
-		);
-	}
-
-	const results = await Promise.all(initPromises);
-	ctx.workers = results.filter(Boolean) as Worker[];
-
-	if (ctx.workers.length === 0) {
-		console.warn('All decryption workers failed. Using main-thread AES-GCM fallback.');
-	}
-}
-async function decryptChunkWithWorker(
-	ctx: DecryptionContext,
-	index: number,
-	chunkBuf: Uint8Array
-): Promise<void> {
-	ctx.pendingCount++;
-	const transferable = chunkBuf.buffer.slice(
-		chunkBuf.byteOffset,
-		chunkBuf.byteOffset + chunkBuf.byteLength
-	);
-	const w = ctx.workers[ctx.nextWorker];
-	ctx.nextWorker = (ctx.nextWorker + 1) % ctx.workers.length;
-	w.postMessage({ type: 'decrypt', index, chunk: transferable }, [transferable]);
-}
-
-async function decryptChunkFallback(
-	ctx: DecryptionContext,
-	index: number,
-	chunkBuf: Uint8Array,
-	aesKey: CryptoKey,
-	baseIv: Uint8Array
-): Promise<void> {
-	ctx.pendingCount++;
-	try {
-		const iv = getChunkIv(baseIv, index);
-		const buf = chunkBuf.buffer as ArrayBuffer;
-		const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv as any }, aesKey, buf);
-		ctx.pendingCount--;
-		ctx.decryptedMap.set(index, new Uint8Array(decrypted));
-		if (ctx.controllerRef) {
-			while (ctx.decryptedMap.has(ctx.nextToEnqueue)) {
-				const arr = ctx.decryptedMap.get(ctx.nextToEnqueue)!;
-				ctx.decryptedMap.delete(ctx.nextToEnqueue);
-				ctx.controllerRef.enqueue(arr);
-				ctx.nextToEnqueue++;
-				ctx.processedTotal += arr.byteLength;
-				if (ctx.onProgress) ctx.onProgress(ctx.processedTotal, ctx.originalSize);
-			}
-		}
-		if (ctx.streamEnded && ctx.pendingCount === 0 && ctx.allDoneResolve) {
-			if (ctx.onProgress) ctx.onProgress(ctx.originalSize ?? ctx.processedTotal, ctx.originalSize);
-			ctx.allDoneResolve();
-		}
-	} catch (err) {
-		await handleDecryptionError(ctx, err);
-	}
-}
-
-async function assignDecryptionChunk(
-	ctx: DecryptionContext,
-	index: number,
-	chunkBuf: Uint8Array,
-	aesKey: CryptoKey,
-	baseIv: Uint8Array
-): Promise<void> {
-	if (ctx.workers.length > 0) {
-		await decryptChunkWithWorker(ctx, index, chunkBuf);
-	} else {
-		await decryptChunkFallback(ctx, index, chunkBuf, aesKey, baseIv);
-	}
-}
-
-async function writeZipFiles(
-	zipWriter: ZipWriter<any>,
-	writable: WritableStream<Uint8Array>,
-	files: File[],
-	password?: string,
-	signal?: AbortSignal
-): Promise<void> {
-	try {
-		for (const file of files) {
-			let filename = (file as any).relativePath || file.name;
-			filename = makeUnique(filename);
-			try {
-				await zipWriter.add(filename, file.stream(), {
-					password: password?.length ? password : undefined,
-					encryptionStrength: password?.length ? 3 : undefined,
-					level: 9,
-					signal
-				});
-			} catch (err: any) {
-				const msg = String(err?.message || err || '');
-				if (msg.includes('File already exists') || msg.includes('already exists')) {
-					const altName = makeUnique((file as any).relativePath || file.name);
-					await zipWriter.add(altName, file.stream(), {
-						password: password?.length ? password : undefined,
-						encryptionStrength: password?.length ? 3 : undefined,
-						level: 9,
-						signal
-					});
-				} else {
-					throw err;
-				}
-			}
-		}
-		await zipWriter.close();
-	} catch (error) {
-		console.error('Error creating zip stream:', error);
-		try {
-			await writable.abort(error);
-		} catch (e) {
-			// ignore
-		}
-	}
-}
-
-export async function createZipStream(
-	files: File[],
-	password?: string,
-	signal?: AbortSignal
-): Promise<ReadableStream<Uint8Array>> {
-	const { readable, writable } = new TransformStream();
-	const zipWriter = new ZipWriter(writable, {
-		bufferedWrite: true,
-		useCompressionStream: true
+	return new ReadableStream<Uint8Array>({
+		start(controller) {
+			controller.enqueue(archiveBytes);
+			controller.close();
+		},
 	});
-	writeZipFiles(zipWriter, writable, files, password, signal);
-	return readable;
 }
 
+// ---------------------------------------------------------------------------
+// ECE (RFC 8188) streaming encrypt/decrypt over AES-256-GCM.
+//
+// Wire format v3:
+//   [16-byte random salt][1-byte version][4-byte record size, BE]
+//   [record_0][record_1]...
+//
+// Each record is the AES-256-GCM ciphertext of a RECORD_SIZE-sized plaintext
+// chunk (last record may be shorter). Per-record nonce = deterministic 12-byte
+// nonceBase XOR sequence_number (last 4 bytes BE).
+//
+// The file key is HKDF(IKM, salt=header_salt). The salt is REAL: it feeds
+// both Argon2id (password path) and HKDF (all paths), so identical passwords
+// over different uploads yield different keys and ciphertexts.
+// ---------------------------------------------------------------------------
+
+interface WorkerSlot {
+	worker: Worker;
+	ready: Promise<void>;
+}
+
+function makeWorkerSlot(ikmB64: string, saltB64: string, op: 'encrypt' | 'decrypt'): WorkerSlot {
+	const worker = new CryptoWorker();
+	let resolveReady: () => void;
+	let rejectReady: (e: Error) => void;
+	const ready = new Promise<void>((res, rej) => {
+		resolveReady = res;
+		rejectReady = rej;
+	});
+	worker.onmessage = (e: MessageEvent) => {
+		const msg = e.data;
+		if (msg.type === 'ready') resolveReady();
+		else if (msg.type === 'error') rejectReady(new Error(msg.error ?? 'worker error'));
+	};
+	worker.onerror = (e) => rejectReady(new Error(e.message || 'worker error'));
+	worker.postMessage({ type: 'init', ikmB64, saltB64, op });
+	return { worker, ready };
+}
+
+async function workerProcess(slot: WorkerSlot, index: number, data: Uint8Array): Promise<Uint8Array> {
+	await slot.ready;
+	const buf = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
+	return await new Promise<Uint8Array>((resolve, reject) => {
+		const handler = (e: MessageEvent) => {
+			const msg = e.data;
+			if (msg.type === 'chunk' && msg.index === index) {
+				slot.worker.removeEventListener('message', handler);
+				resolve(new Uint8Array(msg.data as ArrayBuffer));
+			} else if (msg.type === 'error') {
+				slot.worker.removeEventListener('message', handler);
+				reject(new Error(msg.error ?? 'worker error'));
+			}
+		};
+		slot.worker.addEventListener('message', handler);
+		slot.worker.postMessage({ type: 'chunk', index, data: buf }, [buf]);
+	});
+}
+
+/** Build the 21-byte v3 header: [salt][version][record_size BE]. */
+function buildHeader(salt: Uint8Array): Uint8Array {
+	const header = new Uint8Array(HEADER_LENGTH);
+	header.set(salt, 0);
+	header[SALT_LENGTH] = SCHEME_VERSION;
+	const view = new DataView(header.buffer, SALT_LENGTH + VERSION_LENGTH, RECORD_SIZE_FIELD_LENGTH);
+	view.setUint32(0, RECORD_SIZE);
+	return header;
+}
+
+/** Parse the v3 header. Returns { salt, version, recordSize }. */
+function parseHeader(bytes: Uint8Array): { salt: Uint8Array; version: number; recordSize: number } {
+	const salt = bytes.slice(0, SALT_LENGTH);
+	const version = bytes[SALT_LENGTH];
+	const recordSize = new DataView(bytes.buffer, bytes.byteOffset + SALT_LENGTH + VERSION_LENGTH, RECORD_SIZE_FIELD_LENGTH).getUint32(0);
+	return { salt, version, recordSize };
+}
+
+// ---------------------------------------------------------------------------
+// createEncryptedStream
+//
+// Reads the input stream, slices into RECORD_SIZE chunks, encrypts each in a
+// worker, and emits the v3 header + ciphertext records in order. Returns the
+// encrypted stream and the base64url-encoded IKM (the "keySecret" embedded in
+// the share URL hash).
+// ---------------------------------------------------------------------------
 export async function createEncryptedStream(
 	inputStream: ReadableStream<Uint8Array>,
 	password?: string,
-	originalSize?: number,
+	origSize?: number,
 	onProgress?: (processed: number, total?: number) => void,
-	ikm_override?: Uint8Array
-) {
-	const ikm = ikm_override ?? crypto.getRandomValues(new Uint8Array(32));
-	const { aesKey, baseIv } = await deriveSecrets(ikm, password);
-	const chunks: Uint8Array[] = [];
-	let bufferedBytes = 0;
-	let chunkIndex = 0;
-	let allDonePromise: Promise<void> | null = null;
+	ikmOverride?: Uint8Array,
+): Promise<{ stream: ReadableStream<Uint8Array>; keySecret: string }> {
+	// Generate the per-file salt FIRST - it feeds both Argon2id (password path)
+	// and HKDF (all paths), and travels in the wire header.
+	const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
+	const ikm = await resolveIkM(ikmOverride ?? null, password ?? null, salt);
+	const keySecret = base64url(ikm);
+	const ikmB64 = keySecret;
+	const saltB64 = base64url(salt);
 
-	const ctx: EncryptionContext = {
-		chunkSizes: new Map<number, number>(),
-		processedTotal: 0,
-		workers: [],
-		nextWorker: 0,
-		encryptedMap: new Map<number, Uint8Array>(),
-		nextToEnqueue: 0,
-		pendingCount: 0,
-		allDoneResolve: null,
-		allDoneReject: null,
-		streamEnded: false,
-		controllerRef: null,
-		originalSize,
-		onProgress
-	};
+	const slot = makeWorkerSlot(ikmB64, saltB64, 'encrypt');
+	const header = buildHeader(salt);
 
-	function readChunk(size: number): Uint8Array {
-		const out = new Uint8Array(size);
-		let offset = 0;
-
-		while (offset < size) {
-			const first = chunks[0];
-			const take = Math.min(first.length, size - offset);
-			out.set(first.subarray(0, take), offset);
-
-			if (take === first.length) {
-				chunks.shift();
-			} else {
-				chunks[0] = first.subarray(take);
-			}
-			offset += take;
-			bufferedBytes -= take;
-		}
-		return out;
-	}
-
-	const transformer = new TransformStream<Uint8Array, Uint8Array>({
-		async start(controller) {
-			ctx.controllerRef = controller;
-			allDonePromise = new Promise<void>((res, rej) => {
-				ctx.allDoneResolve = res;
-				ctx.allDoneReject = rej;
-			});
-			await initializeEncryptionWorkers(ctx, aesKey, baseIv, WORKER_CONCURRENCY);
-		},
-
-		async transform(chunk) {
-			chunks.push(chunk);
-			bufferedBytes += chunk.length;
-
-			while (bufferedBytes >= CHUNK_SIZE) {
-				const chunkData = readChunk(CHUNK_SIZE);
-				const index = chunkIndex++;
-				ctx.chunkSizes.set(index, chunkData.byteLength);
-				await assignEncryptionChunk(ctx, index, chunkData, aesKey, baseIv);
-			}
-		},
-
-		async flush() {
-			if (bufferedBytes > 0 || chunkIndex === 0) {
-				const chunkData = readChunk(bufferedBytes);
-				const index = chunkIndex++;
-				ctx.chunkSizes.set(index, chunkData.byteLength);
-				await assignEncryptionChunk(ctx, index, chunkData, aesKey, baseIv);
-			}
-			ctx.streamEnded = true;
-			if (ctx.pendingCount > 0) {
-				await allDonePromise;
-			}
-			try {
-				for (const w of ctx.workers) w.terminate();
-			} catch {}
-		}
-	});
-
-	return {
-		stream: inputStream.pipeThrough(transformer),
-		keySecret: base64url(ikm)
-	};
-}
-
-export async function createDecryptedStream(
-	inputStream: ReadableStream<Uint8Array>,
-	keySecret: string,
-	password?: string,
-	originalSize?: number,
-	onProgress?: (processed: number, total?: number) => void
-) {
-	const ikm = base64urlToBytes(keySecret);
-	const { aesKey, baseIv } = await deriveSecrets(ikm, password);
 	const reader = inputStream.getReader();
 	let buffer = new Uint8Array(0);
+	let processed = 0;
+	let seq = 0;
+	let inputDone = false;
 
-	const TAG_LEN = 16;
-	const ENC_CHUNK_SIZE = CHUNK_SIZE + TAG_LEN;
-	let chunkIndex = 0;
-
-	const ctx: DecryptionContext = {
-		workers: [],
-		nextWorker: 0,
-		decryptedMap: new Map<number, Uint8Array>(),
-		nextToEnqueue: 0,
-		pendingCount: 0,
-		allDoneResolve: null,
-		allDoneReject: null,
-		streamEnded: false,
-		controllerRef: null,
-		processedTotal: 0,
-		originalSize,
-		onProgress
+	const readMore = async (): Promise<Uint8Array | null> => {
+		const { done, value } = await reader.read();
+		if (done) return null;
+		return value;
 	};
-
-	const allDonePromise = new Promise<void>((res, rej) => {
-		ctx.allDoneResolve = res;
-		ctx.allDoneReject = rej;
-	});
 
 	const stream = new ReadableStream<Uint8Array>({
 		async start(controller) {
-			ctx.controllerRef = controller;
-			await initializeDecryptionWorkers(ctx, aesKey, baseIv, WORKER_CONCURRENCY);
+			controller.enqueue(header);
 		},
 		async pull(controller) {
-			while (buffer.length < ENC_CHUNK_SIZE) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				const newBuf = new Uint8Array(buffer.length + value.length);
-				newBuf.set(buffer);
-				newBuf.set(value, buffer.length);
-				buffer = newBuf;
-			}
-
-			if (buffer.length === 0) {
-				if (ctx.pendingCount === 0) {
-					controller.close();
-					return;
-				}
-				ctx.streamEnded = true;
-				await allDonePromise;
-				controller.close();
-				return;
-			}
-
-			let currentChunkSize = ENC_CHUNK_SIZE;
-			let isLast = false;
-			if (buffer.length < ENC_CHUNK_SIZE) {
-				currentChunkSize = buffer.length;
-				isLast = true;
-			}
-
-			const chunkData = buffer.slice(0, currentChunkSize);
-			buffer = buffer.slice(currentChunkSize);
-
-			const index = chunkIndex++;
-			await assignDecryptionChunk(ctx, index, chunkData, aesKey, baseIv);
-
-			if (isLast && ctx.pendingCount === 0) {
-				while (ctx.decryptedMap.has(ctx.nextToEnqueue)) {
-					const arr = ctx.decryptedMap.get(ctx.nextToEnqueue)!;
-					ctx.decryptedMap.delete(ctx.nextToEnqueue);
-					controller.enqueue(arr);
-					ctx.nextToEnqueue++;
-					ctx.processedTotal += arr.byteLength;
-					if (ctx.onProgress) ctx.onProgress(ctx.processedTotal, ctx.originalSize);
-				}
-				controller.close();
-			}
-		},
-		async cancel() {
-			for (const w of ctx.workers) {
-				try {
-					w.terminate();
-				} catch (e) {}
-			}
-		}
-	});
-
-	allDonePromise
-		.then(async () => {
-			for (const w of ctx.workers) w.terminate();
-		})
-		.catch(async () => {
-			for (const w of ctx.workers) w.terminate();
-		});
-
-	return { stream };
-}
-
-export function createMultipartStream(
-	boundary: string,
-	fields: Record<string, string>,
-	fileField: string,
-	filename: string,
-	fileStream: ReadableStream<Uint8Array>
-): ReadableStream<Uint8Array> {
-	const encoder = new TextEncoder();
-	const preAmbleParts: Uint8Array[] = [];
-	for (const [key, value] of Object.entries(fields)) {
-		preAmbleParts.push(encoder.encode(`--${boundary}\r\n`));
-		preAmbleParts.push(encoder.encode(`Content-Disposition: form-data; name="${key}"\r\n\r\n`));
-		preAmbleParts.push(encoder.encode(`${value}\r\n`));
-	}
-	preAmbleParts.push(encoder.encode(`--${boundary}\r\n`));
-	preAmbleParts.push(
-		encoder.encode(
-			`Content-Disposition: form-data; name="${fileField}"; filename="${filename}"\r\n`
-		)
-	);
-	preAmbleParts.push(encoder.encode(`Content-Type: application/octet-stream\r\n\r\n`));
-
-	const postAmble = encoder.encode(`\r\n--${boundary}--\r\n`);
-
-	let state: 'preamble' | 'file' | 'postamble' | 'done' = 'preamble';
-	let preambleIndex = 0;
-	let fileReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
-
-	return new ReadableStream({
-		async pull(controller) {
-			while (true) {
-				if (state === 'preamble') {
-					if (preambleIndex < preAmbleParts.length) {
-						controller.enqueue(preAmbleParts[preambleIndex]);
-						preambleIndex++;
-						return;
+			for (;;) {
+				if (buffer.length < RECORD_SIZE) {
+					const value = await readMore();
+					if (value === null) {
+						inputDone = true;
+						if (buffer.length === 0) {
+							slot.worker.terminate();
+							controller.close();
+							return;
+						}
 					} else {
-						state = 'file';
-						fileReader = fileStream.getReader();
-						continue;
+						const combined = new Uint8Array(buffer.length + value.length);
+						combined.set(buffer);
+						combined.set(value, buffer.length);
+						buffer = combined;
 					}
 				}
 
-				if (state === 'file') {
-					const { done, value } = await fileReader!.read();
-					if (done) {
-						state = 'postamble';
-						continue;
-					}
-					controller.enqueue(value);
-					return;
-				}
+				const isFinal = inputDone;
+				const chunkSize = isFinal ? buffer.length : RECORD_SIZE;
+				const chunk = buffer.slice(0, chunkSize);
+				buffer = buffer.slice(chunkSize);
 
-				if (state === 'postamble') {
-					controller.enqueue(postAmble);
-					state = 'done';
-					controller.close();
-					return;
-				}
+				const index = seq++;
+				const ciphertext = await workerProcess(slot, index, chunk);
+				processed += chunkSize;
+				onProgress?.(processed, origSize);
+				controller.enqueue(ciphertext);
 
-				if (state === 'done') {
+				if (isFinal && buffer.length === 0) {
+					slot.worker.terminate();
 					controller.close();
 					return;
 				}
 			}
 		},
 		cancel() {
-			if (fileReader) {
-				fileReader.cancel();
-			} else {
-				fileStream.cancel();
+			slot.worker.terminate();
+			reader.cancel().catch(() => {});
+		},
+	});
+
+	return { stream, keySecret };
+}
+
+// ---------------------------------------------------------------------------
+// createDecryptedStream
+//
+// Reads the v3 wire format, strips the header (extracting the real salt),
+// resolves the IKM against that salt, then decrypts each record in a worker.
+// Emits plaintext chunks in order.
+// ---------------------------------------------------------------------------
+export async function createDecryptedStream(
+	inputStream: ReadableStream<Uint8Array>,
+	keySecret: string,
+	password?: string,
+	origSize?: number,
+	onProgress?: (processed: number, total?: number) => void,
+): Promise<ReadableStream<Uint8Array>> {
+	const reader = inputStream.getReader();
+
+	// Read the header first - the salt inside is required to derive the IKM.
+	let buffer = new Uint8Array(0);
+	const readMore = async (): Promise<Uint8Array | null> => {
+		const { done, value } = await reader.read();
+		if (done) return null;
+		return value;
+	};
+
+	while (buffer.length < HEADER_LENGTH) {
+		const value = await readMore();
+		if (value === null) throw new Error('Ciphertext ended before header');
+		const combined = new Uint8Array(buffer.length + value.length);
+		combined.set(buffer);
+		combined.set(value, buffer.length);
+		buffer = combined;
+	}
+
+	const { salt, version, recordSize } = parseHeader(buffer);
+	buffer = buffer.slice(HEADER_LENGTH);
+
+	if (version !== SCHEME_VERSION) {
+		throw new Error(`Unsupported encryption version: ${version} (expected ${SCHEME_VERSION})`);
+	}
+
+	// Resolve IKM using the real salt from the header.
+	const ikm = password ? await resolveIkM(null, password, salt) : base64urlToBytes(keySecret);
+	const ikmB64 = base64url(ikm);
+	const saltB64 = base64url(salt);
+
+	const slot = makeWorkerSlot(ikmB64, saltB64, 'decrypt');
+
+	let seq = 0;
+	let processed = 0;
+	let inputDone = false;
+	const CHUNK = recordSize; // honour the record size from the header
+
+	const stream = new ReadableStream<Uint8Array>({
+		async pull(controller) {
+			for (;;) {
+				if (buffer.length < CHUNK) {
+					const value = await readMore();
+					if (value === null) {
+						inputDone = true;
+						if (buffer.length === 0) {
+							slot.worker.terminate();
+							controller.close();
+							return;
+						}
+					} else {
+						const combined = new Uint8Array(buffer.length + value.length);
+						combined.set(buffer);
+						combined.set(value, buffer.length);
+						buffer = combined;
+					}
+				}
+
+				const isFinal = inputDone;
+				const chunkSize = isFinal ? buffer.length : CHUNK;
+				const chunk = buffer.slice(0, chunkSize);
+				buffer = buffer.slice(chunkSize);
+
+				const index = seq++;
+				const plaintext = await workerProcess(slot, index, chunk);
+				processed += plaintext.byteLength;
+				onProgress?.(processed, origSize);
+				controller.enqueue(plaintext);
+
+				if (isFinal && buffer.length === 0) {
+					slot.worker.terminate();
+					controller.close();
+					return;
+				}
 			}
-		}
+		},
+		cancel() {
+			slot.worker.terminate();
+			reader.cancel().catch(() => {});
+		},
+	});
+
+	return stream;
+}
+
+// ---------------------------------------------------------------------------
+// Multipart stream builder (unchanged from prior implementation).
+// ---------------------------------------------------------------------------
+export function createMultipartStream(
+	boundary: string,
+	fields: Record<string, string>,
+	fileField: string,
+	filename: string,
+	fileStream: ReadableStream<Uint8Array>,
+): ReadableStream<Uint8Array> {
+	const parts: Uint8Array[] = [];
+	for (const [k, v] of Object.entries(fields)) {
+		parts.push(encoder.encode(`--${boundary}\r\nContent-Disposition: form-data; name="${k}"\r\n\r\n${v}\r\n`));
+	}
+	parts.push(encoder.encode(`--${boundary}\r\nContent-Disposition: form-data; name="${fileField}"; filename="${filename}"\r\nContent-Type: application/octet-stream\r\n\r\n`));
+	const post = encoder.encode(`\r\n--${boundary}--\r\n`);
+
+	let phase: 0 | 1 | 2 | 3 = 0;
+	let pi = 0;
+	let fileReader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+
+	return new ReadableStream({
+		async pull(controller) {
+			for (;;) {
+				if (phase === 0) {
+					if (pi < parts.length) {
+						controller.enqueue(parts[pi++]!);
+						return;
+					}
+					phase = 1;
+					fileReader = fileStream.getReader();
+					continue;
+				}
+				if (phase === 1) {
+					const { done, value } = await fileReader!.read();
+					if (done) {
+						phase = 2;
+						continue;
+					}
+					controller.enqueue(value);
+					return;
+				}
+				if (phase === 2) {
+					controller.enqueue(post);
+					phase = 3;
+					return;
+				}
+				controller.close();
+				return;
+			}
+		},
+		cancel() {
+			fileReader?.cancel() ?? fileStream.cancel();
+		},
 	});
 }

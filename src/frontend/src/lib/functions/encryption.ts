@@ -1,24 +1,36 @@
+import { argon2id } from 'hash-wasm';
 import {
-	DEFAULT_ARGON2_ITERATIONS,
-	DEFAULT_ARGON2_MEMORY_KIB,
-	MAX_ARGON2_MEMORY_KIB
+	ARGON2_HASH_LENGTH,
+	ARGON2_MEMORY_COST_KIB,
+	ARGON2_PARALLELISM,
+	ARGON2_TIME_COST,
+	FILE_KEY_LENGTH,
+	HKDF_FILE_INFO,
 } from '#consts/encryption';
+
+const encoder = new TextEncoder();
+
+// TS 6's typed-array generics make Uint8Array<ArrayBufferLike> reject against
+// the Web Crypto BufferSource parameter. Slice the exact byte range into a
+// fresh ArrayBuffer-backed view to satisfy the type and avoid the mismatch.
+function asBufferSource(u8: Uint8Array): ArrayBuffer {
+	return u8.slice().buffer;
+}
+
+// ---------------------------------------------------------------------------
+// Base64 / base64url helpers (URL-fragment transport of the secret key).
+// ---------------------------------------------------------------------------
 
 export function bytesToBase64(u8: Uint8Array) {
 	let binary = '';
-	for (let i = 0; i < u8.byteLength; i++) {
-		binary += String.fromCharCode(u8[i]);
-	}
+	for (let i = 0; i < u8.byteLength; i++) binary += String.fromCharCode(u8[i]);
 	return btoa(binary);
 }
 
 export function base64ToBytes(b64: string) {
-	const binary = atob(b64);
-	const len = binary.length;
-	const bytes = new Uint8Array(len);
-	for (let i = 0; i < len; i++) {
-		bytes[i] = binary.charCodeAt(i);
-	}
+	const raw = atob(b64);
+	const bytes = new Uint8Array(raw.length);
+	for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
 	return bytes;
 }
 
@@ -28,78 +40,73 @@ export function base64url(u8: Uint8Array) {
 
 export function base64urlToBytes(str: string) {
 	let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
-	while (b64.length % 4) {
-		b64 += '=';
-	}
+	while (b64.length % 4) b64 += '=';
 	return base64ToBytes(b64);
 }
 
-export function xorBytes(a: Uint8Array, b: Uint8Array) {
-	const out = new Uint8Array(Math.max(a.length, b.length));
-	for (let i = 0; i < out.length; i++) {
-		out[i] = (a[i] || 0) ^ (b[i] || 0);
-	}
-	return out;
+// ---------------------------------------------------------------------------
+// Key material
+// ---------------------------------------------------------------------------
+
+/** Generate a fresh random 32-byte secret (zero-knowledge root, URL fragment). */
+export function generateSecret(): Uint8Array {
+	return crypto.getRandomValues(new Uint8Array(ARGON2_HASH_LENGTH));
 }
 
-// Derive AES-256-GCM key from ikm using Argon2id
-export async function deriveAESKeyFromIKM(
-	ikm: Uint8Array,
-	hkdfSalt: Uint8Array,
-	info?: Uint8Array
-) {
-	// Use stronger Argon2 parameters for key derivation (more work, memory-capped)
-	const derivedBits = await argon2Derive(
-		ikm,
-		hkdfSalt,
-		DEFAULT_ARGON2_ITERATIONS,
-		DEFAULT_ARGON2_MEMORY_KIB,
-		32,
-		1
-	);
-	// Import key as exportable so we can pass raw key material to workers for parallel encryption
-	return await crypto.subtle.importKey('raw', derivedBits as any, { name: 'AES-GCM' }, true, [
-		'encrypt',
-		'decrypt'
-	]);
-}
-
-export async function argon2Derive(
-	password: string | Uint8Array,
-	salt: Uint8Array,
-	iterations: number,
-	memorySize = DEFAULT_ARGON2_MEMORY_KIB,
-	hashLength = 32,
-	parallelism = 1
-) {
-	// Cap memory to avoid excessive allocations in constrained environments (<512 MiB)
-	const memKb = Math.min(memorySize, MAX_ARGON2_MEMORY_KIB);
-	const { argon2id } = await import('hash-wasm');
-	return await argon2id({
+/**
+ * Argon2id(password, salt) → 32-byte IKM.
+ * The per-file salt comes from the ciphertext header, so the same password
+ * over different uploads derives different IKMs.
+ */
+export async function passwordToIkM(password: string, salt: Uint8Array): Promise<Uint8Array> {
+	const ikm = await argon2id({
 		password,
 		salt,
-		iterations,
-		memorySize: memKb,
-		hashLength,
-		parallelism,
-		outputType: 'binary'
+		iterations: ARGON2_TIME_COST,
+		memorySize: ARGON2_MEMORY_COST_KIB,
+		parallelism: ARGON2_PARALLELISM,
+		hashLength: ARGON2_HASH_LENGTH,
+		outputType: 'binary',
 	});
+	if (ikm.length !== ARGON2_HASH_LENGTH) throw new Error('Argon2id derivation failed');
+	return ikm;
 }
 
-export type InnerEncryptionMeta = {
-	cipher: 'AES-GCM';
-	hkdf: { hash: 'SHA-512'; salt: string };
-	iv: string;
-	size?: number;
-};
+/**
+ * HKDF-SHA256(IKM, salt, info) → 32-byte AES-256 file key (extractable, so
+ * the worker can derive the deterministic nonceBase = SHA-256(key)[0:12]).
+ */
+export async function deriveFileKey(ikm: Uint8Array, salt: Uint8Array): Promise<CryptoKey> {
+	const hkdfBase = await crypto.subtle.importKey('raw', asBufferSource(ikm), 'HKDF', false, ['deriveKey']);
+	return crypto.subtle.deriveKey(
+		{ name: 'HKDF', hash: 'SHA-256', salt: asBufferSource(salt), info: asBufferSource(encoder.encode(HKDF_FILE_INFO)) },
+		hkdfBase,
+		{ name: 'AES-GCM', length: FILE_KEY_LENGTH * 8 },
+		true,
+		['encrypt', 'decrypt'],
+	);
+}
 
-export const CHUNK_SIZE = 64 * 1024; // 64KB
+/**
+ * Resolve an IKM. If a password is given, Argon2id it against the salt.
+ * Otherwise use the caller-supplied secret as-is (already 32 bytes).
+ */
+export async function resolveIkM(
+	secret: Uint8Array | null,
+	password: string | null,
+	salt: Uint8Array,
+): Promise<Uint8Array> {
+	if (password) return passwordToIkM(password, salt);
+	if (secret) return secret;
+	return generateSecret();
+}
 
-export function getChunkIv(baseIv: Uint8Array, chunkIndex: number): Uint8Array {
-	const iv = new Uint8Array(baseIv);
-	const view = new DataView(iv.buffer, iv.byteOffset, iv.byteLength);
-	// XOR the chunk index into the last 4 bytes (big-endian)
-	const last4 = view.getUint32(8, false);
-	view.setUint32(8, last4 ^ chunkIndex, false);
-	return iv;
+/**
+ * Derive the deterministic 12-byte nonce base from a file key:
+ * SHA-256(rawKey)[0:12]. Shared by encrypt and decrypt directions.
+ */
+export async function computeNonceBase(fileKey: CryptoKey): Promise<Uint8Array> {
+	const raw = new Uint8Array(await crypto.subtle.exportKey('raw', fileKey));
+	const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', raw));
+	return digest.slice(0, 12);
 }

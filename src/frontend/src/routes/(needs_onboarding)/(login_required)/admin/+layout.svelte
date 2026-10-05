@@ -1,11 +1,11 @@
 <script lang="ts">
-	import * as Sidebar from '$lib/components/ui/sidebar/index';
-	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index';
-	import { Separator } from '$lib/components/ui/separator/index';
+	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+	import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
+	import { Separator } from '$lib/components/ui/separator/index.js';
 	import AppSidebar from './app-sidebar.svelte';
 	import { page } from '$app/state';
 
-	let { children } = $props();
+	const { children } = $props();
 
 	const breadcrumbMap: Record<string, string> = {
 		'/admin/user': 'Profile',

@@ -49,6 +49,7 @@ Copyright &copy; 2026 The chithi authors
 nav = [
     { "Introduction" = 'index.md' },
     { "Architecture" = "architecture.md" },
+    { "Cryptography" = "crypto-architecture.md" },
     { "Deployments" = [
         { "Docker" = [
             { "Basic" = [
@@ -67,6 +68,9 @@ nav = [
     ] },
     { "Backend" = [
         { "Architecture" = "backend/architecture.md" },
+        { "Storage Backends" = "backend/storage.md" },
+        { "Database Backends" = "backend/database.md" },
+        { "Custom Clients" = "backend/custom-clients.md" },
         { "Environment" = "backend/environment.md" },
         { "License" = "backend/license.md" },
     ] },

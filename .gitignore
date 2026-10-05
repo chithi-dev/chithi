@@ -2,3 +2,8 @@
 
 data
 src/cli/nuitka-crash-report.xml
+/inspirations
+.playwright-mcp
+
+# Rust build artifacts
+target/

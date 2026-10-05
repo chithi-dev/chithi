@@ -1,16 +1,18 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { useOnboarding } from '#queries/onboarding';
+	import { usePrefetchedQuery } from '$lib/graphql/hydration.svelte.js';
+	import { OnboardingDocument } from '$lib/graphql/generated/graphql.js';
+	import type { OnboardingQuery } from '$lib/graphql/generated/graphql.js';
 
-	let { children } = $props();
+	const { children } = $props();
 
-	const { status } = useOnboarding();
+	const onboardingQuery = usePrefetchedQuery<OnboardingQuery>(OnboardingDocument);
 
 	$effect.pre(() => {
-		if (status.isLoading || !status.data) return;
+		if (onboardingQuery.loading || !onboardingQuery.data) return;
 		const isOnboardingRoute = page.url.pathname.startsWith('/onboarding');
-		const needsOnboarding = !status.data.onboarded;
+		const needsOnboarding = !onboardingQuery.data.onboarding.isConfigured;
 		if (needsOnboarding && !isOnboardingRoute) {
 			goto('/onboarding');
 		}

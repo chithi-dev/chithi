@@ -1,68 +1,125 @@
-import { Api } from '#consts/backend';
+/**
+ * Chunked download pipeline.
+ *
+ * Flow:
+ *   1. Query `fileInfo` to get `chunkCount`
+ *   2. For each chunk, call the `chunkUrl` mutation → get a presigned URL
+ *   3. Fetch each chunk from the presigned URL (bypasses Django)
+ *   4. Reassemble all chunks into a single Blob
+ *   5. Pass to the decryptor
+ *
+ * The frontend downloads chunks **directly from S3** (behind Cloudflare),
+ * so Django is not in the download hot path.
+ */
+import {
+	FileInfoDocument,
+	ChunkUrlDocument,
+} from '$lib/graphql/generated/graphql.js';
+import { client } from '$lib/graphql/client.js';
 import { createDecryptedStream } from '#functions/streams';
-import { ZipReader } from '@zip.js/zip.js';
+import { autoDownload } from '#functions/browser-download';
+import { PasswordRequiredError } from '#errors/password';
 
-export class PasswordRequiredError extends Error {
-	constructor() {
-		super('Password required for decryption');
-		this.name = 'PasswordRequiredError';
-	}
+export interface DownloadFileOptions {
+	/** The file slug / UUID (the `key` field from the file record). */
+	fileId: string;
+	/** Called after each chunk is downloaded: (chunksDone, totalChunks). */
+	onProgress?: (chunksDone: number, totalChunks: number) => void;
 }
 
+export interface DownloadResult {
+	/** The reassembled encrypted blob, ready for decryption. */
+	encryptedBlob: Blob;
+	/** Original filename from the server. */
+	filename: string;
+	/** Total size in bytes. */
+	size: number;
+}
+
+async function getFileInfo(fileId: string): Promise<{
+	chunkCount: number;
+	filename: string;
+	size: number;
+	isExpired: boolean;
+}> {
+	const result = await client.query<any>({
+		query: FileInfoDocument,
+		variables: { slug: fileId },
+	});
+	if (result.error) throw new Error(result.error.message);
+
+	const info = result.data.fileInfo;
+	if (!info) throw new Error('File not found');
+	if (info.isExpired) throw new Error('File has expired');
+
+	return {
+		chunkCount: info.chunkCount,
+		filename: info.filename,
+		size: info.size,
+		isExpired: info.isExpired,
+	};
+}
+
+async function fetchChunk(fileId: string, chunkIndex: number): Promise<Blob> {
+	const result = await client.mutate<any>({
+		mutation: ChunkUrlDocument,
+		variables: { fileId, chunkIndex },
+	});
+	if (result.error) throw new Error(result.error.message);
+
+	const url: string = result.data.chunkUrl;
+	if (!url) throw new Error('No presigned URL returned');
+
+	const res = await fetch(url);
+	if (!res.ok) {
+		throw new Error(`Chunk ${chunkIndex} download failed (${res.status})`);
+	}
+	return res.blob();
+}
+
+export async function downloadFile(opts: DownloadFileOptions): Promise<DownloadResult> {
+	const { fileId, onProgress } = opts;
+
+	const info = await getFileInfo(fileId);
+	const { chunkCount, filename, size } = info;
+
+	const chunks: Blob[] = [];
+	for (let i = 0; i < chunkCount; i++) {
+		const chunkBlob = await fetchChunk(fileId, i);
+		chunks.push(chunkBlob);
+		onProgress?.(i + 1, chunkCount);
+	}
+
+	const encryptedBlob = new Blob(chunks, { type: 'application/octet-stream' });
+	return { encryptedBlob, filename, size };
+}
+
+/**
+ * Download a file (chunked, from S3), decrypt it, and trigger a browser
+ * download of the resulting zip.
+ */
 export async function downloadAndDecryptFile(
 	slug: string,
 	key: string,
 	password: string,
 	filename: string,
-	fileSize: number,
+	_fileSize: number,
 	_numberOfFiles: number,
-	onProgress: (percent: number) => void
-) {
-	const res = await fetch(Api.DOWNLOAD(slug));
-	if (!res.ok) throw new Error('Download failed');
-	if (!res.body) throw new Error('No response body');
-
-	const totalSize = fileSize;
-	let loaded = 0;
-
-	const reader = res.body.getReader();
-	const streamWithProgress = new ReadableStream({
-		async pull(controller) {
-			try {
-				const { done, value } = await reader.read();
-				if (done) {
-					controller.close();
-					return;
-				}
-				loaded += value.byteLength;
-				if (totalSize > 0) {
-					onProgress(Math.round((loaded / totalSize) * 100));
-				}
-				controller.enqueue(value);
-			} catch (e) {
-				controller.error(e);
-				throw e;
-			}
-		},
-		cancel(reason) {
-			return reader.cancel(reason);
-		}
+	onProgress?: (percent: number) => void,
+): Promise<void> {
+	const { encryptedBlob } = await downloadFile({
+		fileId: slug,
+		onProgress: onProgress
+			? (done, total) => onProgress(total > 0 ? Math.round((done / total) * 100) : 0)
+			: undefined,
 	});
 
-	const { stream: decryptedStream } = await createDecryptedStream(
-		streamWithProgress,
-		key,
-		password
-	);
-
-	const decReader = decryptedStream.getReader();
-	let firstChunk: Uint8Array | undefined;
-	let isDone = false;
-
+	const stream = await createDecryptedStream(encryptedBlob.stream(), key, password);
+	const reader = stream.getReader();
+	let first: Uint8Array | undefined;
 	try {
-		const { done, value } = await decReader.read();
-		isDone = done;
-		if (!done) firstChunk = value;
+		const { done, value } = await reader.read();
+		if (!done) first = value;
 	} catch (e: any) {
 		if (e.name === 'OperationError') {
 			await reader.cancel('Wrong password');
@@ -71,79 +128,18 @@ export async function downloadAndDecryptFile(
 		throw e;
 	}
 
-	const verifiedStream = new ReadableStream({
-		async start(controller) {
-			if (firstChunk) controller.enqueue(firstChunk);
-			if (isDone) controller.close();
-		},
-		async pull(controller) {
-			const { done, value } = await decReader.read();
-			if (done) {
-				controller.close();
-				return;
-			}
-			controller.enqueue(value);
-		},
-		cancel(reason) {
-			return decReader.cancel(reason);
-		}
-	});
-
-	let finalStream = verifiedStream;
-	let finalDownloadName = filename.toLowerCase().endsWith('.zip') ? filename : `${filename}.zip`;
-
-	const zipReader = new ZipReader(verifiedStream);
-	let entries;
-	try {
-		entries = await zipReader.getEntries();
-	} catch (err) {
-		await zipReader.close();
-		throw err;
-	}
-
-	const firstEntry = entries.find((e) => !e.directory);
-	if (!firstEntry) {
-		await zipReader.close();
-		throw new Error('No files found in the archive');
-	}
-
-	finalDownloadName = firstEntry.filename.split(/[/\\]/).pop() || firstEntry.filename;
-	const { readable, writable } = new TransformStream();
-	// Start extracting in the background
-	firstEntry
-		.getData(writable, { password: password?.length ? password : undefined })
-		.then(() => zipReader.close())
-		.catch((err) => {
-			console.error('Failed to extract:', err);
-			writable.abort(err);
-			zipReader.close().catch(() => undefined);
-		});
-	finalStream = readable;
-
-	const chunks: Uint8Array[] = [];
-	const finalReader = finalStream.getReader();
-	while (true) {
-		const { done, value } = await finalReader.read();
+	const parts: BlobPart[] = [];
+	if (first) parts.push(first as unknown as BlobPart);
+	for (;;) {
+		const { done, value } = await reader.read();
 		if (done) break;
-		chunks.push(value);
+		parts.push(value as unknown as BlobPart);
 	}
-	const blob = new Blob(chunks as any);
 
-	if ((window as any).showSaveFilePicker) {
-		const handle = await (window as any).showSaveFilePicker({
-			suggestedName: finalDownloadName
-		});
-		const writable = await handle.createWritable();
-		await blob.stream().pipeTo(writable);
-	} else {
-		const url = window.URL.createObjectURL(blob);
-		const a = document.createElement('a');
-		a.href = url;
-		a.download = finalDownloadName;
-		a.style.display = 'none';
-		document.body.appendChild(a);
-		a.click();
-		window.URL.revokeObjectURL(url);
-		document.body.removeChild(a);
-	}
+	const blob = new Blob(parts, { type: 'application/x-7z-compressed' });
+	if (blob.size < 4) throw new Error('Decryption produced no output data');
+
+	const url = URL.createObjectURL(blob);
+	autoDownload(url, filename.toLowerCase().endsWith('.7z') ? filename : `${filename}.7z`);
+	URL.revokeObjectURL(url);
 }

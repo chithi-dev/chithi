@@ -20,7 +20,6 @@ const looksLikeText = (bytes: Uint8Array) => {
 // We export a function that takes a file entry text and check if it's a viewable code text
 export async function createViewableText(
 	blob: Blob,
-	_filename: string,
 	mimeHint: string | null = null
 ): Promise<string | null> {
 	const mime = mimeHint ?? (blob.type || null);

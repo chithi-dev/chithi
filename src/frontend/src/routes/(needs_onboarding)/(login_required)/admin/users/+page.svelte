@@ -1,42 +1,175 @@
 <script lang="ts">
-	import { useAuth } from '#queries/auth';
-	import { useUsersQuery } from '#queries/admin_users';
-	import * as Table from '$lib/components/ui/table';
-	import * as Card from '$lib/components/ui/card';
-	import * as Pagination from '$lib/components/ui/pagination';
-	import { Button } from '$lib/components/ui/button';
-	import { Trash2, UserPlus } from '@lucide/svelte';
+	import { H2, Mutated } from '$lib/components/ui/typography/index.js';
+	import { createQueryStore } from '$lib/graphql/use-query.svelte.js';
+	import { MeDocument, UsersDocument, CreateUserDocument, DeleteUserDocument } from '$lib/graphql/generated/graphql.js';
+	import type { MeQuery, UsersQuery, CreateUserMutation, DeleteUserMutation } from '$lib/graphql/generated/graphql.js';
+	import { client } from '$lib/graphql/client.js';
+	import * as Table from '$lib/components/ui/table/index.js';
+	import * as Card from '$lib/components/ui/card/index.js';
+	import * as Pagination from '$lib/components/ui/pagination/index.js';
+	import { Button } from '$lib/components/ui/button/index.js';
+	import { Input } from '$lib/components/ui/input/index.js';
+	import { Trash2, UserPlus, ArrowUpDown, ArrowUp, ArrowDown, Search } from '@lucide/svelte';
 	import { toast } from 'svelte-sonner';
+	import { createSvelteTable } from '$lib/components/ui/data-table/data-table.svelte';
+	import { renderSnippet } from '$lib/components/ui/data-table/render-helpers.js';
+	import FlexRender from '$lib/components/ui/data-table/flex-render.svelte';
+	import type { ColumnDef } from '@tanstack/table-core';
+	import { getCoreRowModel } from '@tanstack/table-core';
 
 	const { default: CreateUserDialog } = await import('./create_user_dialog.svelte');
 	const { default: DeleteUserDialog } = await import('./delete_user_dialog.svelte');
 
+	type UserRow = { id: string; username: string; email?: string | null };
+
 	let currentPage = $state(1);
 	const pageSize = 20;
 
-	const { user } = useAuth();
-	const { users } = useUsersQuery(() => currentPage, pageSize);
+	const meQuery = createQueryStore<MeQuery>(MeDocument);
+	const usersQuery = createQueryStore<UsersQuery>(UsersDocument);
 
 	let isCreateDialogOpen = $state(false);
 	let isDeleteDialogOpen = $state(false);
 	let userToDelete = $state<string | null>(null);
+	let globalFilter = $state('');
 
-	let totalItems = $derived(users.data?.total_items ?? 0);
+	let usersList = $derived(usersQuery.data?.users ?? []);
+	let totalItems = $derived(usersList.length);
+
+	// Sort state
+	let sortDir = $state<'asc' | 'desc' | null>(null);
+	let sortCol = $state<'username' | 'email' | null>(null);
+
+	// Apply client-side sorting and filtering to current page data
+	const processedUsers = $derived.by(() => {
+		let items: UserRow[] = usersList.map(u => ({ id: u.id, username: u.username, email: u.email }));
+
+		// Filter
+		if (globalFilter) {
+			const filter = globalFilter.toLowerCase();
+			items = items.filter(
+				(u) =>
+					u.username.toLowerCase().includes(filter) ||
+					(u.email && u.email.toLowerCase().includes(filter))
+			);
+		}
+
+		// Sort
+		if (sortCol && sortDir) {
+			const col = sortCol as 'username' | 'email';
+			items = [...items].sort((a, b) => {
+				const aVal = (a as any)[col] ?? '';
+				const bVal = (b as any)[col] ?? '';
+				const cmp = String(aVal).localeCompare(String(bVal));
+				return sortDir === 'asc' ? cmp : -cmp;
+			});
+		}
+
+		return items;
+	});
+
+	function toggleSort(col: 'username' | 'email') {
+		if (sortCol === col) {
+			if (sortDir === 'asc') sortDir = 'desc';
+			else if (sortDir === 'desc') {
+				sortDir = null;
+				sortCol = null;
+			} else sortDir = 'asc';
+		} else {
+			sortCol = col;
+			sortDir = 'asc';
+		}
+	}
+
+	function getSortIcon(col: 'username' | 'email') {
+		if (sortCol !== col) return ArrowUpDown;
+		if (sortDir === 'asc') return ArrowUp;
+		if (sortDir === 'desc') return ArrowDown;
+		return ArrowUpDown;
+	}
+
+	function isSortActive(col: 'username' | 'email') {
+		return sortCol === col;
+	}
 
 	function requestDelete(userId: string) {
-		if (userId === user.data?.id) {
+		if (userId === meQuery.data?.me.id) {
 			toast.error('Cannot delete yourself.');
 			return;
 		}
 		userToDelete = userId;
 		isDeleteDialogOpen = true;
 	}
+
+	// Column definitions for TanStack Table
+	const columns: ColumnDef<UserRow>[] = [
+		{
+			accessorKey: 'username',
+			header: () => renderSnippet(usernameHeaderSnippet),
+			cell: (info) => info.getValue()
+		},
+		{
+			accessorKey: 'email',
+			header: () => renderSnippet(emailHeaderSnippet),
+			cell: (info) => (info.getValue() as string) || '-'
+		},
+		{
+			id: 'actions',
+			meta: { className: 'text-right' },
+			header: 'Actions',
+			cell: (ctx) => renderSnippet(actionsCellSnippet, { row: ctx.row })
+		}
+	];
+
+	// eslint-disable-next-line svelte/state_referenced_locally
+	const table = createSvelteTable<UserRow>({
+		data: processedUsers,
+		columns,
+		getCoreRowModel: getCoreRowModel()
+	});
 </script>
+
+{#snippet usernameHeaderSnippet()}
+	<span class="flex items-center gap-1">
+		Username
+		{#if getSortIcon('username') === ArrowUp}
+			<ArrowUp class={isSortActive('username') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+		{:else if getSortIcon('username') === ArrowDown}
+			<ArrowDown class={isSortActive('username') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+		{:else}
+			<ArrowUpDown class={isSortActive('username') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+		{/if}
+	</span>
+{/snippet}
+
+{#snippet emailHeaderSnippet()}
+	<span class="flex items-center gap-1">
+		Email
+		{#if getSortIcon('email') === ArrowUp}
+			<ArrowUp class={isSortActive('email') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+		{:else if getSortIcon('email') === ArrowDown}
+			<ArrowDown class={isSortActive('email') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+		{:else}
+			<ArrowUpDown class={isSortActive('email') ? 'h-4 w-4' : 'h-4 w-4 opacity-30'} />
+		{/if}
+	</span>
+{/snippet}
+
+{#snippet actionsCellSnippet({ row }: { row: { original: UserRow } })}
+	<Button
+		variant="ghost"
+		size="icon"
+		disabled={row.original.id === meQuery.data?.me.id}
+		onclick={() => requestDelete(row.original.id)}
+	>
+		<Trash2 class="h-4 w-4 cursor-pointer text-destructive" />
+	</Button>
+{/snippet}
 
 <div class="flex items-center justify-between space-y-2 pb-6">
 	<div>
-		<h2 class="text-3xl font-bold tracking-tight">Users</h2>
-		<p class="text-muted-foreground">Manage system users.</p>
+		<H2>Users</H2>
+		<Mutated>Manage system users.</Mutated>
 	</div>
 
 	<div>
@@ -47,50 +180,67 @@
 	</div>
 </div>
 
+<!-- Search -->
+<div class="mb-4">
+	<div class="relative max-w-sm">
+		<Search class="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+		<Input placeholder="Filter users..." bind:value={globalFilter} class="pl-9" />
+	</div>
+</div>
+
 <Card.Root>
 	<Card.Content class="p-0">
 		<Table.Root>
 			<Table.Header>
-				<Table.Row>
-					<Table.Head>Username</Table.Head>
-					<Table.Head>Email</Table.Head>
-					<Table.Head class="text-right">Actions</Table.Head>
-				</Table.Row>
+				{#each table.getHeaderGroups() as headerGroup}
+					<Table.Row>
+						{#each headerGroup.headers as header}
+							<Table.Head
+								class={header.column.id === 'username' || header.column.id === 'email'
+									? 'cursor-pointer select-none'
+									: ''}
+								onclick={header.column.id === 'username'
+									? () => toggleSort('username')
+									: header.column.id === 'email'
+										? () => toggleSort('email')
+										: undefined}
+							>
+								<FlexRender
+									content={header.column.columnDef.header}
+									context={header.getContext()}
+								/>
+							</Table.Head>
+						{/each}
+					</Table.Row>
+				{/each}
 			</Table.Header>
 			<Table.Body>
-				{#if users.isLoading}
+				{#if usersQuery.fetching}
 					<Table.Row>
-						<Table.Cell colspan={3} class="py-8 text-center text-muted-foreground">
+						<Table.Cell colspan={columns.length} class="py-8 text-center text-muted-foreground">
 							Loading users...
 						</Table.Cell>
 					</Table.Row>
 				{:else if users.error}
 					<Table.Row>
-						<Table.Cell colspan={3} class="py-8 text-center text-muted-foreground">
-							Failed to load users: {users.error.message}
+						<Table.Cell colspan={columns.length} class="py-8 text-center text-muted-foreground">
+							Failed to load users: {users.error}
 						</Table.Cell>
 					</Table.Row>
-				{:else if !users.data?.items || users.data.items.length === 0}
+				{:else if processedUsers.length === 0}
 					<Table.Row>
-						<Table.Cell colspan={3} class="py-8 text-center text-muted-foreground">
-							No users found.
+						<Table.Cell colspan={columns.length} class="py-8 text-center text-muted-foreground">
+							{globalFilter ? 'No users match your filter.' : 'No users found.'}
 						</Table.Cell>
 					</Table.Row>
 				{:else}
-					{#each users.data.items as u}
+					{#each table.getRowModel().rows as row}
 						<Table.Row>
-							<Table.Cell>{u.username}</Table.Cell>
-							<Table.Cell>{u.email || '-'}</Table.Cell>
-							<Table.Cell class="text-right">
-								<Button
-									variant="ghost"
-									size="icon"
-									disabled={u.id === user.data?.id}
-									onclick={() => requestDelete(u.id)}
-								>
-									<Trash2 class="h-4 w-4 cursor-pointer text-destructive" />
-								</Button>
-							</Table.Cell>
+							{#each row.getVisibleCells() as cell}
+								<Table.Cell class={cell.column.id === 'actions' ? 'text-right' : ''}>
+									<FlexRender content={cell.column.columnDef.cell} context={cell.getContext()} />
+								</Table.Cell>
+							{/each}
 						</Table.Row>
 					{/each}
 				{/if}

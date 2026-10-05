@@ -1,6 +1,6 @@
 import style from '#css/tailwind.css?inline';
 import { read } from '$app/server';
-import Geist from '$lib/assets/fonts/Geist.woff2';
+import Geist from '@fontsource-variable/geist/files/geist-latin-wght-normal.woff2';
 import type { RequestEvent } from '@sveltejs/kit';
 import { render } from 'svelte/server';
 import ImageResponse from 'takumi-js/response';

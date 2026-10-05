@@ -10,8 +10,6 @@
 	} from '@codemirror/language';
 	import { tags } from '@lezer/highlight';
 	import { languages } from '@codemirror/language-data';
-	import { onDestroy } from 'svelte';
-
 	let { text, filename } = $props<{
 		text: string;
 		filename: string;
@@ -172,10 +170,8 @@
 				});
 			});
 		}
-	});
 
-	onDestroy(() => {
-		view?.destroy();
+		return () => view?.destroy();
 	});
 </script>
 

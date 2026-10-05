@@ -18,7 +18,7 @@ export default {
 			base: ''
 		},
 		experimental: {
-			remoteFunctions: true
+			explicitEnvironmentVariables: true
 		},
 		// adapter-auto only supports some environments, see https://svelte.dev/docs/kit/adapter-auto for a list.
 		// If your environment is not supported, or you settled on a specific environment, switch out the adapter.
@@ -33,7 +33,10 @@ export default {
 			'#queries/*': './src/lib/queries/*',
 			'#markdown/*': './src/lib/markdown/*',
 			'#consts/*': './src/lib/consts/*',
-			'#css/*': './src/css/*'
+			'#css/*': './src/css/*',
+				'#errors/*': './src/lib/errors/*',
+				'#wasm/*': './src/lib/wasm/*',
+				'#vendor/*': './src/vendor/*'
 		}
 	}
 };
