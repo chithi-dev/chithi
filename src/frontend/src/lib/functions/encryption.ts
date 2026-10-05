@@ -1,4 +1,4 @@
-import * as argon2 from 'argon2-browser';
+import { argon2id } from 'hash-wasm';
 import {
 	ARGON2_HASH_LENGTH,
 	ARGON2_MEMORY_COST_KIB,
@@ -59,17 +59,17 @@ export function generateSecret(): Uint8Array {
  * over different uploads derives different IKMs.
  */
 export async function passwordToIkM(password: string, salt: Uint8Array): Promise<Uint8Array> {
-	const result = await argon2.hash({
-		pass: password,
+	const ikm = await argon2id({
+		password,
 		salt,
-		time: ARGON2_TIME_COST,
-		mem: ARGON2_MEMORY_COST_KIB,
+		iterations: ARGON2_TIME_COST,
+		memorySize: ARGON2_MEMORY_COST_KIB,
 		parallelism: ARGON2_PARALLELISM,
-		hashLen: ARGON2_HASH_LENGTH,
-		type: argon2.ArgonType.Argon2id,
+		hashLength: ARGON2_HASH_LENGTH,
+		outputType: 'binary',
 	});
-	if (!result.hash) throw new Error('Argon2id derivation failed');
-	return result.hash;
+	if (ikm.length !== ARGON2_HASH_LENGTH) throw new Error('Argon2id derivation failed');
+	return ikm;
 }
 
 /**

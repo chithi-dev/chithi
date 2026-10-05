@@ -21,7 +21,7 @@
 		"@apollo/client": "^4.2.8",
 		"@internationalized/date": "^3.12.2",
 		"apollo-upload-client": "^19.0.0",
-		"argon2-browser": "^1.18.0",
+		"hash-wasm": "^4.12.0",
 		"embla-carousel-svelte": "^8.6.0",
 		"fflate": "^0.8.3",
 		"takumi-js": "^1.0.15"
@@ -59,7 +59,6 @@
 		"@tailwindcss/typography": "^0.5.19",
 		"@tailwindcss/vite": "=4.3.0",
 		"@tanstack/table-core": "^8.21.3",
-		"@types/argon2-browser": "^1.18.4",
 		"@types/caniuse-lite": "^1.0.5",
 		"@types/d3": "^7.4.3",
 		"@types/node": "^25.6.0",
@@ -115,8 +114,6 @@
 		"uuid": "^14.0.0",
 		"vaul-svelte": "^1.0.0-next.7",
 		"vite": "^8.0.9",
-		"vite-plugin-top-level-await": "^1.6.0",
-		"vite-plugin-wasm": "^3.6.0",
 		"vitest": "^4.1.4",
 		"zod": "^4.3.6"
 	},
