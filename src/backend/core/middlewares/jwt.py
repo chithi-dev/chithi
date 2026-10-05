@@ -1,8 +1,9 @@
-"""JWT auth middleware.
+"""Bearer-JWT authentication middleware.
 
 Resolves the authenticated user from the ``Authorization: Bearer <token>``
-header and assigns it to ``request.user``. Runs after ``AuthenticationMiddleware``
-so a session user (when present) takes priority and the JWT only fills the gap.
+header and assigns it to ``request.user``. Runs after
+``AuthenticationMiddleware`` so a session user (when present) takes priority
+and the JWT only fills the gap.
 """
 
 import re

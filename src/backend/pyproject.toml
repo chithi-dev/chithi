@@ -48,6 +48,4 @@ python_files = ["test_*.py", "tests.py"]
 pythonpath = ["."]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
-# The legacy tests/ dir predates the django-storages + ninja migrations and
-# drives retired URLs, so it is excluded from the maintained suite.
-testpaths = ["apps", "core"]
+testpaths = ["apps", "core", "tests"]

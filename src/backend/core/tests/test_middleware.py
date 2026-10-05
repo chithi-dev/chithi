@@ -93,7 +93,7 @@ def patch_urls(module, extra_patterns):
 
 
 def test_bearer_regex_extracts_token() -> None:
-    from core.middleware import _BEARER_RE
+    from core.middlewares.jwt import _BEARER_RE
 
     assert _BEARER_RE.match("Bearer abc123").group(1) == "abc123"
     # Tolerates extra whitespace and a case-insensitive scheme.
