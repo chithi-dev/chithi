@@ -217,16 +217,12 @@ class IntegrationTestCase(TransactionTestCase):
     @staticmethod
     async def _q(callable_, *args, **kwargs):
         """Run a sync or async callable from an async test, off the loop."""
-        import asyncio as _asyncio
         import inspect
 
         from asgiref.sync import sync_to_async
 
         if inspect.iscoroutinefunction(callable_):
-            # Run the coroutine in a fresh event loop inside a worker thread
-            # so it doesn't fight the request's running loop.
-            def _runner():
-                return _asyncio.run(callable_(*args, **kwargs))
-
-            return await sync_to_async(_runner)()
+            # Already async: await it directly. Wrapping in sync_to_async
+            # would nest a CurrentThreadExecutor inside itself and raise.
+            return await callable_(*args, **kwargs)
         return await sync_to_async(callable_)(*args, **kwargs)
