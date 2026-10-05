@@ -42,7 +42,8 @@
 | **WASM Bridge Removal** | DONE | `chithi_core_bridge.py` deleted; `chithi-sdk` dep removed from pyproject.toml |
 | **Apollo SSR Prefetch** | DONE | `server-client.ts` (ssrMode) + `hydration.svelte.ts` (usePrefetchedQuery) + `hydration-boundary.svelte`; all pages migrated from TanStack to pure Apollo; `/login` SSR 200 with full dehydrated cache |
 | **HTTP Upload Path** | DONE | `apps/api/` package (django-ninja): register/chunk/complete under `/api/upload/`; views import shared `schemas/` + `utils/`; async views wrap ORM in `sync_to_async`; E2E register→chunk→complete verified, chunk written to store |
-| **E2E Verification** | TODO | Full upload→download round-trip with a real file via Playwright |
+| **Async Config Singleton** | DONE | `SingletonModel.aload()` via Django 6 native async ORM (`aget_or_create`); all async call sites (REST `/config/`, upload validation, GraphQL config + file mutations) use `await Config.aload()`; `onboarding` uses `aget` to avoid a create side effect; `load()` retained for sync-only contexts |
+| **E2E Verification** | DONE | CLI upload→download round-trip, matching md5; Playwright browser E2E still pending |
 
 ---
 
