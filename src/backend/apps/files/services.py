@@ -15,14 +15,16 @@ The storage backend is selected at startup in ``settings.py`` via the
 backend-agnostic.
 """
 
+import asyncio
 import datetime
 import logging
+from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
+from django.core.files.storage import FileSystemStorage, default_storage
 
 if TYPE_CHECKING:
     from django.core.files.storage import Storage
@@ -81,27 +83,99 @@ async def presigned_chunk_url(
     return await sync_to_async(_storage().url)(key)
 
 
-async def open_chunk(file_key: str, index: int):
-    """Open a chunk for streaming so the backend can proxy its bytes.
+def _cdn_base() -> str:
+    """The configured CDN base URL, or ``""`` when none is set."""
+    return getattr(settings, "S3_CDN_URL", "") or ""
 
-    Returns a file-like object (the storage backend's ``open()`` result) plus
-    the chunk's byte size. The caller must stream it in chunks and close it,
-    which is what the ninja ``FileResponse``-style handler in
-    ``apps/api/views/files.py`` does. This is the single code path that reads
-    chunk bytes on the server, regardless of which storage backend is active
-    (S3/CDN or local filesystem).
-    """
+
+async def _stream_from_cdn(
+    file_key: str, index: int, read_size: int
+) -> AsyncIterator[bytes]:
+    """Stream chunk bytes from the CDN via httpx (async, non-blocking)."""
+    import httpx
+
+    url = f"{_cdn_base()}/{chunk_key(file_key, index)}"
+
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30.0) as client:
+        async with client.stream("GET", url) as response:
+            response.raise_for_status()
+            async for block in response.aiter_bytes(read_size):
+                if block:
+                    yield block
+
+
+def _is_local_storage() -> bool:
+    """True when the active storage backend is a local filesystem."""
+    return isinstance(_storage(), FileSystemStorage)
+
+
+async def _stream_from_local(
+    file_key: str, index: int, read_size: int
+) -> AsyncIterator[bytes]:
+    """Stream chunk bytes from a local filesystem using aiofiles (true async)."""
+    import aiofiles
+
+    key = chunk_key(file_key, index)
+    path = _storage().path(key)
+
+    async with aiofiles.open(path, "rb") as fh:
+        while True:
+            block = await fh.read(read_size)
+            if not block:
+                break
+            yield block
+
+
+async def _stream_from_s3(
+    file_key: str, index: int, read_size: int
+) -> AsyncIterator[bytes]:
+    """Stream chunk bytes from an S3-backed storage backend via the thread pool."""
     key = chunk_key(file_key, index)
 
-    def _open() -> tuple[object, int]:
-        storage = _storage()
-        fh = storage.open(key, "rb")
-        # size() is cheap on S3 (a HEAD) and on the filesystem; it lets the
-        # response advertise a correct Content-Length.
-        size = storage.size(key)
-        return fh, size
+    def _open() -> object:
+        return _storage().open(key, "rb")
 
-    return await sync_to_async(_open)()
+    fh = await sync_to_async(_open)()
+    try:
+        while True:
+            block = await sync_to_async(fh.read, thread_sensitive=False)(read_size)
+            if not block:
+                break
+            yield block
+            await asyncio.sleep(0)
+    finally:
+        await sync_to_async(fh.close, thread_sensitive=False)()
+
+
+async def _stream_from_storage(
+    file_key: str, index: int, read_size: int
+) -> AsyncIterator[bytes]:
+    """Stream chunk bytes from the storage backend (local or S3)."""
+    if _is_local_storage():
+        async for block in _stream_from_local(file_key, index, read_size):
+            yield block
+    else:
+        async for block in _stream_from_s3(file_key, index, read_size):
+            yield block
+
+
+async def open_chunk_stream(
+    file_key: str, index: int, read_size: int = 1024 * 1024
+) -> AsyncIterator[bytes]:
+    """Stream one chunk's bytes, transparently from CDN or storage backend.
+
+    This is the single public interface the view layer calls to proxy a
+    chunk. It picks the CDN path (httpx, fully async) when ``S3_CDN_URL``
+    is set, otherwise reads from the storage backend (S3 object or local
+    filesystem) in a thread pool. The caller simply wraps the returned
+    async iterator in a ``StreamingHttpResponse``.
+    """
+    if _cdn_base():
+        async for block in _stream_from_cdn(file_key, index, read_size):
+            yield block
+    else:
+        async for block in _stream_from_storage(file_key, index, read_size):
+            yield block
 
 
 async def delete_file_chunks(file_key: str) -> None:

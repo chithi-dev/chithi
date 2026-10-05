@@ -30,6 +30,10 @@ dependencies = [
     "celery[redis]>=5.4",
     # Redis
     "redis[hiredis]>=6.4.0",
+    # HTTP client (CDN chunk proxy)
+    "httpx>=0.27",
+    # Async filesystem I/O (local storage streaming)
+    "aiofiles>=23.2",
 ]
 
 [dependency-groups]
