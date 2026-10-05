@@ -122,6 +122,26 @@
 
 ---
 
+## 2026-10-05 Session: 7z migration + UI update + auth refactor
+
+| Task | Status | Detail |
+|---|---|---|
+| Vendor JS7z v2.5.0 MT+FS+EC | DONE | `src/vendor/js7z/`, byte-identical to release |
+| Replace fflate with JS7z in streams.ts | DONE | `81a09f8`, type cast added, no vendored file edits |
+| Re-pull shadcn-svelte components | DONE | `14d62c1`, 259 files, superforms 3, dep bumps |
+| Remove remote functions, add hooks.server.ts | DONE | `9916804`, plain server fns + JWT via event.locals |
+| Update PLAN.md | DONE | this section |
+
+**Verification:**
+- [x] `npm run build` passes
+- [x] svelte-check: no errors in changed files
+- [ ] Playwright visual verification (login/onboarding) — blocked: backend not running locally
+- [ ] CI: all 4 workflows pass (pending push)
+
+**Note:** Backend (`localhost:8001`) must be running for live Playwright verification. The 500 on `/login` is the expected "Backend Unavailable" screen (`+error.svelte`), not a bug.
+
+---
+
 ## Verification Checklist
 
 - [ ] `vite.config.js` removed, `vite.config.ts` has all settings
