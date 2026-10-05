@@ -73,6 +73,9 @@ async def chunk_url(request, file_key: str, chunk_index: int) -> ChunkUrlRespons
     if file_obj is None:
         raise ValidationError("File not found.")
 
+    if file_obj.is_expired:
+        raise ValidationError("File has expired.")
+
     if chunk_index < 0 or chunk_index >= file_obj.chunk_count:
         raise ValidationError("chunk_index out of range.")
 
