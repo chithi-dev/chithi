@@ -1,4 +1,4 @@
-import { login as loginRemote } from '$lib/remote/auth.remote';
+import { login as loginServer } from '$lib/remote/auth.server';
 import type { Actions } from '@sveltejs/kit';
 import { fail } from '@sveltejs/kit';
 import { message, setError, superValidate } from 'sveltekit-superforms';
@@ -14,7 +14,7 @@ export const actions = {
 		}
 
 		try {
-			await loginRemote({ username: form.data.email, password: form.data.password });
+			await loginServer({ username: form.data.email, password: form.data.password });
 			return message(form, 'Logged in successfully');
 		} catch (error: any) {
 			return setError(form, '', error?.message || 'Invalid username or password');

@@ -4,40 +4,16 @@
   import * as Card from '$lib/components/ui/card/index.js';
   import * as Field from '$lib/components/ui/field/index.js';
   import { User, ArrowRight, Mail, Lock } from '@lucide/svelte';
-  import { Spinner } from '$lib/components/ui/spinner/index.js';
   import { toast } from 'svelte-sonner';
-  import { CompleteOnboardingDocument } from '$lib/graphql/generated/graphql.js';
-  import type { CompleteOnboardingMutation } from '$lib/graphql/generated/graphql.js';
-  import { client } from '$lib/graphql/client.js';
-  import { login as loginRemote } from '$lib/remote/auth.remote';
+  import { enhance } from '$app/forms';
   import { user_store } from '$lib/store/user.svelte';
   import type { Props } from './types';
 
   let { onNext }: Props = $props();
-  let isLoading = $state(false);
   let username = $state('');
   let email = $state('');
   let password = $state('');
   const valid = $derived(username && email && password);
-
-  async function handleSubmit(e: SubmitEvent) {
-    e.preventDefault();
-    if (!valid) return;
-    isLoading = true;
-    try {
-      const result = await client.mutate<CompleteOnboardingMutation>({
-        mutation: CompleteOnboardingDocument,
-        variables: { username, email, password, siteDescription: '' }
-      });
-      if (result.error) throw new Error(result.error.message);
-      toast.success('Admin account created successfully');
-      await loginRemote({ username, password });
-      user_store.authenticate();
-      toast.success('Logged in successfully');
-      onNext();
-    } catch (error: any) { toast.error(error.message || 'Something went wrong'); }
-    finally { isLoading = false; }
-  }
 </script>
 
 <Card.Root class="relative overflow-hidden border-border/60 bg-card/70 shadow-[0_8px_30px_rgb(0,0,0,0.04)] backdrop-blur-2xl">
@@ -47,7 +23,20 @@
     <div class="space-y-1"><Card.Title class="text-2xl font-semibold tracking-tight text-foreground">Welcome to Chithi</Card.Title><Card.Description class="text-sm text-muted-foreground">Create your admin account to get started</Card.Description></div>
   </Card.Header>
   <Card.Content>
-    <form onsubmit={handleSubmit} class="grid gap-6">
+    <form
+      method="POST"
+      action="?/create_admin"
+      use:enhance={() => ({ result }) => {
+        if (result?.type === 'success' && result.data?.success) {
+          user_store.authenticate();
+          toast.success('Logged in successfully');
+          onNext();
+        } else if (result?.type === 'failure' && result.data?.error) {
+          toast.error(String(result.data.error));
+        }
+      }}
+      class="grid gap-6"
+    >
       <div class="grid gap-4">
         <Field.Field>
           <Field.Label class="ml-1 text-sm font-medium text-foreground">Username</Field.Label>
@@ -68,8 +57,8 @@
           </Field.Content>
         </Field.Field>
       </div>
-      <Button type="submit" disabled={isLoading || !valid} class="h-12 w-full font-semibold shadow-lg shadow-primary/20 transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-70">
-        {#if isLoading}<Spinner class="mr-2" />Setting up...{:else}Create Account<ArrowRight class="ml-2 size-5 transition-transform group-hover:translate-x-1" />{/if}
+      <Button type="submit" disabled={!valid} class="h-12 w-full font-semibold shadow-lg shadow-primary/20 transition-all hover:brightness-105 active:scale-[0.98] disabled:opacity-70">
+        Create Account<ArrowRight class="ml-2 size-5 transition-transform group-hover:translate-x-1" />
       </Button>
     </form>
   </Card.Content>

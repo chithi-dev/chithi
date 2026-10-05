@@ -1,5 +1,5 @@
 import { validateRedirectUrl } from '$lib/functions/urls';
-import { logout } from '$lib/remote/auth.remote';
+import { logout } from '$lib/remote/auth.server';
 import { redirect } from '@sveltejs/kit';
 
 export const actions = {

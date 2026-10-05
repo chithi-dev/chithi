@@ -1,8 +1,16 @@
+import { getRequestEvent } from '$app/server';
 import { Api } from '#consts/backend';
-import { command, getRequestEvent } from '$app/server';
 import { LoginDocument, LogoutDocument } from '$lib/graphql/generated/graphql.js';
-import { user_store } from '$lib/store/user.svelte';
 import { z } from 'zod';
+
+/**
+ * Server-only auth helpers.
+ *
+ * These run in the SvelteKit server (actions in `+page.server.ts` /
+ * `+server.ts`), never in the browser. They read the `getRequestEvent()`
+ * context to reach the current request's cookies, so they must be invoked
+ * from a server-side handler.
+ */
 
 const loginSchema = z.object({
 	username: z.string().min(1),
@@ -11,14 +19,17 @@ const loginSchema = z.object({
 
 const GRAPHQL_URL = `${Api.BASE}/graphql/`;
 
-export const login = command(loginSchema, async ({ username, password }) => {
+export async function login({ username, password }: { username: string; password: string }) {
 	const { fetch, cookies, url } = getRequestEvent();
+
+	const parsed = loginSchema.safeParse({ username, password });
+	if (!parsed.success) {
+		throw new Error('Invalid username or password');
+	}
 
 	const res = await fetch(GRAPHQL_URL, {
 		method: 'POST',
-		headers: {
-			'Content-Type': 'application/json'
-		},
+		headers: { 'Content-Type': 'application/json' },
 		body: JSON.stringify({
 			query: LoginDocument,
 			variables: { username, password }
@@ -47,9 +58,9 @@ export const login = command(loginSchema, async ({ username, password }) => {
 	});
 
 	return { success: true };
-});
+}
 
-export const logout = command(async () => {
+export async function logout() {
 	const { fetch, cookies } = getRequestEvent();
 
 	cookies.delete('access_token', { path: '/' });
@@ -57,17 +68,12 @@ export const logout = command(async () => {
 	try {
 		await fetch(GRAPHQL_URL, {
 			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({
-				query: LogoutDocument
-			})
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ query: LogoutDocument })
 		});
 	} catch {
 		// Best-effort server-side logout; cookie is already cleared.
 	}
 
-	user_store.unauthenticate();
 	return { success: true };
-});
+}

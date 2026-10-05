@@ -6,7 +6,14 @@ declare global {
 			message: string;
 			code?: string;
 		}
-		// interface Locals {}
+		interface Locals {
+			/**
+			 * The resolved session, populated by `hooks.server.ts` from the
+			 * `access_token` HttpOnly cookie. `null` when the user is not
+			 * signed in.
+			 */
+			session: { token: string } | null;
+		}
 		// interface PageData {}
 		// interface PageState {}
 		// interface Platform {}
