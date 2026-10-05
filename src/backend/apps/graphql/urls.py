@@ -5,35 +5,21 @@ from django.views.decorators.csrf import csrf_exempt
 
 from strawberry.django.views import AsyncGraphQLView
 
-from apps.graphql.auth import get_user_from_jwt_token
 from apps.graphql.context import Context
 from apps.graphql.schema import schema
 
 
 class ChithiGraphQLView(AsyncGraphQLView):
-    """GraphQL view with JWT-aware context.
+    """GraphQL view that exposes the request user on the context.
 
-    Resolves the authenticated user from the session or a Bearer token
-    and exposes it on ``context.user`` for resolvers to read.
+    ``request.user`` is already resolved by ``JwtAuthenticationMiddleware``
+    (session or Bearer JWT), so this only forwards it to the context.
     """
 
     async def get_context(
         self, request: HttpRequest, response: HttpResponse
     ) -> Context:  # type: ignore[override]
         user: AnonymousUser = request.user
-
-        if not user.is_authenticated:
-            auth_header = request.META.get("HTTP_AUTHORIZATION", "")
-            token = (
-                auth_header.split("Bearer ", 1)[-1].strip()
-                if "Bearer " in auth_header
-                else ""
-            )
-            if token:
-                resolved = get_user_from_jwt_token(token)
-                if resolved is not None:
-                    user = resolved
-
         return Context(request=request, user=user)
 
 

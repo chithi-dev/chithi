@@ -1,8 +1,7 @@
-"""Strawberry context — resolves the authenticated user per request.
+"""Strawberry context — carries the resolved request user to resolvers.
 
-Replaces the old ``GraphQLJwtMiddleware``: auth is a concern of the
-GraphQL layer, so it lives here rather than as global middleware that
-touches every route.
+``request.user`` is already populated by ``JwtAuthenticationMiddleware``
+(session auth or Bearer JWT), so the context simply exposes it.
 """
 
 from dataclasses import dataclass
