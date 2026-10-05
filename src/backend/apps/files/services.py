@@ -86,11 +86,20 @@ async def delete_file_chunks(file_key: str) -> None:
 
 
 def _delete_by_prefix(prefix: str) -> None:
-    """List and delete all objects under *prefix*."""
+    """List and delete all objects under *prefix*.
+
+    A no-op when *prefix* holds nothing: deleting a missing file must be
+    safe, and the filesystem backend raises on ``listdir`` for a path that
+    does not exist (S3 returns empty instead).
+    """
     storage = _storage()
     dir_path = prefix.rstrip("/")
 
-    subdirs, files = storage.listdir(dir_path)
+    try:
+        subdirs, files = storage.listdir(dir_path)
+    except (OSError, FileNotFoundError):
+        return
+
     for name in files:
         storage.delete(f"{dir_path}/{name}")
 

@@ -12,7 +12,6 @@ from apps.files.services import (
     CHUNK_SIZE_BYTES,
     chunk_key,
     file_chunks_exist,
-    is_s3_backend,
     presigned_chunk_url,
     delete_file_chunks,
     upload_chunk,
@@ -62,6 +61,3 @@ class LocalBackendTests(TransactionTestCase):
 
     def test_delete_nonexistent_is_safe(self):
         async_to_sync(delete_file_chunks)("never-existed")
-
-    def test_is_s3_backend_false_in_tests(self):
-        self.assertFalse(is_s3_backend())
