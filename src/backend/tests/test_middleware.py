@@ -15,9 +15,13 @@ from types import SimpleNamespace
 from django.conf import settings
 
 
-def _request_with_func(view_func):
-    """A minimal request whose ``resolver_match.func`` is *view_func*."""
-    return SimpleNamespace(resolver_match=SimpleNamespace(func=view_func))
+def _request_with_func(view_func, args=(), kwargs=None):
+    """A minimal request whose ``resolver_match`` matches Django's structure."""
+    return SimpleNamespace(
+        resolver_match=SimpleNamespace(
+            func=view_func, args=args, kwargs=kwargs or {}
+        )
+    )
 
 
 def test_middleware_exempt_sets_flag_directly() -> None:
@@ -154,3 +158,68 @@ def test_request_without_resolver_match_is_not_exempt() -> None:
 def test_exempt_middleware_must_be_first_in_middleware() -> None:
     """The settings guard ensures ExemptMiddleware is the first entry."""
     assert settings.MIDDLEWARE[0] == "core.middlewares.ExemptMiddleware"
+
+
+# --- async handler tests ---
+
+
+async def test_exempt_sync_view_under_async_handler() -> None:
+    """A sync exempt view runs via sync_to_async under an async handler."""
+    import asyncio
+
+    from core.middlewares import ExemptMiddleware, middleware_exempt
+
+    @middleware_exempt
+    def _exempt(request):
+        return "sync-exempt-response"
+
+    async def get_response(request):
+        return "chain-response"
+
+    mw = ExemptMiddleware(get_response)
+    result = await mw(_request_with_func(_exempt))
+    assert result == "sync-exempt-response"
+
+
+async def test_exempt_async_view_under_async_handler() -> None:
+    """An async exempt view is awaited directly under an async handler."""
+    from core.middlewares import ExemptMiddleware, middleware_exempt
+
+    @middleware_exempt
+    async def _exempt(request):
+        return "async-exempt-response"
+
+    async def get_response(request):
+        return "chain-response"
+
+    mw = ExemptMiddleware(get_response)
+    result = await mw(_request_with_func(_exempt))
+    assert result == "async-exempt-response"
+
+
+async def test_normal_view_under_async_handler() -> None:
+    """A non-exempt view delegates to the async get_response."""
+    from core.middlewares import ExemptMiddleware
+
+    def _normal(request):
+        return "view"
+
+    async def get_response(request):
+        return "chain-response"
+
+    mw = ExemptMiddleware(get_response)
+    result = await mw(_request_with_func(_normal))
+    assert result == "chain-response"
+
+
+def test_exempt_view_with_url_kwargs() -> None:
+    """Exempt views receive the URL kwargs Django would pass."""
+    from core.middlewares import ExemptMiddleware, middleware_exempt
+
+    @middleware_exempt
+    def _exempt(request, file_key):
+        return f"file:{file_key}"
+
+    mw = ExemptMiddleware(lambda r: "chain")
+    result = mw(_request_with_func(_exempt, kwargs={"file_key": "abc123"}))
+    assert result == "file:abc123"
