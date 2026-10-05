@@ -41,7 +41,7 @@ export async function fetchDecryptedBlob(slug: string, key: string, password: st
 		chunks.push(value as unknown as BlobPart);
 	}
 
-	const blob = new Blob(chunks, { type: 'application/zip' });
+	const blob = new Blob(chunks, { type: 'application/x-7z-compressed' });
 	if (blob.size < 4) throw new Error('Decryption produced no output data');
 	return blob;
 }

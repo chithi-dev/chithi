@@ -14,7 +14,7 @@
 	import { formatFileSize } from '#functions/bytes';
 	import { formatSeconds } from '#functions/times';
 	import { clipboardFiles, hasFileItems } from '#functions/file-tree';
-	import { createZipStream, createEncryptedStream } from '#functions/streams';
+	import { createArchiveStream, createEncryptedStream } from '#functions/streams';
 	import { uploadFile } from '#functions/upload';
 	import * as Tooltip from '$lib/components/ui/tooltip/index.js';
 	import { v7 as uuidv7 } from 'uuid';
@@ -135,7 +135,7 @@
 			uploadProgress = newTween();
 
 			// Phase 1: Zip + encrypt
-			const stream = await createZipStream(files);
+			const stream = await createArchiveStream(files);
 			isEncrypting = true;
 			encryptionProgress = newTween();
 			const { stream: encryptedStream, keySecret } = await createEncryptedStream(

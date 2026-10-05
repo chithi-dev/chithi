@@ -17,4 +17,9 @@ declare global {
 	declare const __COMMIT_SHA__: string;
 }
 
+declare module '*.wasm?url' {
+	const url: string;
+	export default url;
+}
+
 export {};

@@ -1,4 +1,5 @@
-import { zip } from 'fflate';
+import JS7z from '#vendor/js7z/js7z.js';
+import js7zWasmUrl from '#vendor/js7z/js7z.wasm?url';
 import {
 	HEADER_LENGTH,
 	RECORD_SIZE,
@@ -13,7 +14,7 @@ import CryptoWorker from '#workers/crypto.worker?worker';
 const encoder = new TextEncoder();
 
 // ---------------------------------------------------------------------------
-// Name deduplication for multi-file zips (kept from prior implementation).
+// Name deduplication for multi-file archives (kept from prior implementation).
 // ---------------------------------------------------------------------------
 const usedNames = new Map<string, number>();
 const makeUnique = (name: string) => {
@@ -25,30 +26,43 @@ const makeUnique = (name: string) => {
 };
 
 // ---------------------------------------------------------------------------
-// Zip: read all files into memory and produce a single ReadableStream of the
-// compressed zip bytes. (fflate is synchronous; we wrap the result.)
+// 7z archive: read all files into JS7z's virtual FS, compress into a .7z
+// archive, and produce a single ReadableStream of the compressed bytes.
 // ---------------------------------------------------------------------------
-export async function createZipStream(files: File[]): Promise<ReadableStream<Uint8Array>> {
-	const entries: Record<string, Uint8Array> = {};
+export async function createArchiveStream(files: File[]): Promise<ReadableStream<Uint8Array>> {
+	const js7z = await JS7z({ locateFile: () => js7zWasmUrl });
+	const inputDir = '/in';
+	const outputDir = '/out';
+	js7z.FS.mkdir(inputDir);
+	js7z.FS.mkdir(outputDir);
+
 	for (const file of files) {
-		entries[makeUnique(file.name)] = new Uint8Array(await file.arrayBuffer());
+		const uniqueName = makeUnique(file.name);
+		const data = new Uint8Array(await file.arrayBuffer());
+		js7z.FS.writeFile(`${inputDir}/${uniqueName}`, data);
 	}
 
-	return new Promise((resolve, reject) => {
-		zip(entries, { level: 6 }, (error: Error | null, data: Uint8Array | undefined) => {
-			if (error || !data) {
-				reject(error ?? new Error('zip produced no data'));
-				return;
-			}
-			resolve(
-				new ReadableStream({
-					start(controller) {
-						controller.enqueue(data);
-						controller.close();
-					},
-				}),
-			);
-		});
+	let exitCode = -1;
+	js7z.onExit = (code: number) => {
+		exitCode = code;
+	};
+
+	js7z.callMain(['a', `${outputDir}/archive.7z`, `${inputDir}/*`]);
+
+	if (exitCode !== 0) {
+		throw new Error(`7z compression failed with exit code ${exitCode}`);
+	}
+
+	const archiveBytes = new Uint8Array(js7z.FS.readFile(`${outputDir}/archive.7z`));
+
+	js7z.FS.rmdir(inputDir);
+	js7z.FS.rmdir(outputDir);
+
+	return new ReadableStream<Uint8Array>({
+		start(controller) {
+			controller.enqueue(archiveBytes);
+			controller.close();
+		},
 	});
 }
 

@@ -49,7 +49,7 @@
       await downloadAndDecryptFile(slug, key, password, filename, fileSize, numberOfFiles, (p) => prog.target = p);
       phase = 'completed';
       toast.success('Download complete');
-      if (password) toast.info('Note: The downloaded zip file is also encrypted with your password.');
+      if (password) toast.info('Note: The downloaded 7z archive is also encrypted with your password.');
     } catch (e: any) {
       if (e instanceof PasswordRequiredError) {
         phase = 'needs_password';

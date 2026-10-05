@@ -36,7 +36,8 @@ export default {
 			'#consts/*': './src/lib/consts/*',
 			'#css/*': './src/css/*',
 				'#errors/*': './src/lib/errors/*',
-				'#wasm/*': './src/lib/wasm/*'
+				'#wasm/*': './src/lib/wasm/*',
+				'#vendor/*': './src/vendor/*'
 		}
 	}
 };

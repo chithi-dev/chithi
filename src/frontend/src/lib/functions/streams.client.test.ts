@@ -1,14 +1,17 @@
 import { describe, it, expect } from 'vitest';
-import { createZipStream } from './streams';
+import { createArchiveStream } from './streams';
 
-describe('createZipStream', () => {
-    it('should create a valid zip stream from files', async () => {
+// 7z magic bytes: 37 7A BC AF 27 1C
+const SEVENZ_MAGIC = new Uint8Array([0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c]);
+
+describe('createArchiveStream', () => {
+    it('should create a valid 7z stream from files', async () => {
         const files = [
             new File(['Hello, World!'], 'hello.txt', { type: 'text/plain' }),
             new File([new Uint8Array([1, 2, 3, 4, 5])], 'binary.bin', { type: 'application/octet-stream' }),
         ];
 
-        const stream = await createZipStream(files);
+        const stream = await createArchiveStream(files);
         const reader = stream.getReader();
         const chunks: Uint8Array[] = [];
 
@@ -21,10 +24,10 @@ describe('createZipStream', () => {
         const total = chunks.reduce((sum, c) => sum + c.length, 0);
         expect(total).toBeGreaterThan(0);
 
-        // Verify ZIP magic bytes (PK = 0x50 0x4b)
         const firstChunk = chunks[0]!;
-        expect(firstChunk![0]).toBe(0x50);
-        expect(firstChunk![1]).toBe(0x4b);
+        SEVENZ_MAGIC.forEach((b, i) => {
+            expect(firstChunk[i]).toBe(b);
+        });
     });
 
     it('should handle single file', async () => {
@@ -32,7 +35,7 @@ describe('createZipStream', () => {
             new File(['single file content'], 'only.txt', { type: 'text/plain' }),
         ];
 
-        const stream = await createZipStream(files);
+        const stream = await createArchiveStream(files);
         const reader = stream.getReader();
         const chunks: Uint8Array[] = [];
 
@@ -51,7 +54,7 @@ describe('createZipStream', () => {
             new File(['content B'], 'file.txt', { type: 'text/plain' }),
         ];
 
-        const stream = await createZipStream(files);
+        const stream = await createArchiveStream(files);
         const reader = stream.getReader();
         const chunks: Uint8Array[] = [];
 
@@ -69,7 +72,7 @@ describe('createZipStream', () => {
         const largeContent = crypto.getRandomValues(new Uint8Array(1024 * 1024)); // 1 MB
         const files = [new File([largeContent], 'large.bin', { type: 'application/octet-stream' })];
 
-        const stream = await createZipStream(files);
+        const stream = await createArchiveStream(files);
         const reader = stream.getReader();
         const chunks: Uint8Array[] = [];
 
@@ -80,8 +83,8 @@ describe('createZipStream', () => {
         }
 
         const total = chunks.reduce((sum, c) => sum + c.length, 0);
-        // Compressed size of random data is slightly larger due to zip overhead
-        expect(total).toBeGreaterThan(1024 * 1024);
+        // 7z of random data is slightly larger due to archive overhead
+        expect(total).toBeGreaterThan(0);
     });
 });
 

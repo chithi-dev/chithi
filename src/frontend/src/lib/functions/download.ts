@@ -136,10 +136,10 @@ export async function downloadAndDecryptFile(
 		parts.push(value as unknown as BlobPart);
 	}
 
-	const blob = new Blob(parts, { type: 'application/zip' });
+	const blob = new Blob(parts, { type: 'application/x-7z-compressed' });
 	if (blob.size < 4) throw new Error('Decryption produced no output data');
 
 	const url = URL.createObjectURL(blob);
-	autoDownload(url, filename.toLowerCase().endsWith('.zip') ? filename : `${filename}.zip`);
+	autoDownload(url, filename.toLowerCase().endsWith('.7z') ? filename : `${filename}.7z`);
 	URL.revokeObjectURL(url);
 }

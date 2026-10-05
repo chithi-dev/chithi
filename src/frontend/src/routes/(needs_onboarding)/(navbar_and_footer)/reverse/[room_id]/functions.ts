@@ -1,6 +1,6 @@
 import type { ReceiveState } from './types';
 
-export const getDisplayFilename = (f: string) => f.endsWith('.zip') ? f.slice(0, -4) : f;
+export const getDisplayFilename = (f: string) => f.endsWith('.7z') ? f.slice(0, -3) : f;
 
 export async function handleBinaryChunk(state: ReceiveState, data: ArrayBuffer | Blob): Promise<void> {
   if (state.type !== 'streaming') return;

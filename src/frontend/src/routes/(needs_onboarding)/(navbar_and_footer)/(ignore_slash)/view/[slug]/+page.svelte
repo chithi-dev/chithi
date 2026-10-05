@@ -37,7 +37,7 @@
       : undefined
   });
   const hasKey = $derived(Boolean(key && slug));
-  let phase = $state<'ready' | 'needs_password' | 'downloading' | 'unzipping' | 'listing' | 'error'>('ready');
+  let phase = $state<'ready' | 'needs_password' | 'downloading' | 'extracting' | 'listing' | 'error'>('ready');
   const status = $derived(
     hasKey && fileInfo.isPending ? 'checking'
     : hasKey && fileInfo.isError ? 'error'
@@ -134,7 +134,7 @@
 
   function downloadOriginal() {
     if (!decryptedBlob) return;
-    const name = filename.toLowerCase().endsWith('.zip') ? filename : `${filename}.zip`;
+    const name = filename.toLowerCase().endsWith('.7z') ? filename : `${filename}.7z`;
     const url = URL.createObjectURL(decryptedBlob);
     autoDownload(url, name);
     URL.revokeObjectURL(url);
@@ -172,7 +172,7 @@
           </div>
         {/if}
       {/if}
-      {#if status === 'ready' || status === 'needs_password' || status === 'downloading' || status === 'unzipping'}
+      {#if status === 'ready' || status === 'needs_password' || status === 'downloading' || status === 'extracting'}
         <div class="w-full max-w-lg">
           <Card.Header class="px-0 text-center">
             <Card.Title class="text-2xl font-bold">View Archive</Card.Title>
@@ -192,7 +192,7 @@
             {:else}
               <div class="mb-6 flex items-center gap-4 rounded-lg border bg-background/50 p-4">
                 <div class="rounded bg-primary/10 p-2 text-primary">
-                  {#if status === 'downloading' || status === 'unzipping'}
+                  {#if status === 'downloading' || status === 'extracting'}
                     <Spinner class="size-6" />
                   {:else}
                     <FileText class="h-6 w-6" />
@@ -204,14 +204,14 @@
                 </div>
               </div>
               <Card.Footer class="flex w-full flex-col gap-6 px-0">
-                {#if status === 'downloading' || status === 'unzipping'}
+                {#if status === 'downloading' || status === 'extracting'}
                   <div class="w-full space-y-2">
                     <Progress value={prog.current} class="h-2" />
                     <div class="flex justify-between text-xs text-muted-foreground">
                       <span>{Math.round(prog.current)}%</span>
                       <span class="flex items-center">
-                        {#if status === 'unzipping'}
-                          <FolderOpen class="mr-2 h-3 w-3 animate-pulse" />Unzipping...
+                        {#if status === 'extracting'}
+                          <FolderOpen class="mr-2 h-3 w-3 animate-pulse" />Extracting...
                         {:else}
                           <Download class="mr-2 h-3 w-3 animate-bounce" />Decrypting...
                         {/if}

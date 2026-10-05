@@ -21,7 +21,7 @@
   import { formatFileSize } from '#functions/bytes';
   import { formatDate } from '#functions/dates';
   import { autoDownload } from '$lib/functions/browser-download';
-  import { createZipStream, createEncryptedStream, createDecryptedStream } from '#functions/streams';
+  import { createArchiveStream, createEncryptedStream, createDecryptedStream } from '#functions/streams';
   import { base64urlToBytes, base64url } from '#functions/encryption';
   import { uploadFile } from '#functions/upload';
   import { resolve } from '$app/paths';
@@ -266,9 +266,9 @@
         isEncrypting = true;
         encryptionProgress.set(0, { duration: 0 });
 
-        const zipStream = await createZipStream([entry.file]);
+        const archiveStream = await createArchiveStream([entry.file]);
         const { stream: encryptedStream } = await createEncryptedStream(
-          zipStream,
+          archiveStream,
           undefined,
           entry.file.size,
           (processed, total) => {
@@ -286,7 +286,7 @@
         await new Promise((r) => setTimeout(r, 600));
         isEncrypting = false;
 
-        const filename = `${entry.file.name}.zip`;
+        const filename = `${entry.file.name}.7z`;
 
         // Upload through the normal encrypted-file pipeline so the backend
         // stores the bytes. The relay then only carries signaling: once the
