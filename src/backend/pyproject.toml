@@ -7,9 +7,9 @@ dependencies = [
     # Base Framework
     "django[argon2]>=6.0",
     # Database -- drivers for all supported engines (SQLite needs no driver)
+    # mysqlclient is Django's recommended MySQL/MariaDB driver (PEP 249 native).
     "psycopg[binary]>=3",
-    "pymysql>=1.1",
-    "mysqlclient>=2.2",
+    "mysqlclient>=2.2.1",
     # GraphQL
     "strawberry-graphql>=0.322.0",
     "strawberry-graphql-django>=0.86.0",

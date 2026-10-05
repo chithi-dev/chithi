@@ -55,16 +55,15 @@ export DATABASE_URL="postgres://user:pass@host:5432/chithi?sslmode=require"
 
 ## MySQL / MariaDB
 
-A MySQL driver must be installed before deploying. Add one of the following to
-your environment:
+The `mysqlclient` driver (Django's recommended choice) is already included in
+`pyproject.toml` -- no extra install needed.
 
-```bash
-# Option A: PyMySQL (pure Python, no system dependencies)
-pip install pymysql
+!!! Note
 
-# Option B: mysqlclient (C extension, faster, requires MySQL client libs)
-pip install mysqlclient
-```
+    `mysqlclient` is a C extension and requires the MySQL client library at
+    build time. In Docker, use an image based on `python:slim` with
+    `libmariadb-dev` or `default-libmysqlclient-dev` installed, or use a
+    pre-built image that bundles the client libs.
 
 Then point `DATABASE_URL` at your server:
 
