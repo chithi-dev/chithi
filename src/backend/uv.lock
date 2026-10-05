@@ -346,11 +346,11 @@ dependencies = [
     { name = "django", extra = ["argon2"] },
     { name = "django-cors-headers" },
     { name = "django-ninja" },
-    { name = "graphql-core" },
     { name = "psycopg", extra = ["binary"] },
     { name = "pyjwt" },
     { name = "python-dotenv" },
     { name = "python-multipart" },
+    { name = "strawberry-graphql" },
     { name = "strawberry-graphql-django" },
 ]
 
@@ -369,11 +369,11 @@ requires-dist = [
     { name = "django", extras = ["argon2"], specifier = ">=6.0" },
     { name = "django-cors-headers", specifier = ">=4.7.0" },
     { name = "django-ninja", specifier = ">=1.7.1" },
-    { name = "graphql-core", specifier = ">=3.2.0,<3.3" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3" },
     { name = "pyjwt", specifier = ">=2.10.0" },
     { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "python-multipart", specifier = ">=0.0.18" },
+    { name = "strawberry-graphql", specifier = ">=0.322.0" },
     { name = "strawberry-graphql-django", specifier = ">=0.86.0" },
 ]
 

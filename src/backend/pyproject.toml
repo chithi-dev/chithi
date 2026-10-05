@@ -4,23 +4,29 @@ version = "0.1.0"
 description = "Chithi Django + Strawberry-Django GraphQL backend"
 requires-python = ">=3.13"
 dependencies = [
+    # Base Framework
     "django[argon2]>=6.0",
+    # Database
     "psycopg[binary]>=3",
+    # GraphQL
+    "strawberry-graphql>=0.322.0",
     "strawberry-graphql-django>=0.86.0",
-    "PyJWT>=2.10.0",
-    "django-cors-headers>=4.7.0",
-    "python-dotenv>=1.2.2",
-    "boto3>=1.37",
-    "python-multipart>=0.0.18",
-    "aioboto3>=15.5.0",
-    "graphql-core>=3.2.0,<3.3",
-    "dj-database-url>=3.1.2",
+    # Rest api
     "django-ninja>=1.7.1",
+    # JWT
+    "PyJWT>=2.10.0",
+    # Cors
+    "django-cors-headers>=4.7.0",
+    # Env loading
+    "python-dotenv>=1.2.2",
+    # S3 handling
+    "boto3>=1.37",
+    "aioboto3>=15.5.0",
+    # File uploading 
+    "python-multipart>=0.0.18",
+    # Database env handling
+    "dj-database-url>=3.1.2",
 ]
 
 [dependency-groups]
-dev = [
-    "django-debug-toolbar>=6.0.0",
-    "django-extensions>=4.1",
-    "ruff>=0.12.12",
-]
+dev = ["django-debug-toolbar>=6.0.0", "django-extensions>=4.1", "ruff>=0.12.12"]
