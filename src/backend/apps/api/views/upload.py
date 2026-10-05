@@ -14,6 +14,7 @@ sync, so every database access below is wrapped in ``sync_to_async`` to keep
 the event loop unblocked and avoid ``SynchronousOnlyOperation``.
 """
 
+import datetime
 from uuid import uuid4
 
 from asgiref.sync import sync_to_async
@@ -39,16 +40,18 @@ from apps.files.models import File
 router = Router()
 
 
-def _create_file(body: RegisterRequest) -> File:
-    return File.objects.create(
+def _create_file(body: RegisterRequest) -> tuple[File, datetime.datetime]:
+    expires_at = timezone.now() + timezone.timedelta(seconds=body.expires_at)
+    file_obj = File.objects.create(
         key=str(uuid4()),
         filename=body.filename,
         size=body.total_size,
         chunk_count=body.chunk_count,
-        expires_at=timezone.now() + timezone.timedelta(seconds=body.expires_at),
+        expires_at=expires_at,
         expire_after_n_download=body.expire_after_n_download,
         number_of_files=body.number_of_files,
     )
+    return file_obj, expires_at
 
 
 def _file_by_key(file_key: str) -> File | None:
@@ -60,7 +63,8 @@ async def register_file(request: HttpRequest, body: RegisterRequest) -> Register
     await ensure_uploads_enabled()
     await validate_registration(body.total_size, body.chunk_count, body.expires_at)
 
-    file_obj = await sync_to_async(_create_file)(body)
+    file_obj, expires_at = await sync_to_async(_create_file)(body)
+    services.schedule_expiry(file_obj.key, expires_at)
 
     return RegisterResponse(
         id=str(file_obj.id),

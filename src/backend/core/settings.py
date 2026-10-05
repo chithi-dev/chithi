@@ -160,21 +160,13 @@ else:
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "users.User"
 
-# Django Tasks framework — uses ImmediateBackend by default (runs tasks
-# synchronously in the same thread). In production, configure a proper
-# backend via the TASKS setting or use a management command for periodic jobs.
-TASKS = {
-    "default": {
-        "BACKEND": "django.tasks.backends.immediate.ImmediateBackend"
-        if DEBUG
-        else os.environ.get(
-            "DJANGO_TASKS_BACKEND",
-            "django.tasks.backends.database.DatabaseBackend",
-        ),
-    },
-}
+# Celery — periodic eviction is scheduled by beat (see core/celery.py).
+# CELERY_BROKER_URL drives both the broker and the Redis cache location.
+# Defaults to a local Redis so `celery worker` / `celery beat` run out of the box.
+CELERY_BROKER_URL = os.environ.get("CELERY_BROKER_URL", "redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = os.environ.get("CELERY_RESULT_BACKEND", "redis://localhost:6379/1")
 
-# Cache — use locmem for local dev, Redis in production
+# Cache — use locmem for local dev, Redis when a broker URL is configured.
 if os.environ.get("CELERY_BROKER_URL"):
     CACHES = {
         "default": {

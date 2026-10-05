@@ -110,15 +110,21 @@ class FileMutation:
                 f"{config.default_expiry}s."
             )
 
+        expires_at_dt = timezone.now() + timezone.timedelta(seconds=expires_at)
+
         file_obj = await sync_to_async(File.objects.create)(
             key=str(uuid4()),
             filename=filename,
             size=total_size,
             chunk_count=chunk_count,
-            expires_at=timezone.now() + timezone.timedelta(seconds=expires_at),
+            expires_at=expires_at_dt,
             expire_after_n_download=expire_after_n_download,
             number_of_files=number_of_files,
         )
+
+        # Schedule a one-shot deletion at the expiry instant (shared helper so
+        # the ninja transport schedules identically).
+        services.schedule_expiry(file_obj.key, expires_at_dt)
         return file_obj
 
     @strawberry.mutation

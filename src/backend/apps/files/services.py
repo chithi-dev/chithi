@@ -15,6 +15,7 @@ The storage backend is selected at startup in ``settings.py`` via the
 backend-agnostic.
 """
 
+import datetime
 import logging
 from typing import TYPE_CHECKING
 
@@ -83,6 +84,27 @@ async def presigned_chunk_url(
 async def delete_file_chunks(file_key: str) -> None:
     """Delete every chunk of a file from storage."""
     await sync_to_async(_delete_by_prefix)(f"{file_key}/")
+
+
+def schedule_expiry(file_key: str, expires_at: datetime.datetime) -> None:
+    """Enqueue a one-shot deletion of *file_key* at its expiry instant.
+
+    Shared by both transports (GraphQL ``register_file`` and the ninja
+    ``/upload/register/``) so they schedule identically. The countdown is
+    derived from the same Django-timezone-aware ``expires_at`` that is
+    persisted, so the schedule and the stored value can never drift. A
+    non-positive countdown (already expired) is skipped -- the file will be
+    refused at first access instead.
+    """
+    from django.utils import timezone
+
+    from apps.files.tasks import delete_file_after_expiry
+
+    # Both endpoints are timezone-aware, so the difference is a plain
+    # timedelta; total_seconds() is the stdlib way to get a numeric countdown.
+    countdown = (expires_at - timezone.now()).total_seconds()
+    if countdown > 0:
+        delete_file_after_expiry.apply_async(args=[file_key], countdown=countdown)
 
 
 def _delete_by_prefix(prefix: str) -> None:
