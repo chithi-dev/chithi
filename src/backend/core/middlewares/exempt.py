@@ -2,6 +2,7 @@
 
 The :class:`ExemptMiddleware` base class skips its own logic for views marked
 with the :func:`~core.decorators.exempt_middleware.middleware_exempt` decorator.
+``MyMiddleware`` is the project's concrete middleware built on that base.
 """
 
 from collections.abc import Awaitable, Callable
@@ -36,3 +37,15 @@ class ExemptMiddleware:
 
     def _handle(self, request: HttpRequest) -> None:
         """Per-request logic. Override in a subclass; runs only for non-exempt views."""
+
+
+class MyMiddleware(ExemptMiddleware):
+    """Project middleware with the exempt skip wired in.
+
+    Override ``_handle`` (or extend it) to add per-request work. It runs only
+    for views that were **not** decorated with ``middleware_exempt``.
+    """
+
+    def _handle(self, request) -> None:
+        # Custom per-request logic goes here. Exempt views never reach it.
+        pass
