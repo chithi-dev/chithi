@@ -1,7 +1,7 @@
 """Exempt-aware middleware.
 
 The :class:`ExemptMiddleware` base class skips its own logic for views marked
-with the :func:`~core.middlewares.exempt_middleware.middleware_exempt` decorator.
+with the :func:`~core.decorators.exempt_middleware.middleware_exempt` decorator.
 """
 
 from collections.abc import Awaitable, Callable

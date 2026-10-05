@@ -7,7 +7,7 @@ preserved.
 
 Usage::
 
-    from core.middlewares.exempt_middleware import middleware_exempt
+    from core.decorators.exempt_middleware import middleware_exempt
 
     @middleware_exempt
     def my_view(request):
