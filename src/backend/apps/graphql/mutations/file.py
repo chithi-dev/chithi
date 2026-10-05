@@ -62,6 +62,15 @@ class FileMutation:
         if not data:
             raise ValueError("Uploaded chunk is empty.")
 
+        # A single chunk must never exceed the agreed chunk size — the client
+        # is expected to split at CHUNK_SIZE_BYTES, so an oversized chunk means
+        # a buggy or hostile client. Reject before writing anything to storage.
+        if len(data) > services.CHUNK_SIZE_BYTES:
+            raise ValueError(
+                f"Chunk {chunk_index} is {len(data)} bytes, exceeding the "
+                f"maximum chunk size of {services.CHUNK_SIZE_BYTES}."
+            )
+
         await services.upload_chunk(file_key, chunk_index, data)
         return True
 
