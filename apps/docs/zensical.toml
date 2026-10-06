@@ -85,6 +85,7 @@ nav = [
     ] },
     { "Upgrade Guides" = [
         { "v0.1.0" = 'upgrade-guides/v0.1.0.md' },
+        { "v0.2.0" = 'upgrade-guides/v0.2.0.md' },
     ] },
     { "Transparency" = [
         { "AI" = "transparency/ai.md" },
