@@ -121,9 +121,8 @@
 		}
 	];
 
-	// eslint-disable-next-line svelte/state_referenced_locally
 	const table = createSvelteTable<UserRow>({
-		data: processedUsers,
+		data: () => processedUsers,
 		columns,
 		getCoreRowModel: getCoreRowModel()
 	});

@@ -27,7 +27,7 @@
   const key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
   const slug = $derived(page.params.slug);
   const fileParam = $derived(page.url.searchParams.get('file'));
-  const fileInfoState = createQueryStore<FileInfoQuery>(FileInfoDocument, { slug: slug ?? '' });
+  const fileInfoState = createQueryStore<FileInfoQuery>(FileInfoDocument, () => ({ slug: slug ?? '' }));
   const fileInfo = $derived({
     isPending: fileInfoState.fetching,
     isError: !!fileInfoState.error,

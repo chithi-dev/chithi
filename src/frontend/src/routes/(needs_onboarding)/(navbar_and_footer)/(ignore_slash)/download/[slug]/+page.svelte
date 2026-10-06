@@ -22,7 +22,7 @@
   const key = $derived(page.url.hash ? page.url.hash.slice(1).trim() : null);
   const slug = $derived(page.params.slug);
   let phase = $state<'ready' | 'downloading' | 'needs_password' | 'completed' | 'error'>('ready');
-  const fileInfoState = createQueryStore<FileInfoQuery>(FileInfoDocument, { slug: slug ?? '' });
+  const fileInfoState = createQueryStore<FileInfoQuery>(FileInfoDocument, () => ({ slug: slug ?? '' }));
   const fileInfo = $derived({
     isPending: fileInfoState.fetching,
     isError: !!fileInfoState.error,

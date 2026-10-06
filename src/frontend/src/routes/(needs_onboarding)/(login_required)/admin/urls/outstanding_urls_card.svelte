@@ -142,9 +142,8 @@
 		}
 	];
 
-	// eslint-disable-next-line svelte/state_referenced_locally
 	const table = createSvelteTable<FileRow>({
-		data: processedFiles,
+		data: () => processedFiles,
 		columns,
 		getCoreRowModel: getCoreRowModel()
 	});

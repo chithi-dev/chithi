@@ -15,7 +15,7 @@
 	let currentPage = $state(1);
 	const pageSize = 20;
 
-	const filesState = createQueryStore<AdminFilesQuery>(AdminFilesDocument, { page: currentPage, size: pageSize });
+	const filesState = createQueryStore<AdminFilesQuery>(AdminFilesDocument, () => ({ page: currentPage, size: pageSize }));
 	const files = $derived({
 		data: filesState.data?.adminFiles ? {
 			items: filesState.data.adminFiles.items.map(item => ({
