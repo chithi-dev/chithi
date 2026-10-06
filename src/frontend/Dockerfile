@@ -1,12 +1,17 @@
 FROM node:26-alpine AS builder
 WORKDIR /app
 
+# Stage 1: install dev deps (needed for the build toolchain) and build.
 COPY package*.json .
 COPY .npmrc .
-RUN npm i
+RUN npm ci
 COPY . .
 RUN npm run build
-RUN npm prune --production
+
+# Stage 2: install only production deps for the runtime image.
+# A clean --omit=dev install is safer than `npm prune --production`, which can
+# drop packages the runtime actually imports (e.g. @apollo/client's peer rxjs).
+RUN npm ci --omit=dev
 
 FROM node:26-alpine
 WORKDIR /app
