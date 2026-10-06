@@ -23,6 +23,7 @@
 		"apollo-upload-client": "^19.0.0",
 		"embla-carousel-svelte": "^8.6.0",
 		"hash-wasm": "^4.12.0",
+		"rxjs": "^7.8.2",
 		"takumi-js": "^1.0.15"
 	},
 	"devDependencies": {
