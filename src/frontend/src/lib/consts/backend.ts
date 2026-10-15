@@ -77,8 +77,4 @@ export class Api {
 		};
 	}
 
-	/** App-state WebSocket URL (upload progress, space usage). */
-	static get STATE_WS() {
-		return `${root}/ws/state`.replace(/^http/, 'ws');
-	}
 }

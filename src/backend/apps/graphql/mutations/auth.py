@@ -25,23 +25,33 @@ class AuthMutation:
         password: str,
         site_description: str,
     ) -> OnboardingPOSTOut:
-        User = get_user_model()
-        user = await sync_to_async(User.objects.create_superuser)(
-            username=username,
-            email=email,
-            password=password,
-        )
-        await sync_to_async(Config.objects.update_or_create)(
-            pk=1,
-            defaults={
-                "site_description": site_description,
-                "total_storage_limit": 10737418240,
-                "max_file_size_limit": 1073741824,
-                "default_expiry": 86400,
-                "default_number_of_downloads": 10,
-                "allow_uploads": True,
-            },
-        )
+        from django.db import transaction
+
+        # Both writes must be atomic: a partial onboarding (Config row present
+        # but no admin user) leaves the instance locked out. Wrap in a single
+        # transaction so either both succeed or neither does.
+        def _run():
+            User = get_user_model()
+            user = User.objects.create_superuser(
+                username=username,
+                email=email,
+                password=password,
+            )
+            Config.objects.update_or_create(
+                pk=1,
+                defaults={
+                    "site_description": site_description,
+                    "total_storage_limit": 10737418240,
+                    "max_file_size_limit": 1073741824,
+                    "default_expiry": 86400,
+                    "default_number_of_downloads": 10,
+                    "allow_uploads": True,
+                },
+            )
+            return user
+
+        user = await sync_to_async(_run, thread_sensitive=True)()
+
         access, refresh = get_jwt_tokens(user)
         return OnboardingPOSTOut(
             access=access,
