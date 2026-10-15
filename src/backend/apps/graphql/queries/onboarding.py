@@ -1,8 +1,6 @@
 import strawberry
-from asgiref.sync import sync_to_async
 from django.contrib.auth import get_user_model
 
-from apps.config.models import Config
 from apps.graphql.types import OnboardingType
 
 
@@ -10,15 +8,17 @@ from apps.graphql.types import OnboardingType
 class OnboardingQuery:
     @strawberry.field
     async def onboarding(self) -> OnboardingType:
+        # ``Config`` is a self-recreating singleton: any ``Config.aload()`` /
+        # ``get_or_create`` call (config query, upload registration, etc.) will
+        # create the row if absent. So "does the Config row exist" is NOT a
+        # reliable "onboarded" signal — it flips true the moment any endpoint
+        # touches Config, even with no admin account yet.
+        #
+        # The reliable marker is "an admin user exists": onboarding's whole job
+        # is to create the first superuser, and nothing else creates one.
         User = get_user_model()
-        # aget (not aget_or_create) so an absent row still raises DoesNotExist,
-        # which is what tells us the site is unconfigured.
-        try:
-            await Config.objects.aget(pk=1)
-            is_configured = True
-        except Config.DoesNotExist:
-            is_configured = False
+        has_users = await User.objects.aexists()
         return OnboardingType(
-            is_configured=is_configured,
-            has_users=await User.objects.aexists(),
+            is_configured=has_users,
+            has_users=has_users,
         )
