@@ -41,19 +41,19 @@
         <Field.Field>
           <Field.Label class="ml-1 text-sm font-medium text-foreground">Username</Field.Label>
           <Field.Content>
-            <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-muted-foreground transition-colors group-focus-within:text-primary"><User class="size-4" /></div><Input bind:value={username} placeholder="Admin" class="h-12 border-border bg-background/50 pl-11 transition-all focus-visible:ring-primary/40" required /></div>
+            <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-muted-foreground transition-colors group-focus-within:text-primary"><User class="size-4" /></div><Input name="username" bind:value={username} placeholder="Admin" class="h-12 border-border bg-background/50 pl-11 transition-all focus-visible:ring-primary/40" required /></div>
           </Field.Content>
         </Field.Field>
         <Field.Field>
           <Field.Label class="ml-1 text-sm font-medium text-foreground">Email</Field.Label>
           <Field.Content>
-            <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-muted-foreground transition-colors group-focus-within:text-primary"><Mail class="size-4" /></div><Input type="email" bind:value={email} placeholder="name@example.com" class="h-12 border-border bg-background/50 pl-11 transition-all focus-visible:ring-primary/40" required /></div>
+            <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-muted-foreground transition-colors group-focus-within:text-primary"><Mail class="size-4" /></div><Input type="email" name="email" bind:value={email} placeholder="name@example.com" class="h-12 border-border bg-background/50 pl-11 transition-all focus-visible:ring-primary/40" required /></div>
           </Field.Content>
         </Field.Field>
         <Field.Field>
           <Field.Label class="ml-1 text-sm font-medium text-foreground">Password</Field.Label>
           <Field.Content>
-            <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-muted-foreground transition-colors group-focus-within:text-primary"><Lock class="size-4" /></div><Input type="password" bind:value={password} class="h-12 border-border bg-background/50 pl-11 transition-all focus-visible:ring-primary/40" required /></div>
+            <div class="group relative"><div class="absolute inset-y-0 left-3.5 flex items-center text-muted-foreground transition-colors group-focus-within:text-primary"><Lock class="size-4" /></div><Input type="password" name="password" bind:value={password} class="h-12 border-border bg-background/50 pl-11 transition-all focus-visible:ring-primary/40" required /></div>
           </Field.Content>
         </Field.Field>
       </div>
